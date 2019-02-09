@@ -51,8 +51,8 @@ func (r ErrorReporter) Unhandled(msg string, args ...interface{}) {
 
 var error ErrorReporter
 
-// TypeDecl is a name:type declaration (for a struct)
-type TypeDecl struct {
+// FieldDecl is a name:type declaration (for a struct)
+type FieldDecl struct {
 	Name string
 	Type string
 }
@@ -60,7 +60,7 @@ type TypeDecl struct {
 // StructType is a Coq record for a Go struct
 type StructType struct {
 	Name   string
-	Fields []TypeDecl
+	Fields []FieldDecl
 }
 
 func isIdent(e ast.Expr, s string) bool {
@@ -107,26 +107,66 @@ func typeToString(e ast.Expr) string {
 	return "<type>"
 }
 
+func fieldDecl(f *ast.Field) FieldDecl {
+	if len(f.Names) > 1 {
+		error.FutureWork("multiple fields for same type (split them up)")
+	}
+	return FieldDecl{
+		Name: f.Names[0].Name,
+		Type: typeToString(f.Type),
+	}
+}
+
 func structDecl(name string, structTy *ast.StructType) StructType {
 	ty := StructType{Name: name}
 	for _, f := range structTy.Fields.List {
-		if len(f.Names) > 1 {
-			error.FutureWork("multiple fields for same type (split them up)")
-		}
-		fieldDecl := TypeDecl{
-			Name: f.Names[0].Name,
-			Type: typeToString(f.Type),
-		}
-		ty.Fields = append(ty.Fields, fieldDecl)
+		ty.Fields = append(ty.Fields, fieldDecl(f))
 	}
 	return ty
+}
+
+// FuncDecl declares a function, including its parameters and body.
+type FuncDecl struct {
+	Name       string
+	Args       []FieldDecl
+	ReturnType string
+	// TODO: include a body
+}
+
+func returnType(results *ast.FieldList) string {
+	if results == nil {
+		return "unit"
+	}
+	rs := results.List
+	if len(rs) > 1 {
+		error.Unhandled("multiple return values")
+	}
+	if len(rs[0].Names) > 0 {
+		error.Unhandled("named returned values")
+	}
+	return typeToString(rs[0].Type)
+
+}
+
+func funcDecl(d *ast.FuncDecl) FuncDecl {
+	fd := FuncDecl{Name: d.Name.Name}
+	if d.Recv != nil {
+		error.FutureWork("methods need to be lifted by moving the receiver to the arg list")
+	}
+	for _, p := range d.Type.Params.List {
+		fd.Args = append(fd.Args, fieldDecl(p))
+	}
+	fd.ReturnType = returnType(d.Type.Results)
+	return fd
 }
 
 func traceDecls(ds []ast.Decl) {
 	for _, d := range ds {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
-			spew.Printf("func %s\n%#v", d.Name.Name, d)
+			fd := funcDecl(d)
+			spew.Printf("func %s\n%#v\n", d.Name.Name, d)
+			fmt.Printf("%+v\n", fd)
 		case *ast.GenDecl:
 			switch d.Tok {
 			case token.IMPORT, token.CONST, token.VAR:
