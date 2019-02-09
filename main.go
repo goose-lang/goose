@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"strings"
 
@@ -187,9 +189,6 @@ func methodExpr(f ast.Expr) string {
 			// TODO: lower-case name
 			return "FS." + f.Sel.Name
 		}
-		// TODO: we need to resolve struct access
-		//
-		// This is best done by type-checking the loaded code and looking up the field name by identifier.
 		error.Unhandled("cannot call methods selected from %s", spew.Sdump(f.X))
 		return "<selector>"
 	default:
@@ -219,6 +218,8 @@ func expr(e ast.Expr) Expr {
 		return mapType(e)
 	case *ast.Ident:
 		return IdentExpr(e.Name)
+	case *ast.SelectorExpr:
+		error.Todo("look up type for %s", spew.Sdump(e.Sel))
 	default:
 		// TODO: this probably has useful things (like map access)
 		error.NoExample("expr %s", spew.Sdump(e))
@@ -331,12 +332,10 @@ func traceDecls(ds []ast.Decl) {
 	}
 }
 
-func tracePackage(p *ast.Package) {
-	var decls []ast.Decl
-	for _, f := range p.Files {
-		decls = append(decls, f.Decls...)
+func traceFiles(fs []*ast.File) {
+	for _, f := range fs {
+		traceDecls(f.Decls)
 	}
-	traceDecls(decls)
 }
 
 func main() {
@@ -350,12 +349,20 @@ func main() {
 	fset := token.NewFileSet()
 	filter := func(os.FileInfo) bool { return true }
 	packages, err := parser.ParseDir(fset, *srcDir, filter, parser.Mode(0))
+
+	var files []*ast.File
+	for _, f := range packages[packageName].Files {
+		files = append(files, f)
+	}
+
+	conf := types.Config{Importer: importer.Default()}
+	info := &types.Info{
+		Defs: make(map[*ast.Ident]types.Object),
+		Uses: make(map[*ast.Ident]types.Object),
+	}
+	_, err = conf.Check("simpledb", fset, files, info)
 	if err != nil {
 		panic(err)
 	}
-	p := packages[packageName]
-	if p == nil {
-		panic(fmt.Errorf("%s: unknown package", packageName))
-	}
-	tracePackage(p)
+	traceFiles(files)
 }
