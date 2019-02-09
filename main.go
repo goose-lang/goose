@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -63,20 +64,31 @@ type StructType struct {
 	Fields []FieldDecl
 }
 
-func isIdent(e ast.Expr, s string) bool {
+func getIdent(e ast.Expr) (ident string, ok bool) {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return e.Name == s
+		return e.Name, true
 	default:
-		return false
+		return "", false
 	}
 }
 
-func mapType(e *ast.MapType) string {
+func isIdent(e ast.Expr, ident string) bool {
+	i, ok := getIdent(e)
+	return ok && i == ident
+}
+
+type MapType string
+
+func (t MapType) Coq() string {
+	return fmt.Sprintf("HashTable %s ", string(t))
+}
+
+func mapType(e *ast.MapType) MapType {
 	switch k := e.Key.(type) {
 	case *ast.Ident:
 		if k.Name == "uint64" {
-			return fmt.Sprintf("HashTable(%s)", typeToString(e.Value))
+			return MapType(typeToCoq(e.Value))
 		}
 	default:
 	}
@@ -93,12 +105,12 @@ func selectorExprType(e *ast.SelectorExpr) string {
 	return "<selector expr>"
 }
 
-func typeToString(e ast.Expr) string {
+func typeToCoq(e ast.Expr) string {
 	switch e := e.(type) {
 	case *ast.Ident:
 		return e.Name
 	case *ast.MapType:
-		return mapType(e)
+		return mapType(e).Coq()
 	case *ast.SelectorExpr:
 		return selectorExprType(e)
 	default:
@@ -113,7 +125,7 @@ func fieldDecl(f *ast.Field) FieldDecl {
 	}
 	return FieldDecl{
 		Name: f.Names[0].Name,
-		Type: typeToString(f.Type),
+		Type: typeToCoq(f.Type),
 	}
 }
 
@@ -125,12 +137,137 @@ func structDecl(name string, structTy *ast.StructType) StructType {
 	return ty
 }
 
+type Expr interface {
+	Coq() string
+}
+
+type IdentExpr string
+
+func (e IdentExpr) Coq() string {
+	return string(e)
+}
+
+// CallExpr includes primitives and references to other functions.
+type CallExpr struct {
+	MethodName string
+	Args       []Expr
+}
+
+func (s CallExpr) Coq() string {
+	comps := []string{s.MethodName}
+	for _, a := range s.Args {
+		comps = append(comps, a.Coq())
+	}
+	return strings.Join(comps, " ")
+}
+
+type ReturnStmt struct {
+	Value string
+}
+
+// Stmt is an Expr or ReturnStmt
+type Stmt interface {
+}
+
+type Binding struct {
+	Name string
+	Stmt
+}
+
+func anon(s Stmt) Binding {
+	return Binding{Name: "", Stmt: s}
+}
+
+func methodExpr(f ast.Expr) string {
+	switch f := f.(type) {
+	case *ast.Ident:
+		return f.Name
+	case *ast.SelectorExpr:
+		if isIdent(f.X, "fs") {
+			// TODO: lower-case name
+			return "FS." + f.Sel.Name
+		}
+		// TODO: we need to resolve struct access
+		//
+		// This is best done by type-checking the loaded code and looking up the field name by identifier.
+		error.Unhandled("cannot call methods selected from %s", spew.Sdump(f.X))
+		return "<selector>"
+	default:
+		error.Unhandled("call on expression %s", spew.Sdump(f))
+	}
+	return "<fun expr>"
+}
+
+func callStmt(s *ast.CallExpr) CallExpr {
+	call := CallExpr{}
+	call.MethodName = methodExpr(s.Fun)
+	for _, arg := range s.Args {
+		call.Args = append(call.Args, expr(arg))
+	}
+	return call
+}
+
+func exprStmt(s *ast.ExprStmt) Stmt {
+	return expr(s.X)
+}
+
+func expr(e ast.Expr) Expr {
+	switch e := e.(type) {
+	case *ast.CallExpr:
+		return callStmt(e)
+	case *ast.MapType:
+		return mapType(e)
+	case *ast.Ident:
+		return IdentExpr(e.Name)
+	default:
+		// TODO: this probably has useful things (like map access)
+		error.NoExample("expr %s", spew.Sdump(e))
+	}
+	return nil
+}
+
+func stmt(s ast.Stmt) Binding {
+	switch s := s.(type) {
+	case *ast.ReturnStmt:
+	case *ast.ExprStmt:
+		return anon(exprStmt(s))
+	case *ast.AssignStmt:
+		if len(s.Lhs) > 1 {
+			error.Unhandled("multiple assignment")
+		}
+		if len(s.Rhs) != 1 {
+			error.Docs("assignment lengths should be equal")
+		}
+		if s.Tok != token.DEFINE {
+			// NOTE: Do we need these? Should they become bindings anyway, or perhaps we should support let bindings?
+			error.FutureWork("re-assignments are not supported (only definitions")
+		}
+		if ident, ok := getIdent(s.Lhs[0]); ok {
+			s := Binding{Name: ident, Stmt: expr(s.Rhs[0])}
+			return s
+		} else {
+			error.Docs("defining a non-identifier")
+		}
+	default:
+		error.NoExample("unexpected statement %s", spew.Sdump(s))
+	}
+	return Binding{}
+}
+
+func blockStmt(s *ast.BlockStmt) []Binding {
+	var bindings []Binding
+	for _, s := range s.List {
+		bindings = append(bindings, stmt(s))
+	}
+	return bindings
+}
+
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
 	Args       []FieldDecl
 	ReturnType string
-	// TODO: include a body
+	Body       []Binding
 }
 
 func returnType(results *ast.FieldList) string {
@@ -144,7 +281,7 @@ func returnType(results *ast.FieldList) string {
 	if len(rs[0].Names) > 0 {
 		error.Unhandled("named returned values")
 	}
-	return typeToString(rs[0].Type)
+	return typeToCoq(rs[0].Type)
 
 }
 
@@ -157,6 +294,7 @@ func funcDecl(d *ast.FuncDecl) FuncDecl {
 		fd.Args = append(fd.Args, fieldDecl(p))
 	}
 	fd.ReturnType = returnType(d.Type.Results)
+	fd.Body = blockStmt(d.Body)
 	return fd
 }
 
@@ -165,8 +303,8 @@ func traceDecls(ds []ast.Decl) {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
 			fd := funcDecl(d)
-			spew.Printf("func %s\n%#v\n", d.Name.Name, d)
-			fmt.Printf("%+v\n", fd)
+			spew.Printf("func %s\n%#v\n", d.Name.Name, d.Body)
+			fmt.Printf("%+v", fd)
 		case *ast.GenDecl:
 			switch d.Tok {
 			case token.IMPORT, token.CONST, token.VAR:
@@ -178,8 +316,8 @@ func traceDecls(ds []ast.Decl) {
 				spec := d.Specs[0].(*ast.TypeSpec)
 				if structTy, ok := spec.Type.(*ast.StructType); ok {
 					ty := structDecl(spec.Name.Name, structTy)
-					spew.Printf("type %s\n%#v\n", spec.Name.Name, structTy)
-					fmt.Printf("%+v\n", ty)
+					fmt.Printf("type %s\n", ty.Name)
+					fmt.Printf("%+v", ty)
 				} else {
 					error.Unhandled("non-struct type %s", spec.Name.Name)
 				}
@@ -196,9 +334,7 @@ func traceDecls(ds []ast.Decl) {
 func tracePackage(p *ast.Package) {
 	var decls []ast.Decl
 	for _, f := range p.Files {
-		for _, decl := range f.Decls {
-			decls = append(decls, decl)
-		}
+		decls = append(decls, f.Decls...)
 	}
 	traceDecls(decls)
 }
