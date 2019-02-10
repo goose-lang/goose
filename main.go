@@ -54,9 +54,10 @@ func main() {
 		panic(err)
 	}
 	ctx := coq.NewCtx(info, fset, config)
+    decls := ctx.FileDecls(files)
 	fmt.Println("From RecoveryRefinement Require Import Database.CodeSetup.")
 	fmt.Println()
-	for _, d := range ctx.FileDecls(files) {
+	for _, d := range decls {
 		fmt.Println(d.CoqDecl())
 		fmt.Println()
 	}
