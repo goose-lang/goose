@@ -196,7 +196,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 		elt := ctx.typeToCoq(typeArg.Elt)
 		return CallExpr{
 			MethodName: "Data.newArray",
-			// TODO: same abuse; types should be valid Exprs
+			// TODO: same abuse; types should be valid Expr's
 			Args: []Expr{IdentExpr(elt)},
 		}
 	default:
@@ -417,7 +417,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 			ty := ctx.structDecl(spec)
 			return ty
 		default:
-			ctx.Nope(d, "unknown gendecl token type for %s", spew.Sdump(d))
+			ctx.Nope(d, "unknown GenDecl token type for %s", spew.Sdump(d))
 		}
 	default:
 		ctx.NoExample(d, "top-level decl %s", spew.Sdump(d))
@@ -447,7 +447,7 @@ func main() {
 
 	fset := token.NewFileSet()
 	filter := func(os.FileInfo) bool { return true }
-	packages, err := parser.ParseDir(fset, *srcDir, filter, parser.Mode(0))
+	packages, err := parser.ParseDir(fset, *srcDir, filter, parser.ParseComments)
 
 	var files []*ast.File
 	for _, f := range packages[packageName].Files {
@@ -461,7 +461,7 @@ func main() {
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
-	_, err = conf.Check("simpledb", fset, files, info)
+	_, err = conf.Check(packageName, fset, files, info)
 	if err != nil {
 		panic(err)
 	}
