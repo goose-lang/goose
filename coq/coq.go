@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+	"unicode"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -33,7 +34,7 @@ type FieldDecl struct {
 }
 
 func (d FieldDecl) CoqBinder() string {
-	return fmt.Sprintf("(%s:%s)", d.Name, d.Type)
+	return fmt.Sprintf("(%s:%s)", d.Name, d.Type.Coq())
 }
 
 // StructDecl is a Coq record for a Go struct
@@ -50,7 +51,7 @@ func (d StructDecl) CoqDecl() string {
 		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
 	}
 	lines = append(lines, "  }.")
-	lines = append(lines, "End.")
+	lines = append(lines, fmt.Sprintf("End %s.", d.Name()))
 	return strings.Join(lines, "\n")
 }
 
@@ -78,6 +79,12 @@ type TypeIdent string
 
 func (t TypeIdent) Coq() string {
 	return string(t)
+}
+
+type StructName string
+
+func (t StructName) Coq() string {
+	return string(t) + ".t"
 }
 
 type MapType struct {
@@ -108,10 +115,26 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) TypeIdent {
 	return TypeIdent("<selector expr>")
 }
 
+func (ctx Ctx) coqTypeOfType(t types.Type) Type {
+	switch t := t.(type) {
+	case *types.Named:
+		if _, ok := t.Underlying().(*types.Struct); ok {
+			return StructName(t.Obj().Name())
+		}
+		return TypeIdent(t.Obj().Name())
+	case *types.Struct:
+		return StructName(t.String())
+	case *types.Basic:
+		return TypeIdent(t.Name())
+	default:
+		return TypeIdent("<type>")
+	}
+}
+
 func (ctx Ctx) coqType(e ast.Expr) Type {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return TypeIdent(e.Name)
+		return ctx.coqTypeOfType(ctx.info.TypeOf(e))
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.SelectorExpr:
@@ -216,14 +239,25 @@ func anon(s Expr) Binding {
 	return Binding{Name: "", Expr: s}
 }
 
+func toInitialLower(s string) string {
+	pastFirstLetter := false
+	return strings.Map(func(r rune) rune {
+		if !pastFirstLetter {
+			newR := unicode.ToLower(r)
+			pastFirstLetter = true
+			return newR
+		}
+		return r
+	}, s)
+}
+
 func (ctx Ctx) methodExpr(f ast.Expr) string {
 	switch f := f.(type) {
 	case *ast.Ident:
 		return f.Name
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "fs") {
-			// TODO: lower-case name
-			return "FS." + f.Sel.Name
+			return "FS." + toInitialLower(f.Sel.Name)
 		}
 		ctx.Unsupported(f.X, "cannot call methods selected from %s", spew.Sdump(f.X))
 		return "<selector>"
@@ -240,7 +274,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 		mapTy := ctx.mapType(typeArg)
 		return CallExpr{
 			MethodName: "Data.newHashTable",
-			Args:       []Expr{mapTy},
+			Args:       []Expr{mapTy.Value},
 		}
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
