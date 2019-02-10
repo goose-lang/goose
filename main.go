@@ -18,16 +18,32 @@ import (
 
 // TODO: copy comments attached to Go functions to Coq (low priority)
 
-// FieldDecl is a name:type declaration (for a struct)
+// FieldDecl is a name:type declaration (for a struct or function binders)
 type FieldDecl struct {
 	Name string
 	Type string
+}
+
+func (d FieldDecl) CoqBinder() string {
+	return fmt.Sprintf("(%s:%s)", d.Name, d.Type)
 }
 
 // StructDecl is a Coq record for a Go struct
 type StructDecl struct {
 	name   string
 	Fields []FieldDecl
+}
+
+func (d StructDecl) CoqDecl() string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("Module %s.", d.Name()))
+	lines = append(lines, "  Record t := mk {")
+	for _, fd := range d.Fields {
+		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type))
+	}
+	lines = append(lines, "  }.")
+	lines = append(lines, "End.")
+	return strings.Join(lines, "\n")
 }
 
 func (d StructDecl) Name() string {
@@ -49,7 +65,7 @@ func isIdent(e ast.Expr, ident string) bool {
 type MapType string
 
 func (t MapType) Coq() string {
-	return fmt.Sprintf("HashTable %s ", string(t))
+	return fmt.Sprintf("HashTable %s", addParens(string(t)))
 }
 
 func (ctx Ctx) mapType(e *ast.MapType) MapType {
@@ -131,10 +147,27 @@ type CallExpr struct {
 	Args       []Expr
 }
 
+type ProjExpr struct {
+	Projection string
+	Arg        Expr
+}
+
+func addParens(s string) string {
+	// conservative avoidance of parentheses
+	if !strings.Contains(s, " ") {
+		return s
+	}
+	return fmt.Sprintf("(%s)", s)
+}
+
+func (e ProjExpr) Coq() string {
+	return fmt.Sprintf("%s.(%s)", addParens(e.Arg.Coq()), e.Projection)
+}
+
 func (s CallExpr) Coq() string {
 	comps := []string{s.MethodName}
 	for _, a := range s.Args {
-		comps = append(comps, a.Coq())
+		comps = append(comps, addParens(a.Coq()))
 	}
 	return strings.Join(comps, " ")
 }
@@ -149,7 +182,7 @@ func (e ReturnExpr) Coq() string {
 
 type Binding struct {
 	Name string
-	Expr
+	Expr Expr
 }
 
 func (b Binding) IsAnonymous() bool {
@@ -249,6 +282,12 @@ func structTypeFields(ty *types.Struct) []string {
 	return fields
 }
 
+func (ctx Ctx) structSelector(e *ast.SelectorExpr) ProjExpr {
+	structType := ctx.Info.Selections[e].Recv().(*types.Named)
+	proj := fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name)
+	return ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
+}
+
 func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -258,8 +297,7 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 	case *ast.Ident:
 		return IdentExpr(e.Name)
 	case *ast.SelectorExpr:
-		structType := ctx.Info.Selections[e].Recv().(*types.Named)
-		return IdentExpr(fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name))
+		return ctx.structSelector(e)
 	case *ast.CompositeLit:
 		structType, ok := ctx.Info.TypeOf(e).Underlying().(*types.Struct)
 		if !ok {
@@ -367,9 +405,36 @@ func (d FuncDecl) Name() string {
 	return d.name
 }
 
+func (d FuncDecl) Signature() string {
+	var args []string
+	for _, a := range d.Args {
+		args = append(args, a.CoqBinder())
+	}
+	return fmt.Sprintf("%s %s : proc %s",
+		d.Name(), strings.Join(args, " "), d.ReturnType)
+}
+
+func (d FuncDecl) CoqDecl() string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
+	for n, b := range d.Body.Bindings {
+		if n == len(d.Body.Bindings)-1 {
+			lines = append(lines, fmt.Sprintf("  %s.", b.Expr.Coq()))
+			continue
+		}
+		name := b.Name
+		if b.IsAnonymous() {
+			name = "_"
+		}
+		lines = append(lines, fmt.Sprintf("  %s <- %s;", name, b.Expr.Coq()))
+	}
+	return strings.Join(lines, "\n")
+}
+
 // Decl is either a FuncDecl or StructDecl
 type Decl interface {
 	Name() string
+	CoqDecl() string
 }
 
 func (ctx Ctx) returnType(results *ast.FieldList) string {
@@ -467,16 +532,7 @@ func main() {
 	}
 	ctx := Ctx{Info: info, ErrorReporter: NewErrorReporter(fset)}
 	for _, d := range ctx.fileDecls(files) {
-		switch d := d.(type) {
-		case FuncDecl:
-			fmt.Printf("func %s\n", d.Name())
-			// TODO: print d.Coq()
-			fmt.Printf("%+v\n", d)
-		case StructDecl:
-			fmt.Printf("type %s\n", d.Name())
-			// TODO: print d.Coq()
-			fmt.Printf("%+v\n", d)
-		}
-		fmt.Println("")
+		fmt.Println(d.CoqDecl())
+		fmt.Println()
 	}
 }
