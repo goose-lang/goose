@@ -28,16 +28,18 @@ func (r ErrorReporter) FutureWork(msg string, args ...interface{}) {
 	r.prefixed("future", msg, args...)
 }
 
+// TODO: add a FileSet to ErrorReporter and then report nice filename/line number information
+
 // Todo reports a situation that is intended to be handled but we haven't gotten
 // around to.
 func (r ErrorReporter) Todo(msg string, args ...interface{}) {
 	r.prefixed("todo", msg, args...)
 }
 
-// Unhandled reports something intentionally unhandled (the code should not use
+// Unsupported reports something intentionally unhandled (the code should not use
 // this feature).
-func (r ErrorReporter) Unhandled(msg string, args ...interface{}) {
-	r.prefixed("unhandled", msg, args...)
+func (r ErrorReporter) Unsupported(msg string, args ...interface{}) {
+	r.prefixed("unsupported", msg, args...)
 }
 
 var error ErrorReporter

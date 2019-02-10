@@ -54,7 +54,7 @@ func mapType(e *ast.MapType) MapType {
 		}
 	default:
 	}
-	error.Unhandled("maps must be from uint64")
+	error.Unsupported("maps must be from uint64")
 	return "<bad hashtable>"
 }
 
@@ -63,7 +63,7 @@ func selectorExprType(e *ast.SelectorExpr) string {
 		e.Sel != nil && e.Sel.Name == "File" {
 		return "Fd"
 	}
-	error.Unhandled("selector for unknown type %s", spew.Sdump(e))
+	error.Unsupported("selector for unknown type %s", spew.Sdump(e))
 	return "<selector expr>"
 }
 
@@ -117,7 +117,7 @@ func (sinfo *Structs) AddStruct(spec *ast.TypeSpec) StructType {
 		// TODO: what do we do with spec.Name to later find this struct?
 		return ty
 	} else {
-		error.Unhandled("non-struct type %s", spec.Name.Name)
+		error.Unsupported("non-struct type %s", spec.Name.Name)
 	}
 	return StructType{}
 }
@@ -175,10 +175,10 @@ func methodExpr(f ast.Expr) string {
 			// TODO: lower-case name
 			return "FS." + f.Sel.Name
 		}
-		error.Unhandled("cannot call methods selected from %s", spew.Sdump(f.X))
+		error.Unsupported("cannot call methods selected from %s", spew.Sdump(f.X))
 		return "<selector>"
 	default:
-		error.Unhandled("call on expression %s", spew.Sdump(f))
+		error.Unsupported("call on expression %s", spew.Sdump(f))
 	}
 	return "<fun expr>"
 }
@@ -238,7 +238,7 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 	case *ast.CompositeLit:
 		structType, ok := sinfo.Info.TypeOf(e.Type).Underlying().(*types.Struct)
 		if !ok {
-            error.Unhandled("non-struct literal %s", spew.Sdump(e))
+            error.Unsupported("non-struct literal %s", spew.Sdump(e))
 		}
 		lit := StructLiteral{StructName: typeToCoq(e.Type)}
 		foundFields := make(map[string]bool)
@@ -262,7 +262,7 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 		}
 		for _, f := range structTypeFields(structType) {
 			if !foundFields[f] {
-				error.Unhandled("incomplete struct literal %s", spew.Sdump(e))
+				error.Unsupported("incomplete struct literal %s", spew.Sdump(e))
 			}
 		}
 		return lit
@@ -277,14 +277,14 @@ func (sinfo Structs) stmt(s ast.Stmt) Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		if len(s.Results) > 1 {
-			error.Unhandled("multiple return")
+			error.Unsupported("multiple return")
 		}
 		return anon(ReturnStmt{sinfo.expr(s.Results[0])})
 	case *ast.ExprStmt:
 		return anon(sinfo.exprStmt(s))
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
-			error.Unhandled("multiple assignment")
+			error.Unsupported("multiple assignment")
 		}
 		if len(s.Rhs) != 1 {
 			error.Docs("assignment lengths should be equal")
@@ -329,10 +329,10 @@ func returnType(results *ast.FieldList) string {
 	}
 	rs := results.List
 	if len(rs) > 1 {
-		error.Unhandled("multiple return values")
+		error.Unsupported("multiple return values")
 	}
 	if len(rs[0].Names) > 0 {
-		error.Unhandled("named returned values")
+		error.Unsupported("named returned values")
 	}
 	return typeToCoq(rs[0].Type)
 
