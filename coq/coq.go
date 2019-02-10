@@ -153,6 +153,8 @@ func (ctx Ctx) coqType(e ast.Expr) Type {
 		return ctx.mapType(e)
 	case *ast.SelectorExpr:
 		return ctx.selectorExprType(e)
+	case *ast.ArrayType:
+		ctx.Todo(e, "handle array types")
 	default:
 		ctx.NoExample(e, "unexpected type expr %s", spew.Sdump(e))
 	}
