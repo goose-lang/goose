@@ -14,6 +14,10 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+// TODO: add (optional) comments to Coq output pointing to source
+
+// TODO: copy comments attached to Go functions to Coq (low priority)
+
 // FieldDecl is a name:type declaration (for a struct)
 type FieldDecl struct {
 	Name string
@@ -185,6 +189,7 @@ func methodExpr(f ast.Expr) string {
 
 func (sinfo Structs) callStmt(s *ast.CallExpr) CallExpr {
 	call := CallExpr{}
+	// TODO: treat calls to "make" specially
 	call.MethodName = methodExpr(s.Fun)
 	for _, arg := range s.Args {
 		call.Args = append(call.Args, sinfo.expr(arg))
@@ -351,6 +356,7 @@ func (sinfo Structs) funcDecl(d *ast.FuncDecl) FuncDecl {
 	return fd
 }
 
+// TODO: make this return declarations rather than tracing
 func traceDecls(info *types.Info, ds []ast.Decl) {
 	sinfo := NewStructs(info)
 	for _, d := range ds {
