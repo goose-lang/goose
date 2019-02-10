@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -13,11 +14,15 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
+	var config coq.Config
+	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
+		"add comments indicating Go source code location for each top-level declaration")
+	flag.Parse()
+	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "Usage: goose <path to source dir>")
 		os.Exit(1)
 	}
-	srcDir := os.Args[1]
+	srcDir := flag.Arg(0)
 
 	fset := token.NewFileSet()
 	filter := func(os.FileInfo) bool { return true }
@@ -48,7 +53,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ctx := coq.NewCtx(info, fset)
+	ctx := coq.NewCtx(info, fset, config)
 	fmt.Println("From RecoveryRefinement Require Import Database.CodeSetup.")
 	fmt.Println()
 	for _, d := range ctx.FileDecls(files) {
