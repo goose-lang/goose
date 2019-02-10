@@ -55,16 +55,16 @@ func (ctx Ctx) mapType(e *ast.MapType) MapType {
 			return MapType(ctx.typeToCoq(e.Value))
 		}
 	default:
-		ctx.Unsupported(k,"maps must be from uint64 (not %s)", spew.Sdump(k))
+		ctx.Unsupported(k, "maps must be from uint64 (not %s)", spew.Sdump(k))
 	}
 	return "<bad hashtable>"
 }
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) string {
-	if isIdent(e.X, "filesys") && isIdent(e.Sel,"File") {
+	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return "Fd"
 	}
-	ctx.Unsupported(e,"selector for unknown type %s", spew.Sdump(e))
+	ctx.Unsupported(e, "selector for unknown type %s", spew.Sdump(e))
 	return "<selector expr>"
 }
 
@@ -77,14 +77,14 @@ func (ctx Ctx) typeToCoq(e ast.Expr) string {
 	case *ast.SelectorExpr:
 		return ctx.selectorExprType(e)
 	default:
-		ctx.NoExample(e,"unexpected type expr %s", spew.Sdump(e))
+		ctx.NoExample(e, "unexpected type expr %s", spew.Sdump(e))
 	}
 	return "<type>"
 }
 
 func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
 	if len(f.Names) > 1 {
-		ctx.FutureWork(f,"multiple fields for same type (split them up)")
+		ctx.FutureWork(f, "multiple fields for same type (split them up)")
 	}
 	return FieldDecl{
 		Name: f.Names[0].Name,
@@ -105,7 +105,7 @@ func (ctx Ctx) structDecl(spec *ast.TypeSpec) StructType {
 		ty := ctx.structType(spec.Name.Name, structTy)
 		return ty
 	} else {
-		ctx.Unsupported(spec,"non-struct type %s", spew.Sdump(spec))
+		ctx.Unsupported(spec, "non-struct type %s", spew.Sdump(spec))
 	}
 	return StructType{}
 }
@@ -172,14 +172,43 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 		ctx.Unsupported(f.X, "cannot call methods selected from %s", spew.Sdump(f.X))
 		return "<selector>"
 	default:
-		ctx.Unsupported(f,"call on expression %s", spew.Sdump(f))
+		ctx.Unsupported(f, "call on expression %s", spew.Sdump(f))
 	}
 	return "<fun expr>"
 }
 
+func (ctx Ctx) makeStmt(args []ast.Expr) CallExpr {
+	switch typeArg := args[0].(type) {
+	case *ast.MapType:
+		mapTy := ctx.mapType(typeArg)
+		return CallExpr{
+			MethodName: "NewHashTable",
+			// TODO: this is an abuse of IdentExpr to inject an arbitrary string (a Coq type, in this case)
+			Args: []Expr{IdentExpr(mapTy)},
+		}
+	case *ast.ArrayType:
+		if typeArg.Len != nil {
+			ctx.Nope(typeArg, "can't make() arrays (only slices)")
+		}
+		ctx.Todo(typeArg, "array types are not really implemented")
+		// TODO: need to check that slice is being initialized to an empty one
+		elt := ctx.typeToCoq(typeArg.Elt)
+		return CallExpr{
+			MethodName: "NewArray",
+			// TODO: same abuse; types should be valid Exprs
+			Args: []Expr{IdentExpr(elt)},
+		}
+	default:
+		ctx.Nope(typeArg, "make() of %s, not a map or array", typeArg)
+	}
+	return CallExpr{}
+}
+
 func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
 	call := CallExpr{}
-	// TODO: treat calls to "make" specially
+	if isIdent(s.Fun, "make") {
+		return ctx.makeStmt(s.Args)
+	}
 	call.MethodName = ctx.methodExpr(s.Fun)
 	for _, arg := range s.Args {
 		call.Args = append(call.Args, ctx.expr(arg))
@@ -233,7 +262,7 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 	case *ast.CompositeLit:
 		structType, ok := ctx.Info.TypeOf(e).Underlying().(*types.Struct)
 		if !ok {
-			ctx.Unsupported(e,"non-struct literal %s", spew.Sdump(e))
+			ctx.Unsupported(e, "non-struct literal %s", spew.Sdump(e))
 		}
 		lit := StructLiteral{StructName: ctx.typeToCoq(e.Type)}
 		foundFields := make(map[string]bool)
@@ -242,7 +271,7 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 			case *ast.KeyValueExpr:
 				ident, ok := getIdent(el.Key)
 				if !ok {
-					ctx.NoExample(el.Key,"struct field keyed by non-identifier %+v", el.Key)
+					ctx.NoExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
 					return nil
 				}
 				lit.Elts = append(lit.Elts, FieldVal{
@@ -252,18 +281,18 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 				foundFields[ident] = true
 			default:
 				// shouldn't be possible given type checking above
-				ctx.Docs(el,"literal component in struct %s", spew.Sdump(e))
+				ctx.Nope(el, "literal component in struct %s", spew.Sdump(e))
 			}
 		}
 		for _, f := range structTypeFields(structType) {
 			if !foundFields[f] {
-				ctx.Unsupported(e,"incomplete struct literal %s", spew.Sdump(e))
+				ctx.Unsupported(e, "incomplete struct literal %s", spew.Sdump(e))
 			}
 		}
 		return lit
 	default:
 		// TODO: this probably has useful things (like map access)
-		ctx.NoExample(e,"expr %s", spew.Sdump(e))
+		ctx.NoExample(e, "expr %s", spew.Sdump(e))
 	}
 	return nil
 }
@@ -272,31 +301,31 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		if len(s.Results) > 1 {
-			ctx.Unsupported(s,"multiple return")
+			ctx.Unsupported(s, "multiple return")
 		}
 		return anon(ReturnStmt{ctx.expr(s.Results[0])})
 	case *ast.ExprStmt:
 		return anon(ctx.exprStmt(s))
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
-			ctx.Unsupported(s,"multiple assignment")
+			ctx.Unsupported(s, "multiple assignment")
 		}
 		if len(s.Rhs) != 1 {
-			ctx.Docs(s,"assignment lengths should be equal")
+			ctx.Nope(s, "assignment lengths should be equal")
 		}
 		lhs, rhs := s.Lhs[0], s.Rhs[0]
 		if s.Tok != token.DEFINE {
 			// NOTE: Do we need these? Should they become bindings anyway, or perhaps we should support let bindings?
-			ctx.FutureWork(s,"re-assignments are not supported (only definitions")
+			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
 		}
 		if ident, ok := getIdent(lhs); ok {
 			s := Binding{Name: ident, Stmt: ctx.expr(rhs)}
 			return s
 		} else {
-			ctx.Docs(lhs,"defining a non-identifier")
+			ctx.Nope(lhs, "defining a non-identifier")
 		}
 	default:
-		ctx.NoExample(s,"unexpected statement %s", spew.Sdump(s))
+		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
 	}
 	return Binding{}
 }
@@ -325,10 +354,10 @@ func (ctx Ctx) returnType(results *ast.FieldList) string {
 	}
 	rs := results.List
 	if len(rs) > 1 {
-		ctx.Unsupported(results,"multiple return values")
+		ctx.Unsupported(results, "multiple return values")
 	}
 	if len(rs[0].Names) > 0 {
-		ctx.Unsupported(results,"named returned values")
+		ctx.Unsupported(results, "named returned values")
 	}
 	return ctx.typeToCoq(rs[0].Type)
 
@@ -337,7 +366,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) string {
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
 	fd := FuncDecl{Name: d.Name.Name}
 	if d.Recv != nil {
-		ctx.FutureWork(d.Recv,"methods need to be lifted by moving the receiver to the arg list")
+		ctx.FutureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
 	}
 	for _, p := range d.Type.Params.List {
 		fd.Args = append(fd.Args, ctx.fieldDecl(p))
@@ -368,10 +397,10 @@ func (ctx Ctx) traceDecls(ds []ast.Decl) {
 				fmt.Printf("type %s\n", ty.Name)
 				fmt.Printf("%+v", ty)
 			default:
-				ctx.Docs(d,"unknown gendecl token type for %+v", d)
+				ctx.Nope(d, "unknown gendecl token type for %+v", d)
 			}
 		default:
-			ctx.NoExample(d,"top-level decl %s", spew.Sdump(d))
+			ctx.NoExample(d, "top-level decl %s", spew.Sdump(d))
 		}
 		fmt.Printf("\n\n")
 	}

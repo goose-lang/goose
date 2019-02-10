@@ -9,8 +9,8 @@ import (
 
 // ErrorReporter groups methods for reporting errors, documenting what kind of
 // issue was encountered in a uniform way.
-type ErrorReporter struct{
-    fs *token.FileSet
+type ErrorReporter struct {
+	fs *token.FileSet
 }
 
 func NewErrorReporter(fs *token.FileSet) ErrorReporter {
@@ -20,14 +20,14 @@ func NewErrorReporter(fs *token.FileSet) ErrorReporter {
 func (r ErrorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
 	where := r.fs.Position(n.Pos())
 	formatted := fmt.Sprintf(msg, args...)
-    fmt.Fprintf(os.Stderr, "%v [%s]: %s\n", where, prefix, formatted)
+	fmt.Fprintf(os.Stderr, "%v [%s]: %s\n", where, prefix, formatted)
 	// for now make all errors fail-stop
 	os.Exit(1)
 }
 
-// Docs reports a situation that I thought was impossible from reading the documentation.
-func (r ErrorReporter) Docs(n ast.Node, msg string, args ...interface{}) {
-	r.prefixed("impossible(docs)", n, msg, args...)
+// Nope reports a situation that I thought was impossible from reading the documentation.
+func (r ErrorReporter) Nope(n ast.Node, msg string, args ...interface{}) {
+	r.prefixed("impossible(go)", n, msg, args...)
 }
 
 // NoExample reports a situation I thought was impossible because I couldn't
