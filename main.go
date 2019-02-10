@@ -21,7 +21,7 @@ import (
 // FieldDecl is a name:type declaration (for a struct or function binders)
 type FieldDecl struct {
 	Name string
-	Type string
+	Type Type
 }
 
 func (d FieldDecl) CoqBinder() string {
@@ -39,7 +39,7 @@ func (d StructDecl) CoqDecl() string {
 	lines = append(lines, fmt.Sprintf("Module %s.", d.Name()))
 	lines = append(lines, "  Record t := mk {")
 	for _, fd := range d.Fields {
-		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type))
+		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
 	}
 	lines = append(lines, "  }.")
 	lines = append(lines, "End.")
@@ -62,44 +62,56 @@ func isIdent(e ast.Expr, ident string) bool {
 	return ok && i == ident
 }
 
-type MapType string
+type Type interface {
+	Coq() string
+}
+
+type TypeIdent string
+
+func (t TypeIdent) Coq() string {
+	return string(t)
+}
+
+type MapType struct {
+	Value Type
+}
 
 func (t MapType) Coq() string {
-	return fmt.Sprintf("HashTable %s", addParens(string(t)))
+	return fmt.Sprintf("HashTable %s", addParens(t.Value.Coq()))
 }
 
 func (ctx Ctx) mapType(e *ast.MapType) MapType {
 	switch k := e.Key.(type) {
 	case *ast.Ident:
 		if k.Name == "uint64" {
-			return MapType(ctx.typeToCoq(e.Value))
+			return MapType{ctx.coqType(e.Value)}
 		}
 	default:
 		ctx.Unsupported(k, "maps must be from uint64 (not %s)", spew.Sdump(k))
 	}
-	return "<bad hashtable>"
+	return MapType{}
 }
 
-func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) string {
+func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return "Fd"
+		return TypeIdent("Fd")
 	}
 	ctx.Unsupported(e, "selector for unknown type %s", spew.Sdump(e))
-	return "<selector expr>"
+	return TypeIdent("<selector expr>")
 }
 
-func (ctx Ctx) typeToCoq(e ast.Expr) string {
+func (ctx Ctx) coqType(e ast.Expr) Type {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return e.Name
+		return TypeIdent(e.Name)
 	case *ast.MapType:
-		return ctx.mapType(e).Coq()
+		return ctx.mapType(e)
 	case *ast.SelectorExpr:
 		return ctx.selectorExprType(e)
 	default:
 		ctx.NoExample(e, "unexpected type expr %s", spew.Sdump(e))
 	}
-	return "<type>"
+	return TypeIdent("<type>")
 }
 
 func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
@@ -108,7 +120,7 @@ func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
 	}
 	return FieldDecl{
 		Name: f.Names[0].Name,
-		Type: ctx.typeToCoq(f.Type),
+		Type: ctx.coqType(f.Type),
 	}
 }
 
@@ -217,8 +229,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 		mapTy := ctx.mapType(typeArg)
 		return CallExpr{
 			MethodName: "Data.newHashTable",
-			// TODO: this is an abuse of IdentExpr to inject an arbitrary string (a Coq type, in this case)
-			Args: []Expr{IdentExpr(mapTy)},
+			Args:       []Expr{mapTy},
 		}
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
@@ -226,11 +237,10 @@ func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 		}
 		ctx.Todo(typeArg, "array types are not really implemented")
 		// TODO: need to check that slice is being initialized to an empty one
-		elt := ctx.typeToCoq(typeArg.Elt)
+		elt := ctx.coqType(typeArg.Elt)
 		return CallExpr{
 			MethodName: "Data.newArray",
-			// TODO: same abuse; types should be valid Expr's
-			Args: []Expr{IdentExpr(elt)},
+			Args:       []Expr{elt},
 		}
 	default:
 		ctx.Nope(typeArg, "make() of %s, not a map or array", typeArg)
@@ -303,7 +313,11 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 		if !ok {
 			ctx.Unsupported(e, "non-struct literal %s", spew.Sdump(e))
 		}
-		lit := StructLiteral{StructName: ctx.typeToCoq(e.Type)}
+		structName, ok := getIdent(e.Type)
+		if !ok {
+			ctx.Nope(e.Type, "non-struct literal after type check")
+		}
+		lit := StructLiteral{StructName: structName}
 		foundFields := make(map[string]bool)
 		for _, el := range e.Elts {
 			switch el := el.(type) {
@@ -397,7 +411,7 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt) Block {
 type FuncDecl struct {
 	name       string
 	Args       []FieldDecl
-	ReturnType string
+	ReturnType Type
 	Body       Block
 }
 
@@ -411,7 +425,7 @@ func (d FuncDecl) Signature() string {
 		args = append(args, a.CoqBinder())
 	}
 	return fmt.Sprintf("%s %s : proc %s",
-		d.Name(), strings.Join(args, " "), d.ReturnType)
+		d.Name(), strings.Join(args, " "), d.ReturnType.Coq())
 }
 
 func (d FuncDecl) CoqDecl() string {
@@ -437,18 +451,20 @@ type Decl interface {
 	CoqDecl() string
 }
 
-func (ctx Ctx) returnType(results *ast.FieldList) string {
+func (ctx Ctx) returnType(results *ast.FieldList) Type {
 	if results == nil {
-		return "unit"
+		return TypeIdent("unit")
 	}
 	rs := results.List
 	if len(rs) > 1 {
 		ctx.Unsupported(results, "multiple return values")
+		return TypeIdent("<invalid>")
 	}
 	if len(rs[0].Names) > 0 {
 		ctx.Unsupported(results, "named returned values")
+		return TypeIdent("<invalid>")
 	}
-	return ctx.typeToCoq(rs[0].Type)
+	return ctx.coqType(rs[0].Type)
 
 }
 
