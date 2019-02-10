@@ -188,8 +188,17 @@ type ReturnExpr struct {
 	Value Expr
 }
 
+func indent(spaces int, s string) string {
+	repl := make([]byte, 1+spaces)
+	repl[0] = '\n'
+	for i := 1; i < len(repl); i++ {
+		repl[i] = ' '
+	}
+	return strings.Replace(s, "\n", string(repl), -1)
+}
+
 func (e ReturnExpr) Coq() string {
-	return "Ret " + e.Value.Coq()
+	return "Ret " + indent(4, e.Value.Coq())
 }
 
 type Binding struct {
@@ -276,10 +285,14 @@ type StructLiteral struct {
 
 func (s StructLiteral) Coq() string {
 	var pieces []string
-	for _, f := range s.Elts {
+	for i, f := range s.Elts {
 		field := fmt.Sprintf("%s.%s := %s;",
 			s.StructName, f.Field, f.Value.Coq())
-		pieces = append(pieces, field)
+		if i == 0 {
+			pieces = append(pieces, field)
+		} else {
+			pieces = append(pieces, "   "+field)
+		}
 	}
 	return fmt.Sprintf("{| %s |}", strings.Join(pieces, "\n"))
 }
@@ -433,14 +446,14 @@ func (d FuncDecl) CoqDecl() string {
 	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
 	for n, b := range d.Body.Bindings {
 		if n == len(d.Body.Bindings)-1 {
-			lines = append(lines, fmt.Sprintf("  %s.", b.Expr.Coq()))
+			lines = append(lines, fmt.Sprintf("  %s.", indent(2, b.Expr.Coq())))
 			continue
 		}
 		name := b.Name
 		if b.IsAnonymous() {
 			name = "_"
 		}
-		lines = append(lines, fmt.Sprintf("  %s <- %s;", name, b.Expr.Coq()))
+		lines = append(lines, fmt.Sprintf("  %s <- %s;", name, indent(2, b.Expr.Coq())))
 	}
 	return strings.Join(lines, "\n")
 }
