@@ -216,6 +216,14 @@ func (s StructLiteral) Coq() string {
 	return fmt.Sprintf("{| %s |}", strings.Join(pieces, "\n"))
 }
 
+func structTypeFields(ty *types.Struct) []string {
+	var fields []string
+    for i := 0; i < ty.NumFields(); i++ {
+        fields = append(fields, ty.Field(i).Name())
+	}
+    return fields
+}
+
 func (sinfo Structs) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -228,10 +236,12 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 		structType := sinfo.Info.Selections[e].Recv().(*types.Named)
 		return IdentExpr(fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name))
 	case *ast.CompositeLit:
-		if e.Incomplete {
-			error.Unhandled("incomplete struct literals are unsupported")
+		structType, ok := sinfo.Info.TypeOf(e.Type).Underlying().(*types.Struct)
+		if !ok {
+            error.Unhandled("non-struct literal %s", spew.Sdump(e))
 		}
 		lit := StructLiteral{StructName: typeToCoq(e.Type)}
+		foundFields := make(map[string]bool)
 		for _, el := range e.Elts {
 			switch el := el.(type) {
 			case *ast.KeyValueExpr:
@@ -244,8 +254,15 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 					Field: ident,
 					Value: sinfo.expr(el.Value),
 				})
+				foundFields[ident] = true
 			default:
-				error.Unhandled("non-struct literal %s", spew.Sdump(e))
+				// shouldn't be possible given type checking above
+				error.Docs("literal component in struct %s", spew.Sdump(e))
+			}
+		}
+		for _, f := range structTypeFields(structType) {
+			if !foundFields[f] {
+				error.Unhandled("incomplete struct literal %s", spew.Sdump(e))
 			}
 		}
 		return lit
@@ -399,6 +416,8 @@ func main() {
 	conf := types.Config{Importer: importer.Default()}
 	info := &types.Info{
 		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
 	_, err = conf.Check("simpledb", fset, files, info)
