@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -14,20 +13,28 @@ import (
 )
 
 func main() {
-	srcDir := flag.String("src", ".", "source directory")
-	flag.Parse()
-	if flag.NArg() < 1 {
-		panic("Usage: goose <package name>")
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "Usage: goose <path to source dir>")
+		os.Exit(1)
 	}
-	packageName := flag.Arg(0)
+	srcDir := os.Args[1]
 
 	fset := token.NewFileSet()
 	filter := func(os.FileInfo) bool { return true }
-	packages, err := parser.ParseDir(fset, *srcDir, filter, parser.ParseComments)
+	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 
+	if len(packages) > 1 {
+		fmt.Fprintln(os.Stderr, "can't handle files for multiple packages")
+		os.Exit(1)
+	}
+
+	var pkgName string
 	var files []*ast.File
-	for _, f := range packages[packageName].Files {
-		files = append(files, f)
+	for pName, p := range packages {
+		for _, f := range p.Files {
+			files = append(files, f)
+		}
+		pkgName = pName
 	}
 
 	conf := types.Config{Importer: importer.Default()}
@@ -37,11 +44,13 @@ func main() {
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
-	_, err = conf.Check(packageName, fset, files, info)
+	_, err = conf.Check(pkgName, fset, files, info)
 	if err != nil {
 		panic(err)
 	}
 	ctx := coq.NewCtx(info, fset)
+	fmt.Println("From RecoveryRefinement Require Import Database.Base.")
+	fmt.Println()
 	for _, d := range ctx.FileDecls(files) {
 		fmt.Println(d.CoqDecl())
 		fmt.Println()
