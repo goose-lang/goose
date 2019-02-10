@@ -26,8 +26,12 @@ type FieldDecl struct {
 
 // StructDecl is a Coq record for a Go struct
 type StructDecl struct {
-	Name   string
+	name   string
 	Fields []FieldDecl
+}
+
+func (d StructDecl) Name() string {
+	return d.name
 }
 
 func getIdent(e ast.Expr) (ident string, ok bool) {
@@ -94,7 +98,7 @@ func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
 
 func (ctx Ctx) structDecl(spec *ast.TypeSpec) StructDecl {
 	if structTy, ok := spec.Type.(*ast.StructType); ok {
-		ty := StructDecl{Name: spec.Name.Name}
+		ty := StructDecl{name: spec.Name.Name}
 		for _, f := range structTy.Fields.List {
 			ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
 		}
@@ -135,24 +139,25 @@ func (s CallExpr) Coq() string {
 	return strings.Join(comps, " ")
 }
 
-// TODO: this arrangement of statements and expressions is bizarre and wrong;
-// write a proper hierarchy and enforce it with marker methods.
-
-type ReturnStmt struct {
+type ReturnExpr struct {
 	Value Expr
 }
 
-// Stmt is an Expr or ReturnStmt
-type Stmt interface {
+func (e ReturnExpr) Coq() string {
+	return "Ret " + e.Value.Coq()
 }
 
 type Binding struct {
 	Name string
-	Stmt
+	Expr
 }
 
-func anon(s Stmt) Binding {
-	return Binding{Name: "", Stmt: s}
+func (b Binding) IsAnonymous() bool {
+	return b.Name == ""
+}
+
+func anon(s Expr) Binding {
+	return Binding{Name: "", Expr: s}
 }
 
 func (ctx Ctx) methodExpr(f ast.Expr) string {
@@ -172,12 +177,13 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 	return "<fun expr>"
 }
 
-func (ctx Ctx) makeStmt(args []ast.Expr) CallExpr {
+// makeExpr parses a call to make() into the appropriate data-structure Call
+func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
 		return CallExpr{
-			MethodName: "NewHashTable",
+			MethodName: "Data.newHashTable",
 			// TODO: this is an abuse of IdentExpr to inject an arbitrary string (a Coq type, in this case)
 			Args: []Expr{IdentExpr(mapTy)},
 		}
@@ -189,7 +195,7 @@ func (ctx Ctx) makeStmt(args []ast.Expr) CallExpr {
 		// TODO: need to check that slice is being initialized to an empty one
 		elt := ctx.typeToCoq(typeArg.Elt)
 		return CallExpr{
-			MethodName: "NewArray",
+			MethodName: "Data.newArray",
 			// TODO: same abuse; types should be valid Exprs
 			Args: []Expr{IdentExpr(elt)},
 		}
@@ -202,7 +208,7 @@ func (ctx Ctx) makeStmt(args []ast.Expr) CallExpr {
 func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
 	call := CallExpr{}
 	if isIdent(s.Fun, "make") {
-		return ctx.makeStmt(s.Args)
+		return ctx.makeExpr(s.Args)
 	}
 	call.MethodName = ctx.methodExpr(s.Fun)
 	for _, arg := range s.Args {
@@ -211,8 +217,8 @@ func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
 	return call
 }
 
-func (ctx Ctx) exprStmt(s *ast.ExprStmt) Stmt {
-	return ctx.expr(s.X)
+func (ctx Ctx) exprStmt(s *ast.ExprStmt) Binding {
+	return anon(ctx.expr(s.X))
 }
 
 type FieldVal struct {
@@ -298,9 +304,9 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 		if len(s.Results) > 1 {
 			ctx.Unsupported(s, "multiple return")
 		}
-		return anon(ReturnStmt{ctx.expr(s.Results[0])})
+		return anon(ReturnExpr{ctx.expr(s.Results[0])})
 	case *ast.ExprStmt:
-		return anon(ctx.exprStmt(s))
+		return ctx.exprStmt(s)
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
 			ctx.Unsupported(s, "multiple assignment")
@@ -314,7 +320,7 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
 		}
 		if ident, ok := getIdent(lhs); ok {
-			s := Binding{Name: ident, Stmt: ctx.expr(rhs)}
+			s := Binding{Name: ident, Expr: ctx.expr(rhs)}
 			return s
 		} else {
 			ctx.Nope(lhs, "defining a non-identifier")
@@ -325,27 +331,45 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 	return Binding{}
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt) BindingSeq {
+// Block represents a sequence of bindings, ending with some expression.
+//
+// eventually may need to wrap a block in a recursive structure for if-statements and loops
+type Block struct {
+	// invariant: last binding is always anonymous
+	Bindings []Binding
+}
+
+func NewBlock(bs []Binding) Block {
+	lastBinding := bs[len(bs)-1]
+	if !lastBinding.IsAnonymous() {
+		return Block{}
+	}
+	return Block{bs}
+}
+
+func (ctx Ctx) blockStmt(s *ast.BlockStmt) Block {
 	var bindings []Binding
 	for _, s := range s.List {
 		bindings = append(bindings, ctx.stmt(s))
 	}
-	return BindingSeq(bindings)
+	return NewBlock(bindings)
 }
-
-type BindingSeq []Binding
 
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
-	Name       string
+	name       string
 	Args       []FieldDecl
 	ReturnType string
-	Body       BindingSeq
+	Body       Block
+}
+
+func (d FuncDecl) Name() string {
+	return d.name
 }
 
 // Decl is either a FuncDecl or StructDecl
 type Decl interface {
-	Stmt
+	Name() string
 }
 
 func (ctx Ctx) returnType(results *ast.FieldList) string {
@@ -364,7 +388,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) string {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
-	fd := FuncDecl{Name: d.Name.Name}
+	fd := FuncDecl{name: d.Name.Name}
 	if d.Recv != nil {
 		ctx.FutureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
 	}
@@ -442,14 +466,14 @@ func main() {
 		panic(err)
 	}
 	ctx := Ctx{Info: info, ErrorReporter: NewErrorReporter(fset)}
-	for _, d :=  range ctx.fileDecls(files) {
+	for _, d := range ctx.fileDecls(files) {
 		switch d := d.(type) {
 		case FuncDecl:
-			fmt.Printf("func %s\n", d.Name)
+			fmt.Printf("func %s\n", d.Name())
 			// TODO: print d.Coq()
 			fmt.Printf("%+v\n", d)
 		case StructDecl:
-			fmt.Printf("type %s\n", d.Name)
+			fmt.Printf("type %s\n", d.Name())
 			// TODO: print d.Coq()
 			fmt.Printf("%+v\n", d)
 		}
