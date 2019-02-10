@@ -95,7 +95,7 @@ func fieldDecl(f *ast.Field) FieldDecl {
 	}
 }
 
-func structDecl(name string, structTy *ast.StructType) StructType {
+func structType(name string, structTy *ast.StructType) StructType {
 	ty := StructType{Name: name}
 	for _, f := range structTy.Fields.List {
 		ty.Fields = append(ty.Fields, fieldDecl(f))
@@ -103,27 +103,19 @@ func structDecl(name string, structTy *ast.StructType) StructType {
 	return ty
 }
 
-// Structs helps resolve struct info
-type Structs struct {
-	Declarations []StructType
-	Fields       map[*types.Var]*StructType
-	Info         *types.Info
-}
-
-func NewStructs(info *types.Info) Structs {
-	return Structs{Fields: make(map[*types.Var]*StructType), Info: info}
-}
-
-func (sinfo *Structs) AddStruct(spec *ast.TypeSpec) StructType {
+func structDecl(spec *ast.TypeSpec) StructType {
 	if structTy, ok := spec.Type.(*ast.StructType); ok {
-		ty := structDecl(spec.Name.Name, structTy)
-		sinfo.Declarations = append(sinfo.Declarations, ty)
-		// TODO: what do we do with spec.Name to later find this struct?
+		ty := structType(spec.Name.Name, structTy)
 		return ty
 	} else {
 		error.Unsupported("non-struct type %s", spec.Name.Name)
 	}
 	return StructType{}
+}
+
+// Ctx helps resolve struct info
+type Ctx struct {
+	Info *types.Info
 }
 
 type Expr interface {
@@ -187,18 +179,18 @@ func methodExpr(f ast.Expr) string {
 	return "<fun expr>"
 }
 
-func (sinfo Structs) callStmt(s *ast.CallExpr) CallExpr {
+func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
 	call := CallExpr{}
 	// TODO: treat calls to "make" specially
 	call.MethodName = methodExpr(s.Fun)
 	for _, arg := range s.Args {
-		call.Args = append(call.Args, sinfo.expr(arg))
+		call.Args = append(call.Args, ctx.expr(arg))
 	}
 	return call
 }
 
-func (sinfo Structs) exprStmt(s *ast.ExprStmt) Stmt {
-	return sinfo.expr(s.X)
+func (ctx Ctx) exprStmt(s *ast.ExprStmt) Stmt {
+	return ctx.expr(s.X)
 }
 
 type FieldVal struct {
@@ -223,27 +215,27 @@ func (s StructLiteral) Coq() string {
 
 func structTypeFields(ty *types.Struct) []string {
 	var fields []string
-    for i := 0; i < ty.NumFields(); i++ {
-        fields = append(fields, ty.Field(i).Name())
+	for i := 0; i < ty.NumFields(); i++ {
+		fields = append(fields, ty.Field(i).Name())
 	}
-    return fields
+	return fields
 }
 
-func (sinfo Structs) expr(e ast.Expr) Expr {
+func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
-		return sinfo.callStmt(e)
+		return ctx.callStmt(e)
 	case *ast.MapType:
 		return mapType(e)
 	case *ast.Ident:
 		return IdentExpr(e.Name)
 	case *ast.SelectorExpr:
-		structType := sinfo.Info.Selections[e].Recv().(*types.Named)
+		structType := ctx.Info.Selections[e].Recv().(*types.Named)
 		return IdentExpr(fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name))
 	case *ast.CompositeLit:
-		structType, ok := sinfo.Info.TypeOf(e.Type).Underlying().(*types.Struct)
+		structType, ok := ctx.Info.TypeOf(e.Type).Underlying().(*types.Struct)
 		if !ok {
-            error.Unsupported("non-struct literal %s", spew.Sdump(e))
+			error.Unsupported("non-struct literal %s", spew.Sdump(e))
 		}
 		lit := StructLiteral{StructName: typeToCoq(e.Type)}
 		foundFields := make(map[string]bool)
@@ -257,7 +249,7 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 				}
 				lit.Elts = append(lit.Elts, FieldVal{
 					Field: ident,
-					Value: sinfo.expr(el.Value),
+					Value: ctx.expr(el.Value),
 				})
 				foundFields[ident] = true
 			default:
@@ -278,15 +270,15 @@ func (sinfo Structs) expr(e ast.Expr) Expr {
 	return nil
 }
 
-func (sinfo Structs) stmt(s ast.Stmt) Binding {
+func (ctx Ctx) stmt(s ast.Stmt) Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		if len(s.Results) > 1 {
 			error.Unsupported("multiple return")
 		}
-		return anon(ReturnStmt{sinfo.expr(s.Results[0])})
+		return anon(ReturnStmt{ctx.expr(s.Results[0])})
 	case *ast.ExprStmt:
-		return anon(sinfo.exprStmt(s))
+		return anon(ctx.exprStmt(s))
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
 			error.Unsupported("multiple assignment")
@@ -299,7 +291,7 @@ func (sinfo Structs) stmt(s ast.Stmt) Binding {
 			error.FutureWork("re-assignments are not supported (only definitions")
 		}
 		if ident, ok := getIdent(s.Lhs[0]); ok {
-			s := Binding{Name: ident, Stmt: sinfo.expr(s.Rhs[0])}
+			s := Binding{Name: ident, Stmt: ctx.expr(s.Rhs[0])}
 			return s
 		} else {
 			error.Docs("defining a non-identifier")
@@ -310,10 +302,10 @@ func (sinfo Structs) stmt(s ast.Stmt) Binding {
 	return Binding{}
 }
 
-func (sinfo Structs) blockStmt(s *ast.BlockStmt) BindingSeq {
+func (ctx Ctx) blockStmt(s *ast.BlockStmt) BindingSeq {
 	var bindings []Binding
 	for _, s := range s.List {
-		bindings = append(bindings, sinfo.stmt(s))
+		bindings = append(bindings, ctx.stmt(s))
 	}
 	return BindingSeq(bindings)
 }
@@ -343,7 +335,7 @@ func returnType(results *ast.FieldList) string {
 
 }
 
-func (sinfo Structs) funcDecl(d *ast.FuncDecl) FuncDecl {
+func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
 	fd := FuncDecl{Name: d.Name.Name}
 	if d.Recv != nil {
 		error.FutureWork("methods need to be lifted by moving the receiver to the arg list")
@@ -352,17 +344,18 @@ func (sinfo Structs) funcDecl(d *ast.FuncDecl) FuncDecl {
 		fd.Args = append(fd.Args, fieldDecl(p))
 	}
 	fd.ReturnType = returnType(d.Type.Results)
-	fd.Body = sinfo.blockStmt(d.Body)
+	fd.Body = ctx.blockStmt(d.Body)
 	return fd
 }
 
 // TODO: make this return declarations rather than tracing
-func traceDecls(info *types.Info, ds []ast.Decl) {
-	sinfo := NewStructs(info)
+func (ctx Ctx) traceDecls(ds []ast.Decl) {
 	for _, d := range ds {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
-			continue
+			fd := ctx.funcDecl(d)
+			fmt.Printf("func %s\n", d.Name.Name)
+			fmt.Printf("%+v", fd)
 		case *ast.GenDecl:
 			switch d.Tok {
 			case token.IMPORT, token.CONST, token.VAR:
@@ -372,7 +365,7 @@ func traceDecls(info *types.Info, ds []ast.Decl) {
 					error.NoExample("multiple specs in a type decl")
 				}
 				spec := d.Specs[0].(*ast.TypeSpec)
-				ty := sinfo.AddStruct(spec)
+				ty := structDecl(spec)
 				fmt.Printf("type %s\n", ty.Name)
 				fmt.Printf("%+v", ty)
 			default:
@@ -383,22 +376,11 @@ func traceDecls(info *types.Info, ds []ast.Decl) {
 		}
 		fmt.Printf("\n\n")
 	}
-	for _, d := range ds {
-		switch d := d.(type) {
-		case *ast.FuncDecl:
-			fd := sinfo.funcDecl(d)
-			fmt.Printf("func %s\n", d.Name.Name)
-			fmt.Printf("%+v", fd)
-		default:
-			continue
-		}
-		fmt.Printf("\n\n")
-	}
 }
 
-func traceFiles(info *types.Info, fs []*ast.File) {
+func (ctx Ctx) traceFiles(fs []*ast.File) {
 	for _, f := range fs {
-		traceDecls(info, f.Decls)
+		ctx.traceDecls(f.Decls)
 	}
 }
 
@@ -430,5 +412,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	traceFiles(info, files)
+	ctx := Ctx{info}
+	ctx.traceFiles(files)
 }
