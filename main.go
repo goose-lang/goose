@@ -24,8 +24,8 @@ type FieldDecl struct {
 	Type string
 }
 
-// StructType is a Coq record for a Go struct
-type StructType struct {
+// StructDecl is a Coq record for a Go struct
+type StructDecl struct {
 	Name   string
 	Fields []FieldDecl
 }
@@ -92,22 +92,17 @@ func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
 	}
 }
 
-func (ctx Ctx) structType(name string, structTy *ast.StructType) StructType {
-	ty := StructType{Name: name}
-	for _, f := range structTy.Fields.List {
-		ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
-	}
-	return ty
-}
-
-func (ctx Ctx) structDecl(spec *ast.TypeSpec) StructType {
+func (ctx Ctx) structDecl(spec *ast.TypeSpec) StructDecl {
 	if structTy, ok := spec.Type.(*ast.StructType); ok {
-		ty := ctx.structType(spec.Name.Name, structTy)
+		ty := StructDecl{Name: spec.Name.Name}
+		for _, f := range structTy.Fields.List {
+			ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
+		}
 		return ty
 	} else {
 		ctx.Unsupported(spec, "non-struct type %s", spew.Sdump(spec))
 	}
-	return StructType{}
+	return StructDecl{}
 }
 
 // Ctx helps resolve struct info
@@ -348,6 +343,11 @@ type FuncDecl struct {
 	Body       BindingSeq
 }
 
+// Decl is either a FuncDecl or StructDecl
+type Decl interface {
+	Stmt
+}
+
 func (ctx Ctx) returnType(results *ast.FieldList) string {
 	if results == nil {
 		return "unit"
@@ -376,40 +376,41 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
 	return fd
 }
 
-// TODO: make this return declarations rather than tracing
-func (ctx Ctx) traceDecls(ds []ast.Decl) {
-	for _, d := range ds {
-		switch d := d.(type) {
-		case *ast.FuncDecl:
-			fd := ctx.funcDecl(d)
-			fmt.Printf("func %s\n", d.Name.Name)
-			fmt.Printf("%+v", fd)
-		case *ast.GenDecl:
-			switch d.Tok {
-			case token.IMPORT, token.CONST, token.VAR:
-				continue
-			case token.TYPE:
-				if len(d.Specs) > 1 {
-					ctx.NoExample(d, "multiple specs in a type decl")
-				}
-				spec := d.Specs[0].(*ast.TypeSpec)
-				ty := ctx.structDecl(spec)
-				fmt.Printf("type %s\n", ty.Name)
-				fmt.Printf("%+v", ty)
-			default:
-				ctx.Nope(d, "unknown gendecl token type for %+v", d)
+func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
+	switch d := d.(type) {
+	case *ast.FuncDecl:
+		fd := ctx.funcDecl(d)
+		return fd
+	case *ast.GenDecl:
+		switch d.Tok {
+		case token.IMPORT, token.CONST, token.VAR:
+			return nil
+		case token.TYPE:
+			if len(d.Specs) > 1 {
+				ctx.NoExample(d, "multiple specs in a type decl")
 			}
+			spec := d.Specs[0].(*ast.TypeSpec)
+			ty := ctx.structDecl(spec)
+			return ty
 		default:
-			ctx.NoExample(d, "top-level decl %s", spew.Sdump(d))
+			ctx.Nope(d, "unknown gendecl token type for %s", spew.Sdump(d))
 		}
-		fmt.Printf("\n\n")
+	default:
+		ctx.NoExample(d, "top-level decl %s", spew.Sdump(d))
 	}
+	return nil
 }
 
-func (ctx Ctx) traceFiles(fs []*ast.File) {
+func (ctx Ctx) fileDecls(fs []*ast.File) []Decl {
+	var decls []Decl
 	for _, f := range fs {
-		ctx.traceDecls(f.Decls)
+		for _, d := range f.Decls {
+			if d := ctx.maybeDecl(d); d != nil {
+				decls = append(decls, d)
+			}
+		}
 	}
+	return decls
 }
 
 func main() {
@@ -441,5 +442,17 @@ func main() {
 		panic(err)
 	}
 	ctx := Ctx{Info: info, ErrorReporter: NewErrorReporter(fset)}
-	ctx.traceFiles(files)
+	for _, d :=  range ctx.fileDecls(files) {
+		switch d := d.(type) {
+		case FuncDecl:
+			fmt.Printf("func %s\n", d.Name)
+			// TODO: print d.Coq()
+			fmt.Printf("%+v\n", d)
+		case StructDecl:
+			fmt.Printf("type %s\n", d.Name)
+			// TODO: print d.Coq()
+			fmt.Printf("%+v\n", d)
+		}
+		fmt.Println("")
+	}
 }
