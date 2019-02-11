@@ -12,21 +12,21 @@ import (
 // errorReporter groups methods for reporting errors, documenting what kind of
 // issue was encountered in a uniform way.
 type errorReporter struct {
-	fs *token.FileSet
+	fset *token.FileSet
 }
 
-func newErrorReporter(fs *token.FileSet) errorReporter {
-	return errorReporter{fs}
+func newErrorReporter(fset *token.FileSet) errorReporter {
+	return errorReporter{fset}
 }
 
 func (r errorReporter) printGo(n ast.Node) string {
 	var what bytes.Buffer
-	printer.Fprint(&what, r.fs, n)
+	printer.Fprint(&what, r.fset, n)
     return string(what.Bytes())
 }
 
 func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
-	where := r.fs.Position(n.Pos())
+	where := r.fset.Position(n.Pos())
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
 	fmt.Fprintln(os.Stderr, where, what)
