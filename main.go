@@ -19,7 +19,7 @@ func debugDecl(fset *token.FileSet, debugIdent string, decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
 		if d.Name.Name == debugIdent {
-            spew.Dump(d)
+			spew.Dump(d)
 		}
 	case *ast.GenDecl:
 		if d.Tok == token.TYPE {

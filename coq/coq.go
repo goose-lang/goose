@@ -11,8 +11,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
-// TODO: copy comments attached to Go functions to Coq (low priority)
-
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
 	info *types.Info
@@ -27,9 +25,9 @@ type Config struct {
 
 func NewCtx(info *types.Info, fset *token.FileSet, config Config) Ctx {
 	return Ctx{info: info,
-		fset: fset,
+		fset:          fset,
 		errorReporter: newErrorReporter(fset),
-		Config: config,
+		Config:        config,
 	}
 }
 
@@ -49,17 +47,18 @@ func (d FieldDecl) CoqBinder() string {
 
 // StructDecl is a Coq record for a Go struct
 type StructDecl struct {
-	name   string
-	Fields []FieldDecl
+	name    string
+	Fields  []FieldDecl
 	Comment string
 }
 
 func (d StructDecl) CoqDecl() string {
 	var lines []string
-	if d.Comment != "" {
-		lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
-	}
 	lines = append(lines, fmt.Sprintf("Module %s.", d.Name()))
+	if d.Comment != "" {
+		lines = append(lines,
+			fmt.Sprintf("  (* %s *)", indent(5, d.Comment)))
+	}
 	lines = append(lines, "  Record t := mk {")
 	for _, fd := range d.Fields {
 		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
@@ -171,14 +170,33 @@ func (ctx Ctx) fieldDecl(f *ast.Field) FieldDecl {
 	}
 }
 
-func (ctx Ctx) structDecl(spec *ast.TypeSpec) StructDecl {
+func addSourceDoc(doc *ast.CommentGroup, comment *string) {
+	if doc == nil {
+		return
+	}
+	if *comment != "" {
+		*comment += "\n\n"
+	}
+	*comment += stripTrailingNewline(doc.Text())
+}
+
+func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
+	if !ctx.AddSourceFileComments {
+		return
+	}
+	if *comment != "" {
+		*comment += "\n\n   "
+	}
+	*comment += fmt.Sprintf("go: %s", ctx.Where(node))
+}
+
+func (ctx Ctx) structDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) StructDecl {
 	if structTy, ok := spec.Type.(*ast.StructType); ok {
 		ty := StructDecl{
 			name: spec.Name.Name,
 		}
-		if ctx.AddSourceFileComments {
-			ty.Comment = fmt.Sprintf("go: %s", ctx.Where(spec))
-		}
+		addSourceDoc(doc, &ty.Comment)
+		ctx.addSourceFile(spec, &ty.Comment)
 		for _, f := range structTy.Fields.List {
 			ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
 		}
@@ -483,7 +501,7 @@ type FuncDecl struct {
 	Args       []FieldDecl
 	ReturnType Type
 	Body       Block
-	Comment string
+	Comment    string
 }
 
 func (d FuncDecl) Name() string {
@@ -502,7 +520,7 @@ func (d FuncDecl) Signature() string {
 func (d FuncDecl) CoqDecl() string {
 	var lines []string
 	if d.Comment != "" {
-        lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
+		lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
 	}
 	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
 	for n, b := range d.Body.Bindings {
@@ -542,11 +560,20 @@ func (ctx Ctx) returnType(results *ast.FieldList) Type {
 
 }
 
+func stripTrailingNewline(text string) string {
+	if text == "" {
+		return text
+	}
+	if text[len(text)-1] == '\n' {
+		return text[:len(text)-1]
+	}
+	return text
+}
+
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
 	fd := FuncDecl{name: d.Name.Name}
-	if ctx.AddSourceFileComments {
-		fd.Comment = fmt.Sprintf("go: %s", ctx.Where(d))
-	}
+	addSourceDoc(d.Doc, &fd.Comment)
+	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
 		ctx.FutureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
 	}
@@ -572,7 +599,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 				ctx.NoExample(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
-			ty := ctx.structDecl(spec)
+			ty := ctx.structDecl(d.Doc, spec)
 			return ty
 		default:
 			ctx.Nope(d, "unknown GenDecl token type for %s", spew.Sdump(d))
