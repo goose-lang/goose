@@ -29,8 +29,10 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	where := r.fset.Position(n.Pos())
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
-	fmt.Fprintln(os.Stderr, where, what)
-	fmt.Fprintf(os.Stderr, "\t[%s]: %s\n", prefix, formatted)
+
+	fmt.Fprintf(os.Stderr, "[%s]: %s\n", prefix, formatted)
+	fmt.Fprintf(os.Stderr, "\t%s\n", what)
+	fmt.Fprintf(os.Stderr, "\t%s\n", where)
 	// for now make all errors fail-stop
 	os.Exit(1)
 }
