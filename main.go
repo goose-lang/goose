@@ -10,13 +10,37 @@ import (
 	"go/types"
 	"os"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/tchajed/goose/coq"
 )
+
+func debugDecl(fset *token.FileSet, debugIdent string, decl ast.Decl) {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		if d.Name.Name == debugIdent {
+            spew.Dump(d)
+		}
+	case *ast.GenDecl:
+		if d.Tok == token.TYPE {
+			if spec, ok := d.Specs[0].(*ast.TypeSpec); ok {
+				if spec.Name.Name == debugIdent {
+					spew.Dump(spec)
+				}
+			}
+		}
+	}
+}
 
 func main() {
 	var config coq.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
+
+	var debugIdent string
+	flag.StringVar(&debugIdent, "debug", "",
+		"spew an identifier (use * to spew everything)")
+
 	flag.Parse()
 	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "Usage: goose <path to source dir>")
@@ -54,7 +78,18 @@ func main() {
 		panic(err)
 	}
 	ctx := coq.NewCtx(info, fset, config)
-    decls := ctx.FileDecls(files)
+	if debugIdent != "" {
+		if debugIdent == "*" {
+			spew.Dump(files)
+		} else {
+			for _, f := range files {
+				for _, d := range f.Decls {
+					debugDecl(fset, debugIdent, d)
+				}
+			}
+		}
+	}
+	decls := ctx.FileDecls(files)
 	fmt.Println("From RecoveryRefinement Require Import Database.CodeSetup.")
 	fmt.Println()
 	for _, d := range decls {
