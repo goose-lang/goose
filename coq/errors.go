@@ -22,7 +22,7 @@ func newErrorReporter(fset *token.FileSet) errorReporter {
 func (r errorReporter) printGo(n ast.Node) string {
 	var what bytes.Buffer
 	printer.Fprint(&what, r.fset, n)
-    return string(what.Bytes())
+	return string(what.Bytes())
 }
 
 func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {

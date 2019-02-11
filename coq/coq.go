@@ -144,6 +144,27 @@ func (ctx Ctx) coqTypeOfType(t types.Type) Type {
 	}
 }
 
+type ByteSliceType struct{}
+
+func (t ByteSliceType) Coq() string {
+	return "ByteSlice"
+}
+
+type SliceType struct {
+	Value Type
+}
+
+func (t SliceType) Coq() string {
+	return fmt.Sprintf("Slice %s", t.Value.Coq())
+}
+
+func (ctx Ctx) arrayType(e *ast.ArrayType) Type {
+	if isIdent(e.Elt, "byte") {
+		return ByteSliceType{}
+	}
+	return SliceType{ctx.coqType(e.Elt)}
+}
+
 func (ctx Ctx) coqType(e ast.Expr) Type {
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -153,7 +174,7 @@ func (ctx Ctx) coqType(e ast.Expr) Type {
 	case *ast.SelectorExpr:
 		return ctx.selectorExprType(e)
 	case *ast.ArrayType:
-		ctx.Todo(e, "handle array types")
+		return ctx.arrayType(e)
 	default:
 		ctx.NoExample(e, "unexpected type expr %s", spew.Sdump(e))
 	}
@@ -190,7 +211,7 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	*comment += fmt.Sprintf("go: %s", ctx.Where(node))
 }
 
-func (ctx Ctx) structDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) StructDecl {
+func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) StructDecl {
 	if structTy, ok := spec.Type.(*ast.StructType); ok {
 		ty := StructDecl{
 			name: spec.Name.Name,
@@ -599,7 +620,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 				ctx.NoExample(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
-			ty := ctx.structDecl(d.Doc, spec)
+			ty := ctx.typeDecl(d.Doc, spec)
 			return ty
 		default:
 			ctx.Nope(d, "unknown GenDecl token type for %s", spew.Sdump(d))
