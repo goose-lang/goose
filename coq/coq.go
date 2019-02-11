@@ -459,13 +459,32 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 	return nil
 }
 
+type TupleExpr []Expr
+
+func (te TupleExpr) Coq() string {
+	var comps []string
+	for _, t := range te {
+		comps = append(comps, t.Coq())
+	}
+	return fmt.Sprintf("(%s)", strings.Join(comps, ", "))
+}
+
+func mkTuple(es []Expr) Expr {
+	if len(es) == 1 {
+		return es[0]
+	}
+	return TupleExpr(es)
+}
+
 func (ctx Ctx) stmt(s ast.Stmt) Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
-		if len(s.Results) > 1 {
-			ctx.Unsupported(s, "multiple return")
+		var exprs TupleExpr
+		for _, r := range s.Results {
+			exprs = append(exprs, ctx.expr(r))
 		}
-		return anon(ReturnExpr{ctx.expr(s.Results[0])})
+		ret := mkTuple(exprs)
+		return anon(ReturnExpr{ret})
 	case *ast.ExprStmt:
 		return ctx.exprStmt(s)
 	case *ast.AssignStmt:
@@ -564,21 +583,43 @@ type Decl interface {
 	CoqDecl() string
 }
 
+type TupleType []Type
+
+func mkTupleType(types []Type) Type {
+	if len(types) == 1 {
+		return types[0]
+	}
+	return TupleType(types)
+}
+
+func (tt TupleType) Coq() string {
+	var comps []string
+	for _, t := range tt {
+		comps = append(comps, t.Coq())
+	}
+	return fmt.Sprintf("(%s)", strings.Join(comps, " * "))
+}
+
 func (ctx Ctx) returnType(results *ast.FieldList) Type {
 	if results == nil {
 		return TypeIdent("unit")
 	}
 	rs := results.List
-	if len(rs) > 1 {
-		ctx.Unsupported(results, "multiple return values")
-		return TypeIdent("<invalid>")
+	for _, r := range rs {
+		if len(r.Names) > 0 {
+			ctx.Unsupported(r, "named returned value")
+			return TypeIdent("<invalid>")
+		}
 	}
-	if len(rs[0].Names) > 0 {
-		ctx.Unsupported(results, "named returned values")
-		return TypeIdent("<invalid>")
+	var ts []Type
+	for _, r := range rs {
+		if len(r.Names) > 0 {
+			ctx.Unsupported(r, "named returned value")
+			return TypeIdent("<invalid>")
+		}
+		ts = append(ts, ctx.coqType(r.Type))
 	}
-	return ctx.coqType(rs[0].Type)
-
+	return mkTupleType(ts)
 }
 
 func stripTrailingNewline(text string) string {
