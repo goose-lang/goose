@@ -505,6 +505,10 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 		} else {
 			ctx.Nope(lhs, "defining a non-identifier")
 		}
+	case *ast.IfStmt:
+		ctx.Todo(s, "if statements")
+	case *ast.ForStmt:
+		ctx.Todo(s, "for statements")
 	default:
 		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
 	}
