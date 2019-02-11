@@ -1,8 +1,10 @@
 package coq
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"os"
 )
@@ -17,10 +19,18 @@ func newErrorReporter(fs *token.FileSet) errorReporter {
 	return errorReporter{fs}
 }
 
+func (r errorReporter) printGo(n ast.Node) string {
+	var what bytes.Buffer
+	printer.Fprint(&what, r.fs, n)
+    return string(what.Bytes())
+}
+
 func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
 	where := r.fs.Position(n.Pos())
+	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
-	fmt.Fprintf(os.Stderr, "%v [%s]: %s\n", where, prefix, formatted)
+	fmt.Fprintln(os.Stderr, where, what)
+	fmt.Fprintf(os.Stderr, "\t[%s]: %s\n", prefix, formatted)
 	// for now make all errors fail-stop
 	os.Exit(1)
 }
