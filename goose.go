@@ -388,6 +388,10 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt) coq.BlockExpr {
 	for _, s := range s.List {
 		bindings = append(bindings, ctx.stmt(s))
 	}
+	if len(bindings) == 0 {
+		retVal := coq.IdentExpr("tt")
+		bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{retVal}))
+	}
 	return coq.BlockExpr{bindings}
 }
 

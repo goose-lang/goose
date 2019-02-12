@@ -193,8 +193,17 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	c.Check(decl.Body, DeepEquals, coq.BlockExpr{
 		Bindings: []coq.Binding{
 			coq.NewAnon(ife),
-			coq.Binding{[]string{"n"}, callExpr("uint64_from_le", ident("p"))},
+			coq.Binding{[]string{"n"},
+				callExpr("uint64_from_le", ident("p"))},
 			retBinding(tuple(ident("n"), intLiteral(8))),
 		},
 	})
+}
+
+func (s *ConversionSuite) TestEmptyFunc(c *C) {
+	decls := s.Convert(`func DoNothing(){}`)
+	decl := decls[0].(coq.FuncDecl)
+	c.Check(decl.Body, DeepEquals,
+		block(retBinding(ident("tt"))),
+	)
 }
