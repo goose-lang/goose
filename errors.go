@@ -34,6 +34,7 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	fmt.Fprintf(os.Stderr, "%s\n", what)
 	fmt.Fprintf(os.Stderr, "\t%s\n", where)
 	// for now make all errors fail-stop
+	// TODO: be able to catch errors in tests in a structured way to support negative tests
 	os.Exit(1)
 }
 

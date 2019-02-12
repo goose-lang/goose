@@ -508,6 +508,9 @@ func (ctx Ctx) checkImports(d []ast.Spec) {
 		if !strings.HasPrefix(importPath, "github.com/tchajed/goose/machine") {
 			ctx.Unsupported(s, "non-whitelisted import")
 		}
+		if s.Name != nil {
+			ctx.Unsupported(s, "renaming imports")
+		}
 	}
 }
 
