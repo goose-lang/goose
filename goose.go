@@ -363,22 +363,23 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 	case *ast.ExprStmt:
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
-		if len(s.Lhs) > 1 {
-			ctx.Todo(s, "multiple assignment")
-		}
 		if len(s.Rhs) > 1 {
 			ctx.Unsupported(s, "multiple RHS assignment (split them up)")
 		}
-		lhs, rhs := s.Lhs[0], s.Rhs[0]
+		lhs, rhs := s.Lhs, s.Rhs[0]
 		if s.Tok != token.DEFINE {
 			// NOTE: Do we need these? Should they become bindings anyway, or perhaps we should support let bindings?
 			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
 		}
-		ident, ok := getIdent(lhs)
-		if !ok {
-			ctx.Nope(lhs, "defining a non-identifier")
+		var names []string
+		for _, lhsExpr := range lhs {
+			ident, ok := getIdent(lhsExpr)
+			if !ok {
+				ctx.Nope(lhsExpr, "defining a non-identifier")
+			}
+			names = append(names, ident)
 		}
-		return coq.Binding{Names: []string{ident}, Expr: ctx.expr(rhs)}
+		return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
 	case *ast.IfStmt:
 		thenExpr, ok := ctx.stmt(s.Body).Unwrap()
 		if !ok {
