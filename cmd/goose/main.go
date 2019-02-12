@@ -28,7 +28,9 @@ func main() {
 	filter := func(os.FileInfo) bool { return true }
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "error while parsing code:")
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(2)
 	}
 
 	if len(packages) > 1 {
@@ -48,7 +50,9 @@ func main() {
 	ctx := goose.NewCtx(fset, config)
 	err = ctx.TypeCheck(pkgName, files)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "error while type-checking code:")
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(2)
 	}
 	var decls []coq.Decl
 	for _, f := range files {
