@@ -399,6 +399,43 @@ func (ctx Ctx) structSelector(e *ast.SelectorExpr) ProjExpr {
 	return ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
 }
 
+func (ctx Ctx) structLiteral(e *ast.CompositeLit) StructLiteral {
+	structType, ok := ctx.info.TypeOf(e).Underlying().(*types.Struct)
+	if !ok {
+		ctx.Unsupported(e, "non-struct literal %s", spew.Sdump(e))
+	}
+	structName, ok := getIdent(e.Type)
+	if !ok {
+		ctx.Nope(e.Type, "non-struct literal after type check")
+	}
+	lit := StructLiteral{StructName: structName}
+	foundFields := make(map[string]bool)
+	for _, el := range e.Elts {
+		switch el := el.(type) {
+		case *ast.KeyValueExpr:
+			ident, ok := getIdent(el.Key)
+			if !ok {
+				ctx.NoExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
+				return StructLiteral{}
+			}
+			lit.Elts = append(lit.Elts, FieldVal{
+				Field: ident,
+				Value: ctx.expr(el.Value),
+			})
+			foundFields[ident] = true
+		default:
+			// shouldn't be possible given type checking above
+			ctx.Nope(el, "literal component in struct %s", spew.Sdump(e))
+		}
+	}
+	for _, f := range structTypeFields(structType) {
+		if !foundFields[f] {
+			ctx.Unsupported(e, "incomplete struct literal %s", spew.Sdump(e))
+		}
+	}
+	return lit
+}
+
 func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -410,40 +447,7 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 	case *ast.SelectorExpr:
 		return ctx.structSelector(e)
 	case *ast.CompositeLit:
-		structType, ok := ctx.info.TypeOf(e).Underlying().(*types.Struct)
-		if !ok {
-			ctx.Unsupported(e, "non-struct literal %s", spew.Sdump(e))
-		}
-		structName, ok := getIdent(e.Type)
-		if !ok {
-			ctx.Nope(e.Type, "non-struct literal after type check")
-		}
-		lit := StructLiteral{StructName: structName}
-		foundFields := make(map[string]bool)
-		for _, el := range e.Elts {
-			switch el := el.(type) {
-			case *ast.KeyValueExpr:
-				ident, ok := getIdent(el.Key)
-				if !ok {
-					ctx.NoExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
-					return nil
-				}
-				lit.Elts = append(lit.Elts, FieldVal{
-					Field: ident,
-					Value: ctx.expr(el.Value),
-				})
-				foundFields[ident] = true
-			default:
-				// shouldn't be possible given type checking above
-				ctx.Nope(el, "literal component in struct %s", spew.Sdump(e))
-			}
-		}
-		for _, f := range structTypeFields(structType) {
-			if !foundFields[f] {
-				ctx.Unsupported(e, "incomplete struct literal %s", spew.Sdump(e))
-			}
-		}
-		return lit
+		return ctx.structLiteral(e)
 	default:
 		// TODO: this probably has useful things (like map access)
 		ctx.NoExample(e, "expr %s", spew.Sdump(e))
