@@ -818,7 +818,6 @@ func (ctx Ctx) checkImports(d []ast.Spec) {
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
 		importPath := stringBasicLit(s.Path)
-		// TODO: move these imports into goose
 		if !strings.HasPrefix(importPath, "github.com/tchajed/goose/machine") {
 			ctx.Unsupported(s, "non-whitelisted import")
 		}
