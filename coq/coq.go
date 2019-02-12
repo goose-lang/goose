@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -436,6 +437,38 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) StructLiteral {
 	return lit
 }
 
+type IntLiteral struct {
+	Value uint64
+}
+
+func (l IntLiteral) Coq() string {
+	switch l.Value {
+	// yes, these constants are special: they are parsed correctly in u64 scope,
+	// while other numbers will be parsed as nat's.
+	case 0:
+		return "0"
+	case 1:
+		return "1"
+	case 4096:
+		return "4096"
+	default:
+		return fmt.Sprintf("fromNum %d", l.Value)
+	}
+}
+
+// basicLiteral parses a basic literal; only Go int literals are supported
+func (ctx Ctx) basicLiteral(e *ast.BasicLit) IntLiteral {
+	if e.Kind != token.INT {
+		ctx.Unsupported(e, "non-integer literals are not supported")
+		return IntLiteral{^uint64(0)}
+	}
+	n, err := strconv.ParseUint(e.Value, 10, 64)
+	if err != nil {
+		panic(err) // could not parse integer literal?
+	}
+	return IntLiteral{n}
+}
+
 func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -448,6 +481,8 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 		return ctx.structSelector(e)
 	case *ast.CompositeLit:
 		return ctx.structLiteral(e)
+	case *ast.BasicLit:
+		return ctx.basicLiteral(e)
 	default:
 		// TODO: this probably has useful things (like map access)
 		ctx.NoExample(e, "expr %s", spew.Sdump(e))
