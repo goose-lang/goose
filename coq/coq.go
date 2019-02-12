@@ -216,7 +216,8 @@ type BinaryExpr struct {
 func (be BinaryExpr) Coq() string {
 	if be.Op == OpLessThan {
 		// TODO: should just have a binary operator for this in Coq
-		return fmt.Sprintf("cmp %s %s == Lt", addParens(be.X.Coq()), addParens(be.Y.Coq()))
+		return fmt.Sprintf("compare %s %s == Lt",
+			addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	}
 	var binop string
 	switch be.Op {

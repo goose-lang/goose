@@ -129,7 +129,7 @@ func (s *CoqSuite) TestBinOps(c *C) {
 	c.Check(BinaryExpr{x, OpEquals, y}.Coq(),
 		Equals, "a == 1")
 	c.Check(BinaryExpr{callExpr("slice.len", x), OpLessThan, y}.Coq(),
-		Equals, "cmp (slice.len a) 1 == Lt")
+		Equals, "compare (slice.len a) 1 == Lt")
 }
 
 func (s *CoqSuite) TestIntLiterals(c *C) {
@@ -148,7 +148,7 @@ func (s *CoqSuite) TestIfExpr(c *C) {
 	}
 	c.Check(ife.Coq(),
 		Equals, strings.TrimSpace(`
-if cmp (slice.len p) (fromNum 8) == Lt
+if compare (slice.len p) (fromNum 8) == Lt
   then (Ret (0, 0))
   else (Ret tt)
 `))
