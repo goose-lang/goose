@@ -132,6 +132,13 @@ func (s *CoqSuite) TestBinOps(c *C) {
 		Equals, "cmp (len a) 1 == Lt")
 }
 
+func (s *CoqSuite) TestIntLiterals(c *C) {
+	c.Check(IntLiteral{0}.Coq(), Equals, "0")
+	c.Check(IntLiteral{1}.Coq(), Equals, "1")
+	c.Check(IntLiteral{2}.Coq(), Equals, "fromNum 2")
+	c.Check(IntLiteral{4096}.Coq(), Equals, "4096")
+}
+
 func (s *CoqSuite) TestIfExpr(c *C) {
 	lenP := callExpr("len", IdentExpr("p"))
 	ife := IfExpr{
