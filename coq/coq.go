@@ -139,12 +139,26 @@ func (e ReturnExpr) Coq() string {
 }
 
 type Binding struct {
-	Name string
-	Expr Expr
+	Names []string
+	Expr  Expr
 }
 
-func (b Binding) IsAnonymous() bool {
-	return b.Name == ""
+func NewAnon(e Expr) Binding {
+	return Binding{Expr: e}
+}
+
+func (b Binding) isAnonymous() bool {
+	return len(b.Names) == 0
+}
+
+func (b Binding) Binder() string {
+	if b.isAnonymous() {
+		return "_"
+	}
+	if len(b.Names) == 1 {
+		return b.Names[0]
+	}
+	return fmt.Sprintf("let! '(%s)", strings.Join(b.Names, ", "))
 }
 
 type FieldVal struct {
@@ -256,11 +270,9 @@ func (be BlockExpr) Coq() string {
 			lines = append(lines, b.Expr.Coq())
 			continue
 		}
-		name := b.Name
-		if b.IsAnonymous() {
-			name = "_"
-		}
-		lines = append(lines, fmt.Sprintf("%s <- %s;", name, b.Expr.Coq()))
+		lines = append(
+			lines, fmt.Sprintf("%s <- %s;",
+				b.Binder(), b.Expr.Coq()))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -279,7 +291,7 @@ func (ife IfExpr) Coq() string {
 }
 
 func (b Binding) Unwrap() (e Expr, ok bool) {
-	if b.IsAnonymous() {
+	if b.isAnonymous() {
 		return b.Expr, true
 	}
 	return nil, false

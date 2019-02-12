@@ -89,7 +89,7 @@ func field(name string, e coq.Expr) coq.FieldVal {
 }
 
 func binding(name string, e coq.Expr) coq.Binding {
-	return coq.Binding{Name: name, Expr: e}
+	return coq.Binding{Names: []string{name}, Expr: e}
 }
 
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
@@ -110,6 +110,13 @@ func CreateTable(p string) Table {
 }
 `)
 	c.Assert(decls, HasLen, 2)
+	returnValue := coq.StructLiteral{
+		StructName: "Table",
+		Elts: []coq.FieldVal{
+			field("Index", ident("index")),
+			field("File", ident("f2")),
+		},
+	}
 	c.Check(decls[1], DeepEquals, coq.FuncDecl{
 		Name: "CreateTable",
 		Args: []coq.FieldDecl{
@@ -117,18 +124,12 @@ func CreateTable(p string) Table {
 		},
 		ReturnType: coq.StructName("Table"),
 		Body: coq.BlockExpr{
-			[]coq.Binding{
+			Bindings: []coq.Binding{
 				binding("index", callExpr("Data.newHashTable", coq.TypeIdent("uint64"))),
 				binding("f", callExpr("FS.create", ident("p"))),
-				anon(callExpr("FS.close", ident("f"))),
+				coq.NewAnon(callExpr("FS.close", ident("f"))),
 				binding("f2", callExpr("FS.open", ident("p"))),
-				anon(coq.ReturnExpr{coq.StructLiteral{
-					"Table",
-					[]coq.FieldVal{
-						field("Index", ident("index")),
-						field("File", ident("f2")),
-					},
-				}}),
+				coq.NewAnon(coq.ReturnExpr{returnValue}),
 			},
 		},
 		Comment: "CreateTable creates a new, empty table.",

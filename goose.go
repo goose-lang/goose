@@ -64,10 +64,6 @@ func isIdent(e ast.Expr, ident string) bool {
 	return ok && i == ident
 }
 
-func anon(s coq.Expr) coq.Binding {
-	return coq.Binding{Name: "", Expr: s}
-}
-
 func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 	switch k := e.Key.(type) {
 	case *ast.Ident:
@@ -363,15 +359,15 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt) coq.BlockExpr {
 func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
-		return anon(ctx.returnExpr(s.Results))
+		return coq.NewAnon(ctx.returnExpr(s.Results))
 	case *ast.ExprStmt:
-		return anon(ctx.expr(s.X))
+		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
-			ctx.Unsupported(s, "multiple assignment")
+			ctx.Todo(s, "multiple assignment")
 		}
-		if len(s.Rhs) != 1 {
-			ctx.Nope(s, "assignment lengths should be equal")
+		if len(s.Rhs) > 1 {
+			ctx.Unsupported(s, "multiple RHS assignment (split them up)")
 		}
 		lhs, rhs := s.Lhs[0], s.Rhs[0]
 		if s.Tok != token.DEFINE {
@@ -382,7 +378,7 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 		if !ok {
 			ctx.Nope(lhs, "defining a non-identifier")
 		}
-		return coq.Binding{Name: ident, Expr: ctx.expr(rhs)}
+		return coq.Binding{Names: []string{ident}, Expr: ctx.expr(rhs)}
 	case *ast.IfStmt:
 		thenExpr, ok := ctx.stmt(s.Body).Unwrap()
 		if !ok {
@@ -403,11 +399,11 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 			}
 			ife.Else = elseExpr
 		}
-		return anon(ife)
+		return coq.NewAnon(ife)
 	case *ast.ForStmt:
 		ctx.Todo(s, "for statements")
 	case *ast.BlockStmt:
-		return anon(ctx.blockStmt(s))
+		return coq.NewAnon(ctx.blockStmt(s))
 	default:
 		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
 	}

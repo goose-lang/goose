@@ -45,11 +45,7 @@ func field(name string, e Expr) FieldVal {
 }
 
 func binding(name string, e Expr) Binding {
-	return Binding{Name: name, Expr: e}
-}
-
-func anon(e Expr) Binding {
-	return binding("", e)
+	return Binding{Names: []string{name}, Expr: e}
 }
 
 func (s *CoqSuite) TestStraightLineCode(c *C) {
@@ -57,9 +53,9 @@ func (s *CoqSuite) TestStraightLineCode(c *C) {
 		[]Binding{
 			binding("index", callExpr("Data.newHashTable", TypeIdent("uint64"))),
 			binding("f", callExpr("FS.create", IdentExpr("p"))),
-			anon(callExpr("FS.close", IdentExpr("f"))),
+			NewAnon(callExpr("FS.close", IdentExpr("f"))),
 			binding("f2", callExpr("FS.open", IdentExpr("p"))),
-			anon(ReturnExpr{StructLiteral{
+			NewAnon(ReturnExpr{StructLiteral{
 				"Table",
 				[]FieldVal{
 					field("Index", IdentExpr("index")),
