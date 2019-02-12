@@ -219,8 +219,7 @@ type HasNil struct{
 
 func NewHasNil() HasNil {
     return HasNil{Data: nil}
-}
-`)
+}`)
 	decl := decls[1].(coq.FuncDecl)
 	c.Check(decl.Body, DeepEquals,
 		block(retBinding(coq.StructLiteral{
@@ -229,4 +228,17 @@ func NewHasNil() HasNil {
 				{"Data", callExpr("slice.nil", coq.TypeIdent("_"))},
 			},
 		})))
+}
+
+func (s *ConversionSuite) TestSliceExpr(c *C) {
+	decls := s.Convert(`
+func SliceExample(p []byte) ([]byte, []byte) {
+	return p[:1], p[1:]
+}`)
+	decl := decls[0].(coq.FuncDecl)
+	c.Check(decl.Body, DeepEquals,
+		block(retBinding(tuple(
+			callExpr("slice.take", intLiteral(1), ident("p")),
+			callExpr("slice.skip", intLiteral(1), ident("p")),
+		))))
 }

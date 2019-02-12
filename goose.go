@@ -332,23 +332,23 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 		ctx.Unsupported(e, "3-index slice")
 		return nil
 	}
-	sliced := ctx.expr(e.X)
+	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
 		return coq.CallExpr{
 			MethodName: "slice.skip",
-			Args:       []coq.Expr{sliced, ctx.expr(e.Low)},
+			Args:       []coq.Expr{ctx.expr(e.Low), x},
 		}
 	}
 	if e.Low == nil && e.High != nil {
 		return coq.CallExpr{
 			MethodName: "slice.take",
-			Args:       []coq.Expr{sliced, ctx.expr(e.High)},
+			Args:       []coq.Expr{ctx.expr(e.High), x},
 		}
 	}
 	if e.Low != nil && e.High != nil {
 		return coq.CallExpr{
 			MethodName: "slice.subslice",
-			Args:       []coq.Expr{sliced, ctx.expr(e.Low), ctx.expr(e.High)},
+			Args:       []coq.Expr{ctx.expr(e.Low), ctx.expr(e.High), x},
 		}
 	}
 	if e.Low == nil && e.High == nil {
