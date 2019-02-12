@@ -60,8 +60,10 @@ func main() {
 	}
 	fmt.Println(coq.ImportHeader)
 	fmt.Println()
-	for _, d := range decls {
+	for i, d := range decls {
 		fmt.Println(d.CoqDecl())
-		fmt.Println()
+		if i != len(decls)-1 {
+			fmt.Println()
+		}
 	}
 }
