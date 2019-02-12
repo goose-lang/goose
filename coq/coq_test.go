@@ -153,7 +153,7 @@ func (s *CoqSuite) TestDestructuringBinding(c *C) {
 		retBinding(IdentExpr("x")),
 	)
 	c.Check(code.Coq(), Equals, strings.TrimSpace(`
-let! '(x, l) <- uint64_from_le p;
+let! (x, l) <- uint64_from_le p;
 Ret x
 `))
 }

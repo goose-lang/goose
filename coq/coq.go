@@ -158,7 +158,7 @@ func (b Binding) Binder() string {
 	if len(b.Names) == 1 {
 		return b.Names[0]
 	}
-	return fmt.Sprintf("let! '(%s)", strings.Join(b.Names, ", "))
+	return fmt.Sprintf("let! (%s)", strings.Join(b.Names, ", "))
 }
 
 type FieldVal struct {
