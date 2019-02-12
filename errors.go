@@ -7,6 +7,7 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"runtime"
 )
 
 // errorReporter groups methods for reporting errors, documenting what kind of
@@ -25,6 +26,15 @@ func (r errorReporter) printGo(n ast.Node) string {
 	return string(what.Bytes())
 }
 
+func getCaller(skip int) string {
+	_, file, line, ok := runtime.Caller(1 + skip)
+	if !ok {
+		return "<no caller>"
+	}
+
+	return fmt.Sprintf("%s:%d", file, line)
+}
+
 func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
 	where := r.fset.Position(n.Pos())
 	what := r.printGo(n)
@@ -32,7 +42,8 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 
 	fmt.Fprintf(os.Stderr, "[%s]: %s\n", prefix, formatted)
 	fmt.Fprintf(os.Stderr, "%s\n", what)
-	fmt.Fprintf(os.Stderr, "\t%s\n", where)
+	fmt.Fprintf(os.Stderr, "\t%s\n", getCaller(2))
+	fmt.Fprintf(os.Stderr, "\tsrc: %s\n", where)
 	// for now make all errors fail-stop
 	// TODO: be able to catch errors in tests in a structured way to support negative tests
 	os.Exit(1)
