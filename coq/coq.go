@@ -860,14 +860,14 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 	return nil
 }
 
-func (ctx Ctx) FileDecls(fs []*ast.File) []Decl {
+func (ctx Ctx) FileDecls(f *ast.File) []Decl {
 	var decls []Decl
-	for _, f := range fs {
-		for _, d := range f.Decls {
-			if d := ctx.maybeDecl(d); d != nil {
-				decls = append(decls, d)
-			}
+	for _, d := range f.Decls {
+		if d := ctx.maybeDecl(d); d != nil {
+			decls = append(decls, d)
 		}
 	}
 	return decls
 }
+
+const ImportHeader string = "From RecoveryRefinement Require Import Database.CodeSetup."

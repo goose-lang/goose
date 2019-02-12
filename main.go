@@ -89,8 +89,11 @@ func main() {
 			}
 		}
 	}
-	decls := ctx.FileDecls(files)
-	fmt.Println("From RecoveryRefinement Require Import Database.CodeSetup.")
+	var decls []coq.Decl
+	for _, f := range files {
+		decls = append(decls, ctx.FileDecls(f)...)
+	}
+	fmt.Println(coq.ImportHeader)
 	fmt.Println()
 	for _, d := range decls {
 		fmt.Println(d.CoqDecl())
