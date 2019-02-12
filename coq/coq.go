@@ -244,7 +244,7 @@ func NewTuple(es []Expr) Expr {
 	return TupleExpr(es)
 }
 
-// A Block is a sequence of bindings, ending with some expression.
+// A BlockExpr is a sequence of bindings, ending with some expression.
 type BlockExpr struct {
 	Bindings []Binding
 }

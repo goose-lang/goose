@@ -85,7 +85,7 @@ func ident(name string) coq.IdentExpr {
 }
 
 func field(name string, e coq.Expr) coq.FieldVal {
-	return coq.FieldVal{name, e}
+	return coq.FieldVal{Field: name, Value: e}
 }
 
 func binding(name string, e coq.Expr) coq.Binding {

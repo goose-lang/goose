@@ -164,20 +164,20 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDecl {
-	if structTy, ok := spec.Type.(*ast.StructType); ok {
-		ty := coq.StructDecl{
-			Name: spec.Name.Name,
-		}
-		addSourceDoc(doc, &ty.Comment)
-		ctx.addSourceFile(spec, &ty.Comment)
-		for _, f := range structTy.Fields.List {
-			ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
-		}
-		return ty
-	} else {
+	structTy, ok := spec.Type.(*ast.StructType)
+	if !ok {
 		ctx.Unsupported(spec, "non-struct type %s", spew.Sdump(spec))
+		return coq.StructDecl{}
 	}
-	return coq.StructDecl{}
+	ty := coq.StructDecl{
+		Name: spec.Name.Name,
+	}
+	addSourceDoc(doc, &ty.Comment)
+	ctx.addSourceFile(spec, &ty.Comment)
+	for _, f := range structTy.Fields.List {
+		ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
+	}
+	return ty
 }
 
 func toInitialLower(s string) string {
