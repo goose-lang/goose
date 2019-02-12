@@ -495,7 +495,7 @@ type BinaryExpr struct {
 func (be BinaryExpr) Coq() string {
 	if be.Op == OpLessThan {
 		// TODO: should just have a binary operator for this in Coq
-		return fmt.Sprintf("cmp %s %s == Lt", be.X.Coq(), be.Y.Coq())
+		return fmt.Sprintf("cmp %s %s == Lt", addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	}
 	var binop string
 	switch be.Op {
@@ -789,6 +789,42 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) FuncDecl {
 	return fd
 }
 
+func (ctx Ctx) checkFilesysVar(d *ast.ValueSpec) {
+	if !isIdent(d.Names[0], "fs") {
+		ctx.Unsupported(d, "non-fs global variable")
+	}
+	ty, ok := d.Type.(*ast.SelectorExpr)
+	if !ok {
+		ctx.Unsupported(ty, "wrong type for fs")
+	}
+	if !(isIdent(ty.X, "filesys") &&
+		isIdent(ty.Sel, "Filesys")) {
+		ctx.Unsupported(ty, "wrong type for fs")
+	}
+	if len(d.Names) > 1 {
+		ctx.Unsupported(d, "multiple fs variables")
+	}
+}
+
+func stringBasicLit(lit *ast.BasicLit) string {
+	if lit.Kind != token.STRING {
+		panic("unexpected non-string literal")
+	}
+	s := lit.Value
+	return s[1 : len(s)-1]
+}
+
+func (ctx Ctx) checkImports(d []ast.Spec) {
+	for _, s := range d {
+		s := s.(*ast.ImportSpec)
+		importPath := stringBasicLit(s.Path)
+		// TODO: move these imports into goose
+		if !strings.HasPrefix(importPath, "github.com/tchajed/go-simple-db/") {
+			ctx.Unsupported(s, "non-whitelisted import")
+		}
+	}
+}
+
 func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
@@ -796,8 +832,17 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 		return fd
 	case *ast.GenDecl:
 		switch d.Tok {
-		case token.IMPORT, token.CONST, token.VAR:
+		case token.IMPORT:
+			ctx.checkImports(d.Specs)
 			return nil
+		case token.CONST:
+			ctx.Todo(d, "global constants")
+		case token.VAR:
+			if len(d.Specs) > 1 {
+				ctx.Unsupported(d, "multiple vars")
+			}
+			spec := d.Specs[0].(*ast.ValueSpec)
+			ctx.checkFilesysVar(spec)
 		case token.TYPE:
 			if len(d.Specs) > 1 {
 				ctx.NoExample(d, "multiple specs in a type decl")
@@ -808,8 +853,10 @@ func (ctx Ctx) maybeDecl(d ast.Decl) Decl {
 		default:
 			ctx.Nope(d, "unknown GenDecl token type for %s", spew.Sdump(d))
 		}
+	case *ast.BadDecl:
+		ctx.Nope(d, "bad declaration in type-checked code")
 	default:
-		ctx.NoExample(d, "top-level decl %s", spew.Sdump(d))
+		ctx.Nope(d, "top-level decl %s")
 	}
 	return nil
 }
