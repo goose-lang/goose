@@ -143,7 +143,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) TypeIdent {
 	return TypeIdent("<selector expr>")
 }
 
-func (ctx Ctx) coqTypeOfType(t types.Type) Type {
+func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) Type {
 	switch t := t.(type) {
 	case *types.Named:
 		if _, ok := t.Underlying().(*types.Struct); ok {
@@ -153,10 +153,16 @@ func (ctx Ctx) coqTypeOfType(t types.Type) Type {
 	case *types.Struct:
 		return StructName(t.String())
 	case *types.Basic:
-		return TypeIdent(t.Name())
-	default:
-		return TypeIdent("<type>")
+		switch t.Name() {
+		case "string":
+			return TypeIdent("Path")
+		case "uint64":
+			return TypeIdent("uint64")
+		default:
+			ctx.Todo(n, "explicitly handle basic types")
+		}
 	}
+	return TypeIdent("<type>")
 }
 
 type ByteSliceType struct{}
@@ -183,7 +189,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) Type {
 func (ctx Ctx) coqType(e ast.Expr) Type {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return ctx.coqTypeOfType(ctx.info.TypeOf(e))
+		return ctx.coqTypeOfType(e, ctx.info.TypeOf(e))
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.SelectorExpr:
