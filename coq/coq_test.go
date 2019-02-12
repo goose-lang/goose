@@ -86,6 +86,10 @@ func field(name string, e Expr) FieldVal {
 	return FieldVal{name, e}
 }
 
+func binding(name string, e Expr) Binding {
+	return Binding{Name: name, Expr: e}
+}
+
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
 	decls := s.Convert(fsPreamble + `
 // A Table provides fast access to an on-disk table
@@ -112,10 +116,10 @@ func CreateTable(p string) Table {
 		ReturnType: StructName("Table"),
 		Body: BlockExpr{
 			[]Binding{
-				Binding{"index", callExpr("Data.newHashTable", TypeIdent("uint64"))},
-				Binding{"f", callExpr("FS.create", ident("p"))},
+				binding("index", callExpr("Data.newHashTable", TypeIdent("uint64"))),
+				binding("f", callExpr("FS.create", ident("p"))),
 				anon(callExpr("FS.close", ident("f"))),
-				Binding{"f2", callExpr("FS.open", ident("p"))},
+				binding("f2", callExpr("FS.open", ident("p"))),
 				anon(ReturnExpr{StructLiteral{
 					"Table",
 					[]FieldVal{
@@ -159,10 +163,10 @@ func (s *CoqSuite) TestTypes(c *C) {
 func (s *CoqSuite) TestStraightLineCode(c *C) {
 	expr := BlockExpr{
 		[]Binding{
-			Binding{"index", callExpr("Data.newHashTable", TypeIdent("uint64"))},
-			Binding{"f", callExpr("FS.create", ident("p"))},
+			binding("index", callExpr("Data.newHashTable", TypeIdent("uint64"))),
+			binding("f", callExpr("FS.create", ident("p"))),
 			anon(callExpr("FS.close", ident("f"))),
-			Binding{"f2", callExpr("FS.open", ident("p"))},
+			binding("f2", callExpr("FS.open", ident("p"))),
 			anon(ReturnExpr{StructLiteral{
 				"Table",
 				[]FieldVal{
