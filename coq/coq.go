@@ -611,9 +611,7 @@ func (be BlockExpr) Coq() string {
 	var lines []string
 	for n, b := range be.Bindings {
 		if n == len(be.Bindings)-1 {
-			// TODO: b.Expr.Coq() may need wrapping (eg, if it has newlines)
-			//       We indent so at least it's visually apparent this has happened.
-			lines = append(lines, indent(2, b.Expr.Coq()))
+			lines = append(lines, b.Expr.Coq())
 			continue
 		}
 		name := b.Name
