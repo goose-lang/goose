@@ -325,6 +325,11 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	return be
 }
 
+func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
+	ctx.Todo(e, "slice expressions")
+	return nil
+}
+
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -341,8 +346,11 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		return ctx.basicLiteral(e)
 	case *ast.BinaryExpr:
 		return ctx.binExpr(e)
+	case *ast.SliceExpr:
+		return ctx.sliceExpr(e)
+	case *ast.IndexExpr:
+		ctx.Todo(e, "map/slice indexing")
 	default:
-		// TODO: this probably has useful things (like map access)
 		ctx.NoExample(e, "expr %s", spew.Sdump(e))
 	}
 	return nil
@@ -405,6 +413,8 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 		ctx.Todo(s, "for statements")
 	case *ast.BlockStmt:
 		return coq.NewAnon(ctx.blockStmt(s))
+	case *ast.GoStmt:
+		ctx.Todo(s, "go func(){ ... } statements")
 	default:
 		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
 	}
