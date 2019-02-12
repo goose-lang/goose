@@ -99,6 +99,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("Path")
 		case "uint64":
 			return coq.TypeIdent("uint64")
+		case "byte":
+			return coq.TypeIdent("byte")
 		default:
 			ctx.Todo(n, "explicitly handle basic types")
 		}
@@ -107,9 +109,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 }
 
 func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
-	if isIdent(e.Elt, "byte") {
-		return coq.ByteSliceType{}
-	}
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
@@ -191,6 +190,9 @@ func toInitialLower(s string) string {
 func (ctx Ctx) methodExpr(f ast.Expr) string {
 	switch f := f.(type) {
 	case *ast.Ident:
+		if f.Name == "len" {
+			return "slice.length"
+		}
 		return f.Name
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "fs") {

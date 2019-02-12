@@ -184,7 +184,7 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	decl := decls[0].(coq.FuncDecl)
 	c.Assert(decl.Name, Equals, "DecodeUInt64")
 
-	lenP := callExpr("len", ident("p"))
+	lenP := callExpr("slice.length", ident("p"))
 	ife := coq.IfExpr{
 		Cond: coq.BinaryExpr{lenP, coq.OpLessThan, intLiteral(8)},
 		Then: block(retBinding(tuple(intLiteral(0), intLiteral(0)))),

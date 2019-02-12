@@ -62,18 +62,12 @@ func (t MapType) Coq() string {
 	return fmt.Sprintf("HashTable %s", addParens(t.Value.Coq()))
 }
 
-type ByteSliceType struct{}
-
-func (t ByteSliceType) Coq() string {
-	return "ByteSlice"
-}
-
 type SliceType struct {
 	Value Type
 }
 
 func (t SliceType) Coq() string {
-	return fmt.Sprintf("Slice %s", t.Value.Coq())
+	return fmt.Sprintf("slice.t %s", t.Value.Coq())
 }
 
 type Expr interface {

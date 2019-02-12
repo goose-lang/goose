@@ -18,7 +18,7 @@ func (s *CoqSuite) TestRecord(c *C) {
 		Name: "Entry",
 		Fields: []FieldDecl{
 			{"Key", TypeIdent("uint64")},
-			{"Value", ByteSliceType{}},
+			{"Value", SliceType{TypeIdent("byte")}},
 		},
 		Comment: "An Entry is a key-value pair.",
 	}.CoqDecl(), Equals, strings.TrimSpace(`
@@ -26,7 +26,7 @@ Module Entry.
   (* An Entry is a key-value pair. *)
   Record t := mk {
     Key: uint64;
-    Value: ByteSlice;
+    Value: slice.t byte;
   }.
 End Entry.`))
 }
@@ -128,8 +128,8 @@ func (s *CoqSuite) TestBinOps(c *C) {
 		Equals, "a + 1")
 	c.Check(BinaryExpr{x, OpEquals, y}.Coq(),
 		Equals, "a == 1")
-	c.Check(BinaryExpr{callExpr("len", x), OpLessThan, y}.Coq(),
-		Equals, "cmp (len a) 1 == Lt")
+	c.Check(BinaryExpr{callExpr("slice.len", x), OpLessThan, y}.Coq(),
+		Equals, "cmp (slice.len a) 1 == Lt")
 }
 
 func (s *CoqSuite) TestIntLiterals(c *C) {
@@ -140,7 +140,7 @@ func (s *CoqSuite) TestIntLiterals(c *C) {
 }
 
 func (s *CoqSuite) TestIfExpr(c *C) {
-	lenP := callExpr("len", IdentExpr("p"))
+	lenP := callExpr("slice.len", IdentExpr("p"))
 	ife := IfExpr{
 		Cond: BinaryExpr{lenP, OpLessThan, IntLiteral{8}},
 		Then: block(retBinding(tupleExpr(IntLiteral{0}, IntLiteral{0}))),
@@ -148,7 +148,7 @@ func (s *CoqSuite) TestIfExpr(c *C) {
 	}
 	c.Check(ife.Coq(),
 		Equals, strings.TrimSpace(`
-if cmp (len p) (fromNum 8) == Lt
+if cmp (slice.len p) (fromNum 8) == Lt
   then (Ret (0, 0))
   else (Ret tt)
 `))
@@ -163,4 +163,9 @@ func (s *CoqSuite) TestDestructuringBinding(c *C) {
 let! (x, l) <- uint64_from_le p;
 Ret x
 `))
+}
+
+func (s *CoqSuite) TestSliceType(c *C) {
+	c.Check(SliceType{TypeIdent("byte")}.Coq(), Equals, "slice.t byte")
+	c.Check(SliceType{StructName("Table")}.Coq(), Equals, "slice.t Table.t")
 }
