@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tchajed/goose/coq"
-
 	. "gopkg.in/check.v1"
+
+	"github.com/tchajed/goose/coq"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -92,6 +92,18 @@ func binding(name string, e coq.Expr) coq.Binding {
 	return coq.Binding{Names: []string{name}, Expr: e}
 }
 
+func block(exprs ...coq.Binding) coq.BlockExpr {
+	return coq.BlockExpr{Bindings: exprs}
+}
+
+func retBinding(e coq.Expr) coq.Binding {
+	return coq.NewAnon(coq.ReturnExpr{Value: e})
+}
+
+func tuple(es ...coq.Expr) coq.Expr {
+	return coq.NewTuple(es)
+}
+
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
 	decls := s.Convert(fsPreamble + `
 // A Table provides fast access to an on-disk table
@@ -110,28 +122,79 @@ func CreateTable(p string) Table {
 }
 `)
 	c.Assert(decls, HasLen, 2)
-	returnValue := coq.StructLiteral{
-		StructName: "Table",
-		Elts: []coq.FieldVal{
-			field("Index", ident("index")),
-			field("File", ident("f2")),
-		},
-	}
 	c.Check(decls[1], DeepEquals, coq.FuncDecl{
 		Name: "CreateTable",
 		Args: []coq.FieldDecl{
 			{"p", coq.TypeIdent("Path")},
 		},
 		ReturnType: coq.StructName("Table"),
-		Body: coq.BlockExpr{
-			Bindings: []coq.Binding{
-				binding("index", callExpr("Data.newHashTable", coq.TypeIdent("uint64"))),
-				binding("f", callExpr("FS.create", ident("p"))),
-				coq.NewAnon(callExpr("FS.close", ident("f"))),
-				binding("f2", callExpr("FS.open", ident("p"))),
-				coq.NewAnon(coq.ReturnExpr{returnValue}),
-			},
-		},
+		Body: block(
+			binding("index", callExpr("Data.newHashTable", coq.TypeIdent("uint64"))),
+			binding("f", callExpr("FS.create", ident("p"))),
+			coq.NewAnon(callExpr("FS.close", ident("f"))),
+			binding("f2", callExpr("FS.open", ident("p"))),
+			retBinding(coq.StructLiteral{
+				StructName: "Table",
+				Elts: []coq.FieldVal{
+					field("Index", ident("index")),
+					field("File", ident("f2")),
+				},
+			}),
+		),
 		Comment: "CreateTable creates a new, empty table.",
+	})
+}
+
+func (s *ConversionSuite) TestMultipleReturn(c *C) {
+	decls := s.Convert(`
+func ReturnTwo(p []byte) (uint64, uint64) {
+	return 0, 0
+}
+
+func ReturnTwoWrapper(data []byte) (uint64, uint64) {
+	a, b := ReturnTwo(data)
+	return a, b
+}
+`)
+	decl := decls[1].(coq.FuncDecl)
+	c.Assert(decl.Name, Equals, "ReturnTwoWrapper",
+		Commentf("declarations returned out-of-order"))
+
+	c.Check(decl.Body, DeepEquals, block(
+		coq.Binding{[]string{"a", "b"}, callExpr("ReturnTwo", ident("data"))},
+		retBinding(tuple(ident("a"), ident("b"))),
+	))
+}
+
+func intLiteral(x uint64) coq.IntLiteral {
+	return coq.IntLiteral{Value: x}
+}
+
+func (s *ConversionSuite) TestIfStmt(c *C) {
+	decls := s.Convert(`
+import "github.com/tchajed/goose/machine"
+
+func DecodeUInt64(p []byte) (uint64, uint64) {
+	if len(p) < 8 {
+		return 0, 0
+	}
+	n := machine.UInt64Get(p)
+	return n, 8
+}`)
+	decl := decls[0].(coq.FuncDecl)
+	c.Assert(decl.Name, Equals, "DecodeUInt64")
+
+	lenP := callExpr("len", ident("p"))
+	ife := coq.IfExpr{
+		Cond: coq.BinaryExpr{lenP, coq.OpLessThan, intLiteral(8)},
+		Then: block(retBinding(tuple(intLiteral(0), intLiteral(0)))),
+		Else: coq.ReturnExpr{ident("tt")},
+	}
+	c.Check(decl.Body, DeepEquals, coq.BlockExpr{
+		Bindings: []coq.Binding{
+			coq.NewAnon(ife),
+			coq.Binding{[]string{"n"}, callExpr("uint64_from_le", ident("p"))},
+			retBinding(tuple(ident("n"), intLiteral(8))),
+		},
 	})
 }

@@ -73,3 +73,76 @@ Ret {| Table.Index := index;
        Table.File := f2; |}
 `))
 }
+
+func (s *CoqSuite) TestFuncDecl(c *C) {
+	body := BlockExpr{
+		[]Binding{
+			NewAnon(ReturnExpr{IdentExpr("0")}),
+		},
+	}
+	f := FuncDecl{
+		Name: "returnConstant",
+		Args: []FieldDecl{
+			{"p", TypeIdent("Path")},
+			{"f", TypeIdent("Fd")},
+		},
+		ReturnType: TypeIdent("uint64"),
+		Body:       body,
+		Comment:    "returnConstant ignores its arguments",
+	}
+	c.Check(f.CoqDecl(), Equals, strings.TrimSpace(`
+(* returnConstant ignores its arguments *)
+Definition returnConstant (p:Path) (f:Fd) : proc uint64 :=
+  Ret 0.
+`))
+}
+
+func tupleExpr(es ...Expr) Expr {
+	return NewTuple(es)
+}
+
+func tupleType(ts ...Type) Type {
+	return NewTupleType(ts)
+}
+
+func block(exprs ...Binding) BlockExpr {
+	return BlockExpr{Bindings: exprs}
+}
+
+func retBinding(e Expr) Binding {
+	return NewAnon(ReturnExpr{Value: e})
+}
+
+func (s *CoqSuite) TestTuples(c *C) {
+	c.Check(tupleExpr(IdentExpr("a")).Coq(), Equals, "a")
+	c.Check(tupleExpr(IdentExpr("a"), IdentExpr("b")).Coq(),
+		Equals, "(a, b)")
+	c.Check(tupleType(TypeIdent("uint64"), MapType{TypeIdent("uint64")}).Coq(),
+		Equals, "(uint64 * HashTable uint64)")
+}
+
+func (s *CoqSuite) TestBinOps(c *C) {
+	x := IdentExpr("a")
+	y := IntLiteral{1}
+	c.Check(BinaryExpr{x, OpPlus, y}.Coq(),
+		Equals, "a + 1")
+	c.Check(BinaryExpr{x, OpEquals, y}.Coq(),
+		Equals, "a == 1")
+	c.Check(BinaryExpr{callExpr("len", x), OpLessThan, y}.Coq(),
+		Equals, "cmp (len a) 1 == Lt")
+}
+
+func (s *CoqSuite) TestIfExpr(c *C) {
+	lenP := callExpr("len", IdentExpr("p"))
+	ife := IfExpr{
+		Cond: BinaryExpr{lenP, OpLessThan, IntLiteral{8}},
+		Then: block(retBinding(tupleExpr(IntLiteral{0}, IntLiteral{0}))),
+		Else: ReturnExpr{IdentExpr("tt")},
+	}
+	c.Check(ife.Coq(),
+		Equals, strings.TrimSpace(`
+if cmp (len p) (fromNum 8) == Lt
+  then (Ret (0, 0))
+  else (Ret tt)
+`))
+}

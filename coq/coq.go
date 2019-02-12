@@ -321,7 +321,7 @@ func (d FuncDecl) CoqDecl() string {
 		lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
 	}
 	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
-	lines = append(lines, fmt.Sprintf("  %s", indent(2, d.Body.Coq())))
+	lines = append(lines, fmt.Sprintf("  %s.", indent(2, d.Body.Coq())))
 	return strings.Join(lines, "\n")
 }
 
