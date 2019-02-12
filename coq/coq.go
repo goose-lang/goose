@@ -3,6 +3,7 @@ package coq
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/token"
 	"go/types"
 	"strconv"
@@ -24,12 +25,25 @@ type Config struct {
 	AddSourceFileComments bool
 }
 
-func NewCtx(info *types.Info, fset *token.FileSet, config Config) Ctx {
-	return Ctx{info: info,
+func NewCtx(fset *token.FileSet, config Config) Ctx {
+	info := &types.Info{
+		Defs:       make(map[*ast.Ident]types.Object),
+		Uses:       make(map[*ast.Ident]types.Object),
+		Types:      make(map[ast.Expr]types.TypeAndValue),
+		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+	}
+	return Ctx{
+		info:          info,
 		fset:          fset,
 		errorReporter: newErrorReporter(fset),
 		Config:        config,
 	}
+}
+
+func (ctx Ctx) TypeCheck(pkgName string, files []*ast.File) error {
+	conf := types.Config{Importer: importer.Default()}
+	_, err := conf.Check(pkgName, ctx.fset, files, ctx.info)
+	return err
 }
 
 func (ctx Ctx) Where(node ast.Node) string {
