@@ -8,37 +8,14 @@ import (
 	"go/token"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/tchajed/goose"
 	"github.com/tchajed/goose/coq"
 )
-
-func debugDecl(fset *token.FileSet, debugIdent string, decl ast.Decl) {
-	switch d := decl.(type) {
-	case *ast.FuncDecl:
-		if d.Name.Name == debugIdent {
-			spew.Dump(d)
-		}
-	case *ast.GenDecl:
-		if d.Tok == token.TYPE {
-			if spec, ok := d.Specs[0].(*ast.TypeSpec); ok {
-				if spec.Name.Name == debugIdent {
-					spew.Dump(spec)
-				}
-			}
-		}
-	}
-}
 
 func main() {
 	var config goose.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
-
-	var debugIdent string
-	flag.StringVar(&debugIdent, "debug", "",
-		"spew an identifier (use * to spew everything)")
 
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -72,17 +49,6 @@ func main() {
 	err = ctx.TypeCheck(pkgName, files)
 	if err != nil {
 		panic(err)
-	}
-	if debugIdent != "" {
-		if debugIdent == "*" {
-			spew.Dump(files)
-		} else {
-			for _, f := range files {
-				for _, d := range f.Decls {
-					debugDecl(fset, debugIdent, d)
-				}
-			}
-		}
 	}
 	var decls []coq.Decl
 	for _, f := range files {
