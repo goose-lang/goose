@@ -161,7 +161,8 @@ func ReturnTwoWrapper(data []byte) (uint64, uint64) {
 		Commentf("declarations returned out-of-order"))
 
 	c.Check(decl.Body, DeepEquals, block(
-		coq.Binding{[]string{"a", "b"}, callExpr("ReturnTwo", ident("data"))},
+		coq.Binding{[]string{"a", "b"},
+			callExpr("ReturnTwo", ident("data"))},
 		retBinding(tuple(ident("a"), ident("b"))),
 	))
 }
@@ -190,6 +191,8 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 		Then: block(retBinding(tuple(intLiteral(0), intLiteral(0)))),
 		Else: coq.ReturnExpr{ident("tt")},
 	}
+	// TODO: this is actually the wrong code for the example;
+	//   code following an early return needs to be lifted to the else of the if statement.
 	c.Check(decl.Body, DeepEquals, coq.BlockExpr{
 		Bindings: []coq.Binding{
 			coq.NewAnon(ife),
