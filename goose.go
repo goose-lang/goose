@@ -201,9 +201,9 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 		if isIdent(f.X, "machine") {
 			switch f.Sel.Name {
 			case "UInt64Get":
-				return "uint64_from_le"
+				return "Data.uint64Get"
 			case "UInt64Encode":
-				return "uint64_to_le"
+				return "Data.uint64Put"
 			}
 		}
 		ctx.Unsupported(f, "cannot call methods selected from %s", spew.Sdump(f.X))

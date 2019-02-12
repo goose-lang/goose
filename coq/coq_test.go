@@ -156,11 +156,11 @@ if compare (slice.len p) (fromNum 8) == Lt
 
 func (s *CoqSuite) TestDestructuringBinding(c *C) {
 	code := block(
-		Binding{[]string{"x", "l"}, callExpr("uint64_from_le", IdentExpr("p"))},
+		Binding{[]string{"x", "l"}, callExpr("Data.uint64Get", IdentExpr("p"))},
 		retBinding(IdentExpr("x")),
 	)
 	c.Check(code.Coq(), Equals, strings.TrimSpace(`
-let! (x, l) <- uint64_from_le p;
+let! (x, l) <- Data.uint64Get p;
 Ret x
 `))
 }

@@ -193,8 +193,8 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	c.Check(decl.Body, DeepEquals, coq.BlockExpr{
 		Bindings: []coq.Binding{
 			coq.NewAnon(ife),
-			coq.Binding{[]string{"n"},
-				callExpr("uint64_from_le", ident("p"))},
+			{[]string{"n"},
+				callExpr("Data.uint64Get", ident("p"))},
 			retBinding(tuple(ident("n"), intLiteral(8))),
 		},
 	})

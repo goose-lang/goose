@@ -12,12 +12,12 @@ func UInt64Get(p []byte) uint64 {
 	return binary.LittleEndian.Uint64(p)
 }
 
-// UInt64Encode is a functional little-endian encoder, to mirror the Coq model.
+// UInt64Put stores n to the first 8 bytes of p
 //
-// We could instead expose PutUint64 directly, but this would require another
-// stateful function on byteslices.
-func UInt64Encode(n uint64) []byte {
-	p := make([]byte, 8)
+// Requires p to be at least 8 bytes long.
+//
+// Uses little-endian byte order, but this is only relevant in that it's the
+// inverse of UInt64Get.
+func UInt64Put(p []byte, n uint64) {
 	binary.LittleEndian.PutUint64(p, n)
-	return p
 }
