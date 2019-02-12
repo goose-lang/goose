@@ -819,7 +819,7 @@ func (ctx Ctx) checkImports(d []ast.Spec) {
 		s := s.(*ast.ImportSpec)
 		importPath := stringBasicLit(s.Path)
 		// TODO: move these imports into goose
-		if !strings.HasPrefix(importPath, "github.com/tchajed/go-simple-db/") {
+		if !strings.HasPrefix(importPath, "github.com/tchajed/goose/machine") {
 			ctx.Unsupported(s, "non-whitelisted import")
 		}
 	}
