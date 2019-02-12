@@ -316,7 +316,15 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 		if isIdent(f.X, "fs") {
 			return "FS." + toInitialLower(f.Sel.Name)
 		}
-		ctx.Unsupported(f.X, "cannot call methods selected from %s", spew.Sdump(f.X))
+		if isIdent(f.X, "machine") {
+			switch f.Sel.Name {
+			case "UInt64Get":
+				return "uint64_from_le"
+			case "UInt64Encode":
+				return "uint64_to_le"
+			}
+		}
+		ctx.Unsupported(f, "cannot call methods selected from %s", spew.Sdump(f.X))
 		return "<selector>"
 	default:
 		ctx.Unsupported(f, "call on expression %s", spew.Sdump(f))
