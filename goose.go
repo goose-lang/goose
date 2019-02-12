@@ -328,7 +328,32 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
-	ctx.Todo(e, "slice expressions")
+	if e.Slice3 {
+		ctx.Unsupported(e, "3-index slice")
+		return nil
+	}
+	sliced := ctx.expr(e.X)
+	if e.Low != nil && e.High == nil {
+		return coq.CallExpr{
+			MethodName: "slice.skip",
+			Args:       []coq.Expr{sliced, ctx.expr(e.Low)},
+		}
+	}
+	if e.Low == nil && e.High != nil {
+		return coq.CallExpr{
+			MethodName: "slice.take",
+			Args:       []coq.Expr{sliced, ctx.expr(e.High)},
+		}
+	}
+	if e.Low != nil && e.High != nil {
+		return coq.CallExpr{
+			MethodName: "slice.subslice",
+			Args:       []coq.Expr{sliced, ctx.expr(e.Low), ctx.expr(e.High)},
+		}
+	}
+	if e.Low == nil && e.High == nil {
+		ctx.Unsupported(e, "complete slice doesn't do anything")
+	}
 	return nil
 }
 
