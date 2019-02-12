@@ -357,6 +357,23 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	return nil
 }
 
+func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
+	valueType := coq.TypeIdent("_")
+	switch nilTy := ctx.info.TypeOf(e).(type) {
+	case *types.Basic:
+		if nilTy.Kind() != types.UntypedNil {
+			ctx.Nope(e, "nil that is of a non-nil basic kind")
+			return coq.CallExpr{}
+		}
+	default:
+		ctx.Todo(e, "take advantage of nil type %s", nilTy)
+	}
+	return coq.CallExpr{
+		MethodName: "slice.nil",
+		Args:       []coq.Expr{valueType},
+	}
+}
+
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -364,7 +381,13 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.Ident:
-		return coq.IdentExpr(e.Name)
+		if e.Obj != nil {
+			return coq.IdentExpr(e.Name)
+		}
+		if e.Name == "nil" {
+			return ctx.nilExpr(e)
+		}
+		ctx.Unsupported(e, "special identifier")
 	case *ast.SelectorExpr:
 		return ctx.structSelector(e)
 	case *ast.CompositeLit:

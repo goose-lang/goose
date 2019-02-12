@@ -210,3 +210,23 @@ func (s *ConversionSuite) TestEmptyFunc(c *C) {
 		block(retBinding(ident("tt"))),
 	)
 }
+
+func (s *ConversionSuite) TestStructNil(c *C) {
+	decls := s.Convert(`
+type HasNil struct{
+	Data []byte
+}
+
+func NewHasNil() HasNil {
+    return HasNil{Data: nil}
+}
+`)
+	decl := decls[1].(coq.FuncDecl)
+	c.Check(decl.Body, DeepEquals,
+		block(retBinding(coq.StructLiteral{
+			StructName: "HasNil",
+			Elts: []coq.FieldVal{
+				{"Data", callExpr("slice.nil", coq.TypeIdent("_"))},
+			},
+		})))
+}
