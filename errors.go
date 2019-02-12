@@ -1,4 +1,4 @@
-package coq
+package goose
 
 import (
 	"bytes"

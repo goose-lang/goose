@@ -10,6 +10,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
+	"github.com/tchajed/goose"
 	"github.com/tchajed/goose/coq"
 )
 
@@ -31,7 +32,7 @@ func debugDecl(fset *token.FileSet, debugIdent string, decl ast.Decl) {
 }
 
 func main() {
-	var config coq.Config
+	var config goose.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
 
@@ -67,7 +68,7 @@ func main() {
 		pkgName = pName
 	}
 
-	ctx := coq.NewCtx(fset, config)
+	ctx := goose.NewCtx(fset, config)
 	err = ctx.TypeCheck(pkgName, files)
 	if err != nil {
 		panic(err)
