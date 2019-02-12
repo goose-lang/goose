@@ -295,10 +295,6 @@ func (b Binding) IsAnonymous() bool {
 	return b.Name == ""
 }
 
-func anon(s Expr) Binding {
-	return Binding{Name: "", Expr: s}
-}
-
 func toInitialLower(s string) string {
 	pastFirstLetter := false
 	return strings.Map(func(r rune) rune {
@@ -353,7 +349,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) CallExpr {
 	return CallExpr{}
 }
 
-func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
+func (ctx Ctx) callExpr(s *ast.CallExpr) CallExpr {
 	call := CallExpr{}
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
@@ -363,10 +359,6 @@ func (ctx Ctx) callStmt(s *ast.CallExpr) CallExpr {
 		call.Args = append(call.Args, ctx.expr(arg))
 	}
 	return call
-}
-
-func (ctx Ctx) exprStmt(s *ast.ExprStmt) Binding {
-	return anon(ctx.expr(s.X))
 }
 
 type FieldVal struct {
@@ -410,7 +402,7 @@ func (ctx Ctx) structSelector(e *ast.SelectorExpr) ProjExpr {
 func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
-		return ctx.callStmt(e)
+		return ctx.callExpr(e)
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.Ident:
@@ -476,17 +468,75 @@ func mkTuple(es []Expr) Expr {
 	return TupleExpr(es)
 }
 
+func (ctx Ctx) returnExpr(es []ast.Expr) Expr {
+	var exprs TupleExpr
+	for _, r := range es {
+		exprs = append(exprs, ctx.expr(r))
+	}
+	return ReturnExpr{mkTuple(exprs)}
+}
+
+func anon(s Expr) Binding {
+	return Binding{Name: "", Expr: s}
+}
+
+// A Block is a sequence of bindings, ending with some expression.
+type BlockExpr struct {
+	Bindings []Binding
+}
+
+func (be BlockExpr) Coq() string {
+	var lines []string
+	for n, b := range be.Bindings {
+		if n == len(be.Bindings)-1 {
+			// TODO: b.Expr.Coq() may need wrapping (eg, if it has newlines)
+			//       We indent so at least it's visually apparent this has happened.
+			lines = append(lines, indent(2, b.Expr.Coq()))
+			continue
+		}
+		name := b.Name
+		if b.IsAnonymous() {
+			name = "_"
+		}
+		lines = append(lines, fmt.Sprintf("%s <- %s;", name, b.Expr.Coq()))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (ctx Ctx) blockStmt(s *ast.BlockStmt) BlockExpr {
+	var bindings []Binding
+	for _, s := range s.List {
+		bindings = append(bindings, ctx.stmt(s))
+	}
+	return BlockExpr{bindings}
+}
+
+type IfExpr struct {
+	Cond Expr
+	Then Expr
+	Else Expr
+}
+
+func (ife IfExpr) Coq() string {
+	return fmt.Sprintf("if %s\n"+
+		"  then (%s)\n"+
+		"  else (%s)",
+		ife.Cond.Coq(), indent(8, ife.Then.Coq()), indent(8, ife.Else.Coq()))
+}
+
+func (b Binding) Unwrap() (e Expr, ok bool) {
+	if b.IsAnonymous() {
+		return b.Expr, true
+	}
+	return nil, false
+}
+
 func (ctx Ctx) stmt(s ast.Stmt) Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
-		var exprs TupleExpr
-		for _, r := range s.Results {
-			exprs = append(exprs, ctx.expr(r))
-		}
-		ret := mkTuple(exprs)
-		return anon(ReturnExpr{ret})
+		return anon(ctx.returnExpr(s.Results))
 	case *ast.ExprStmt:
-		return ctx.exprStmt(s)
+		return anon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		if len(s.Lhs) > 1 {
 			ctx.Unsupported(s, "multiple assignment")
@@ -499,44 +549,40 @@ func (ctx Ctx) stmt(s ast.Stmt) Binding {
 			// NOTE: Do we need these? Should they become bindings anyway, or perhaps we should support let bindings?
 			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
 		}
-		if ident, ok := getIdent(lhs); ok {
-			s := Binding{Name: ident, Expr: ctx.expr(rhs)}
-			return s
-		} else {
+		ident, ok := getIdent(lhs)
+		if !ok {
 			ctx.Nope(lhs, "defining a non-identifier")
 		}
+		return Binding{Name: ident, Expr: ctx.expr(rhs)}
 	case *ast.IfStmt:
-		ctx.Todo(s, "if statements")
+		thenExpr, ok := ctx.stmt(s.Body).Unwrap()
+		if !ok {
+			ctx.Nope(s.Body, "if statement body ends with an assignment")
+			return Binding{}
+		}
+		ife := IfExpr{
+			Cond: ctx.expr(s.Cond),
+			Then: thenExpr,
+		}
+		if s.Else == nil {
+			ife.Else = ReturnExpr{IdentExpr("tt")}
+		} else {
+			elseExpr, ok := ctx.stmt(s.Else).Unwrap()
+			if !ok {
+				ctx.Nope(s.Else, "if statement else ends with an assignment")
+				return Binding{}
+			}
+			ife.Else = elseExpr
+		}
+		return anon(ife)
 	case *ast.ForStmt:
 		ctx.Todo(s, "for statements")
+	case *ast.BlockStmt:
+		return anon(ctx.blockStmt(s))
 	default:
 		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
 	}
 	return Binding{}
-}
-
-// Block represents a sequence of bindings, ending with some expression.
-//
-// eventually may need to wrap a block in a recursive structure for if-statements and loops
-type Block struct {
-	// invariant: last binding is always anonymous
-	Bindings []Binding
-}
-
-func NewBlock(bs []Binding) Block {
-	lastBinding := bs[len(bs)-1]
-	if !lastBinding.IsAnonymous() {
-		return Block{}
-	}
-	return Block{bs}
-}
-
-func (ctx Ctx) blockStmt(s *ast.BlockStmt) Block {
-	var bindings []Binding
-	for _, s := range s.List {
-		bindings = append(bindings, ctx.stmt(s))
-	}
-	return NewBlock(bindings)
 }
 
 // FuncDecl declares a function, including its parameters and body.
@@ -544,7 +590,7 @@ type FuncDecl struct {
 	name       string
 	Args       []FieldDecl
 	ReturnType Type
-	Body       Block
+	Body       Expr
 	Comment    string
 }
 
@@ -567,17 +613,7 @@ func (d FuncDecl) CoqDecl() string {
 		lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
 	}
 	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
-	for n, b := range d.Body.Bindings {
-		if n == len(d.Body.Bindings)-1 {
-			lines = append(lines, fmt.Sprintf("  %s.", indent(2, b.Expr.Coq())))
-			continue
-		}
-		name := b.Name
-		if b.IsAnonymous() {
-			name = "_"
-		}
-		lines = append(lines, fmt.Sprintf("  %s <- %s;", name, indent(2, b.Expr.Coq())))
-	}
+	lines = append(lines, fmt.Sprintf("  %s", indent(2, d.Body.Coq())))
 	return strings.Join(lines, "\n")
 }
 
