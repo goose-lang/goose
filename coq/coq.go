@@ -469,6 +469,59 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) IntLiteral {
 	return IntLiteral{n}
 }
 
+type BinOp int
+
+const (
+	OpPlus BinOp = iota
+	OpMinus
+	OpEquals
+	OpLessThan
+)
+
+type BinaryExpr struct {
+	X  Expr
+	Op BinOp
+	Y  Expr
+}
+
+func (be BinaryExpr) Coq() string {
+	if be.Op == OpLessThan {
+		// TODO: should just have a binary operator for this in Coq
+		return fmt.Sprintf("cmp %s %s == Lt", be.X.Coq(), be.Y.Coq())
+	}
+	var binop string
+	switch be.Op {
+	case OpPlus:
+		binop = "+"
+	case OpMinus:
+		binop = "-"
+	case OpEquals:
+		// note that this is not a boolean; shouldn't be a problem for a while
+		// since we don't actually support Go booleans, only if-statements
+		binop = "=="
+	default:
+		panic("unknown binop")
+	}
+	return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
+}
+
+func (ctx Ctx) binExpr(e *ast.BinaryExpr) Expr {
+	be := BinaryExpr{X: ctx.expr(e.X), Y: ctx.expr(e.Y)}
+	switch e.Op {
+	case token.LSS:
+		be.Op = OpLessThan
+	case token.ADD:
+		be.Op = OpPlus
+	case token.SUB:
+		be.Op = OpMinus
+	case token.EQL:
+		be.Op = OpEquals
+	default:
+		ctx.Unsupported(e, "binary operator")
+	}
+	return be
+}
+
 func (ctx Ctx) expr(e ast.Expr) Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -483,6 +536,8 @@ func (ctx Ctx) expr(e ast.Expr) Expr {
 		return ctx.structLiteral(e)
 	case *ast.BasicLit:
 		return ctx.basicLiteral(e)
+	case *ast.BinaryExpr:
+		return ctx.binExpr(e)
 	default:
 		// TODO: this probably has useful things (like map access)
 		ctx.NoExample(e, "expr %s", spew.Sdump(e))
