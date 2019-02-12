@@ -146,3 +146,14 @@ if cmp (len p) (fromNum 8) == Lt
   else (Ret tt)
 `))
 }
+
+func (s *CoqSuite) TestDestructuringBinding(c *C) {
+	code := block(
+		Binding{[]string{"x", "l"}, callExpr("uint64_from_le", IdentExpr("p"))},
+		retBinding(IdentExpr("x")),
+	)
+	c.Check(code.Coq(), Equals, strings.TrimSpace(`
+let! '(x, l) <- uint64_from_le p;
+Ret x
+`))
+}
