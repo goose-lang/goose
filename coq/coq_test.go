@@ -192,11 +192,6 @@ func (s *CoqSuite) TestPureImpure(c *C) {
 		BinaryExpr{ident("x"), OpPlus, ident("y")},
 		OpPlus, ident("z"),
 	}
-
-	// TODO: make ret insert parentheses, fix tests
-	//   (to make code reasonable should check if expression is already
-	//   well-parenthesized in addParens)
-
 	c.Check(block(
 		binding("x",
 			PureCall(callExpr("slice.length", ident("p")))),
@@ -209,5 +204,5 @@ func (s *CoqSuite) TestPureImpure(c *C) {
 let x := slice.length p in
 let y := fromNum 2 + fromNum 3 in
 z <- Data.uint64Get p;
-Ret x + y + z`))
+Ret (x + y + z)`))
 }

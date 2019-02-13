@@ -5,9 +5,18 @@ import (
 	"strings"
 )
 
+func isWellBalanced(s string, lDelim string, rDelim string) bool {
+	if strings.HasPrefix(s, lDelim) && strings.HasSuffix(s, rDelim) {
+		return true
+	}
+	return false
+}
+
 func addParens(s string) string {
 	// conservative avoidance of parentheses
-	if !strings.Contains(s, " ") {
+	if !strings.Contains(s, " ") ||
+		isWellBalanced(s, "(", ")") ||
+		isWellBalanced(s, "{|", "|}") {
 		return s
 	}
 	return fmt.Sprintf("(%s)", s)
@@ -137,7 +146,7 @@ type ReturnExpr struct {
 }
 
 func (e ReturnExpr) Coq() string {
-	return "Ret " + indent(4, e.Value.Coq())
+	return "Ret " + indent(4, addParens(e.Value.Coq()))
 }
 
 type Binding struct {
