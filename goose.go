@@ -406,44 +406,99 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	return nil
 }
 
+type genericAssign struct {
+	Names    []string
+	Rhs      coq.Expr
+	IsDefine bool
+}
+
+func (ctx Ctx) parseAssignment(s *ast.AssignStmt) genericAssign {
+	if len(s.Rhs) > 1 {
+		ctx.Unsupported(s, "multiple RHS assignment (split them up)")
+	}
+	lhs, rhs := s.Lhs, s.Rhs[0]
+	var names []string
+	for _, lhsExpr := range lhs {
+		ident, ok := getIdent(lhsExpr)
+		if !ok {
+			ctx.Nope(lhsExpr, "defining a non-identifier")
+		}
+		names = append(names, ident)
+	}
+	return genericAssign{names, ctx.expr(rhs), s.Tok == token.DEFINE}
+}
+
 func (ctx Ctx) blockStmt(s *ast.BlockStmt) coq.BlockExpr {
+	return ctx.stmts(s.List)
+}
+
+type cursor struct {
+	Stmts []ast.Stmt
+}
+
+// HasNext returns true if the cursor has any remaining statements
+func (c cursor) HasNext() bool {
+	return len(c.Stmts) > 0
+}
+
+// Next returns the next statement. Requires that the cursor is non-empty (check with HasNext()).
+func (c *cursor) Next() ast.Stmt {
+	s := c.Stmts[0]
+	c.Stmts = c.Stmts[1:]
+	return s
+}
+
+// Remainder consumes and returns all remaining statements
+func (c *cursor) Remainder() []ast.Stmt {
+	s := c.Stmts
+	c.Stmts = nil
+	return s
+}
+
+func endsWithReturn(b *ast.BlockStmt) bool {
+	switch b.List[len(b.List)-1].(type) {
+	case *ast.ReturnStmt:
+		return true
+	}
+	return false
+}
+
+func (ctx Ctx) stmts(ss []ast.Stmt) coq.BlockExpr {
+	c := &cursor{ss}
 	var bindings []coq.Binding
-	for _, s := range s.List {
-		bindings = append(bindings, ctx.stmt(s))
+	for c.HasNext() {
+		bindings = append(bindings, ctx.stmt(c.Next(), c))
 	}
 	if len(bindings) == 0 {
-		retVal := coq.IdentExpr("tt")
-		bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{retVal}))
+		retExpr := coq.ReturnExpr{coq.IdentExpr("tt")}
+		return coq.BlockExpr{[]coq.Binding{coq.NewAnon(retExpr)}}
 	}
 	return coq.BlockExpr{bindings}
 }
 
-func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
+func (ctx Ctx) stmt(s ast.Stmt, c *cursor) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
+		if c.HasNext() {
+			ctx.Unsupported(c.Next(), "statement following return")
+			return coq.Binding{}
+		}
 		return coq.NewAnon(ctx.returnExpr(s.Results))
 	case *ast.ExprStmt:
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
-		if len(s.Rhs) > 1 {
-			ctx.Unsupported(s, "multiple RHS assignment (split them up)")
-		}
-		lhs, rhs := s.Lhs, s.Rhs[0]
-		if s.Tok != token.DEFINE {
-			// NOTE: Do we need these? Should they become bindings anyway, or perhaps we should support let bindings?
+		assign := ctx.parseAssignment(s)
+		if !assign.IsDefine {
 			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
 		}
-		var names []string
-		for _, lhsExpr := range lhs {
-			ident, ok := getIdent(lhsExpr)
-			if !ok {
-				ctx.Nope(lhsExpr, "defining a non-identifier")
-			}
-			names = append(names, ident)
-		}
-		return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
+		return coq.Binding{Names: assign.Names, Expr: assign.Rhs}
+	case *ast.BlockStmt:
+		return coq.NewAnon(ctx.blockStmt(s))
 	case *ast.IfStmt:
-		thenExpr, ok := ctx.stmt(s.Body).Unwrap()
+		// TODO: be more careful about nested if statements; if the then branch has
+		//  an if statement with early return, this is probably not handled correctly.
+		//  We should conservatively disallow such returns until they're properly analyzed.
+		thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}).Unwrap()
 		if !ok {
 			ctx.Nope(s.Body, "if statement body ends with an assignment")
 			return coq.Binding{}
@@ -452,21 +507,42 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 			Cond: ctx.expr(s.Cond),
 			Then: thenExpr,
 		}
-		if s.Else == nil {
-			ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
-		} else {
-			elseExpr, ok := ctx.stmt(s.Else).Unwrap()
+
+		// supported use cases
+		// (1) early return, no else branch; remainder of function is lifted to else
+		// (2) both branches and no remainder
+		//
+		// If the else branch also doesn't return it's not a problem to handle subsequent code,
+		// but that's annoying and we can leave it for later. Maybe the special case
+		// of Else == nil should be supported, though.
+
+		remaining := c.HasNext()
+		if endsWithReturn(s.Body) && remaining {
+			if s.Else != nil {
+				ctx.FutureWork(s.Else, "else with early return")
+				return coq.Binding{}
+			}
+			ife.Else = ctx.stmts(c.Remainder())
+			return coq.NewAnon(ife)
+		}
+		if !remaining {
+			if s.Else == nil {
+				ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
+				return coq.NewAnon(ife)
+			}
+			elseExpr, ok := ctx.stmt(s.Else, c).Unwrap()
 			if !ok {
 				ctx.Nope(s.Else, "if statement else ends with an assignment")
 				return coq.Binding{}
 			}
 			ife.Else = elseExpr
+			return coq.NewAnon(ife)
 		}
-		return coq.NewAnon(ife)
+		// there are some other cases that can be handled but it's a bit tricky
+		ctx.FutureWork(s, "non-terminating if expressions are only partially supported")
+		return coq.Binding{}
 	case *ast.ForStmt:
 		ctx.Todo(s, "for statements")
-	case *ast.BlockStmt:
-		return coq.NewAnon(ctx.blockStmt(s))
 	case *ast.GoStmt:
 		ctx.Todo(s, "go func(){ ... } statements")
 	default:

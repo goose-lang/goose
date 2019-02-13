@@ -189,18 +189,14 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	ife := coq.IfExpr{
 		Cond: coq.BinaryExpr{lenP, coq.OpLessThan, intLiteral(8)},
 		Then: block(retBinding(tuple(intLiteral(0), intLiteral(0)))),
-		Else: coq.ReturnExpr{ident("tt")},
+		Else: block(
+			coq.Binding{
+				[]string{"n"},
+				callExpr("Data.uint64Get", ident("p")),
+			},
+			retBinding(tuple(ident("n"), intLiteral(8)))),
 	}
-	// TODO: this is actually the wrong code for the example;
-	//   code following an early return needs to be lifted to the else of the if statement.
-	c.Check(decl.Body, DeepEquals, coq.BlockExpr{
-		Bindings: []coq.Binding{
-			coq.NewAnon(ife),
-			{[]string{"n"},
-				callExpr("Data.uint64Get", ident("p"))},
-			retBinding(tuple(ident("n"), intLiteral(8))),
-		},
-	})
+	c.Check(decl.Body, DeepEquals, block(coq.NewAnon(ife)))
 }
 
 func (s *ConversionSuite) TestEmptyFunc(c *C) {
