@@ -119,6 +119,19 @@ func (s *CoqSuite) TestTuples(c *C) {
 		Equals, "(a, b)")
 	c.Check(tupleType(TypeIdent("uint64"), MapType{TypeIdent("uint64")}).Coq(),
 		Equals, "(uint64 * HashTable uint64)")
+
+	entry := StructLiteral{
+		StructName: "Entry",
+		Elts: []FieldVal{
+			{"Key", IntLiteral{0}},
+			{"Value", IdentExpr("_")},
+		},
+	}
+
+	c.Check(tupleExpr(entry, IntLiteral{1}).Coq(),
+		Equals, strings.TrimSpace(`
+({| Entry.Key := 0;
+    Entry.Value := _; |}, 1)`))
 }
 
 func (s *CoqSuite) TestBinOps(c *C) {
@@ -149,8 +162,8 @@ func (s *CoqSuite) TestIfExpr(c *C) {
 	c.Check(ife.Coq(),
 		Equals, strings.TrimSpace(`
 if compare (slice.len p) (fromNum 8) == Lt
-  then (Ret (0, 0))
-  else (Ret tt)
+  then Ret (0, 0)
+  else Ret tt
 `))
 }
 

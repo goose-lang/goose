@@ -31,7 +31,8 @@ func (d StructDecl) CoqDecl() string {
 	}
 	lines = append(lines, "  Record t := mk {")
 	for _, fd := range d.Fields {
-		lines = append(lines, fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
+		lines = append(lines,
+			fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
 	}
 	lines = append(lines, "  }.")
 	lines = append(lines, fmt.Sprintf("End %s.", d.Name))
@@ -242,7 +243,8 @@ func (te TupleExpr) Coq() string {
 	for _, t := range te {
 		comps = append(comps, t.Coq())
 	}
-	return fmt.Sprintf("(%s)", strings.Join(comps, ", "))
+	return fmt.Sprintf("(%s)",
+		indent(1, strings.Join(comps, ", ")))
 }
 
 // NewTuple is a smart constructor that wraps multiple expressions in a TupleExpr
@@ -280,9 +282,11 @@ type IfExpr struct {
 
 func (ife IfExpr) Coq() string {
 	return fmt.Sprintf("if %s\n"+
-		"  then (%s)\n"+
-		"  else (%s)",
-		ife.Cond.Coq(), indent(8, ife.Then.Coq()), indent(8, ife.Else.Coq()))
+		"  then %s\n"+
+		"  else %s",
+		ife.Cond.Coq(),
+		indent(7, ife.Then.Coq()),
+		indent(7, ife.Else.Coq()))
 }
 
 func (b Binding) Unwrap() (e Expr, ok bool) {
