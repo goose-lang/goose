@@ -185,7 +185,7 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	decl := decls[0].(coq.FuncDecl)
 	c.Assert(decl.Name, Equals, "DecodeUInt64")
 
-	lenP := callExpr("slice.length", ident("p"))
+	lenP := coq.PureCall(callExpr("slice.length", ident("p")))
 	ife := coq.IfExpr{
 		Cond: coq.BinaryExpr{lenP, coq.OpLessThan, intLiteral(8)},
 		Then: block(retBinding(tuple(intLiteral(0), intLiteral(0)))),
@@ -234,7 +234,35 @@ func SliceExample(p []byte) ([]byte, []byte) {
 	decl := decls[0].(coq.FuncDecl)
 	c.Check(decl.Body, DeepEquals,
 		block(retBinding(tuple(
-			callExpr("slice.take", intLiteral(1), ident("p")),
-			callExpr("slice.skip", intLiteral(1), ident("p")),
+			coq.PureCall(callExpr("slice.take", intLiteral(1), ident("p"))),
+			coq.PureCall(callExpr("slice.skip", intLiteral(1), ident("p"))),
 		))))
+}
+
+func (s *ConversionSuite) TestPureImpure(c *C) {
+	decls := s.Convert(`
+import "github.com/tchajed/goose/machine"
+
+func PureDemo(p []byte) uint64 {
+  x := uint64(len(p))
+  y := uint64(2 + 3)
+  z := machine.UInt64Get(p)
+  return x + y + z
+}`)
+	decl := decls[0].(coq.FuncDecl)
+	xyz := coq.BinaryExpr{
+		coq.BinaryExpr{ident("x"), coq.OpPlus, ident("y")},
+		coq.OpPlus, ident("z"),
+	}
+	c.Check(decl.Body, DeepEquals,
+		block(
+			binding("x",
+				coq.PureCall(callExpr("slice.length", ident("p")))),
+			binding("y",
+				coq.BinaryExpr{intLiteral(2), coq.OpPlus, intLiteral(3)}),
+			binding("z",
+				callExpr("Data.uint64Get", ident("p"))),
+			retBinding(xyz),
+		),
+	)
 }

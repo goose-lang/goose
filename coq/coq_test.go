@@ -48,6 +48,10 @@ func binding(name string, e Expr) Binding {
 	return Binding{Names: []string{name}, Expr: e}
 }
 
+func ident(name string) IdentExpr {
+	return IdentExpr(name)
+}
+
 func (s *CoqSuite) TestStraightLineCode(c *C) {
 	expr := BlockExpr{
 		[]Binding{
@@ -181,4 +185,29 @@ Ret x
 func (s *CoqSuite) TestSliceType(c *C) {
 	c.Check(SliceType{TypeIdent("byte")}.Coq(), Equals, "slice.t byte")
 	c.Check(SliceType{StructName("Table")}.Coq(), Equals, "slice.t Table.t")
+}
+
+func (s *CoqSuite) TestPureImpure(c *C) {
+	xyz := BinaryExpr{
+		BinaryExpr{ident("x"), OpPlus, ident("y")},
+		OpPlus, ident("z"),
+	}
+
+	// TODO: make ret insert parentheses, fix tests
+	//   (to make code reasonable should check if expression is already
+	//   well-parenthesized in addParens)
+
+	c.Check(block(
+		binding("x",
+			PureCall(callExpr("slice.length", ident("p")))),
+		binding("y",
+			BinaryExpr{IntLiteral{2}, OpPlus, IntLiteral{3}}),
+		binding("z",
+			callExpr("Data.uint64Get", ident("p"))),
+		retBinding(xyz),
+	).Coq(), Equals, strings.TrimSpace(`
+let x := slice.length p in
+let y := fromNum 2 + fromNum 3 in
+z <- Data.uint64Get p;
+Ret x + y + z`))
 }

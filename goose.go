@@ -187,12 +187,21 @@ func toInitialLower(s string) string {
 	}, s)
 }
 
+func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
+	x := e.Args[0]
+	xTy := ctx.info.TypeOf(x)
+	if _, ok := xTy.(*types.Slice); !ok {
+		ctx.Unsupported(e, "length of object of type %v", xTy)
+		return coq.PureCall(coq.CallExpr{})
+	}
+	return coq.PureCall(coq.NewCallExpr("slice.length",
+		ctx.expr(x),
+	))
+}
+
 func (ctx Ctx) methodExpr(f ast.Expr) string {
 	switch f := f.(type) {
 	case *ast.Ident:
-		if f.Name == "len" {
-			return "slice.length"
-		}
 		return f.Name
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "fs") {
@@ -234,10 +243,37 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	return coq.CallExpr{}
 }
 
-func (ctx Ctx) callExpr(s *ast.CallExpr) coq.CallExpr {
+// basicallyUInt64 returns true conservatively when an
+// expression can be treated as a uint64
+func (ctx Ctx) basicallyUInt64(e ast.Expr) bool {
+	basicTy, ok := ctx.info.TypeOf(e).(*types.Basic)
+	if !ok {
+		return false
+	}
+	switch basicTy.Kind() {
+	// conversion from uint64 -> uint64 is possible if the conversion
+	// causes an untyped literal to become a uint64
+	case types.Int, types.Uint64:
+		return true
+	}
+	return false
+}
+
+func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	call := coq.CallExpr{}
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
+	}
+	if isIdent(s.Fun, "len") {
+		return ctx.lenExpr(s)
+	}
+	if isIdent(s.Fun, "uint64") {
+		x := s.Args[0]
+		if ctx.basicallyUInt64(x) {
+			return ctx.expr(x)
+		}
+		ctx.Unsupported(s, "casts from non-int type %v to uint64", ctx.info.TypeOf(x))
+		return nil
 	}
 	call.MethodName = ctx.methodExpr(s.Fun)
 	for _, arg := range s.Args {
@@ -334,22 +370,16 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
-		return coq.CallExpr{
-			MethodName: "slice.skip",
-			Args:       []coq.Expr{ctx.expr(e.Low), x},
-		}
+		return coq.PureCall(coq.NewCallExpr("slice.skip",
+			ctx.expr(e.Low), x))
 	}
 	if e.Low == nil && e.High != nil {
-		return coq.CallExpr{
-			MethodName: "slice.take",
-			Args:       []coq.Expr{ctx.expr(e.High), x},
-		}
+		return coq.PureCall(coq.NewCallExpr("slice.take",
+			ctx.expr(e.High), x))
 	}
 	if e.Low != nil && e.High != nil {
-		return coq.CallExpr{
-			MethodName: "slice.subslice",
-			Args:       []coq.Expr{ctx.expr(e.Low), ctx.expr(e.High), x},
-		}
+		return coq.PureCall(coq.NewCallExpr("slice.subslice",
+			ctx.expr(e.Low), ctx.expr(e.High), x))
 	}
 	if e.Low == nil && e.High == nil {
 		ctx.Unsupported(e, "complete slice doesn't do anything")

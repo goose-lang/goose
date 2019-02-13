@@ -5,6 +5,23 @@ import (
 	"strings"
 )
 
+func addParens(s string) string {
+	// conservative avoidance of parentheses
+	if !strings.Contains(s, " ") {
+		return s
+	}
+	return fmt.Sprintf("(%s)", s)
+}
+
+func indent(spaces int, s string) string {
+	repl := make([]byte, 1+spaces)
+	repl[0] = '\n'
+	for i := 1; i < len(repl); i++ {
+		repl[i] = ' '
+	}
+	return strings.Replace(s, "\n", string(repl), -1)
+}
+
 // FieldDecl is a name:type declaration (for a struct or function binders)
 type FieldDecl struct {
 	Name string
@@ -91,23 +108,6 @@ func NewCallExpr(name string, args ...Expr) CallExpr {
 	return CallExpr{MethodName: name, Args: args}
 }
 
-type ProjExpr struct {
-	Projection string
-	Arg        Expr
-}
-
-func addParens(s string) string {
-	// conservative avoidance of parentheses
-	if !strings.Contains(s, " ") {
-		return s
-	}
-	return fmt.Sprintf("(%s)", s)
-}
-
-func (e ProjExpr) Coq() string {
-	return fmt.Sprintf("%s.(%s)", addParens(e.Arg.Coq()), e.Projection)
-}
-
 func (s CallExpr) Coq() string {
 	comps := []string{s.MethodName}
 	for _, a := range s.Args {
@@ -116,17 +116,24 @@ func (s CallExpr) Coq() string {
 	return strings.Join(comps, " ")
 }
 
-type ReturnExpr struct {
-	Value Expr
+// PureCall is a wrapper for a call to mark it as a pure expression.
+type PureCall CallExpr
+
+func (s PureCall) Coq() string {
+	return CallExpr(s).Coq()
 }
 
-func indent(spaces int, s string) string {
-	repl := make([]byte, 1+spaces)
-	repl[0] = '\n'
-	for i := 1; i < len(repl); i++ {
-		repl[i] = ' '
-	}
-	return strings.Replace(s, "\n", string(repl), -1)
+type ProjExpr struct {
+	Projection string
+	Arg        Expr
+}
+
+func (e ProjExpr) Coq() string {
+	return fmt.Sprintf("%s.(%s)", addParens(e.Arg.Coq()), e.Projection)
+}
+
+type ReturnExpr struct {
+	Value Expr
 }
 
 func (e ReturnExpr) Coq() string {
@@ -260,6 +267,17 @@ type BlockExpr struct {
 	Bindings []Binding
 }
 
+func isPure(e Expr) bool {
+	switch e.(type) {
+	case BinaryExpr, PureCall:
+		return true
+	case CallExpr: // distinct from PureCall
+		return false
+	default:
+		return false
+	}
+}
+
 func (be BlockExpr) Coq() string {
 	var lines []string
 	for n, b := range be.Bindings {
@@ -267,9 +285,17 @@ func (be BlockExpr) Coq() string {
 			lines = append(lines, b.Expr.Coq())
 			continue
 		}
-		lines = append(
-			lines, fmt.Sprintf("%s <- %s;",
-				b.Binder(), b.Expr.Coq()))
+		var line string
+		if isPure(b.Expr) {
+			// this generates invalid code if the binder happens to be for multiple values
+			// (which would only happen if we supported some pure function with multiple return values)
+			line = fmt.Sprintf("let %s := %s in",
+				b.Binder(), b.Expr.Coq())
+		} else {
+			line = fmt.Sprintf("%s <- %s;",
+				b.Binder(), b.Expr.Coq())
+		}
+		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
 }
