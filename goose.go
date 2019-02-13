@@ -273,6 +273,13 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	if isIdent(s.Fun, "len") {
 		return ctx.lenExpr(s)
 	}
+	if isIdent(s.Fun, "append") {
+		if s.Ellipsis == token.NoPos {
+			return coq.NewCallExpr("Data.sliceAppend", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+		}
+		// append(s1, s2...)
+		return coq.NewCallExpr("Data.sliceAppendSlice", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+	}
 	if isIdent(s.Fun, "uint64") {
 		x := s.Args[0]
 		if ctx.basicallyUInt64(x) {
