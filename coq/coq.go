@@ -341,6 +341,42 @@ func (b Binding) Unwrap() (e Expr, ok bool) {
 	return nil, false
 }
 
+// currently restrict loops to return nothing
+// good way to lift this restriction is to require loops to be at the end of the function
+// and then support return inside a loop instead of break
+type LoopRetExpr struct{}
+
+func (e LoopRetExpr) Coq() string {
+	return "LoopRet tt"
+}
+
+type LoopContinueExpr struct {
+	// Value is the value to start the next loop with
+	Value Expr
+}
+
+func (e LoopContinueExpr) Coq() string {
+	// TODO: factor out this pattern of prefix + indent(len(prefix), code)
+	return fmt.Sprintf("LoopContinue %s",
+		indent(len("LoopContinue "), e.Value.Coq()))
+}
+
+type LoopExpr struct {
+	// Initial is the initial loop variable value to use
+	Initial Expr
+
+	// name of loop variable
+	LoopVarIdent string
+	Body         BlockExpr
+}
+
+func (e LoopExpr) Coq() string {
+	return fmt.Sprintf("Loop (fun %s => %s) %s",
+		e.LoopVarIdent,
+		indent(5, e.Body.Coq()),
+		addParens(e.Initial.Coq()))
+}
+
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
