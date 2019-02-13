@@ -205,6 +205,12 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 		return f.Name
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "fs") {
+			switch f.Sel.Name {
+			case "ReadAt":
+				return "Base.sliceReadAt"
+			case "Append":
+				return "Base.sliceAppend"
+			}
 			return "FS." + toInitialLower(f.Sel.Name)
 		}
 		if isIdent(f.X, "machine") {
