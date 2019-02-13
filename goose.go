@@ -506,6 +506,71 @@ func (ctx Ctx) stmts(ss []ast.Stmt) coq.BlockExpr {
 	return coq.BlockExpr{bindings}
 }
 
+func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor) coq.Binding {
+	// TODO: be more careful about nested if statements; if the then branch has
+	//  an if statement with early return, this is probably not handled correctly.
+	//  We should conservatively disallow such returns until they're properly analyzed.
+	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}).Unwrap()
+	if !ok {
+		ctx.Nope(s.Body, "if statement body ends with an assignment")
+		return coq.Binding{}
+	}
+	ife := coq.IfExpr{
+		Cond: ctx.expr(s.Cond),
+		Then: thenExpr,
+	}
+
+	// supported use cases
+	// (1) early return, no else branch; remainder of function is lifted to else
+	// (2) both branches and no remainder
+	//
+	// If the else branch also doesn't return it's not a problem to handle subsequent code,
+	// but that's annoying and we can leave it for later. Maybe the special case
+	// of Else == nil should be supported, though.
+
+	remaining := c.HasNext()
+	if endsWithReturn(s.Body) && remaining {
+		if s.Else != nil {
+			ctx.FutureWork(s.Else, "else with early return")
+			return coq.Binding{}
+		}
+		ife.Else = ctx.stmts(c.Remainder())
+		return coq.NewAnon(ife)
+	}
+	if !remaining {
+		if s.Else == nil {
+			ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
+			return coq.NewAnon(ife)
+		}
+		elseExpr, ok := ctx.stmt(s.Else, c).Unwrap()
+		if !ok {
+			ctx.Nope(s.Else, "if statement else ends with an assignment")
+			return coq.Binding{}
+		}
+		ife.Else = elseExpr
+		return coq.NewAnon(ife)
+	}
+	// there are some other cases that can be handled but it's a bit tricky
+	ctx.FutureWork(s, "non-terminating if expressions are only partially supported")
+	return coq.Binding{}
+}
+
+func (ctx Ctx) forBodyStmt(s ast.Stmt, c *cursor) coq.Binding {
+	// TODO: implement
+	return coq.Binding{}
+}
+
+func (ctx Ctx) forStmt(s *ast.ForStmt) coq.Expr {
+	// TODO: implement
+	ctx.Todo(s, "for statements")
+	c := &cursor{s.Body.List}
+	var bindings []coq.Binding
+	for c.HasNext() {
+		bindings = append(bindings, ctx.forBodyStmt(c.Next(), c))
+	}
+	return nil
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, c *cursor) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -525,54 +590,9 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor) coq.Binding {
 	case *ast.BlockStmt:
 		return coq.NewAnon(ctx.blockStmt(s))
 	case *ast.IfStmt:
-		// TODO: be more careful about nested if statements; if the then branch has
-		//  an if statement with early return, this is probably not handled correctly.
-		//  We should conservatively disallow such returns until they're properly analyzed.
-		thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}).Unwrap()
-		if !ok {
-			ctx.Nope(s.Body, "if statement body ends with an assignment")
-			return coq.Binding{}
-		}
-		ife := coq.IfExpr{
-			Cond: ctx.expr(s.Cond),
-			Then: thenExpr,
-		}
-
-		// supported use cases
-		// (1) early return, no else branch; remainder of function is lifted to else
-		// (2) both branches and no remainder
-		//
-		// If the else branch also doesn't return it's not a problem to handle subsequent code,
-		// but that's annoying and we can leave it for later. Maybe the special case
-		// of Else == nil should be supported, though.
-
-		remaining := c.HasNext()
-		if endsWithReturn(s.Body) && remaining {
-			if s.Else != nil {
-				ctx.FutureWork(s.Else, "else with early return")
-				return coq.Binding{}
-			}
-			ife.Else = ctx.stmts(c.Remainder())
-			return coq.NewAnon(ife)
-		}
-		if !remaining {
-			if s.Else == nil {
-				ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
-				return coq.NewAnon(ife)
-			}
-			elseExpr, ok := ctx.stmt(s.Else, c).Unwrap()
-			if !ok {
-				ctx.Nope(s.Else, "if statement else ends with an assignment")
-				return coq.Binding{}
-			}
-			ife.Else = elseExpr
-			return coq.NewAnon(ife)
-		}
-		// there are some other cases that can be handled but it's a bit tricky
-		ctx.FutureWork(s, "non-terminating if expressions are only partially supported")
-		return coq.Binding{}
+		return ctx.ifStmt(s, c)
 	case *ast.ForStmt:
-		ctx.Todo(s, "for statements")
+		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.GoStmt:
 		ctx.Todo(s, "go func(){ ... } statements")
 	default:
