@@ -352,7 +352,7 @@ type HashTableInsert struct {
 }
 
 func (e HashTableInsert) Coq() string {
-	return fmt.Sprintf("(fun _ => %s)", e.Value.Coq())
+	return fmt.Sprintf("(fun _ => Some %s)", addParens(e.Value.Coq()))
 }
 
 // currently restrict loops to return nothing
@@ -371,8 +371,8 @@ type LoopContinueExpr struct {
 
 func (e LoopContinueExpr) Coq() string {
 	// TODO: factor out this pattern of prefix + indent(len(prefix), code)
-	return fmt.Sprintf("LoopContinue %s",
-		indent(len("LoopContinue "), e.Value.Coq()))
+	return fmt.Sprintf("Continue %s",
+		indent(len("Continue "), e.Value.Coq()))
 }
 
 type LoopExpr struct {
