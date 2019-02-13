@@ -166,8 +166,8 @@ func (s *CoqSuite) TestIfExpr(c *C) {
 	c.Check(ife.Coq(),
 		Equals, strings.TrimSpace(`
 if compare (slice.len p) (fromNum 8) == Lt
-  then Ret (0, 0)
-  else Ret tt
+then Ret (0, 0)
+else Ret tt
 `))
 }
 

@@ -315,13 +315,23 @@ type IfExpr struct {
 	Else Expr
 }
 
+func flowBranch(prefix string, e Expr) []string {
+	code := e.Coq()
+	if !strings.ContainsRune(code, '\n') {
+		// compact, single-line form
+		return []string{fmt.Sprintf("%s %s", prefix, indent(len(prefix)+1, code))}
+	}
+	// full multiline, nicely indented form
+	return []string{prefix,
+		fmt.Sprintf("  %s", indent(2, code)),
+	}
+}
+
 func (ife IfExpr) Coq() string {
-	return fmt.Sprintf("if %s\n"+
-		"  then %s\n"+
-		"  else %s",
-		ife.Cond.Coq(),
-		indent(7, ife.Then.Coq()),
-		indent(7, ife.Else.Coq()))
+	lines := []string{fmt.Sprintf("if %s", ife.Cond.Coq())}
+	lines = append(lines, flowBranch("then", ife.Then)...)
+	lines = append(lines, flowBranch("else", ife.Else)...)
+	return strings.Join(lines, "\n")
 }
 
 func (b Binding) Unwrap() (e Expr, ok bool) {
