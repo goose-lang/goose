@@ -222,6 +222,7 @@ const (
 	OpMinus
 	OpEquals
 	OpLessThan
+	OpGreaterThan
 )
 
 type BinaryExpr struct {
@@ -231,11 +232,16 @@ type BinaryExpr struct {
 }
 
 func (be BinaryExpr) Coq() string {
-	if be.Op == OpLessThan {
+	switch be.Op {
+	case OpLessThan:
 		// TODO: should just have a binary operator for this in Coq
 		return fmt.Sprintf("compare %s %s == Lt",
 			addParens(be.X.Coq()), addParens(be.Y.Coq()))
+	case OpGreaterThan:
+		return fmt.Sprintf("compare %s %s == Gt",
+			addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	}
+
 	var binop string
 	switch be.Op {
 	case OpPlus:
@@ -341,6 +347,14 @@ func (b Binding) Unwrap() (e Expr, ok bool) {
 	return nil, false
 }
 
+type HashTableInsert struct {
+	Value Expr
+}
+
+func (e HashTableInsert) Coq() string {
+	return fmt.Sprintf("(fun _ => %s)", e.Value.Coq())
+}
+
 // currently restrict loops to return nothing
 // good way to lift this restriction is to require loops to be at the end of the function
 // and then support return inside a loop instead of break
@@ -362,12 +376,12 @@ func (e LoopContinueExpr) Coq() string {
 }
 
 type LoopExpr struct {
-	// Initial is the initial loop variable value to use
-	Initial Expr
-
 	// name of loop variable
 	LoopVarIdent string
-	Body         BlockExpr
+	// the initial loop variable value to use
+	Initial Expr
+	// the body of the loop, with LoopVarIdent as a free variable
+	Body BlockExpr
 }
 
 func (e LoopExpr) Coq() string {

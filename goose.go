@@ -351,6 +351,8 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	switch e.Op {
 	case token.LSS:
 		be.Op = coq.OpLessThan
+	case token.GTR:
+		be.Op = coq.OpGreaterThan
 	case token.ADD:
 		be.Op = coq.OpPlus
 	case token.SUB:
@@ -358,7 +360,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	case token.EQL:
 		be.Op = coq.OpEquals
 	default:
-		ctx.Unsupported(e, "binary operator")
+		ctx.Unsupported(e, "binary operator %v", e.Op)
 	}
 	return be
 }
@@ -430,6 +432,8 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
 		ctx.Todo(e, "map/slice indexing")
+	case *ast.ParenExpr:
+		return ctx.expr(e.X)
 	default:
 		ctx.NoExample(e, "expr %s", spew.Sdump(e))
 	}
@@ -458,8 +462,8 @@ func (ctx Ctx) parseAssignment(s *ast.AssignStmt) genericAssign {
 	return genericAssign{names, ctx.expr(rhs), s.Tok == token.DEFINE}
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt) coq.BlockExpr {
-	return ctx.stmts(s.List)
+func (ctx Ctx) blockStmt(s *ast.BlockStmt, loopVar *string) coq.BlockExpr {
+	return ctx.stmts(s.List, loopVar)
 }
 
 type cursor struct {
@@ -487,17 +491,17 @@ func (c *cursor) Remainder() []ast.Stmt {
 
 func endsWithReturn(b *ast.BlockStmt) bool {
 	switch b.List[len(b.List)-1].(type) {
-	case *ast.ReturnStmt:
+	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
 	}
 	return false
 }
 
-func (ctx Ctx) stmts(ss []ast.Stmt) coq.BlockExpr {
+func (ctx Ctx) stmts(ss []ast.Stmt, loopVar *string) coq.BlockExpr {
 	c := &cursor{ss}
 	var bindings []coq.Binding
 	for c.HasNext() {
-		bindings = append(bindings, ctx.stmt(c.Next(), c))
+		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
 	if len(bindings) == 0 {
 		retExpr := coq.ReturnExpr{coq.IdentExpr("tt")}
@@ -506,11 +510,11 @@ func (ctx Ctx) stmts(ss []ast.Stmt) coq.BlockExpr {
 	return coq.BlockExpr{bindings}
 }
 
-func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor) coq.Binding {
+func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	// TODO: be more careful about nested if statements; if the then branch has
 	//  an if statement with early return, this is probably not handled correctly.
 	//  We should conservatively disallow such returns until they're properly analyzed.
-	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}).Unwrap()
+	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}, loopVar).Unwrap()
 	if !ok {
 		ctx.Nope(s.Body, "if statement body ends with an assignment")
 		return coq.Binding{}
@@ -534,15 +538,19 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor) coq.Binding {
 			ctx.FutureWork(s.Else, "else with early return")
 			return coq.Binding{}
 		}
-		ife.Else = ctx.stmts(c.Remainder())
+		ife.Else = ctx.stmts(c.Remainder(), loopVar)
 		return coq.NewAnon(ife)
 	}
 	if !remaining {
 		if s.Else == nil {
+			if loopVar != nil {
+				ctx.Unsupported(s, "implicit loop continue")
+				return coq.Binding{}
+			}
 			ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
 			return coq.NewAnon(ife)
 		}
-		elseExpr, ok := ctx.stmt(s.Else, c).Unwrap()
+		elseExpr, ok := ctx.stmt(s.Else, c, loopVar).Unwrap()
 		if !ok {
 			ctx.Nope(s.Else, "if statement else ends with an assignment")
 			return coq.Binding{}
@@ -551,46 +559,152 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor) coq.Binding {
 		return coq.NewAnon(ife)
 	}
 	// there are some other cases that can be handled but it's a bit tricky
-	ctx.FutureWork(s, "non-terminating if expressions are only partially supported")
+	ctx.FutureWork(s, "non-terminal if expressions are only partially supported")
 	return coq.Binding{}
 }
 
-func (ctx Ctx) forBodyStmt(s ast.Stmt, c *cursor) coq.Binding {
-	// TODO: implement
-	return coq.Binding{}
+func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
+	initAssign, ok := s.(*ast.AssignStmt)
+	if !ok ||
+		len(initAssign.Lhs) > 1 ||
+		len(initAssign.Rhs) > 1 ||
+		initAssign.Tok != token.DEFINE {
+		ctx.Unsupported(s, "loop initialization must be a single assignment")
+		return "", nil
+	}
+	lhs, rhs := initAssign.Lhs[0], initAssign.Rhs[0]
+	loopIdent, ok := getIdent(lhs)
+	if !ok {
+		ctx.Nope(initAssign, "definition of non-identifier")
+		return "", nil
+	}
+	return loopIdent, ctx.expr(rhs)
 }
 
-func (ctx Ctx) forStmt(s *ast.ForStmt) coq.Expr {
-	// TODO: implement
-	ctx.Todo(s, "for statements")
+func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
+	if s.Cond != nil || s.Post != nil {
+		ctx.Unsupported(s, "loop conditions and post expressions are unsupported")
+		return coq.LoopExpr{}
+	}
+	if s.Init == nil {
+		// need special handling (in particular, need to skip looking for a loop variable assignment)
+		ctx.FutureWork(s, "loops without a loop variable")
+		return coq.LoopExpr{}
+	}
+	ident, init := ctx.loopVar(s.Init)
+	loop := coq.LoopExpr{
+		LoopVarIdent: ident,
+		Initial:      init,
+	}
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
 	for c.HasNext() {
-		bindings = append(bindings, ctx.forBodyStmt(c.Next(), c))
+		bindings = append(bindings, ctx.stmt(c.Next(), c, &ident))
 	}
-	return nil
+	loop.Body = coq.BlockExpr{bindings}
+	return loop
 }
 
-func (ctx Ctx) stmt(s ast.Stmt, c *cursor) coq.Binding {
+func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
+	if len(s.Rhs) > 1 {
+		ctx.FutureWork(s, "multiple defines (split them up)")
+	}
+	rhs := s.Rhs[0]
+	var names []string
+	for _, lhsExpr := range s.Lhs {
+		ident, ok := getIdent(lhsExpr)
+		if !ok {
+			ctx.Nope(lhsExpr, "defining a non-identifier")
+		}
+		names = append(names, ident)
+	}
+	return coq.Binding{names, ctx.expr(rhs)}
+}
+
+func (ctx Ctx) loopAssignStmt(s *ast.AssignStmt, c *cursor) coq.Binding {
+	// look for correct loop continue/return
+	if !c.HasNext() {
+		ctx.Unsupported(s, "implicit control flow in loop (expected continue)")
+	}
+	b, ok := c.Next().(*ast.BranchStmt)
+	if !ok || b.Tok != token.CONTINUE {
+		loopVar := s.Lhs[0].(*ast.Ident).Name
+		ctx.Unsupported(s, "expected continue following %s loop assignment", loopVar)
+	}
+	rhs := ctx.expr(s.Rhs[0])
+	return coq.NewAnon(coq.LoopContinueExpr{rhs})
+}
+
+func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
+	if s.Tok == token.DEFINE {
+		return ctx.defineStmt(s)
+	}
+	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
+		ctx.Unsupported(s, "multiple assignment")
+	}
+	// assignments can mean various things
+	switch lhs := s.Lhs[0].(type) {
+	case *ast.Ident:
+		if loopVar != nil {
+			if lhs.Name != *loopVar {
+				ctx.Unsupported(s, "expected assignment to loop variable %s", loopVar)
+				return coq.Binding{}
+			}
+			return ctx.loopAssignStmt(s, c)
+		}
+		ctx.FutureWork(s, "general re-assignments are future work")
+		return coq.Binding{}
+	case *ast.IndexExpr:
+		targetTy := ctx.info.TypeOf(lhs.X)
+		switch targetTy.(type) {
+		case *types.Slice:
+			ctx.Todo(s, "slice updates")
+		case *types.Map:
+			value := ctx.expr(s.Rhs[0])
+			return coq.NewAnon(coq.NewCallExpr(
+				"Data.hashTableAlter",
+				ctx.expr(lhs.X),
+				ctx.expr(lhs.Index),
+				coq.HashTableInsert{value}))
+		default:
+			ctx.Unsupported(s, "index update to unexpected target of type %v", targetTy)
+		}
+	case *ast.StarExpr:
+		ctx.Todo(s, "storing to pointers")
+	default:
+		ctx.Unsupported(s, "assigning to complex ")
+	}
+	return coq.Binding{}
+}
+
+func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		if c.HasNext() {
 			ctx.Unsupported(c.Next(), "statement following return")
 			return coq.Binding{}
 		}
+		if loopVar != nil {
+			ctx.FutureWork(s, "return in loop (use break)")
+			return coq.Binding{}
+		}
 		return coq.NewAnon(ctx.returnExpr(s.Results))
+	case *ast.BranchStmt:
+		if loopVar == nil {
+			ctx.Unsupported(s, "branching outside of a loop")
+		}
+		if s.Tok != token.BREAK {
+			ctx.Unsupported(s, "only break is supported to exit loops")
+		}
+		return coq.NewAnon(coq.LoopRetExpr{})
 	case *ast.ExprStmt:
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
-		assign := ctx.parseAssignment(s)
-		if !assign.IsDefine {
-			ctx.FutureWork(s, "re-assignments are not supported (only definitions")
-		}
-		return coq.Binding{Names: assign.Names, Expr: assign.Rhs}
+		return ctx.assignStmt(s, c, loopVar)
 	case *ast.BlockStmt:
-		return coq.NewAnon(ctx.blockStmt(s))
+		return coq.NewAnon(ctx.blockStmt(s, loopVar))
 	case *ast.IfStmt:
-		return ctx.ifStmt(s, c)
+		return ctx.ifStmt(s, c, loopVar)
 	case *ast.ForStmt:
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.GoStmt:
@@ -652,7 +766,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		fd.Args = append(fd.Args, ctx.fieldDecl(p))
 	}
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	fd.Body = ctx.blockStmt(d.Body)
+	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd
 }
 
