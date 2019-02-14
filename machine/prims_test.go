@@ -12,7 +12,7 @@ type PrimSuite struct{}
 
 var _ = Suite(&PrimSuite{})
 
-func (s PrimSuite) TestUInt64GetPut(c *C) {
+func (s *PrimSuite) TestUInt64GetPut(c *C) {
 	tests := []uint64{
 		0, 1, ^uint64(1),
 		13 << 30,
