@@ -12,6 +12,52 @@ func isWellBalanced(s string, lDelim string, rDelim string) bool {
 	return false
 }
 
+// buffer is a simple indenting pretty printer
+type buffer struct {
+	lines       []string
+	indentLevel int
+}
+
+func (pp buffer) indentation() string {
+	b := make([]byte, pp.indentLevel)
+	for i := range b {
+		b[i] = ' '
+	}
+	return string(b)
+}
+
+func (pp *buffer) appendLine(line string) {
+	pp.lines = append(pp.lines, line)
+}
+
+func (pp *buffer) AddLine(line string) {
+	pp.appendLine(pp.indentation() + indent(pp.indentLevel, line))
+}
+
+// Add adds formatted to the buffer
+func (pp *buffer) Add(format string, args ...interface{}) {
+	pp.AddLine(fmt.Sprintf(format, args...))
+}
+
+func (pp *buffer) Indent(spaces int) {
+	pp.indentLevel += spaces
+}
+
+func (pp *buffer) Block(prefix string, format string, args ...interface{}) {
+	pp.AddLine(prefix + indent(len(prefix), fmt.Sprintf(format, args...)))
+	pp.Indent(len(prefix))
+}
+
+func (pp buffer) Build() string {
+	return strings.Join(pp.lines, "\n")
+}
+
+func blocked(prefix string, code string) string {
+	var pp buffer
+	pp.Block(prefix, "%s", code)
+	return pp.Build()
+}
+
 func addParens(s string) string {
 	// conservative avoidance of parentheses
 	if !strings.Contains(s, " ") ||
@@ -49,20 +95,22 @@ type StructDecl struct {
 }
 
 func (d StructDecl) CoqDecl() string {
-	var lines []string
-	lines = append(lines, fmt.Sprintf("Module %s.", d.Name))
+	var pp buffer
+	pp.Add("Module %s.", d.Name)
+	pp.Indent(2)
 	if d.Comment != "" {
-		lines = append(lines,
-			fmt.Sprintf("  (* %s *)", indent(5, d.Comment)))
+		pp.Add("(* %s *)", d.Comment)
 	}
-	lines = append(lines, "  Record t := mk {")
+	pp.Add("Record t := mk {")
+	pp.Indent(2)
 	for _, fd := range d.Fields {
-		lines = append(lines,
-			fmt.Sprintf("    %s: %s;", fd.Name, fd.Type.Coq()))
+		pp.Add("%s: %s;", fd.Name, fd.Type.Coq())
 	}
-	lines = append(lines, "  }.")
-	lines = append(lines, fmt.Sprintf("End %s.", d.Name))
-	return strings.Join(lines, "\n")
+	pp.Indent(-2)
+	pp.Add("}.")
+	pp.Indent(-2)
+	pp.Add("End %s.", d.Name)
+	return pp.Build()
 }
 
 type Type interface {
@@ -146,7 +194,7 @@ type ReturnExpr struct {
 }
 
 func (e ReturnExpr) Coq() string {
-	return "Ret " + indent(4, addParens(e.Value.Coq()))
+	return blocked("Ret ", addParens(e.Value.Coq()))
 }
 
 type Binding struct {
@@ -294,25 +342,23 @@ func isPure(e Expr) bool {
 }
 
 func (be BlockExpr) Coq() string {
-	var lines []string
+	var pp buffer
 	for n, b := range be.Bindings {
 		if n == len(be.Bindings)-1 {
-			lines = append(lines, b.Expr.Coq())
+			pp.AddLine(b.Expr.Coq())
 			continue
 		}
-		var line string
 		if isPure(b.Expr) {
 			// this generates invalid code if the binder happens to be for multiple values
 			// (which would only happen if we supported some pure function with multiple return values)
-			line = fmt.Sprintf("let %s := %s in",
+			pp.Add("let %s := %s in",
 				b.Binder(), b.Expr.Coq())
 		} else {
-			line = fmt.Sprintf("%s <- %s;",
+			pp.Add("%s <- %s;",
 				b.Binder(), b.Expr.Coq())
 		}
-		lines = append(lines, line)
 	}
-	return strings.Join(lines, "\n")
+	return pp.Build()
 }
 
 type IfExpr struct {
@@ -321,23 +367,27 @@ type IfExpr struct {
 	Else Expr
 }
 
-func flowBranch(prefix string, e Expr) []string {
+func flowBranch(pp *buffer, prefix string, e Expr) {
 	code := e.Coq()
 	if !strings.ContainsRune(code, '\n') {
 		// compact, single-line form
-		return []string{fmt.Sprintf("%s %s", prefix, indent(len(prefix)+1, code))}
+		pp.Block(prefix+" ", "%s", code)
+		pp.Indent(-(len(prefix) + 1))
+		return
 	}
 	// full multiline, nicely indented form
-	return []string{prefix,
-		fmt.Sprintf("  %s", indent(2, code)),
-	}
+	pp.AddLine(prefix)
+	pp.Indent(2)
+	pp.AddLine(code)
+	pp.Indent(-2)
 }
 
 func (ife IfExpr) Coq() string {
-	lines := []string{fmt.Sprintf("if %s", ife.Cond.Coq())}
-	lines = append(lines, flowBranch("then", ife.Then)...)
-	lines = append(lines, flowBranch("else", ife.Else)...)
-	return strings.Join(lines, "\n")
+	var pp buffer
+	pp.Add("if %s", ife.Cond.Coq())
+	flowBranch(&pp, "then", ife.Then)
+	flowBranch(&pp, "else", ife.Else)
+	return pp.Build()
 }
 
 func (b Binding) Unwrap() (e Expr, ok bool) {
@@ -370,9 +420,7 @@ type LoopContinueExpr struct {
 }
 
 func (e LoopContinueExpr) Coq() string {
-	// TODO: factor out this pattern of prefix + indent(len(prefix), code)
-	return fmt.Sprintf("Continue %s",
-		indent(len("Continue "), addParens(e.Value.Coq())))
+	return blocked("Continue ", addParens(e.Value.Coq()))
 }
 
 type LoopExpr struct {
@@ -385,14 +433,12 @@ type LoopExpr struct {
 }
 
 func (e LoopExpr) Coq() string {
-	var lines []string
-	lines = append(lines,
-		fmt.Sprintf("Loop (fun %s =>", e.LoopVarIdent))
-	lines = append(lines,
-		fmt.Sprintf("      %s) %s",
-			indent(6, e.Body.Coq()),
-			addParens(e.Initial.Coq())))
-	return strings.Join(lines, "\n")
+	var pp buffer
+	pp.Block("Loop (", "fun %s =>", e.LoopVarIdent)
+	pp.Add("%s) %s",
+		e.Body.Coq(),
+		addParens(e.Initial.Coq()))
+	return pp.Build()
 }
 
 // FuncDecl declares a function, including its parameters and body.
@@ -415,13 +461,14 @@ func (d FuncDecl) Signature() string {
 }
 
 func (d FuncDecl) CoqDecl() string {
-	var lines []string
+	var pp buffer
 	if d.Comment != "" {
-		lines = append(lines, fmt.Sprintf("(* %s *)", d.Comment))
+		pp.Add("(* %s *)", d.Comment)
 	}
-	lines = append(lines, fmt.Sprintf("Definition %s :=", d.Signature()))
-	lines = append(lines, fmt.Sprintf("  %s.", indent(2, d.Body.Coq())))
-	return strings.Join(lines, "\n")
+	pp.Add("Definition %s :=", d.Signature())
+	pp.Indent(2)
+	pp.AddLine(d.Body.Coq() + ".")
+	return pp.Build()
 }
 
 // Decl is either a FuncDecl or StructDecl
