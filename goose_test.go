@@ -463,6 +463,25 @@ Definition PureDemo (p:slice.t byte) : proc uint64 :=
   z <- Data.uint64Get p;
   Ret (x + y + z).
 `),
+		example(`
+import "github.com/tchajed/goose/machine/filesys"
+
+var fs filesys.Filesys = filesys.Fs
+
+type Table struct {
+	Index map[uint64]uint64
+	File  filesys.File
+}
+
+// CloseTable frees up the fd held by a table.
+func CloseTable(t Table) {
+	fs.Close(t.File)
+}
+`, `
+(* CloseTable frees up the fd held by a table. *)
+Definition CloseTable (t:Table.t) : proc unit :=
+  FS.close t.(Table.File).
+`),
 	} {
 		decls, err := fileDecls(tt.Go)
 		c.Check(err, IsNil)
