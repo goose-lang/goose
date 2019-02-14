@@ -306,6 +306,14 @@ func (be BinaryExpr) Coq() string {
 	return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
 }
 
+type NotExpr struct {
+	X Expr
+}
+
+func (e NotExpr) Coq() string {
+	return fmt.Sprintf("negb %s", addParens(e.X.Coq()))
+}
+
 type TupleExpr []Expr
 
 func (te TupleExpr) Coq() string {

@@ -456,7 +456,21 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.SliceExpr:
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
-		ctx.Todo(e, "map/slice indexing")
+		xTy := ctx.info.TypeOf(e.X)
+		switch xTy.(type) {
+		case *types.Map:
+			return coq.NewCallExpr("Data.goHashTableLookup",
+				ctx.expr(e.X), ctx.expr(e.Index))
+		case *types.Slice:
+			ctx.Todo(e, "slice indexing")
+		}
+		ctx.Unsupported(e, "index into unknown type %v", xTy)
+		return nil
+	case *ast.UnaryExpr:
+		if e.Op == token.NOT {
+			return coq.NotExpr{ctx.expr(e.X)}
+		}
+		ctx.Unsupported(e, "unary expression %s", e.Op)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	default:

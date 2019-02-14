@@ -489,6 +489,20 @@ func SliceRet(p []byte) []byte {
 Definition SliceRet (p:slice.t byte) : proc (slice.t byte) :=
   Ret p.
 `),
+		example(`
+func MapRead(t map[uint64][]byte) []byte {
+	v, ok := t[1]
+	if !ok {
+		return nil
+	}
+	return v
+}`, `
+Definition MapRead (t:HashTable (slice.t byte)) : proc (slice.t byte) :=
+  let! (v, ok) <- Data.goHashTableLookup t 1;
+  if negb ok
+  then Ret (slice.nil _)
+  else Ret v.
+`),
 	} {
 		decls, err := fileDecls(tt.Go)
 		if !c.Check(err, IsNil) {
