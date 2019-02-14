@@ -286,7 +286,8 @@ Definition DoNothing  : proc unit :=
 func Add(x uint64, y uint64) uint64 {
   z := x + y
   return z
-}`, `
+}
+`, `
 Definition Add (x:uint64) (y:uint64) : proc uint64 :=
   let z := x + y in
   Ret z.
@@ -301,7 +302,8 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	}
 	n := machine.UInt64Get(p)
 	return n, 8
-}`, `
+}
+`, `
 (* DecodeUInt64 is a Decoder(uint64) *)
 Definition DecodeUInt64 (p:slice.t byte) : proc (uint64 * uint64) :=
   if compare (slice.length p) (fromNum 8) == Lt
@@ -352,7 +354,8 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 			}
 		}
 	}
-}`, `
+}
+`, `
 (* readTableIndex parses a complete table on disk into a key->offset index *)
 Definition readTableIndex (f:Fd) (index:HashTable uint64) : proc unit :=
   Loop (fun buf =>
@@ -403,7 +406,8 @@ var fs filesys.Filesys = filesys.Fs
 type Table struct {
 	Index map[uint64]uint64
 	File  filesys.File
-}`, `
+}
+`, `
 Module Table.
   (* A Table provides cached access to a table file. *)
   Record t := mk {
@@ -450,7 +454,8 @@ func PureDemo(p []byte) uint64 {
   y := uint64(2 + 3)
   z := machine.UInt64Get(p)
   return x + y + z
-}`, `
+}
+`, `
 Definition PureDemo (p:slice.t byte) : proc uint64 :=
   let x := slice.length p in
   let y := fromNum 2 + fromNum 3 in
