@@ -296,6 +296,26 @@ Definition newBuf (f:Fd) : proc bufFile.t :=
          bufFile.buf := buf;
          bufFile.bufSize := bufSize; |}.
 `),
+		example(`
+import "github.com/tchajed/goose/machine/filesys"
+
+var fs = filesys.Fs
+
+type bufFile struct {
+	file    filesys.File
+	buf     *[]byte
+}
+
+func bufAppend(f bufFile, p []byte) {
+	buf := *f.buf
+	buf2 := append(buf, p...)
+	*f.buf = buf2
+}`, `
+Definition bufAppend (f:bufFile.t) (p:slice.t byte) : proc unit :=
+  buf <- Data.readIORef f.(bufFile.buf);
+  buf2 <- Data.sliceAppendSlice buf p;
+  Data.writeIORef f.(bufFile.buf) buf2.
+`),
 	} {
 		decls, err := fileDecls(tt.Go)
 		if err != nil {

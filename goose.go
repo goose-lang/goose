@@ -484,6 +484,8 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		ctx.unsupported(e, "unary expression %s", e.Op)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
+	case *ast.StarExpr:
+		return coq.NewCallExpr("Data.readIORef", ctx.expr(e.X))
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}
@@ -702,7 +704,8 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		ctx.todo(s, "storing to pointers")
+		return coq.NewAnon(coq.NewCallExpr("Data.writeIORef",
+			ctx.expr(lhs.X), ctx.expr(s.Rhs[0])))
 	default:
 		ctx.unsupported(s, "assigning to complex ")
 	}
