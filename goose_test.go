@@ -14,7 +14,7 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-func fileDecls(src string) []coq.Decl {
+func fileDecls(src string) ([]coq.Decl, *ConversionError) {
 	fset := token.NewFileSet()
 	ctx := NewCtx(fset, Config{})
 	srcCode := "package example\n\n" + strings.TrimSpace(src)
@@ -28,12 +28,15 @@ func fileDecls(src string) []coq.Decl {
 	if err != nil {
 		panic(err) // problem with test code
 	}
-	return ctx.FileDecls(f)
+	return ctx.Decls(f)
 }
 
 // goFunc load go src and returns the last declaration as a function
 func goFunc(src string) coq.FuncDecl {
-	decls := fileDecls(src)
+	decls, err := fileDecls(src)
+	if err != nil {
+		panic(err)
+	}
 	return decls[len(decls)-1].(coq.FuncDecl)
 }
 
@@ -43,7 +46,8 @@ type ConversionSuite struct {
 var _ = Suite(&ConversionSuite{})
 
 func (s *ConversionSuite) TestEmpty(c *C) {
-	decls := fileDecls(``)
+	decls, err := fileDecls(``)
+	c.Assert(err, IsNil)
 	c.Assert(decls, HasLen, 0)
 }
 
@@ -52,17 +56,19 @@ const fsDecl = `var fs filesys.Filesys = filesys.Fs`
 const fsPreamble = filesysImport + "\n\n" + fsDecl + "\n"
 
 func (s *ConversionSuite) TestGlobalFilesys(c *C) {
-	decls := fileDecls(fsPreamble)
+	decls, err := fileDecls(fsPreamble)
+	c.Assert(err, IsNil)
 	c.Assert(decls, HasLen, 0)
 }
 
 func (s *ConversionSuite) TestStructDecl(c *C) {
-	decls := fileDecls(fsPreamble + `
+	decls, err := fileDecls(fsPreamble + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
 	File  filesys.File
 }`)
+	c.Assert(err, IsNil)
 	c.Assert(decls, HasLen, 1)
 
 	c.Check(decls[0], DeepEquals, coq.StructDecl{
@@ -104,7 +110,7 @@ func tuple(es ...coq.Expr) coq.Expr {
 }
 
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
-	decls := fileDecls(fsPreamble + `
+	decl := goFunc(fsPreamble + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
@@ -120,8 +126,7 @@ func CreateTable(p string) Table {
 	return Table{Index: index, File: f2}
 }
 `)
-	c.Assert(decls, HasLen, 2)
-	c.Check(decls[1], DeepEquals, coq.FuncDecl{
+	c.Check(decl, DeepEquals, coq.FuncDecl{
 		Name: "CreateTable",
 		Args: []coq.FieldDecl{
 			{"p", coq.TypeIdent("Path")},
@@ -145,7 +150,7 @@ func CreateTable(p string) Table {
 }
 
 func (s *ConversionSuite) TestMultipleReturn(c *C) {
-	decls := fileDecls(`
+	decl := goFunc(`
 func ReturnTwo(p []byte) (uint64, uint64) {
 	return 0, 0
 }
@@ -155,10 +160,6 @@ func ReturnTwoWrapper(data []byte) (uint64, uint64) {
 	return a, b
 }
 `)
-	decl := decls[1].(coq.FuncDecl)
-	c.Assert(decl.Name, Equals, "ReturnTwoWrapper",
-		Commentf("declarations returned out-of-order"))
-
 	c.Check(decl.Body, DeepEquals, block(
 		coq.Binding{[]string{"a", "b"},
 			callExpr("ReturnTwo", ident("data"))},
@@ -463,8 +464,11 @@ Definition PureDemo (p:slice.t byte) : proc uint64 :=
   Ret (x + y + z).
 `),
 	} {
-		decls := fileDecls(tt.Go)
-		converted := decls[len(decls)-1].CoqDecl()
-		c.Check(converted, Equals, tt.Coq)
+		decls, err := fileDecls(tt.Go)
+		c.Check(err, IsNil)
+		if err != nil {
+			converted := decls[len(decls)-1].CoqDecl()
+			c.Check(converted, Equals, tt.Coq)
+		}
 	}
 }

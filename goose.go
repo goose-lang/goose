@@ -857,12 +857,22 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 	return nil
 }
 
-func (ctx Ctx) FileDecls(f *ast.File) []coq.Decl {
-	var decls []coq.Decl
-	for _, d := range f.Decls {
-		if d := ctx.maybeDecl(d); d != nil {
-			decls = append(decls, d)
+func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err *ConversionError) {
+	defer func() {
+		if r := recover(); r != nil {
+			r, ok := r.(ConversionError)
+			if !ok {
+				panic(r)
+			}
+			err = &r
+		}
+	}()
+	for _, f := range fs {
+		for _, d := range f.Decls {
+			if d := ctx.maybeDecl(d); d != nil {
+				decls = append(decls, d)
+			}
 		}
 	}
-	return decls
+	return
 }
