@@ -1,9 +1,11 @@
 package goose
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"strings"
 	"testing"
 
@@ -17,16 +19,20 @@ func Test(t *testing.T) { TestingT(t) }
 func fileDecls(src string) ([]coq.Decl, error) {
 	fset := token.NewFileSet()
 	ctx := NewCtx(fset, Config{})
-	srcCode := "package example\n\n" + strings.TrimSpace(src)
+	srcCode := "package example\n" + "//line <test.go>:1\n" + strings.TrimSpace(src)
 	f, err := parser.ParseFile(fset, "test.go",
 		srcCode,
 		parser.ParseComments)
 	if err != nil {
-		panic(err) // problem with test code
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, src)
+		panic("test code does not parse")
 	}
 	err = ctx.TypeCheck("example", []*ast.File{f})
 	if err != nil {
-		panic(err) // problem with test code
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, src)
+		panic("test code does not type check")
 	}
 	return ctx.Decls(f)
 }
