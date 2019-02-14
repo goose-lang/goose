@@ -73,7 +73,7 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 			return coq.MapType{ctx.coqType(e.Value)}
 		}
 	default:
-		ctx.Unsupported(k, "maps must be from uint64 (not %v)", k)
+		ctx.unsupported(k, "maps must be from uint64 (not %v)", k)
 	}
 	return coq.MapType{}
 }
@@ -82,7 +82,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return coq.TypeIdent("Fd")
 	}
-	ctx.Unsupported(e, "selector for unknown type %s", e)
+	ctx.unsupported(e, "selector for unknown type %s", e)
 	return coq.TypeIdent("<selector expr>")
 }
 
@@ -104,7 +104,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		case "byte":
 			return coq.TypeIdent("byte")
 		default:
-			ctx.Todo(n, "explicitly handle basic types")
+			ctx.todo(n, "explicitly handle basic types")
 		}
 	}
 	return coq.TypeIdent("<type>")
@@ -113,7 +113,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	if e.Len != nil {
 		// arrays are not supported, only slices
-		ctx.Unsupported(e, "array types")
+		ctx.unsupported(e, "array types")
 		return nil
 	}
 	return coq.SliceType{ctx.coqType(e.Elt)}
@@ -130,18 +130,18 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.ArrayType:
 		return ctx.arrayType(e)
 	default:
-		ctx.Unsupported(e, "unexpected type expr")
+		ctx.unsupported(e, "unexpected type expr")
 	}
 	return coq.TypeIdent("<type>")
 }
 
 func (ctx Ctx) fieldDecl(f *ast.Field) coq.FieldDecl {
 	if len(f.Names) > 1 {
-		ctx.FutureWork(f, "multiple fields for same type (split them up)")
+		ctx.futureWork(f, "multiple fields for same type (split them up)")
 		return coq.FieldDecl{}
 	}
 	if len(f.Names) == 0 {
-		ctx.Unsupported(f, "unnamed field/parameter")
+		ctx.unsupported(f, "unnamed field/parameter")
 		return coq.FieldDecl{}
 	}
 	return coq.FieldDecl{
@@ -173,7 +173,7 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDecl {
 	structTy, ok := spec.Type.(*ast.StructType)
 	if !ok {
-		ctx.Unsupported(spec, "non-struct type")
+		ctx.unsupported(spec, "non-struct type")
 		return coq.StructDecl{}
 	}
 	ty := coq.StructDecl{
@@ -203,7 +203,7 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
 	x := e.Args[0]
 	xTy := ctx.info.TypeOf(x)
 	if _, ok := xTy.(*types.Slice); !ok {
-		ctx.Unsupported(e, "length of object of type %v", xTy)
+		ctx.unsupported(e, "length of object of type %v", xTy)
 		return coq.PureCall(coq.CallExpr{})
 	}
 	return coq.PureCall(coq.NewCallExpr("slice.length",
@@ -233,10 +233,10 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 				return "Data.uint64Put"
 			}
 		}
-		ctx.Unsupported(f, "cannot call methods selected from %s", f.X)
+		ctx.unsupported(f, "cannot call methods selected from %s", f.X)
 		return "<selector>"
 	default:
-		ctx.Unsupported(f, "call on expression")
+		ctx.unsupported(f, "call on expression")
 	}
 	return "<fun expr>"
 }
@@ -249,14 +249,14 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		return coq.NewCallExpr("Data.newHashTable", mapTy.Value)
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
-			ctx.Nope(typeArg, "can't make() arrays (only slices)")
+			ctx.nope(typeArg, "can't make() arrays (only slices)")
 		}
-		ctx.Todo(typeArg, "array types are not really implemented")
+		ctx.todo(typeArg, "array types are not really implemented")
 		// TODO: need to check that slice is being initialized to an empty one
 		elt := ctx.coqType(typeArg.Elt)
 		return coq.NewCallExpr("Data.newArray", elt)
 	default:
-		ctx.Nope(typeArg, "make() of %s, not a map or array", typeArg)
+		ctx.nope(typeArg, "make() of %s, not a map or array", typeArg)
 	}
 	return coq.CallExpr{}
 }
@@ -297,7 +297,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		if ctx.basicallyUInt64(x) {
 			return ctx.expr(x)
 		}
-		ctx.Unsupported(s, "casts from non-int type %v to uint64", ctx.info.TypeOf(x))
+		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.info.TypeOf(x))
 		return nil
 	}
 	call.MethodName = ctx.methodExpr(s.Fun)
@@ -324,11 +324,11 @@ func structTypeFields(ty *types.Struct) []string {
 func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 	structType, ok := ctx.info.TypeOf(e).Underlying().(*types.Struct)
 	if !ok {
-		ctx.Unsupported(e, "non-struct literal")
+		ctx.unsupported(e, "non-struct literal")
 	}
 	structName, ok := getIdent(e.Type)
 	if !ok {
-		ctx.Nope(e.Type, "non-struct literal after type check")
+		ctx.nope(e.Type, "non-struct literal after type check")
 	}
 	lit := coq.StructLiteral{StructName: structName}
 	foundFields := make(map[string]bool)
@@ -337,7 +337,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 		case *ast.KeyValueExpr:
 			ident, ok := getIdent(el.Key)
 			if !ok {
-				ctx.NoExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
+				ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
 				return coq.StructLiteral{}
 			}
 			lit.Elts = append(lit.Elts, coq.FieldVal{
@@ -347,12 +347,12 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 			foundFields[ident] = true
 		default:
 			// shouldn't be possible given type checking above
-			ctx.Nope(el, "literal component in struct")
+			ctx.nope(el, "literal component in struct")
 		}
 	}
 	for _, f := range structTypeFields(structType) {
 		if !foundFields[f] {
-			ctx.Unsupported(e, "incomplete struct literal")
+			ctx.unsupported(e, "incomplete struct literal")
 		}
 	}
 	return lit
@@ -361,7 +361,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 // basicLiteral parses a basic literal; only Go int literals are supported
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.IntLiteral {
 	if e.Kind != token.INT {
-		ctx.Unsupported(e, "non-integer literals are not supported")
+		ctx.unsupported(e, "non-integer literals are not supported")
 		return coq.IntLiteral{^uint64(0)}
 	}
 	n, err := strconv.ParseUint(e.Value, 10, 64)
@@ -385,14 +385,14 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	case token.EQL:
 		be.Op = coq.OpEquals
 	default:
-		ctx.Unsupported(e, "binary operator %v", e.Op)
+		ctx.unsupported(e, "binary operator %v", e.Op)
 	}
 	return be
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	if e.Slice3 {
-		ctx.Unsupported(e, "3-index slice")
+		ctx.unsupported(e, "3-index slice")
 		return nil
 	}
 	x := ctx.expr(e.X)
@@ -409,7 +409,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 			ctx.expr(e.Low), ctx.expr(e.High), x))
 	}
 	if e.Low == nil && e.High == nil {
-		ctx.Unsupported(e, "complete slice doesn't do anything")
+		ctx.unsupported(e, "complete slice doesn't do anything")
 	}
 	return nil
 }
@@ -419,11 +419,11 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
 	switch nilTy := ctx.info.TypeOf(e).(type) {
 	case *types.Basic:
 		if nilTy.Kind() != types.UntypedNil {
-			ctx.Nope(e, "nil that is of a non-nil basic kind")
+			ctx.nope(e, "nil that is of a non-nil basic kind")
 			return coq.CallExpr{}
 		}
 	default:
-		ctx.Todo(e, "take advantage of nil type %s", nilTy)
+		ctx.todo(e, "take advantage of nil type %s", nilTy)
 	}
 	return coq.CallExpr{
 		MethodName: "slice.nil",
@@ -444,7 +444,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		if e.Name == "nil" {
 			return ctx.nilExpr(e)
 		}
-		ctx.Unsupported(e, "special identifier")
+		ctx.unsupported(e, "special identifier")
 	case *ast.SelectorExpr:
 		return ctx.structSelector(e)
 	case *ast.CompositeLit:
@@ -462,19 +462,19 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 			return coq.NewCallExpr("Data.goHashTableLookup",
 				ctx.expr(e.X), ctx.expr(e.Index))
 		case *types.Slice:
-			ctx.Todo(e, "slice indexing")
+			ctx.todo(e, "slice indexing")
 		}
-		ctx.Unsupported(e, "index into unknown type %v", xTy)
+		ctx.unsupported(e, "index into unknown type %v", xTy)
 		return nil
 	case *ast.UnaryExpr:
 		if e.Op == token.NOT {
 			return coq.NotExpr{ctx.expr(e.X)}
 		}
-		ctx.Unsupported(e, "unary expression %s", e.Op)
+		ctx.unsupported(e, "unary expression %s", e.Op)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	default:
-		ctx.Unsupported(e, "expr")
+		ctx.unsupported(e, "expr")
 	}
 	return nil
 }
@@ -533,7 +533,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	//  We should conservatively disallow such returns until they're properly analyzed.
 	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}, loopVar).Unwrap()
 	if !ok {
-		ctx.Nope(s.Body, "if statement body ends with an assignment")
+		ctx.nope(s.Body, "if statement body ends with an assignment")
 		return coq.Binding{}
 	}
 	ife := coq.IfExpr{
@@ -552,7 +552,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	remaining := c.HasNext()
 	if endsWithReturn(s.Body) && remaining {
 		if s.Else != nil {
-			ctx.FutureWork(s.Else, "else with early return")
+			ctx.futureWork(s.Else, "else with early return")
 			return coq.Binding{}
 		}
 		ife.Else = ctx.stmts(c.Remainder(), loopVar)
@@ -561,7 +561,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	if !remaining {
 		if s.Else == nil {
 			if loopVar != nil {
-				ctx.Unsupported(s, "implicit loop continue")
+				ctx.unsupported(s, "implicit loop continue")
 				return coq.Binding{}
 			}
 			ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
@@ -569,14 +569,14 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 		}
 		elseExpr, ok := ctx.stmt(s.Else, c, loopVar).Unwrap()
 		if !ok {
-			ctx.Nope(s.Else, "if statement else ends with an assignment")
+			ctx.nope(s.Else, "if statement else ends with an assignment")
 			return coq.Binding{}
 		}
 		ife.Else = elseExpr
 		return coq.NewAnon(ife)
 	}
 	// there are some other cases that can be handled but it's a bit tricky
-	ctx.FutureWork(s, "non-terminal if expressions are only partially supported")
+	ctx.futureWork(s, "non-terminal if expressions are only partially supported")
 	return coq.Binding{}
 }
 
@@ -586,13 +586,13 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
 		len(initAssign.Lhs) > 1 ||
 		len(initAssign.Rhs) > 1 ||
 		initAssign.Tok != token.DEFINE {
-		ctx.Unsupported(s, "loop initialization must be a single assignment")
+		ctx.unsupported(s, "loop initialization must be a single assignment")
 		return "", nil
 	}
 	lhs, rhs := initAssign.Lhs[0], initAssign.Rhs[0]
 	loopIdent, ok := getIdent(lhs)
 	if !ok {
-		ctx.Nope(initAssign, "definition of non-identifier")
+		ctx.nope(initAssign, "definition of non-identifier")
 		return "", nil
 	}
 	return loopIdent, ctx.expr(rhs)
@@ -604,12 +604,12 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
 		if s.Cond == nil {
 			bad = s.Post
 		}
-		ctx.Unsupported(bad, "loop conditions and post expressions are unsupported")
+		ctx.unsupported(bad, "loop conditions and post expressions are unsupported")
 		return coq.LoopExpr{}
 	}
 	if s.Init == nil {
 		// need special handling (in particular, need to skip looking for a loop variable assignment)
-		ctx.FutureWork(s, "loops without a loop variable")
+		ctx.futureWork(s, "loops without a loop variable")
 		return coq.LoopExpr{}
 	}
 	ident, init := ctx.loopVar(s.Init)
@@ -628,14 +628,14 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
 
 func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	if len(s.Rhs) > 1 {
-		ctx.FutureWork(s, "multiple defines (split them up)")
+		ctx.futureWork(s, "multiple defines (split them up)")
 	}
 	rhs := s.Rhs[0]
 	var names []string
 	for _, lhsExpr := range s.Lhs {
 		ident, ok := getIdent(lhsExpr)
 		if !ok {
-			ctx.Nope(lhsExpr, "defining a non-identifier")
+			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
 		names = append(names, ident)
 	}
@@ -645,12 +645,12 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 func (ctx Ctx) loopAssignStmt(s *ast.AssignStmt, c *cursor) coq.Binding {
 	// look for correct loop continue/return
 	if !c.HasNext() {
-		ctx.Unsupported(s, "implicit control flow in loop (expected continue)")
+		ctx.unsupported(s, "implicit control flow in loop (expected continue)")
 	}
 	b, ok := c.Next().(*ast.BranchStmt)
 	if !ok || b.Tok != token.CONTINUE {
 		loopVar := s.Lhs[0].(*ast.Ident).Name
-		ctx.Unsupported(s, "expected continue following %s loop assignment", loopVar)
+		ctx.unsupported(s, "expected continue following %s loop assignment", loopVar)
 	}
 	rhs := ctx.expr(s.Rhs[0])
 	return coq.NewAnon(coq.LoopContinueExpr{rhs})
@@ -661,25 +661,25 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		return ctx.defineStmt(s)
 	}
 	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
-		ctx.Unsupported(s, "multiple assignment")
+		ctx.unsupported(s, "multiple assignment")
 	}
 	// assignments can mean various things
 	switch lhs := s.Lhs[0].(type) {
 	case *ast.Ident:
 		if loopVar != nil {
 			if lhs.Name != *loopVar {
-				ctx.Unsupported(s, "expected assignment to loop variable %s", *loopVar)
+				ctx.unsupported(s, "expected assignment to loop variable %s", *loopVar)
 				return coq.Binding{}
 			}
 			return ctx.loopAssignStmt(s, c)
 		}
-		ctx.FutureWork(s, "general re-assignments are future work")
+		ctx.futureWork(s, "general re-assignments are future work")
 		return coq.Binding{}
 	case *ast.IndexExpr:
 		targetTy := ctx.info.TypeOf(lhs.X)
 		switch targetTy.(type) {
 		case *types.Slice:
-			ctx.Todo(s, "slice updates")
+			ctx.todo(s, "slice updates")
 		case *types.Map:
 			value := ctx.expr(s.Rhs[0])
 			return coq.NewAnon(coq.NewCallExpr(
@@ -688,12 +688,12 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 				ctx.expr(lhs.Index),
 				coq.HashTableInsert{value}))
 		default:
-			ctx.Unsupported(s, "index update to unexpected target of type %v", targetTy)
+			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		ctx.Todo(s, "storing to pointers")
+		ctx.todo(s, "storing to pointers")
 	default:
-		ctx.Unsupported(s, "assigning to complex ")
+		ctx.unsupported(s, "assigning to complex ")
 	}
 	return coq.Binding{}
 }
@@ -702,20 +702,20 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		if c.HasNext() {
-			ctx.Unsupported(c.Next(), "statement following return")
+			ctx.unsupported(c.Next(), "statement following return")
 			return coq.Binding{}
 		}
 		if loopVar != nil {
-			ctx.FutureWork(s, "return in loop (use break)")
+			ctx.futureWork(s, "return in loop (use break)")
 			return coq.Binding{}
 		}
 		return coq.NewAnon(ctx.returnExpr(s.Results))
 	case *ast.BranchStmt:
 		if loopVar == nil {
-			ctx.Unsupported(s, "branching outside of a loop")
+			ctx.unsupported(s, "branching outside of a loop")
 		}
 		if s.Tok != token.BREAK {
-			ctx.Unsupported(s, "only break is supported to exit loops")
+			ctx.unsupported(s, "only break is supported to exit loops")
 		}
 		return coq.NewAnon(coq.LoopRetExpr{})
 	case *ast.ExprStmt:
@@ -729,9 +729,9 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.ForStmt:
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.GoStmt:
-		ctx.Todo(s, "go func(){ ... } statements")
+		ctx.todo(s, "go func(){ ... } statements")
 	default:
-		ctx.Unsupported(s, "statement")
+		ctx.unsupported(s, "statement")
 	}
 	return coq.Binding{}
 }
@@ -751,14 +751,14 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 	rs := results.List
 	for _, r := range rs {
 		if len(r.Names) > 0 {
-			ctx.Unsupported(r, "named returned value")
+			ctx.unsupported(r, "named returned value")
 			return coq.TypeIdent("<invalid>")
 		}
 	}
 	var ts []coq.Type
 	for _, r := range rs {
 		if len(r.Names) > 0 {
-			ctx.Unsupported(r, "named returned value")
+			ctx.unsupported(r, "named returned value")
 			return coq.TypeIdent("<invalid>")
 		}
 		ts = append(ts, ctx.coqType(r.Type))
@@ -781,7 +781,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
-		ctx.FutureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
+		ctx.futureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
 	}
 	for _, p := range d.Type.Params.List {
 		fd.Args = append(fd.Args, ctx.fieldDecl(p))
@@ -793,18 +793,18 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 
 func (ctx Ctx) checkFilesysVar(d *ast.ValueSpec) {
 	if !isIdent(d.Names[0], "fs") {
-		ctx.Unsupported(d, "non-fs global variable")
+		ctx.unsupported(d, "non-fs global variable")
 	}
 	ty, ok := d.Type.(*ast.SelectorExpr)
 	if !ok {
-		ctx.Unsupported(ty, "wrong type for fs")
+		ctx.unsupported(ty, "wrong type for fs")
 	}
 	if !(isIdent(ty.X, "filesys") &&
 		isIdent(ty.Sel, "Filesys")) {
-		ctx.Unsupported(ty, "wrong type for fs")
+		ctx.unsupported(ty, "wrong type for fs")
 	}
 	if len(d.Names) > 1 {
-		ctx.Unsupported(d, "multiple fs variables")
+		ctx.unsupported(d, "multiple fs variables")
 	}
 }
 
@@ -821,10 +821,10 @@ func (ctx Ctx) checkImports(d []ast.Spec) {
 		s := s.(*ast.ImportSpec)
 		importPath := stringBasicLit(s.Path)
 		if !strings.HasPrefix(importPath, "github.com/tchajed/goose/machine") {
-			ctx.Unsupported(s, "non-whitelisted import")
+			ctx.unsupported(s, "non-whitelisted import")
 		}
 		if s.Name != nil {
-			ctx.Unsupported(s, "renaming imports")
+			ctx.unsupported(s, "renaming imports")
 		}
 	}
 }
@@ -840,27 +840,27 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 			ctx.checkImports(d.Specs)
 			return nil
 		case token.CONST:
-			ctx.Todo(d, "global constants")
+			ctx.todo(d, "global constants")
 		case token.VAR:
 			if len(d.Specs) > 1 {
-				ctx.Unsupported(d, "multiple vars")
+				ctx.unsupported(d, "multiple vars")
 			}
 			spec := d.Specs[0].(*ast.ValueSpec)
 			ctx.checkFilesysVar(spec)
 		case token.TYPE:
 			if len(d.Specs) > 1 {
-				ctx.NoExample(d, "multiple specs in a type decl")
+				ctx.noExample(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
 			ty := ctx.typeDecl(d.Doc, spec)
 			return ty
 		default:
-			ctx.Nope(d, "unknown token type in decl")
+			ctx.nope(d, "unknown token type in decl")
 		}
 	case *ast.BadDecl:
-		ctx.Nope(d, "bad declaration in type-checked code")
+		ctx.nope(d, "bad declaration in type-checked code")
 	default:
-		ctx.Nope(d, "top-level decl")
+		ctx.nope(d, "top-level decl")
 	}
 	return nil
 }

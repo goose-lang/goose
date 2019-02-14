@@ -86,31 +86,31 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	panic(gooseError{err: err})
 }
 
-// Nope reports a situation that I thought was impossible from reading the documentation.
-func (r errorReporter) Nope(n ast.Node, msg string, args ...interface{}) {
+// nope reports a situation that I thought was impossible from reading the documentation.
+func (r errorReporter) nope(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("impossible(go)", n, msg, args...)
 }
 
-// NoExample reports a situation I thought was impossible because I couldn't
+// noExample reports a situation I thought was impossible because I couldn't
 // think of how to do it in Go.
-func (r errorReporter) NoExample(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) noExample(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("impossible(no-examples)", n, msg, args...)
 }
 
-// FutureWork reports something we could theoretically handle but probably
+// futureWork reports something we could theoretically handle but probably
 // won't.
-func (r errorReporter) FutureWork(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) futureWork(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("future", n, msg, args...)
 }
 
-// Todo reports a situation that is intended to be handled but we haven't gotten
+// todo reports a situation that is intended to be handled but we haven't gotten
 // around to.
-func (r errorReporter) Todo(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) todo(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("todo", n, msg, args...)
 }
 
-// Unsupported reports something intentionally unhandled (the code should not use
+// unsupported reports something intentionally unhandled (the code should not use
 // this feature).
-func (r errorReporter) Unsupported(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) unsupported(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("unsupported", n, msg, args...)
 }
