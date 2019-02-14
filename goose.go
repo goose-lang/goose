@@ -54,6 +54,10 @@ func (ctx Ctx) where(node ast.Node) string {
 	return ctx.fset.Position(node.Pos()).String()
 }
 
+func (ctx Ctx) typeOf(e ast.Expr) types.Type {
+	return ctx.info.TypeOf(e)
+}
+
 func getIdent(e ast.Expr) (ident string, ok bool) {
 	if ident, ok := e.(*ast.Ident); ok {
 		return ident.Name, true
@@ -122,7 +126,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
-		return ctx.coqTypeOfType(e, ctx.info.TypeOf(e))
+		return ctx.coqTypeOfType(e, ctx.typeOf(e))
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.SelectorExpr:
@@ -203,7 +207,7 @@ func toInitialLower(s string) string {
 
 func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
 	x := e.Args[0]
-	xTy := ctx.info.TypeOf(x)
+	xTy := ctx.typeOf(x)
 	if _, ok := xTy.(*types.Slice); !ok {
 		ctx.unsupported(e, "length of object of type %v", xTy)
 		return coq.PureCall(coq.CallExpr{})
@@ -272,7 +276,7 @@ func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 // basicallyUInt64 returns true conservatively when an
 // expression can be treated as a uint64
 func (ctx Ctx) basicallyUInt64(e ast.Expr) bool {
-	basicTy, ok := ctx.info.TypeOf(e).(*types.Basic)
+	basicTy, ok := ctx.typeOf(e).(*types.Basic)
 	if !ok {
 		return false
 	}
@@ -308,7 +312,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		if ctx.basicallyUInt64(x) {
 			return ctx.expr(x)
 		}
-		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.info.TypeOf(x))
+		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.typeOf(x))
 		return nil
 	}
 	call.MethodName = ctx.methodExpr(s.Fun)
@@ -319,7 +323,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(e *ast.SelectorExpr) coq.ProjExpr {
-	structType := ctx.info.Selections[e].Recv().(*types.Named)
+	structType := ctx.typeOf(e.X).(*types.Named)
 	proj := fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name)
 	return coq.ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
 }
@@ -333,7 +337,7 @@ func structTypeFields(ty *types.Struct) []string {
 }
 
 func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
-	structType, ok := ctx.info.TypeOf(e).Underlying().(*types.Struct)
+	structType, ok := ctx.typeOf(e).Underlying().(*types.Struct)
 	if !ok {
 		ctx.unsupported(e, "non-struct literal")
 	}
@@ -427,7 +431,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 
 func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
 	valueType := coq.TypeIdent("_")
-	switch nilTy := ctx.info.TypeOf(e).(type) {
+	switch nilTy := ctx.typeOf(e).(type) {
 	case *types.Basic:
 		if nilTy.Kind() != types.UntypedNil {
 			ctx.nope(e, "nil that is of a non-nil basic kind")
@@ -467,7 +471,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.SliceExpr:
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
-		xTy := ctx.info.TypeOf(e.X)
+		xTy := ctx.typeOf(e.X)
 		switch xTy.(type) {
 		case *types.Map:
 			return coq.NewCallExpr("Data.goHashTableLookup",
@@ -689,7 +693,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		ctx.futureWork(s, "general re-assignments are future work")
 		return coq.Binding{}
 	case *ast.IndexExpr:
-		targetTy := ctx.info.TypeOf(lhs.X)
+		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
 		case *types.Slice:
 			ctx.todo(s, "slice updates")
