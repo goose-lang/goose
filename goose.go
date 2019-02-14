@@ -837,14 +837,14 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 	return nil
 }
 
-func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err *ConversionError) {
+func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			r, ok := r.(ConversionError)
+			r, ok := r.(*ConversionError)
 			if !ok {
 				panic(r)
 			}
-			err = &r
+			err = r
 		}
 	}()
 	for _, f := range fs {

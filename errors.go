@@ -55,7 +55,7 @@ type ConversionError struct {
 	GoSrcFile   string
 }
 
-func (e ConversionError) Error() string {
+func (e *ConversionError) Error() string {
 	lines := []string{
 		fmt.Sprintf("[%s]: %s", e.Category, e.Message),
 		fmt.Sprintf("%s", e.GoCode),
@@ -70,7 +70,7 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
 
-	panic(ConversionError{
+	panic(&ConversionError{
 		Category:    prefix,
 		Message:     formatted,
 		GoCode:      what,

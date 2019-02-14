@@ -14,7 +14,7 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-func fileDecls(src string) ([]coq.Decl, *ConversionError) {
+func fileDecls(src string) ([]coq.Decl, error) {
 	fset := token.NewFileSet()
 	ctx := NewCtx(fset, Config{})
 	srcCode := "package example\n\n" + strings.TrimSpace(src)
