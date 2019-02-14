@@ -372,7 +372,7 @@ type LoopContinueExpr struct {
 func (e LoopContinueExpr) Coq() string {
 	// TODO: factor out this pattern of prefix + indent(len(prefix), code)
 	return fmt.Sprintf("Continue %s",
-		indent(len("Continue "), e.Value.Coq()))
+		indent(len("Continue "), addParens(e.Value.Coq())))
 }
 
 type LoopExpr struct {
@@ -385,10 +385,14 @@ type LoopExpr struct {
 }
 
 func (e LoopExpr) Coq() string {
-	return fmt.Sprintf("Loop (fun %s => %s) %s",
-		e.LoopVarIdent,
-		indent(5, e.Body.Coq()),
-		addParens(e.Initial.Coq()))
+	var lines []string
+	lines = append(lines,
+		fmt.Sprintf("Loop (fun %s =>", e.LoopVarIdent))
+	lines = append(lines,
+		fmt.Sprintf("      %s) %s",
+			indent(6, e.Body.Coq()),
+			addParens(e.Initial.Coq())))
+	return strings.Join(lines, "\n")
 }
 
 // FuncDecl declares a function, including its parameters and body.
