@@ -12,6 +12,24 @@ import (
 	"github.com/tchajed/goose/coq"
 )
 
+func getDecls(ctx goose.Ctx, files []*ast.File) []coq.Decl {
+	defer func() {
+		if r := recover(); r != nil {
+			r, ok := r.(goose.ConversionError)
+			if !ok {
+				panic(r)
+			}
+			fmt.Fprintln(os.Stderr, r.Error())
+			os.Exit(1)
+		}
+	}()
+	var decls []coq.Decl
+	for _, f := range files {
+		decls = append(decls, ctx.FileDecls(f)...)
+	}
+	return decls
+}
+
 func main() {
 	var config goose.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
@@ -54,10 +72,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)
 	}
-	var decls []coq.Decl
-	for _, f := range files {
-		decls = append(decls, ctx.FileDecls(f)...)
-	}
+
+	decls := getDecls(ctx, files)
 	fmt.Println(coq.ImportHeader)
 	fmt.Println()
 	for i, d := range decls {

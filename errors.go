@@ -6,8 +6,8 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"os"
 	"runtime"
+	"strings"
 )
 
 // errorReporter groups methods for reporting errors, documenting what kind of
@@ -35,18 +35,35 @@ func getCaller(skip int) string {
 	return fmt.Sprintf("%s:%d", file, line)
 }
 
+type ConversionError struct {
+	Category    string
+	Message     string
+	GoCode      string
+	GooseCaller string
+	GoSrcFile   string
+}
+
+func (e ConversionError) Error() string {
+	lines := []string{
+		fmt.Sprintf("[%s]: %s", e.Category, e.Message),
+		fmt.Sprintf("%s", e.GoCode),
+		fmt.Sprintf("  %s", e.GooseCaller),
+		fmt.Sprintf("  src: %s", e.GoSrcFile),
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
 	where := r.fset.Position(n.Pos())
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
 
-	fmt.Fprintf(os.Stderr, "[%s]: %s\n", prefix, formatted)
-	fmt.Fprintf(os.Stderr, "%s\n", what)
-	fmt.Fprintf(os.Stderr, "\t%s\n", getCaller(2))
-	fmt.Fprintf(os.Stderr, "\tsrc: %s\n", where)
-	// for now make all errors fail-stop
-	// TODO: be able to catch errors in tests in a structured way to support negative tests
-	os.Exit(1)
+	panic(ConversionError{
+		Category:    prefix,
+		Message:     formatted,
+		GoCode:      what,
+		GooseCaller: getCaller(2),
+		GoSrcFile:   where.String()})
 }
 
 // Nope reports a situation that I thought was impossible from reading the documentation.

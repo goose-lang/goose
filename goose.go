@@ -660,7 +660,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	case *ast.Ident:
 		if loopVar != nil {
 			if lhs.Name != *loopVar {
-				ctx.Unsupported(s, "expected assignment to loop variable %s", loopVar)
+				ctx.Unsupported(s, "expected assignment to loop variable %s", *loopVar)
 				return coq.Binding{}
 			}
 			return ctx.loopAssignStmt(s, c)
