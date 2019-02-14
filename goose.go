@@ -10,8 +10,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/tchajed/goose/coq"
 )
 
@@ -75,7 +73,7 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 			return coq.MapType{ctx.coqType(e.Value)}
 		}
 	default:
-		ctx.Unsupported(k, "maps must be from uint64 (not %s)", spew.Sdump(k))
+		ctx.Unsupported(k, "maps must be from uint64 (not %v)", k)
 	}
 	return coq.MapType{}
 }
@@ -84,7 +82,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return coq.TypeIdent("Fd")
 	}
-	ctx.Unsupported(e, "selector for unknown type %s", spew.Sdump(e))
+	ctx.Unsupported(e, "selector for unknown type %s", e)
 	return coq.TypeIdent("<selector expr>")
 }
 
@@ -127,7 +125,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.ArrayType:
 		return ctx.arrayType(e)
 	default:
-		ctx.NoExample(e, "unexpected type expr %s", spew.Sdump(e))
+		ctx.Unsupported(e, "unexpected type expr")
 	}
 	return coq.TypeIdent("<type>")
 }
@@ -165,7 +163,7 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDecl {
 	structTy, ok := spec.Type.(*ast.StructType)
 	if !ok {
-		ctx.Unsupported(spec, "non-struct type %s", spew.Sdump(spec))
+		ctx.Unsupported(spec, "non-struct type")
 		return coq.StructDecl{}
 	}
 	ty := coq.StructDecl{
@@ -225,10 +223,10 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 				return "Data.uint64Put"
 			}
 		}
-		ctx.Unsupported(f, "cannot call methods selected from %s", spew.Sdump(f.X))
+		ctx.Unsupported(f, "cannot call methods selected from %s", f.X)
 		return "<selector>"
 	default:
-		ctx.Unsupported(f, "call on expression %s", spew.Sdump(f))
+		ctx.Unsupported(f, "call on expression")
 	}
 	return "<fun expr>"
 }
@@ -316,7 +314,7 @@ func structTypeFields(ty *types.Struct) []string {
 func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 	structType, ok := ctx.info.TypeOf(e).Underlying().(*types.Struct)
 	if !ok {
-		ctx.Unsupported(e, "non-struct literal %s", spew.Sdump(e))
+		ctx.Unsupported(e, "non-struct literal")
 	}
 	structName, ok := getIdent(e.Type)
 	if !ok {
@@ -339,12 +337,12 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 			foundFields[ident] = true
 		default:
 			// shouldn't be possible given type checking above
-			ctx.Nope(el, "literal component in struct %s", spew.Sdump(e))
+			ctx.Nope(el, "literal component in struct")
 		}
 	}
 	for _, f := range structTypeFields(structType) {
 		if !foundFields[f] {
-			ctx.Unsupported(e, "incomplete struct literal %s", spew.Sdump(e))
+			ctx.Unsupported(e, "incomplete struct literal")
 		}
 	}
 	return lit
@@ -452,7 +450,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	default:
-		ctx.NoExample(e, "expr %s", spew.Sdump(e))
+		ctx.Unsupported(e, "expr")
 	}
 	return nil
 }
@@ -727,7 +725,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.GoStmt:
 		ctx.Todo(s, "go func(){ ... } statements")
 	default:
-		ctx.NoExample(s, "unexpected statement %s", spew.Sdump(s))
+		ctx.Unsupported(s, "statement")
 	}
 	return coq.Binding{}
 }
@@ -851,12 +849,12 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 			ty := ctx.typeDecl(d.Doc, spec)
 			return ty
 		default:
-			ctx.Nope(d, "unknown GenDecl token type for %s", spew.Sdump(d))
+			ctx.Nope(d, "unknown token type in decl")
 		}
 	case *ast.BadDecl:
 		ctx.Nope(d, "bad declaration in type-checked code")
 	default:
-		ctx.Nope(d, "top-level decl %s")
+		ctx.Nope(d, "top-level decl")
 	}
 	return nil
 }
