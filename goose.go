@@ -455,28 +455,6 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	return nil
 }
 
-type genericAssign struct {
-	Names    []string
-	Rhs      coq.Expr
-	IsDefine bool
-}
-
-func (ctx Ctx) parseAssignment(s *ast.AssignStmt) genericAssign {
-	if len(s.Rhs) > 1 {
-		ctx.Unsupported(s, "multiple RHS assignment (split them up)")
-	}
-	lhs, rhs := s.Lhs, s.Rhs[0]
-	var names []string
-	for _, lhsExpr := range lhs {
-		ident, ok := getIdent(lhsExpr)
-		if !ok {
-			ctx.Nope(lhsExpr, "defining a non-identifier")
-		}
-		names = append(names, ident)
-	}
-	return genericAssign{names, ctx.expr(rhs), s.Tok == token.DEFINE}
-}
-
 func (ctx Ctx) blockStmt(s *ast.BlockStmt, loopVar *string) coq.BlockExpr {
 	return ctx.stmts(s.List, loopVar)
 }
