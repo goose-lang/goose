@@ -57,7 +57,7 @@ func main() {
 
 	decls, err := ctx.Decls(files...)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	fmt.Println(coq.ImportHeader)
