@@ -35,6 +35,8 @@ func getCaller(skip int) string {
 	return fmt.Sprintf("%s:%d", file, line)
 }
 
+type gooseError struct{ err *ConversionError }
+
 // A ConversionError reports detailed information on an error producing Coq code.
 //
 // Errors include a category describing the severity of the error.
@@ -48,11 +50,15 @@ func getCaller(skip int) string {
 // The categories "impossible(go)" and "impossible(no-examples)" indicate a bug in goose
 // (at the very least these cases should be checked and result in an unsupported error)
 type ConversionError struct {
-	Category    string
-	Message     string
-	GoCode      string
+	Category string
+	// the main description of what went wrong
+	Message string
+	// the snippet in the source program responsible for the error
+	GoCode string
+	// (for internal debugging) file:lineno for the goose code that threw the error
 	GooseCaller string
-	GoSrcFile   string
+	// file:lineno for the source program where GoCode appears
+	GoSrcFile string
 }
 
 func (e *ConversionError) Error() string {
@@ -70,12 +76,14 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
 
-	panic(&ConversionError{
+	err := &ConversionError{
 		Category:    prefix,
 		Message:     formatted,
 		GoCode:      what,
 		GooseCaller: getCaller(2),
-		GoSrcFile:   where.String()})
+		GoSrcFile:   where.String()}
+
+	panic(gooseError{err: err})
 }
 
 // Nope reports a situation that I thought was impossible from reading the documentation.

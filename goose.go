@@ -111,6 +111,11 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 }
 
 func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
+	if e.Len != nil {
+		// arrays are not supported, only slices
+		ctx.Unsupported(e, "array types")
+		return nil
+	}
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
@@ -133,6 +138,11 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 func (ctx Ctx) fieldDecl(f *ast.Field) coq.FieldDecl {
 	if len(f.Names) > 1 {
 		ctx.FutureWork(f, "multiple fields for same type (split them up)")
+		return coq.FieldDecl{}
+	}
+	if len(f.Names) == 0 {
+		ctx.Unsupported(f, "unnamed field/parameter")
+		return coq.FieldDecl{}
 	}
 	return coq.FieldDecl{
 		Name: f.Names[0].Name,
@@ -576,7 +586,11 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
 	if s.Cond != nil || s.Post != nil {
-		ctx.Unsupported(s, "loop conditions and post expressions are unsupported")
+		var bad ast.Node = s.Cond
+		if s.Cond == nil {
+			bad = s.Post
+		}
+		ctx.Unsupported(bad, "loop conditions and post expressions are unsupported")
 		return coq.LoopExpr{}
 	}
 	if s.Init == nil {
@@ -840,11 +854,11 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			r, ok := r.(*ConversionError)
-			if !ok {
+			if r, ok := r.(gooseError); ok {
+				err = r.err
+			} else {
 				panic(r)
 			}
-			err = r
 		}
 	}()
 	for _, f := range fs {

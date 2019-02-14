@@ -484,11 +484,95 @@ Definition CloseTable (t:Table.t) : proc unit :=
 `),
 	} {
 		decls, err := fileDecls(tt.Go)
-		c.Check(err, IsNil)
-		if err != nil {
+		if !c.Check(err, IsNil) {
 			continue
 		}
 		converted := decls[len(decls)-1].CoqDecl()
 		c.Check(converted, Equals, tt.Coq)
+	}
+}
+
+type negativeGoExample struct {
+	GoSrc   string
+	BadCode string
+}
+
+func badCode(goSrc string, snippet string) negativeGoExample {
+	return negativeGoExample{GoSrc: strings.TrimSpace(goSrc), BadCode: strings.TrimSpace(snippet)}
+}
+
+func (s *EndToEndSuite) TestNegativeExamples(c *C) {
+	for _, tt := range []negativeGoExample{
+		badCode(`func Unnamed(byte){}`, ""),
+		badCode(`func TakeArray(b [3]byte){}`, "[3]byte"),
+		badCode(`
+type S struct{
+  Field1, Field2 string
+}
+`, ""), // sadly no attribution
+		badCode(`type S string`, "S string"),
+		badCode(`
+func BadLoop() {
+  for i := uint64(0); i < uint64(3); {
+  }
+}`, "i < uint64(3)"),
+		badCode(`
+func BadLoop() {
+  for i := uint64(0);; i++ {
+  }
+}`, "i++"),
+		badCode(`
+func BadLoop() {
+  for i := uint64(0);; {
+    if i < 4 {
+       // missing loop var assignment
+       continue
+    }
+    break
+  }
+}`, "continue"),
+		badCode(`
+func BadLoop() {
+	for i := uint64(0);; {
+		if i < 4 {
+			i = 0
+			continue
+		}
+		// implicit continue
+	}
+}`, `
+if i < 4 {
+	i = 0
+	continue
+}`),
+		badCode(`
+func Skip(){}
+
+func ComplexIfFlow(i uint64) {
+	if i == 0 {
+		return
+	} else {
+		Skip()
+	}
+	// this is too complicated
+	Skip()
+}`, `{
+	Skip()
+}`),
+	} {
+		_, err := fileDecls(tt.GoSrc)
+		if err == nil {
+			c.Errorf("expected conversion error due to %s", tt.BadCode)
+			continue
+		}
+		cerr := err.(*ConversionError)
+		if !c.Check(cerr.Category, Matches, "(unsupported|future|todo)") {
+			c.Errorf("unexpected conversion error [%s] %s", cerr.Category, cerr.Message)
+			continue
+		}
+		if !c.Check(strings.TrimSpace(cerr.GoCode), Equals, tt.BadCode) {
+			c.Errorf("unexpected Go attribution for [%s] %s", cerr.Category, cerr.Message)
+			continue
+		}
 	}
 }
