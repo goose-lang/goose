@@ -374,7 +374,7 @@ Definition readTableIndex (f:Fd) (index:HashTable uint64) : proc unit :=
             newBuf <- Data.sliceAppendSlice buf.(lazyFileBuf.next) p;
             Continue {| lazyFileBuf.offset := buf.(lazyFileBuf.offset);
                         lazyFileBuf.next := newBuf; |}) {| lazyFileBuf.offset := 0;
-     lazyFileBuf.next := slice.nil _; |}.
+           lazyFileBuf.next := slice.nil _; |}.
 `),
 		example(`
 func Skip(){}
@@ -486,8 +486,9 @@ Definition CloseTable (t:Table.t) : proc unit :=
 		decls, err := fileDecls(tt.Go)
 		c.Check(err, IsNil)
 		if err != nil {
-			converted := decls[len(decls)-1].CoqDecl()
-			c.Check(converted, Equals, tt.Coq)
+			continue
 		}
+		converted := decls[len(decls)-1].CoqDecl()
+		c.Check(converted, Equals, tt.Coq)
 	}
 }
