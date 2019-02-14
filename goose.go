@@ -129,6 +129,8 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.selectorExprType(e)
 	case *ast.ArrayType:
 		return ctx.arrayType(e)
+	case *ast.StarExpr:
+		return coq.PtrType{ctx.coqType(e.X)}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}

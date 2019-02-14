@@ -503,4 +503,12 @@ func (tt TupleType) Coq() string {
 	return fmt.Sprintf("(%s)", strings.Join(comps, " * "))
 }
 
+type PtrType struct {
+	Value Type
+}
+
+func (t PtrType) Coq() string {
+	return "IORef " + addParens(t.Value.Coq())
+}
+
 const ImportHeader string = "From RecoveryRefinement Require Import Database.CodeSetup."

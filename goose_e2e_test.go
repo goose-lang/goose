@@ -1,6 +1,8 @@
 package goose
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	. "gopkg.in/check.v1"
@@ -249,9 +251,29 @@ Definition MapRead (t:HashTable (slice.t byte)) : proc (slice.t byte) :=
   then Ret (slice.nil _)
   else Ret v.
 `),
+		example(`
+import "github.com/tchajed/goose/machine/filesys"
+
+var fs = filesys.Fs
+
+type bufFile struct {
+	File    filesys.File
+	buf     *[]byte
+	bufSize *uint64
+}`, `
+Module bufFile.
+  Record t := mk {
+    File: Fd;
+    buf: IORef (slice.t byte);
+    bufSize: IORef uint64;
+  }.
+End bufFile.`),
 	} {
 		decls, err := fileDecls(tt.Go)
-		if !c.Check(err, IsNil) {
+		if err != nil {
+			err := err.(*ConversionError)
+			c.Errorf("conversion error [%s] %s", err.Category, err.Message)
+			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
 		converted := decls[len(decls)-1].CoqDecl()
