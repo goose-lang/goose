@@ -62,7 +62,7 @@ Definition DecodeUInt64 (p:slice.t byte) : proc (uint64 * uint64) :=
 		example(`
 import "github.com/tchajed/goose/machine/filesys"
 
-var fs filesys.Filesys = filesys.Fs
+var fs = filesys.Fs
 
 // Entry represents a (key, value) pair.
 type Entry struct {
@@ -147,7 +147,7 @@ Definition CountUp (n:uint64) : proc unit :=
 		example(`
 import "github.com/tchajed/goose/machine/filesys"
 
-var fs filesys.Filesys = filesys.Fs
+var fs = filesys.Fs
 
 // A Table provides cached access to a table file.
 type Table struct {
@@ -166,7 +166,7 @@ End Table.
 		example(`
 import "github.com/tchajed/goose/machine/filesys"
 
-var fs filesys.Filesys = filesys.Fs
+var fs = filesys.Fs
 
 // A Table provides access to an immutable copy of data on the filesystem, along
 // with an index for fast random access.
@@ -212,7 +212,7 @@ Definition PureDemo (p:slice.t byte) : proc uint64 :=
 		example(`
 import "github.com/tchajed/goose/machine/filesys"
 
-var fs filesys.Filesys = filesys.Fs
+var fs = filesys.Fs
 
 type Table struct {
 	Index map[uint64]uint64

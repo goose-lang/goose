@@ -17,23 +17,31 @@ func init() {
 // methods and instead must be passed back to a filesystem to anything with it.
 type File afero.File
 
-// Filesys wraps access to the single-directory filesystem API.
-type Filesys struct {
+// Filesys provides access a single directory.
+type Filesys interface {
+	Create(fname string) File
+	Append(f File, data []byte)
+	Close(f File)
+	Open(fname string) File
+	ReadAt(f File, offset uint64, length uint64) []byte
+}
+
+type filesys struct {
 	fs afero.Afero
 }
 
-// Fs is a global instance of filesystem.
+// Fs is a global instance of Filesys.
 //
 // Configure with flags (calling flags.Parse()), then initialize with Init.
 var Fs Filesys
 
-// Init prepares the global filesystem Fs
+// Init prepares the global filesystem Fs to a single directory based on flags.
 func Init() {
 	Fs = DirFs(rootDirectory)
 }
 
-func fromAfero(fs afero.Fs) Filesys {
-	return Filesys{afero.Afero{Fs: fs}}
+func fromAfero(fs afero.Fs) filesys {
+	return filesys{afero.Afero{Fs: fs}}
 }
 
 // MemFs creates an in-memory Filesys
@@ -66,7 +74,7 @@ func abs(fname string) string {
 }
 
 // Create an appendable file
-func (fs Filesys) Create(fname string) File {
+func (fs filesys) Create(fname string) File {
 	f, err := fs.fs.Create(abs(fname))
 	if err != nil {
 		panic(err)
@@ -75,7 +83,7 @@ func (fs Filesys) Create(fname string) File {
 }
 
 // Append to a file
-func (fs Filesys) Append(f File, data []byte) {
+func (fs filesys) Append(f File, data []byte) {
 	_, err := f.Write(data)
 	if err != nil {
 		panic(err)
@@ -85,7 +93,7 @@ func (fs Filesys) Append(f File, data []byte) {
 // Close a file
 //
 // Frees up file descriptor. Further operations are illegal.
-func (fs Filesys) Close(f File) {
+func (fs filesys) Close(f File) {
 	err := f.Close()
 	if err != nil {
 		panic(err)
@@ -93,7 +101,7 @@ func (fs Filesys) Close(f File) {
 }
 
 // Open a file in read-only mode.
-func (fs Filesys) Open(fname string) File {
+func (fs filesys) Open(fname string) File {
 	f, err := fs.fs.Open(abs(fname))
 	if err != nil {
 		panic(err)
@@ -104,7 +112,7 @@ func (fs Filesys) Open(fname string) File {
 // ReadAt reads data from an absolute position in the file.
 //
 // Readable files never modify or use the file descriptor seek pointer.
-func (fs Filesys) ReadAt(f File, offset uint64, length uint64) []byte {
+func (fs filesys) ReadAt(f File, offset uint64, length uint64) []byte {
 	p := make([]byte, length)
 	n, err := f.ReadAt(p, int64(offset))
 	if n != len(p) {

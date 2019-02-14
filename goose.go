@@ -791,20 +791,16 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	return fd
 }
 
-func (ctx Ctx) checkFilesysVar(d *ast.ValueSpec) {
-	if !isIdent(d.Names[0], "fs") {
+func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
+	if !isIdent(d.Names[0], "fs") ||
+		len(d.Names) > 1 {
 		ctx.unsupported(d, "non-fs global variable")
 	}
-	ty, ok := d.Type.(*ast.SelectorExpr)
-	if !ok {
-		ctx.unsupported(ty, "wrong type for fs")
-	}
-	if !(isIdent(ty.X, "filesys") &&
-		isIdent(ty.Sel, "Filesys")) {
-		ctx.unsupported(ty, "wrong type for fs")
-	}
-	if len(d.Names) > 1 {
-		ctx.unsupported(d, "multiple fs variables")
+	v, ok := d.Values[0].(*ast.SelectorExpr)
+	if !(ok &&
+		isIdent(v.X, "filesys") &&
+		isIdent(v.Sel, "Fs")) {
+		ctx.unsupported(v, "bad initializer for fs (should be filesys.Fs)")
 	}
 }
 
@@ -846,7 +842,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 				ctx.unsupported(d, "multiple vars")
 			}
 			spec := d.Specs[0].(*ast.ValueSpec)
-			ctx.checkFilesysVar(spec)
+			ctx.checkGlobalVar(spec)
 		case token.TYPE:
 			if len(d.Specs) > 1 {
 				ctx.noExample(d, "multiple specs in a type decl")
