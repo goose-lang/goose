@@ -263,6 +263,12 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	return coq.CallExpr{}
 }
 
+// newExpr parses a call to new() into an appropriate allocation
+func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
+	return coq.NewCallExpr("Data.newIORef",
+		coq.NewCallExpr("zeroValue", ctx.coqType(ty)))
+}
+
 // basicallyUInt64 returns true conservatively when an
 // expression can be treated as a uint64
 func (ctx Ctx) basicallyUInt64(e ast.Expr) bool {
@@ -283,6 +289,9 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	call := coq.CallExpr{}
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
+	}
+	if isIdent(s.Fun, "new") {
+		return ctx.newExpr(s.Args[0])
 	}
 	if isIdent(s.Fun, "len") {
 		return ctx.lenExpr(s)
@@ -476,7 +485,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	default:
-		ctx.unsupported(e, "expr")
+		ctx.unsupported(e, "unexpected expr")
 	}
 	return nil
 }

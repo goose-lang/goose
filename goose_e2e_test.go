@@ -268,6 +268,34 @@ Module bufFile.
     bufSize: IORef uint64;
   }.
 End bufFile.`),
+		example(`
+import "github.com/tchajed/goose/machine/filesys"
+
+var fs = filesys.Fs
+
+type bufFile struct {
+    File    filesys.File
+    buf     *[]byte
+    bufSize *uint64
+}
+
+func newBuf(f filesys.File) bufFile {
+    buf := new([]byte)
+    bufSize := new(uint64)
+    return bufFile{
+        File:    f,
+        buf:     buf,
+        bufSize: bufSize,
+    }
+}
+`, `
+Definition newBuf (f:Fd) : proc bufFile.t :=
+  buf <- Data.newIORef (zeroValue (slice.t byte));
+  bufSize <- Data.newIORef (zeroValue uint64);
+  Ret {| bufFile.File := f;
+         bufFile.buf := buf;
+         bufFile.bufSize := bufSize; |}.
+`),
 	} {
 		decls, err := fileDecls(tt.Go)
 		if err != nil {
