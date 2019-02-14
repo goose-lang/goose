@@ -404,6 +404,7 @@ type FuncDecl struct {
 	Comment    string
 }
 
+// Signature renders the function declaration's type signature for Coq
 func (d FuncDecl) Signature() string {
 	var args []string
 	for _, a := range d.Args {

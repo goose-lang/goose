@@ -23,6 +23,7 @@ type Ctx struct {
 	Config
 }
 
+// Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
 }
@@ -42,13 +43,16 @@ func NewCtx(fset *token.FileSet, config Config) Ctx {
 	}
 }
 
+// TypeCheck type-checks a set of files and stores the result in the Ctx
+//
+// This is needed before conversion to Coq to disambiguate some methods.
 func (ctx Ctx) TypeCheck(pkgName string, files []*ast.File) error {
 	conf := types.Config{Importer: importer.Default()}
 	_, err := conf.Check(pkgName, ctx.fset, files, ctx.info)
 	return err
 }
 
-func (ctx Ctx) Where(node ast.Node) string {
+func (ctx Ctx) where(node ast.Node) string {
 	return ctx.fset.Position(node.Pos()).String()
 }
 
@@ -155,7 +159,7 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	if *comment != "" {
 		*comment += "\n\n   "
 	}
-	*comment += fmt.Sprintf("go: %s", ctx.Where(node))
+	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDecl {

@@ -35,6 +35,18 @@ func getCaller(skip int) string {
 	return fmt.Sprintf("%s:%d", file, line)
 }
 
+// A ConversionError reports detailed information on an error producing Coq code.
+//
+// Errors include a category describing the severity of the error.
+//
+// The category "unsupported" is the only error that should result from normal usage,
+// when attempting to use a feature goose intentionally does not support.
+//
+// "todo" and "future" are markers for code that could be supported but is not currently
+// handled.
+//
+// The categories "impossible(go)" and "impossible(no-examples)" indicate a bug in goose
+// (at the very least these cases should be checked and result in an unsupported error)
 type ConversionError struct {
 	Category    string
 	Message     string
