@@ -482,6 +482,13 @@ func CloseTable(t Table) {
 Definition CloseTable (t:Table.t) : proc unit :=
   FS.close t.(Table.File).
 `),
+		example(`
+func SliceRet(p []byte) []byte {
+	return p
+}`, `
+Definition SliceRet (p:slice.t byte) : proc (slice.t byte) :=
+  Ret p.
+`),
 	} {
 		decls, err := fileDecls(tt.Go)
 		if !c.Check(err, IsNil) {

@@ -457,7 +457,8 @@ func (d FuncDecl) Signature() string {
 		args = append(args, a.CoqBinder())
 	}
 	return fmt.Sprintf("%s %s : proc %s",
-		d.Name, strings.Join(args, " "), d.ReturnType.Coq())
+		d.Name, strings.Join(args, " "),
+		addParens(d.ReturnType.Coq()))
 }
 
 func (d FuncDecl) CoqDecl() string {
