@@ -14,37 +14,36 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-type ConversionSuite struct {
-	fset *token.FileSet
-	ctx  Ctx
-}
-
-func (s *ConversionSuite) SetUpTest(c *C) {
-	s.fset = token.NewFileSet()
-	s.ctx = NewCtx(s.fset, Config{})
-}
-
-// Convert loads Go source as a single, literal file and converts it to Gallina
-func (s ConversionSuite) Convert(src string) []coq.Decl {
+func fileDecls(src string) []coq.Decl {
+	fset := token.NewFileSet()
+	ctx := NewCtx(fset, Config{})
 	srcCode := "package example\n\n" + strings.TrimSpace(src)
-	f, err := parser.ParseFile(s.fset, "test.go",
+	f, err := parser.ParseFile(fset, "test.go",
 		srcCode,
 		parser.ParseComments)
 	if err != nil {
 		panic(err) // problem with test code
 	}
-	err = s.ctx.TypeCheck("example", []*ast.File{f})
+	err = ctx.TypeCheck("example", []*ast.File{f})
 	if err != nil {
 		panic(err) // problem with test code
 	}
-	return s.ctx.FileDecls(f)
+	return ctx.FileDecls(f)
+}
 
+// goFunc load go src and returns the last declaration as a function
+func goFunc(src string) coq.FuncDecl {
+	decls := fileDecls(src)
+	return decls[len(decls)-1].(coq.FuncDecl)
+}
+
+type ConversionSuite struct {
 }
 
 var _ = Suite(&ConversionSuite{})
 
 func (s *ConversionSuite) TestEmpty(c *C) {
-	decls := s.Convert(``)
+	decls := fileDecls(``)
 	c.Assert(decls, HasLen, 0)
 }
 
@@ -53,12 +52,12 @@ const fsDecl = `var fs filesys.Filesys = filesys.Fs`
 const fsPreamble = filesysImport + "\n\n" + fsDecl + "\n"
 
 func (s *ConversionSuite) TestGlobalFilesys(c *C) {
-	decls := s.Convert(fsPreamble)
+	decls := fileDecls(fsPreamble)
 	c.Assert(decls, HasLen, 0)
 }
 
 func (s *ConversionSuite) TestStructDecl(c *C) {
-	decls := s.Convert(fsPreamble + `
+	decls := fileDecls(fsPreamble + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
@@ -105,7 +104,7 @@ func tuple(es ...coq.Expr) coq.Expr {
 }
 
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
-	decls := s.Convert(fsPreamble + `
+	decls := fileDecls(fsPreamble + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
@@ -146,7 +145,7 @@ func CreateTable(p string) Table {
 }
 
 func (s *ConversionSuite) TestMultipleReturn(c *C) {
-	decls := s.Convert(`
+	decls := fileDecls(`
 func ReturnTwo(p []byte) (uint64, uint64) {
 	return 0, 0
 }
@@ -172,7 +171,7 @@ func intLiteral(x uint64) coq.IntLiteral {
 }
 
 func (s *ConversionSuite) TestIfStmt(c *C) {
-	decls := s.Convert(`
+	decl := goFunc(`
 import "github.com/tchajed/goose/machine"
 
 func DecodeUInt64(p []byte) (uint64, uint64) {
@@ -182,9 +181,6 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	n := machine.UInt64Get(p)
 	return n, 8
 }`)
-	decl := decls[0].(coq.FuncDecl)
-	c.Assert(decl.Name, Equals, "DecodeUInt64")
-
 	lenP := coq.PureCall(callExpr("slice.length", ident("p")))
 	ife := coq.IfExpr{
 		Cond: coq.BinaryExpr{lenP, coq.OpLessThan, intLiteral(8)},
@@ -200,15 +196,14 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 }
 
 func (s *ConversionSuite) TestEmptyFunc(c *C) {
-	decls := s.Convert(`func DoNothing(){}`)
-	decl := decls[0].(coq.FuncDecl)
+	decl := goFunc(`func DoNothing(){}`)
 	c.Check(decl.Body, DeepEquals,
 		block(retBinding(ident("tt"))),
 	)
 }
 
 func (s *ConversionSuite) TestStructNil(c *C) {
-	decls := s.Convert(`
+	decl := goFunc(`
 type HasNil struct{
 	Data []byte
 }
@@ -216,7 +211,6 @@ type HasNil struct{
 func NewHasNil() HasNil {
     return HasNil{Data: nil}
 }`)
-	decl := decls[1].(coq.FuncDecl)
 	c.Check(decl.Body, DeepEquals,
 		block(retBinding(coq.StructLiteral{
 			StructName: "HasNil",
@@ -227,11 +221,10 @@ func NewHasNil() HasNil {
 }
 
 func (s *ConversionSuite) TestSliceExpr(c *C) {
-	decls := s.Convert(`
+	decl := goFunc(`
 func SliceExample(p []byte) ([]byte, []byte) {
 	return p[:1], p[1:]
 }`)
-	decl := decls[0].(coq.FuncDecl)
 	c.Check(decl.Body, DeepEquals,
 		block(retBinding(tuple(
 			coq.PureCall(callExpr("slice.take", intLiteral(1), ident("p"))),
@@ -240,7 +233,7 @@ func SliceExample(p []byte) ([]byte, []byte) {
 }
 
 func (s *ConversionSuite) TestPureImpure(c *C) {
-	decls := s.Convert(`
+	decl := goFunc(`
 import "github.com/tchajed/goose/machine"
 
 func PureDemo(p []byte) uint64 {
@@ -249,7 +242,6 @@ func PureDemo(p []byte) uint64 {
   z := machine.UInt64Get(p)
   return x + y + z
 }`)
-	decl := decls[0].(coq.FuncDecl)
 	xyz := coq.BinaryExpr{
 		coq.BinaryExpr{ident("x"), coq.OpPlus, ident("y")},
 		coq.OpPlus, ident("z"),
