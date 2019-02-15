@@ -234,8 +234,11 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 			switch f.Sel.Name {
 			case "UInt64Get":
 				return "Data.uint64Get"
-			case "UInt64Encode":
+			case "UInt64Put":
 				return "Data.uint64Put"
+			default:
+				ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
+				return "Data.<unknown>"
 			}
 		}
 		ctx.unsupported(f, "cannot call methods selected from %s", f.X)
@@ -256,10 +259,8 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
 		}
-		ctx.todo(typeArg, "array types are not really implemented")
-		// TODO: need to check that slice is being initialized to an empty one
 		elt := ctx.coqType(typeArg.Elt)
-		return coq.NewCallExpr("Data.newArray", elt)
+		return coq.NewCallExpr("Data.newSlice", elt, ctx.expr(args[1]))
 	default:
 		ctx.nope(typeArg, "make() of %s, not a map or array", typeArg)
 	}

@@ -71,7 +71,7 @@ Definition readTableIndex (f:Fd) (index:HashTable uint64) : proc unit :=
         if compare l 0 == Gt
         then
           _ <- Data.hashTableAlter index e.(Entry.Key) (fun _ => Some (fromNum 8 + buf.(lazyFileBuf.offset)));
-          Continue {| lazyFileBuf.offset := buf.(lazyFileBuf.offset) + 1;
+          Continue {| lazyFileBuf.offset := buf.(lazyFileBuf.offset) + l;
                       lazyFileBuf.next := slice.skip l buf.(lazyFileBuf.next); |}
         else
           p <- Base.sliceReadAt f buf.(lazyFileBuf.offset) 4096;
@@ -96,15 +96,16 @@ Definition CloseTable (t:Table.t) : proc unit :=
   FS.close t.(Table.File).
 
 Definition ReadValue (f:Fd) (off:uint64) : proc (slice.t byte) :=
-  buf <- Base.sliceReadAt f off 4096;
-  totalBytes <- Data.uint64Get buf;
-  let haveBytes := slice.length (slice.skip (fromNum 8) buf) in
+  startBuf <- Base.sliceReadAt f off 4096;
+  totalBytes <- Data.uint64Get startBuf;
+  let buf := slice.skip (fromNum 8) startBuf in
+  let haveBytes := slice.length buf in
   if compare haveBytes totalBytes == Lt
   then
     buf2 <- Base.sliceReadAt f (off + 4096) (totalBytes - haveBytes);
     newBuf <- Data.sliceAppendSlice buf buf2;
     Ret newBuf
-  else Ret buf.
+  else Ret (slice.take totalBytes buf).
 
 Definition TableRead (t:Table.t) (k:uint64) : proc (slice.t byte) :=
   let! (off, ok) <- Data.goHashTableLookup t.(Table.Index) k;
@@ -142,3 +143,53 @@ Definition bufAppend (f:bufFile.t) (p:slice.t byte) : proc unit :=
 Definition bufClose (f:bufFile.t) : proc unit :=
   _ <- bufFlush f;
   FS.close f.(bufFile.file).
+
+Module tableWriter.
+  Record t := mk {
+    index: HashTable uint64;
+    name: Path;
+    file: bufFile.t;
+    offset: IORef uint64;
+  }.
+End tableWriter.
+
+Definition newTableWriter (p:Path) : proc tableWriter.t :=
+  index <- Data.newHashTable uint64;
+  f <- FS.create p;
+  buf <- newBuf f;
+  off <- Data.newIORef (zeroValue uint64);
+  Ret {| tableWriter.index := index;
+         tableWriter.name := p;
+         tableWriter.file := buf;
+         tableWriter.offset := off; |}.
+
+Definition tableWriterAppend (w:tableWriter.t) (p:slice.t byte) : proc unit :=
+  _ <- bufAppend w.(tableWriter.file) p;
+  off <- Data.readIORef w.(tableWriter.offset);
+  Data.writeIORef w.(tableWriter.offset) (off + slice.length p).
+
+Definition tableWriterClose (w:tableWriter.t) : proc Table.t :=
+  _ <- bufClose w.(tableWriter.file);
+  f <- FS.open w.(tableWriter.name);
+  Ret {| Table.Index := w.(tableWriter.index);
+         Table.File := f; |}.
+
+(* EncodeUInt64 is an Encoder(uint64) *)
+Definition EncodeUInt64 (x:uint64) (p:slice.t byte) : proc (slice.t byte) :=
+  tmp <- Data.newSlice byte (fromNum 8);
+  _ <- Data.uint64Put tmp x;
+  p2 <- Data.sliceAppendSlice p tmp;
+  Ret p2.
+
+Definition EncodeSlice (data:slice.t byte) (p:slice.t byte) : proc (slice.t byte) :=
+  p2 <- EncodeUInt64 (slice.length data) p;
+  p3 <- Data.sliceAppendSlice p2 data;
+  Ret p3.
+
+Definition tablePut (w:tableWriter.t) (k:uint64) (v:slice.t byte) : proc unit :=
+  tmp <- Data.newSlice byte 0;
+  tmp2 <- EncodeUInt64 k tmp;
+  tmp3 <- EncodeSlice v tmp2;
+  off <- Data.readIORef w.(tableWriter.offset);
+  _ <- Data.hashTableAlter w.(tableWriter.index) k (fun _ => Some (off + slice.length tmp2));
+  tableWriterAppend w tmp3.

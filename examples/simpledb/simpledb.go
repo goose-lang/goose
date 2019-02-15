@@ -69,7 +69,7 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 		e, l := DecodeEntry(buf.next)
 		if l > 0 {
 			index[e.Key] = 8 + buf.offset
-			buf = lazyFileBuf{offset: buf.offset + 1, next: buf.next[l:]}
+			buf = lazyFileBuf{offset: buf.offset + l, next: buf.next[l:]}
 			continue
 		} else {
 			p := filesys.ReadAt(f, buf.offset, 4096)
@@ -101,15 +101,17 @@ func CloseTable(t Table) {
 }
 
 func ReadValue(f filesys.File, off uint64) []byte {
-	buf := filesys.ReadAt(f, off, 4096)
-	totalBytes := machine.UInt64Get(buf)
-	haveBytes := uint64(len(buf[8:]))
+	startBuf := filesys.ReadAt(f, off, 4096)
+	totalBytes := machine.UInt64Get(startBuf)
+	// should have enough data for the key if the file is a proper encoding
+	buf := startBuf[8:]
+	haveBytes := uint64(len(buf))
 	if haveBytes < totalBytes {
 		buf2 := filesys.ReadAt(f, off+4096, totalBytes-haveBytes)
 		newBuf := append(buf, buf2...)
 		return newBuf
 	}
-	return buf
+	return buf[:totalBytes]
 }
 
 func TableRead(t Table, k uint64) []byte {
@@ -152,4 +154,66 @@ func bufAppend(f bufFile, p []byte) {
 func bufClose(f bufFile) {
 	bufFlush(f)
 	filesys.Close(f.file)
+}
+
+type tableWriter struct {
+	index  map[uint64]uint64
+	name   string
+	file   bufFile
+	offset *uint64
+}
+
+func newTableWriter(p string) tableWriter {
+	index := make(map[uint64]uint64)
+	f := filesys.Create(p)
+	buf := newBuf(f)
+	off := new(uint64)
+	return tableWriter{
+		index:  index,
+		name:   p,
+		file:   buf,
+		offset: off,
+	}
+}
+
+func tableWriterAppend(w tableWriter, p []byte) {
+	bufAppend(w.file, p)
+	off := *w.offset
+	*w.offset = off + uint64(len(p))
+}
+
+func tableWriterClose(w tableWriter) Table {
+	bufClose(w.file)
+	f := filesys.Open(w.name)
+	return Table{
+		Index: w.index,
+		File:  f,
+	}
+}
+
+// EncodeUInt64 is an Encoder(uint64)
+func EncodeUInt64(x uint64, p []byte) []byte {
+	tmp := make([]byte, 8)
+	machine.UInt64Put(tmp, x)
+	p2 := append(p, tmp...)
+	return p2
+}
+
+func EncodeSlice(data []byte, p []byte) []byte {
+	p2 := EncodeUInt64(uint64(len(data)), p)
+	p3 := append(p2, data...)
+	return p3
+}
+
+func tablePut(w tableWriter, k uint64, v []byte) {
+	tmp := make([]byte, 0)
+	tmp2 := EncodeUInt64(k, tmp)
+	tmp3 := EncodeSlice(v, tmp2)
+
+	off := *w.offset
+	// index points to encoded value
+	w.index[k] = off + uint64(len(tmp2))
+
+	// write to table
+	tableWriterAppend(w, tmp3)
 }
