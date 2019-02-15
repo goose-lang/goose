@@ -32,7 +32,11 @@ func (pp *buffer) appendLine(line string) {
 }
 
 func (pp *buffer) AddLine(line string) {
-	pp.appendLine(pp.indentation() + indent(pp.indentLevel, line))
+	if line == "" {
+		pp.appendLine("")
+	} else {
+		pp.appendLine(pp.indentation() + indent(pp.indentLevel, line))
+	}
 }
 
 // Add adds formatted to the buffer
@@ -109,6 +113,12 @@ func (d StructDecl) CoqDecl() string {
 	}
 	pp.Indent(-2)
 	pp.Add("}.")
+	var zeroValueArgs []string
+	for range d.Fields {
+		zeroValueArgs = append(zeroValueArgs, "(zeroValue _)")
+	}
+	pp.Add("Global Instance t_zero : HasGoZero t := mk %s.",
+		strings.Join(zeroValueArgs, " "))
 	pp.Indent(-2)
 	pp.Add("End %s.", d.Name)
 	return pp.Build()
@@ -349,7 +359,7 @@ type BlockExpr struct {
 
 func isPure(e Expr) bool {
 	switch e.(type) {
-	case BinaryExpr, PureCall:
+	case BinaryExpr, PureCall, IntLiteral, StringLiteral:
 		return true
 	case CallExpr: // distinct from PureCall
 		return false

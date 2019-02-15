@@ -11,6 +11,7 @@ Module allTheLiterals.
     int: uint64;
     s: Path;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End allTheLiterals.
 
 Definition normalLiterals  : proc allTheLiterals.t :=

@@ -28,6 +28,7 @@ Module Entry.
     Key: uint64;
     Value: slice.t byte;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End Entry.`))
 }
 

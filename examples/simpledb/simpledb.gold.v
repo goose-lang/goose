@@ -7,6 +7,7 @@ Module Table.
     Index: HashTable uint64;
     File: Fd;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End Table.
 
 (* CreateTable creates a new, empty table. *)
@@ -24,6 +25,7 @@ Module Entry.
     Key: uint64;
     Value: slice.t byte;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End Entry.
 
 (* DecodeUInt64 is a Decoder(uint64)
@@ -62,6 +64,7 @@ Module lazyFileBuf.
     offset: uint64;
     next: slice.t byte;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End lazyFileBuf.
 
 (* readTableIndex parses a complete table on disk into a key->offset index *)
@@ -120,6 +123,7 @@ Module bufFile.
     file: Fd;
     buf: IORef (slice.t byte);
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End bufFile.
 
 Definition newBuf (f:Fd) : proc bufFile.t :=
@@ -151,6 +155,7 @@ Module tableWriter.
     file: bufFile.t;
     offset: IORef uint64;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _).
 End tableWriter.
 
 Definition newTableWriter (p:Path) : proc tableWriter.t :=
@@ -205,4 +210,5 @@ Module Database.
     tableL: LockRef;
     compactionL: LockRef;
   }.
+  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _).
 End Database.
