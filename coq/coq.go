@@ -264,6 +264,14 @@ func (l IntLiteral) Coq() string {
 	}
 }
 
+type StringLiteral struct {
+	Value string
+}
+
+func (l StringLiteral) Coq() string {
+	return fmt.Sprintf(`"%s"`, l.Value)
+}
+
 type BinOp int
 
 const (

@@ -3,10 +3,10 @@ package goose
 import (
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/importer"
 	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -427,16 +427,22 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 }
 
 // basicLiteral parses a basic literal; only Go int literals are supported
-func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.IntLiteral {
-	if e.Kind != token.INT {
-		ctx.unsupported(e, "non-integer literal")
-		return coq.IntLiteral{^uint64(0)}
+func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
+	if e.Kind == token.STRING {
+		v := ctx.info.Types[e].Value
+		return coq.StringLiteral{constant.StringVal(v)}
 	}
-	n, err := strconv.ParseUint(e.Value, 10, 64)
-	if err != nil {
-		panic(err) // could not parse integer literal?
+	if e.Kind == token.INT {
+		v := ctx.info.Types[e].Value
+		n, ok := constant.Uint64Val(v)
+		if !ok {
+			ctx.unsupported(e, "int literal isn't a valid uint64")
+			return nil
+		}
+		return coq.IntLiteral{n}
 	}
-	return coq.IntLiteral{n}
+	ctx.unsupported(e, "literal with kind %s", e.Kind)
+	return nil
 }
 
 func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
