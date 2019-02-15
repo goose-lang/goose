@@ -2,6 +2,7 @@ package goose_test
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -16,6 +17,10 @@ import (
 )
 
 import . "gopkg.in/check.v1"
+
+var updateGold = flag.Bool("update-gold",
+	false,
+	"update *.gold.v files in examples/ with current output")
 
 type ExamplesSuite struct{}
 
@@ -51,6 +56,16 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 		actual := b.Bytes()
 
 		goldFile := path.Join(srcPath, srcDir+".gold.v")
+
+		if *updateGold {
+			err := ioutil.WriteFile(goldFile, actual, 0644)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Fprintf(os.Stderr, "updated %s\n", goldFile)
+			_ = os.Remove(path.Join(srcPath, srcDir+".actual.v"))
+		}
+
 		expected, err := ioutil.ReadFile(goldFile)
 		if err != nil {
 			c.Errorf("could not load gold output %s", srcDir+".gold.v")

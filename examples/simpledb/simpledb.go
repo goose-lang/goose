@@ -1,12 +1,14 @@
 package simpledb
 
 import (
+	"sync"
+
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/filesys"
 )
 
-// A Table provides access to an immutable copy of data on the filesystem, along
-// with an index for fast random access.
+// A Table provides access to an immutable copy of data on the filesystem,
+// along with an index for fast random access.
 type Table struct {
 	Index map[uint64]uint64
 	File  filesys.File
@@ -31,8 +33,8 @@ type Entry struct {
 //
 // All decoders have the shape func(p []byte) (T, uint64)
 //
-// The uint64 represents the number of bytes consumed; if 0, then decoding
-// failed, and the value of type T should be ignored.
+// The uint64 represents the number of bytes consumed; if 0,
+// then decoding failed, and the value of type T should be ignored.
 func DecodeUInt64(p []byte) (uint64, uint64) {
 	if len(p) < 8 {
 		return 0, 0
@@ -199,6 +201,7 @@ func EncodeUInt64(x uint64, p []byte) []byte {
 	return p2
 }
 
+// EncodeSlice is an Encoder([]byte)
 func EncodeSlice(data []byte, p []byte) []byte {
 	p2 := EncodeUInt64(uint64(len(data)), p)
 	p3 := append(p2, data...)
@@ -216,4 +219,17 @@ func tablePut(w tableWriter, k uint64, v []byte) {
 
 	// write to table
 	tableWriterAppend(w, tmp3)
+}
+
+type Database struct {
+	wbuffer *map[uint64][]byte
+	rbuffer *map[uint64][]byte
+	bufferL *sync.RWMutex
+	table   *Table
+	// the manifest
+	tableName *string
+	// protects both table and tableName
+	tableL *sync.RWMutex
+	// protects constructing shadow tables
+	compactionL *sync.RWMutex
 }

@@ -1,8 +1,8 @@
 From RecoveryRefinement Require Import Database.CodeSetup.
 
 Module Table.
-  (* A Table provides access to an immutable copy of data on the filesystem, along
-  with an index for fast random access. *)
+  (* A Table provides access to an immutable copy of data on the filesystem,
+  along with an index for fast random access. *)
   Record t := mk {
     Index: HashTable uint64;
     File: Fd;
@@ -30,8 +30,8 @@ End Entry.
 
 All decoders have the shape func(p []byte) (T, uint64)
 
-The uint64 represents the number of bytes consumed; if 0, then decoding
-failed, and the value of type T should be ignored. *)
+The uint64 represents the number of bytes consumed; if 0,
+then decoding failed, and the value of type T should be ignored. *)
 Definition DecodeUInt64 (p:slice.t byte) : proc (uint64 * uint64) :=
   if compare (slice.length p) (fromNum 8) == Lt
   then Ret (0, 0)
@@ -181,6 +181,7 @@ Definition EncodeUInt64 (x:uint64) (p:slice.t byte) : proc (slice.t byte) :=
   p2 <- Data.sliceAppendSlice p tmp;
   Ret p2.
 
+(* EncodeSlice is an Encoder([]byte) *)
 Definition EncodeSlice (data:slice.t byte) (p:slice.t byte) : proc (slice.t byte) :=
   p2 <- EncodeUInt64 (slice.length data) p;
   p3 <- Data.sliceAppendSlice p2 data;
@@ -193,3 +194,15 @@ Definition tablePut (w:tableWriter.t) (k:uint64) (v:slice.t byte) : proc unit :=
   off <- Data.readIORef w.(tableWriter.offset);
   _ <- Data.hashTableAlter w.(tableWriter.index) k (fun _ => Some (off + slice.length tmp2));
   tableWriterAppend w tmp3.
+
+Module Database.
+  Record t := mk {
+    wbuffer: IORef (HashTable (slice.t byte));
+    rbuffer: IORef (HashTable (slice.t byte));
+    bufferL: LockRef;
+    table: IORef Table.t;
+    tableName: IORef Path;
+    tableL: LockRef;
+    compactionL: LockRef;
+  }.
+End Database.
