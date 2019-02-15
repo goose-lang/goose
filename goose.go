@@ -878,23 +878,3 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 	}
 	return nil
 }
-
-func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r, ok := r.(gooseError); ok {
-				err = r.err
-			} else {
-				panic(r)
-			}
-		}
-	}()
-	for _, f := range fs {
-		for _, d := range f.Decls {
-			if d := ctx.maybeDecl(d); d != nil {
-				decls = append(decls, d)
-			}
-		}
-	}
-	return
-}

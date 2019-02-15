@@ -16,7 +16,7 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-func fileDecls(src string) ([]coq.Decl, error) {
+func fileDecls(src string) (coq.File, error) {
 	fset := token.NewFileSet()
 	ctx := NewCtx(fset, Config{})
 	srcCode := "package example\n" + "//line <test.go>:1\n" + strings.TrimSpace(src)
@@ -34,7 +34,7 @@ func fileDecls(src string) ([]coq.Decl, error) {
 		fmt.Fprintln(os.Stderr, src)
 		panic("test code does not type check")
 	}
-	return ctx.Decls(f)
+	return ctx.File(f)
 }
 
 // goFunc load go src and returns the last declaration as a function

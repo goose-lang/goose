@@ -2,6 +2,7 @@ package coq
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -511,4 +512,17 @@ func (t PtrType) Coq() string {
 	return "IORef " + addParens(t.Value.Coq())
 }
 
-const ImportHeader string = "From RecoveryRefinement Require Import Database.CodeSetup."
+const importHeader string = "From RecoveryRefinement Require Import Database.CodeSetup."
+
+type File []Decl
+
+func (decls File) Write(w io.Writer) {
+	fmt.Fprintln(w, importHeader)
+	fmt.Fprintln(w)
+	for i, d := range decls {
+		fmt.Fprintln(w, d.CoqDecl())
+		if i != len(decls)-1 {
+			fmt.Fprintln(w)
+		}
+	}
+}
