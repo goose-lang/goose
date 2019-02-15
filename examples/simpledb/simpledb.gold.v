@@ -238,3 +238,32 @@ Definition NewDb  : proc Database.t :=
          Database.tableName := tableNameRef;
          Database.tableL := tableL;
          Database.compactionL := compactionL; |}.
+
+Definition Read (db:Database.t) (k:uint64) : proc (slice.t byte * bool) :=
+  _ <- Data.lockAcquire Reader db.(Database.bufferL);
+  buf <- Data.readIORef db.(Database.wbuffer);
+  let! (v, ok) <- Data.goHashTableLookup buf k;
+  if ok
+  then
+    _ <- Data.lockRelease Reader db.(Database.bufferL);
+    Ret (v, true)
+  else
+    rbuf <- Data.readIORef db.(Database.rbuffer);
+    let! (v2, ok) <- Data.goHashTableLookup rbuf k;
+    if ok
+    then
+      _ <- Data.lockRelease Reader db.(Database.bufferL);
+      Ret (v2, true)
+    else
+      _ <- Data.lockAcquire Reader db.(Database.tableL);
+      tbl <- Data.readIORef db.(Database.table);
+      let! (v3, ok) <- TableRead tbl k;
+      _ <- Data.lockRelease Reader db.(Database.tableL);
+      _ <- Data.lockRelease Reader db.(Database.bufferL);
+      Ret (v3, ok).
+
+Definition Write (db:Database.t) (k:uint64) (v:slice.t byte) : proc unit :=
+  _ <- Data.lockAcquire Writer db.(Database.bufferL);
+  buf <- Data.readIORef db.(Database.wbuffer);
+  _ <- Data.hashTableAlter buf k (fun _ => Some v);
+  Data.lockRelease Writer db.(Database.bufferL).

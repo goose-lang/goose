@@ -263,3 +263,35 @@ func NewDb() Database {
 		compactionL: compactionL,
 	}
 }
+
+func Read(db Database, k uint64) ([]byte, bool) {
+	db.bufferL.RLock()
+	// first try write buffer
+	buf := *db.wbuffer
+	v, ok := buf[k]
+	if ok {
+		db.bufferL.RUnlock()
+		return v, true
+	}
+	// ...then try read buffer
+	rbuf := *db.rbuffer
+	v2, ok := rbuf[k]
+	if ok {
+		db.bufferL.RUnlock()
+		return v2, true
+	}
+	// ...and finally go to the table
+	db.tableL.RLock()
+	tbl := *db.table
+	v3, ok := TableRead(tbl, k)
+	db.tableL.RUnlock()
+	db.bufferL.RUnlock()
+	return v3, ok
+}
+
+func Write(db Database, k uint64, v []byte) {
+	db.bufferL.Lock()
+	buf := *db.wbuffer
+	buf[k] = v
+	db.bufferL.Unlock()
+}

@@ -58,13 +58,13 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 		goldFile := path.Join(srcPath, srcDir+".gold.v")
 
 		if *updateGold {
-			err := ioutil.WriteFile(goldFile, actual, 0644)
-			if err != nil {
-				panic(err)
-			}
 			expected, err := ioutil.ReadFile(goldFile)
 			if err != nil || !bytes.Equal(actual, expected) {
 				fmt.Fprintf(os.Stderr, "updated %s\n", goldFile)
+			}
+			err = ioutil.WriteFile(goldFile, actual, 0644)
+			if err != nil {
+				panic(err)
 			}
 			_ = os.Remove(path.Join(srcPath, srcDir+".actual.v"))
 			continue
