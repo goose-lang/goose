@@ -62,8 +62,12 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Fprintf(os.Stderr, "updated %s\n", goldFile)
+			expected, err := ioutil.ReadFile(goldFile)
+			if err != nil || !bytes.Equal(actual, expected) {
+				fmt.Fprintf(os.Stderr, "updated %s\n", goldFile)
+			}
 			_ = os.Remove(path.Join(srcPath, srcDir+".actual.v"))
+			continue
 		}
 
 		expected, err := ioutil.ReadFile(goldFile)
