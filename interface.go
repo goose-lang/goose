@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 
 	"github.com/tchajed/goose/coq"
 )
@@ -47,7 +48,12 @@ func (e *TranslationError) Error() string {
 
 func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationError) {
 	fset := token.NewFileSet()
-	filter := func(os.FileInfo) bool { return true }
+	filter := func(info os.FileInfo) bool {
+		if strings.HasSuffix(info.Name(), "_test.go") {
+			return false
+		}
+		return true
+	}
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
 		return nil, &TranslationError{
