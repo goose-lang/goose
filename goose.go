@@ -440,22 +440,18 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.IntLiteral {
 }
 
 func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
-	be := coq.BinaryExpr{X: ctx.expr(e.X), Y: ctx.expr(e.Y)}
-	switch e.Op {
-	case token.LSS:
-		be.Op = coq.OpLessThan
-	case token.GTR:
-		be.Op = coq.OpGreaterThan
-	case token.ADD:
-		be.Op = coq.OpPlus
-	case token.SUB:
-		be.Op = coq.OpMinus
-	case token.EQL:
-		be.Op = coq.OpEquals
-	default:
-		ctx.unsupported(e, "binary operator %v", e.Op)
+	op, ok := map[token.Token]coq.BinOp{
+		token.LSS: coq.OpLessThan,
+		token.GTR: coq.OpGreaterThan,
+		token.ADD: coq.OpPlus,
+		token.SUB: coq.OpMinus,
+		token.EQL: coq.OpEquals,
+	}[e.Op]
+	if ok {
+		return coq.BinaryExpr{X: ctx.expr(e.X), Op: op, Y: ctx.expr(e.Y)}
 	}
-	return be
+	ctx.unsupported(e, "binary operator %v", e.Op)
+	return nil
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
