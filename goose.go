@@ -105,8 +105,10 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("uint64")
 		case "byte":
 			return coq.TypeIdent("byte")
+		case "bool":
+			return coq.TypeIdent("bool")
 		default:
-			ctx.todo(n, "explicitly handle basic types")
+			ctx.unsupported(n, "basic types")
 		}
 	}
 	return coq.TypeIdent("<type>")
@@ -426,7 +428,9 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 	return lit
 }
 
-// basicLiteral parses a basic literal; only Go int literals are supported
+// basicLiteral parses a basic literal
+//
+// (unsigned) ints, strings, and booleans are supported
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 	if e.Kind == token.STRING {
 		v := ctx.info.Types[e].Value
@@ -525,6 +529,9 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		}
 		if e.Name == "nil" {
 			return ctx.nilExpr(e)
+		}
+		if e.Name == "true" || e.Name == "false" {
+			return coq.IdentExpr(e.Name)
 		}
 		ctx.unsupported(e, "special identifier")
 	case *ast.SelectorExpr:
