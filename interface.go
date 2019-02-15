@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/tchajed/goose/coq"
@@ -46,6 +47,26 @@ func (e *TranslationError) Error() string {
 	return fmt.Sprintf("%s\n%s", e.Message, e.Err)
 }
 
+type fileName struct {
+	name string
+	file *ast.File
+}
+
+func sortedFiles(files map[string]*ast.File) []*ast.File {
+	var flatFiles []fileName
+	for n, f := range files {
+		flatFiles = append(flatFiles, fileName{name: n, file: f})
+	}
+	sort.Slice(flatFiles, func(i, j int) bool {
+		return flatFiles[i].name < flatFiles[j].name
+	})
+	var sortedFiles []*ast.File
+	for _, f := range flatFiles {
+		sortedFiles = append(sortedFiles, f.file)
+	}
+	return sortedFiles
+}
+
 func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationError) {
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {
@@ -69,9 +90,7 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationErro
 	var pkgName string
 	var files []*ast.File
 	for pName, p := range packages {
-		for _, f := range p.Files {
-			files = append(files, f)
-		}
+		files = append(files, sortedFiles(p.Files)...)
 		pkgName = pName
 	}
 
