@@ -430,7 +430,11 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 	if e.Kind == token.STRING {
 		v := ctx.info.Types[e].Value
-		return coq.StringLiteral{constant.StringVal(v)}
+		s := constant.StringVal(v)
+		if strings.ContainsRune(s, '"') {
+			ctx.unsupported(e, "string literals with quotes")
+		}
+		return coq.StringLiteral{s}
 	}
 	if e.Kind == token.INT {
 		v := ctx.info.Types[e].Value
@@ -501,6 +505,14 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
 	}
 }
 
+func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
+	if e.Op == token.NOT {
+		return coq.NotExpr{ctx.expr(e.X)}
+	}
+	ctx.unsupported(e, "unary expression %s", e.Op)
+	return nil
+}
+
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -537,10 +549,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		ctx.unsupported(e, "index into unknown type %v", xTy)
 		return nil
 	case *ast.UnaryExpr:
-		if e.Op == token.NOT {
-			return coq.NotExpr{ctx.expr(e.X)}
-		}
-		ctx.unsupported(e, "unary expression %s", e.Op)
+		return ctx.unaryExpr(e)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
