@@ -719,6 +719,13 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 		ctx.futureWork(s, "multiple defines (split them up)")
 	}
 	rhs := s.Rhs[0]
+	// TODO: go only requires one of the variables being defined to be fresh;
+	//  the rest are assigned. We should probably support re-assignment
+	//  generally. The problem is re-assigning variables in a loop that were
+	//  defined outside the loop, which in Go propagates to subsequent
+	//  iterations, so we can just conservatively disallow assignments within
+	//  loop bodies.
+
 	var names []string
 	for _, lhsExpr := range s.Lhs {
 		ident, ok := getIdent(lhsExpr)
