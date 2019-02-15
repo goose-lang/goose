@@ -59,6 +59,8 @@ type ConversionError struct {
 	GooseCaller string
 	// file:lineno for the source program where GoCode appears
 	GoSrcFile string
+	// (for systematic tests)
+	Pos, End token.Pos
 }
 
 func (e *ConversionError) Error() string {
@@ -81,7 +83,10 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 		Message:     formatted,
 		GoCode:      what,
 		GooseCaller: getCaller(2),
-		GoSrcFile:   where.String()}
+		GoSrcFile:   where.String(),
+		Pos:         n.Pos(),
+		End:         n.End(),
+	}
 
 	panic(gooseError{err: err})
 }
