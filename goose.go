@@ -122,6 +122,16 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
+func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
+	// check for *sync.RWMutex
+	if e, ok := e.X.(*ast.SelectorExpr); ok {
+		if isIdent(e.X, "sync") && isIdent(e.Sel, "RWMutex") {
+			return coq.TypeIdent("LockRef")
+		}
+	}
+	return coq.PtrType{ctx.coqType(e.X)}
+}
+
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -133,7 +143,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.ArrayType:
 		return ctx.arrayType(e)
 	case *ast.StarExpr:
-		return coq.PtrType{ctx.coqType(e.X)}
+		return ctx.ptrType(e)
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
@@ -216,37 +226,76 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
 	))
 }
 
-func (ctx Ctx) methodExpr(f ast.Expr) string {
+func isLockRef(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		if elTy, ok := t.Elem().(*types.Named); ok {
+			name := elTy.Obj()
+			return name.Pkg().Name() == "sync" &&
+				name.Name() == "RWMutex"
+		}
+	}
+	return false
+}
+
+func (ctx Ctx) methodExpr(f ast.Expr) (method string, args []coq.Expr) {
 	switch f := f.(type) {
 	case *ast.Ident:
-		return f.Name
+		return f.Name, nil
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "filesys") {
 			switch f.Sel.Name {
 			case "ReadAt":
-				return "Base.sliceReadAt"
+				return "Base.sliceReadAt", nil
 			case "Append":
-				return "Base.sliceAppend"
+				return "Base.sliceAppend", nil
 			}
-			return "FS." + toInitialLower(f.Sel.Name)
+			return "FS." + toInitialLower(f.Sel.Name), nil
 		}
 		if isIdent(f.X, "machine") {
 			switch f.Sel.Name {
 			case "UInt64Get":
-				return "Data.uint64Get"
+				return "Data.uint64Get", nil
 			case "UInt64Put":
-				return "Data.uint64Put"
+				return "Data.uint64Put", nil
 			default:
 				ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
-				return "Data.<unknown>"
+				return "Data.<unknown>", nil
 			}
 		}
+		if isLockRef(ctx.typeOf(f.X)) {
+			var acquire, writer bool
+			switch f.Sel.Name {
+			case "Lock":
+				acquire, writer = true, true
+			case "RLock":
+				acquire, writer = true, false
+			case "Unlock":
+				acquire, writer = false, true
+			case "RUnlock":
+				acquire, writer = false, false
+			default:
+				ctx.unsupported(f, "method %s of sync.RWMutex", f.Sel.Name)
+				return "<lock method>", nil
+			}
+			if acquire {
+				method = "Data.lockAcquire"
+			} else {
+				method = "Data.lockRelease"
+			}
+			if writer {
+				args = []coq.Expr{coq.IdentExpr("Writer")}
+			} else {
+				args = []coq.Expr{coq.IdentExpr("Reader")}
+			}
+			args = append(args, ctx.expr(f.X))
+			return
+		}
 		ctx.unsupported(f, "cannot call methods selected from %s", f.X)
-		return "<selector>"
+		return "<selector>", nil
 	default:
 		ctx.unsupported(f, "call on expression")
 	}
-	return "<fun expr>"
+	return "<fun expr>", nil
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
@@ -315,7 +364,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.typeOf(x))
 		return nil
 	}
-	call.MethodName = ctx.methodExpr(s.Fun)
+	call.MethodName, call.Args = ctx.methodExpr(s.Fun)
 	for _, arg := range s.Args {
 		call.Args = append(call.Args, ctx.expr(arg))
 	}
@@ -825,11 +874,17 @@ func stringBasicLit(lit *ast.BasicLit) string {
 	return s[1 : len(s)-1]
 }
 
+var okImports = map[string]bool{
+	"github.com/tchajed/goose/machine":         true,
+	"github.com/tchajed/goose/machine/filesys": true,
+	"sync": true,
+}
+
 func (ctx Ctx) checkImports(d []ast.Spec) {
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
 		importPath := stringBasicLit(s.Path)
-		if !strings.HasPrefix(importPath, "github.com/tchajed/goose/machine") {
+		if !okImports[importPath] {
 			ctx.unsupported(s, "non-whitelisted import")
 		}
 		if s.Name != nil {
