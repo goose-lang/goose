@@ -76,9 +76,8 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 		if k.Name == "uint64" {
 			return coq.MapType{ctx.coqType(e.Value)}
 		}
-	default:
-		ctx.unsupported(k, "maps must be from uint64 (not %v)", k)
 	}
+	ctx.unsupported(e, "maps must be from uint64 (not %v)", e.Key)
 	return coq.MapType{}
 }
 
@@ -376,7 +375,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 // basicLiteral parses a basic literal; only Go int literals are supported
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.IntLiteral {
 	if e.Kind != token.INT {
-		ctx.unsupported(e, "non-integer literals are not supported")
+		ctx.unsupported(e, "non-integer literal")
 		return coq.IntLiteral{^uint64(0)}
 	}
 	n, err := strconv.ParseUint(e.Value, 10, 64)
@@ -755,6 +754,10 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
+	if len(es) == 0 {
+		// named returns are not supported, so this must return unit
+		return coq.ReturnExpr{coq.IdentExpr("tt")}
+	}
 	var exprs coq.TupleExpr
 	for _, r := range es {
 		exprs = append(exprs, ctx.expr(r))

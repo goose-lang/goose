@@ -129,7 +129,7 @@ Definition newBuf (f:Fd) : proc bufFile.t :=
 Definition bufFlush (f:bufFile.t) : proc unit :=
   buf <- Data.readIORef f.(bufFile.buf);
   if slice.length buf == 0
-  then Ret ()
+  then Ret tt
   else
     _ <- Base.sliceAppend f.(bufFile.file) buf;
     Data.writeIORef f.(bufFile.buf) (slice.nil _).
