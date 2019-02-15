@@ -317,6 +317,11 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 
 // newExpr parses a call to new() into an appropriate allocation
 func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
+	if sel, ok := ty.(*ast.SelectorExpr); ok {
+		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "RWMutex") {
+			return coq.NewCallExpr("Data.newLock")
+		}
+	}
 	return coq.NewCallExpr("Data.newIORef",
 		coq.NewCallExpr("zeroValue", ctx.coqType(ty)))
 }

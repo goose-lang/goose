@@ -10,3 +10,8 @@ func DoSomeLocking(l *sync.RWMutex) {
 	l.RUnlock()
 	l.RUnlock()
 }
+
+func MakeLock() {
+	l := new(sync.RWMutex)
+	DoSomeLocking(l)
+}

@@ -13,3 +13,7 @@ Definition DoSomeLocking (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire Reader l;
   _ <- Data.lockRelease Reader l;
   Data.lockRelease Reader l.
+
+Definition MakeLock  : proc unit :=
+  l <- Data.newLock;
+  DoSomeLocking l.
