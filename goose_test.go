@@ -16,6 +16,10 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
+type ConversionSuite struct{}
+
+var _ = Suite(&ConversionSuite{})
+
 func fileDecls(src string) (coq.File, error) {
 	fset := token.NewFileSet()
 	ctx := NewCtx(fset, Config{})
@@ -45,11 +49,6 @@ func goFunc(src string) coq.FuncDecl {
 	}
 	return decls[len(decls)-1].(coq.FuncDecl)
 }
-
-type ConversionSuite struct {
-}
-
-var _ = Suite(&ConversionSuite{})
 
 func (s *ConversionSuite) TestEmpty(c *C) {
 	decls, err := fileDecls(``)
