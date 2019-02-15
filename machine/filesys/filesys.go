@@ -3,6 +3,7 @@ package filesys
 import (
 	"flag"
 	"fmt"
+	"io"
 
 	"github.com/spf13/afero"
 )
@@ -140,11 +141,9 @@ func (fs filesys) Open(fname string) File {
 func (fs filesys) ReadAt(f File, offset uint64, length uint64) []byte {
 	p := make([]byte, length)
 	n, err := f.ReadAt(p, int64(offset))
-	if n != len(p) {
-		panic(fmt.Errorf("short ReadAt(%d, %d) -> %d bytes for %s", offset, length, n, f.Name()))
-	}
-	if err != nil {
+	// we use ReadAt slightly differently than Go expects, and EOF during a ReadAt is expected
+	if err != nil && err != io.EOF {
 		panic(err)
 	}
-	return p
+	return p[:n]
 }
