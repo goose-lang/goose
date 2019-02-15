@@ -619,6 +619,10 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	// TODO: be more careful about nested if statements; if the then branch has
 	//  an if statement with early return, this is probably not handled correctly.
 	//  We should conservatively disallow such returns until they're properly analyzed.
+	if s.Init != nil {
+		ctx.unsupported(s.Init, "if statement initializations")
+		return coq.Binding{}
+	}
 	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}, loopVar).Unwrap()
 	if !ok {
 		ctx.nope(s.Body, "if statement body ends with an assignment")
