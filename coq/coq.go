@@ -415,8 +415,8 @@ func (e HashTableInsert) Coq() string {
 }
 
 // currently restrict loops to return nothing
-// good way to lift this restriction is to require loops to be at the end of the function
-// and then support return inside a loop instead of break
+// good way to lift this restriction is to require loops to be at the end of the
+// function and then support return inside a loop instead of break
 type LoopRetExpr struct{}
 
 func (e LoopRetExpr) Coq() string {

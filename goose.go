@@ -28,10 +28,9 @@ type Config struct {
 
 func NewCtx(fset *token.FileSet, config Config) Ctx {
 	info := &types.Info{
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+		Types: make(map[ast.Expr]types.TypeAndValue),
 	}
 	return Ctx{
 		info:          info,
