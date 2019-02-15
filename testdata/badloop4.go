@@ -1,7 +1,7 @@
 package example
 
 func NoInit() {
-	for {
+	for { // ERROR loop without a loop variable
 		break
 	}
 }

@@ -626,7 +626,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
 	}
 	if s.Init == nil {
 		// need special handling (in particular, need to skip looking for a loop variable assignment)
-		ctx.futureWork(s, "loops without a loop variable")
+		ctx.futureWork(s, "loop without a loop variable")
 		return coq.LoopExpr{}
 	}
 	ident, init := ctx.loopVar(s.Init)

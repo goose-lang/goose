@@ -9,12 +9,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/expect"
-
 	"github.com/tchajed/goose"
-	"github.com/tchajed/goose/coq"
 )
 
 import . "gopkg.in/check.v1"
@@ -73,7 +72,40 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 	}
 }
 
-func translateFile(filePath string) (coq.File, *expect.Note, error) {
+type errorExpectation struct {
+	Line  int
+	Error string
+}
+
+type errorTestResult struct {
+	Err        *goose.ConversionError
+	ActualLine int
+	Expected   errorExpectation
+}
+
+func getExpectedError(fset *token.FileSet, comments []*ast.CommentGroup) errorExpectation {
+	errRegex := regexp.MustCompile(`ERROR ?(.*)`)
+	for _, cg := range comments {
+		for _, c := range cg.List {
+			ms := errRegex.FindStringSubmatch(c.Text)
+			if ms == nil {
+				continue
+			}
+			expected := errorExpectation{
+				Line: fset.Position(c.Pos()).Line,
+			}
+			// found a match
+			if len(ms) > 1 {
+				expected.Error = ms[1]
+			}
+			// only use the first ERROR
+			return expected
+		}
+	}
+	return errorExpectation{}
+}
+
+func translateErrorFile(filePath string) errorTestResult {
 	fset := token.NewFileSet()
 	ctx := goose.NewCtx(fset, goose.Config{})
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
@@ -82,23 +114,23 @@ func translateFile(filePath string) (coq.File, *expect.Note, error) {
 		panic("test code does not parse")
 	}
 
-	notes, err := expect.Extract(fset, f)
-	if err != nil {
-		panic("test code's expect notes do not parse")
-	}
-	var note *expect.Note
-	if len(notes) > 0 {
-		note = notes[0]
-	}
-
 	err = ctx.TypeCheck("example", []*ast.File{f})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		panic("test code does not type check")
 	}
 
-	coqFile, err := ctx.File(f)
-	return coqFile, note, err
+	_, err = ctx.File(f)
+	if err == nil {
+		return errorTestResult{Err: nil}
+	}
+	cerr := err.(*goose.ConversionError)
+	test := errorTestResult{
+		Err:        cerr,
+		ActualLine: fset.Position(cerr.Pos).Line,
+		Expected:   getExpectedError(fset, f.Comments),
+	}
+	return test
 }
 
 func (s *ExamplesSuite) TestNegativeExamples(c *C) {
@@ -112,18 +144,18 @@ func (s *ExamplesSuite) TestNegativeExamples(c *C) {
 		c.Fatal(err)
 	}
 	for _, n := range names {
-		_, note, rawErr := translateFile(path.Join("testdata", n))
-		if rawErr == nil {
+		tt := translateErrorFile(path.Join("testdata", n))
+		if tt.Err == nil {
 			c.Errorf("expected error while translating %s", n)
 			continue
 		}
-		err := rawErr.(*goose.ConversionError)
-		c.Check(err.Category, Matches, `(unsupported|future)`)
-		if note != nil {
-			c.Check(err.Message, Matches, note.Args[0].(string))
-			if !(err.Pos <= note.Pos && note.Pos <= err.End) {
-				c.Errorf("error is incorrectly attributed to %s", err.GoSrcFile)
-			}
+		c.Check(tt.Err.Category, Matches, `(unsupported|future)`)
+		if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
+			c.Errorf("error message %s does not contain %s",
+				tt.Err.Message, tt.Expected.Error)
+		}
+		if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
+			c.Errorf("error is incorrectly attributed to %s", tt.Err.GoSrcFile)
 		}
 	}
 }
