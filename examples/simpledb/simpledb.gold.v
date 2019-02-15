@@ -110,13 +110,13 @@ Definition ReadValue (f:Fd) (off:uint64) : proc (slice.t byte) :=
     Ret newBuf
   else Ret (slice.take totalBytes buf).
 
-Definition TableRead (t:Table.t) (k:uint64) : proc (slice.t byte) :=
+Definition TableRead (t:Table.t) (k:uint64) : proc (slice.t byte * bool) :=
   let! (off, ok) <- Data.goHashTableLookup t.(Table.Index) k;
   if negb ok
-  then Ret (slice.nil _)
+  then Ret (slice.nil _, false)
   else
     p <- ReadValue t.(Table.File) off;
-    Ret p.
+    Ret (p, true).
 
 Module bufFile.
   Record t := mk {
@@ -212,3 +212,29 @@ Module Database.
   }.
   Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _) (zeroValue _).
 End Database.
+
+Definition makeValueBuffer  : proc (IORef (HashTable (slice.t byte))) :=
+  buf <- Data.newHashTable (slice.t byte);
+  bufPtr <- Data.newIORef (zeroValue (HashTable (slice.t byte)));
+  _ <- Data.writeIORef bufPtr buf;
+  Ret bufPtr.
+
+Definition NewDb  : proc Database.t :=
+  wbuf <- makeValueBuffer;
+  rbuf <- makeValueBuffer;
+  bufferL <- Data.newLock;
+  let tableName := "table.0" in
+  tableNameRef <- Data.newIORef (zeroValue Path);
+  _ <- Data.writeIORef tableNameRef tableName;
+  table <- CreateTable tableName;
+  tableRef <- Data.newIORef (zeroValue Table.t);
+  _ <- Data.writeIORef tableRef table;
+  tableL <- Data.newLock;
+  compactionL <- Data.newLock;
+  Ret {| Database.wbuffer := wbuf;
+         Database.rbuffer := rbuf;
+         Database.bufferL := bufferL;
+         Database.table := tableRef;
+         Database.tableName := tableNameRef;
+         Database.tableL := tableL;
+         Database.compactionL := compactionL; |}.
