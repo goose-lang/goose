@@ -148,7 +148,7 @@ func (s *ExamplesSuite) TestNegativeExamples(c *C) {
 		}
 		c.Check(tt.Err.Category, Matches, `(unsupported|future)`)
 		if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
-			c.Errorf("error message %s does not contain %s",
+			c.Errorf(`error message "%s" does not contain "%s"`,
 				tt.Err.Message, tt.Expected.Error)
 		}
 		if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {

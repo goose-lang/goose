@@ -10,7 +10,7 @@ import (
 var rootDirectory string
 
 func init() {
-	flag.StringVar(&rootDirectory, "root", "simple.db", "directory to store database in")
+	flag.StringVar(&rootDirectory, "filesys.root", "simple.db", "directory to store database in")
 }
 
 // File is an opaque handle to a file. Unlike typical Go, File does not have
@@ -26,18 +26,43 @@ type Filesys interface {
 	ReadAt(f File, offset uint64, length uint64) []byte
 }
 
+// Fs is a global instance of Filesys.
+//
+// Before using the filesystem this must be initialized (use DefaultFs, MemFs, or DirFs).
+var Fs Filesys
+
+// Re-export the filesystem methods on the global Filesys
+
+func Create(fname string) File {
+	return Fs.Create(fname)
+}
+
+func Append(f File, data []byte) {
+	Fs.Append(f, data)
+}
+
+func Close(f File) {
+	Fs.Close(f)
+}
+
+func Open(fname string) File {
+	return Fs.Open(fname)
+}
+
+func ReadAt(f File, offset uint64, length uint64) []byte {
+	return Fs.ReadAt(f, offset, length)
+}
+
 type filesys struct {
 	fs afero.Afero
 }
 
-// Fs is a global instance of Filesys.
-//
-// Configure with flags (calling flags.Parse()), then initialize with Init.
-var Fs Filesys
-
 // Init prepares the global filesystem Fs to a single directory based on flags.
-func Init() {
-	Fs = DirFs(rootDirectory)
+func DefaultFs() Filesys {
+	if !flag.Parsed() {
+		panic("default filesystem relies on flag parsing")
+	}
+	return DirFs(rootDirectory)
 }
 
 func fromAfero(fs afero.Fs) filesys {

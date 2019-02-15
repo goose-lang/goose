@@ -221,7 +221,7 @@ func (ctx Ctx) methodExpr(f ast.Expr) string {
 	case *ast.Ident:
 		return f.Name
 	case *ast.SelectorExpr:
-		if isIdent(f.X, "fs") {
+		if isIdent(f.X, "filesys") {
 			switch f.Sel.Name {
 			case "ReadAt":
 				return "Base.sliceReadAt"
@@ -813,16 +813,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 }
 
 func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
-	if !isIdent(d.Names[0], "fs") ||
-		len(d.Names) > 1 {
-		ctx.unsupported(d, "non-fs global variable")
-	}
-	v, ok := d.Values[0].(*ast.SelectorExpr)
-	if !(ok &&
-		isIdent(v.X, "filesys") &&
-		isIdent(v.Sel, "Fs")) {
-		ctx.unsupported(v, "bad initializer for fs (should be filesys.Fs)")
-	}
+	ctx.futureWork(d, "global variables (might be used for objects)")
 }
 
 func stringBasicLit(lit *ast.BasicLit) string {

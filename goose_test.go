@@ -12,6 +12,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/tchajed/goose/coq"
+	// there's an implicit dependency on filesys within the test code
+	_ "github.com/tchajed/goose/machine/filesys"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -56,18 +58,10 @@ func (s *ConversionSuite) TestEmpty(c *C) {
 	c.Assert(decls, HasLen, 0)
 }
 
-const filesysImport = `import "github.com/tchajed/goose/machine/filesys"`
-const fsDecl = `var fs filesys.Filesys = filesys.Fs`
-const fsPreamble = filesysImport + "\n\n" + fsDecl + "\n"
-
-func (s *ConversionSuite) TestGlobalFilesys(c *C) {
-	decls, err := fileDecls(fsPreamble)
-	c.Assert(err, IsNil)
-	c.Assert(decls, HasLen, 0)
-}
+const filesysImport = `import "github.com/tchajed/goose/machine/filesys"` + "\n"
 
 func (s *ConversionSuite) TestStructDecl(c *C) {
-	decls, err := fileDecls(fsPreamble + `
+	decls, err := fileDecls(filesysImport + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
@@ -115,7 +109,7 @@ func tuple(es ...coq.Expr) coq.Expr {
 }
 
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
-	decl := goFunc(fsPreamble + `
+	decl := goFunc(filesysImport + `
 // A Table provides fast access to an on-disk table
 type Table struct {
 	Index map[uint64]uint64
@@ -125,9 +119,9 @@ type Table struct {
 // CreateTable creates a new, empty table.
 func CreateTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := fs.Create(p)
-	fs.Close(f)
-	f2 := fs.Open(p)
+	f := filesys.Create(p)
+	filesys.Close(f)
+	f2 := filesys.Open(p)
 	return Table{Index: index, File: f2}
 }
 `)

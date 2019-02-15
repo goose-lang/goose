@@ -1,15 +1,9 @@
 package simpledb
 
-import "github.com/tchajed/goose/machine"
-import "github.com/tchajed/goose/machine/filesys"
-
-// Note that this code does not initialize the filesystem, because it happens
-// outside of the Coq model (the lower-level layer is implicitly initialized)
-//
-// However, when this code runs of course something has to initialize the
-// filesystem, either with filesys.Init() for the default initialization,
-// or by explicitly setting filesys.Fs.
-var fs = filesys.Fs
+import (
+	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/goose/machine/filesys"
+)
 
 // A Table provides access to an immutable copy of data on the filesystem, along
 // with an index for fast random access.
@@ -21,9 +15,9 @@ type Table struct {
 // CreateTable creates a new, empty table.
 func CreateTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := fs.Create(p)
-	fs.Close(f)
-	f2 := fs.Open(p)
+	f := filesys.Create(p)
+	filesys.Close(f)
+	f2 := filesys.Open(p)
 	return Table{Index: index, File: f2}
 }
 
@@ -78,7 +72,7 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 			buf = lazyFileBuf{offset: buf.offset + 1, next: buf.next[l:]}
 			continue
 		} else {
-			p := fs.ReadAt(f, buf.offset, 4096)
+			p := filesys.ReadAt(f, buf.offset, 4096)
 			if len(p) == 0 {
 				break
 			} else {
@@ -96,22 +90,22 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 // RecoverTable restores a table from disk on startup.
 func RecoverTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := fs.Open(p)
+	f := filesys.Open(p)
 	readTableIndex(f, index)
 	return Table{Index: index, File: f}
 }
 
 // CloseTable frees up the fd held by a table.
 func CloseTable(t Table) {
-	fs.Close(t.File)
+	filesys.Close(t.File)
 }
 
 func ReadValue(f filesys.File, off uint64) []byte {
-	buf := fs.ReadAt(f, off, 4096)
+	buf := filesys.ReadAt(f, off, 4096)
 	totalBytes := machine.UInt64Get(buf)
 	haveBytes := uint64(len(buf[8:]))
 	if haveBytes < totalBytes {
-		buf2 := fs.ReadAt(f, off+4096, totalBytes-haveBytes)
+		buf2 := filesys.ReadAt(f, off+4096, totalBytes-haveBytes)
 		newBuf := append(buf, buf2...)
 		return newBuf
 	}
@@ -145,7 +139,7 @@ func bufFlush(f bufFile) {
 	if len(buf) == 0 {
 		return
 	}
-	fs.Append(f.file, buf)
+	filesys.Append(f.file, buf)
 	*f.buf = nil
 }
 
@@ -157,5 +151,5 @@ func bufAppend(f bufFile, p []byte) {
 
 func bufClose(f bufFile) {
 	bufFlush(f)
-	fs.Close(f.file)
+	filesys.Close(f.file)
 }
