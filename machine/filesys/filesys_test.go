@@ -1,9 +1,14 @@
-package filesys
+// need to put this in a separate package to dot import gocheck;
+// List identifier conflicts
+package filesys_test
 
 import (
 	"os"
 	"path"
+	"sort"
 	"testing"
+
+	"github.com/tchajed/goose/machine/filesys"
 )
 import . "gopkg.in/check.v1"
 
@@ -16,7 +21,7 @@ func Test(t *testing.T) { TestingT(t) }
 // type as its name, so there would be no way to distinguish between the mem
 // and dir suites)
 type FilesysSuite struct {
-	fs Filesys
+	fs filesys.Filesys
 }
 
 func (s FilesysSuite) TestCreateReadExact(c *C) {
@@ -41,6 +46,37 @@ func (s FilesysSuite) TestCreateReadExtra(c *C) {
 	c.Check(data, DeepEquals, written)
 }
 
+// for checking directory listings in canonical order
+func sorted(s []string) []string {
+	sort.Slice(s, func(i, j int) bool {
+		return s[i] < s[j]
+	})
+	return s
+}
+
+func (s FilesysSuite) TestList(c *C) {
+	c.Check(s.fs.List(), HasLen, 0)
+	s.fs.Close(s.fs.Create("f1"))
+	s.fs.Close(s.fs.Create("f2"))
+	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f1", "f2"})
+}
+
+func (s FilesysSuite) TestDelete(c *C) {
+	s.fs.Close(s.fs.Create("f1"))
+	s.fs.Close(s.fs.Create("f2"))
+	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f1", "f2"})
+	s.fs.Delete("f1")
+	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f2"})
+}
+
+func (s FilesysSuite) TestAtomicCreate(c *C) {
+	contents := []byte("hello world")
+	s.fs.AtomicCreate("testfile", contents)
+	f := s.fs.Open("testfile")
+	data := s.fs.ReadAt(f, 0, uint64(len(contents)))
+	c.Check(data, DeepEquals, contents)
+}
+
 type MemFilesysSuite struct {
 	FilesysSuite
 }
@@ -48,7 +84,7 @@ type MemFilesysSuite struct {
 var _ = Suite(&MemFilesysSuite{})
 
 func (s *MemFilesysSuite) SetUpTest(c *C) {
-	s.FilesysSuite = FilesysSuite{fs: MemFs()}
+	s.FilesysSuite = FilesysSuite{fs: filesys.MemFs()}
 }
 
 type DirFilesysSuite struct {
@@ -64,7 +100,7 @@ func (s *DirFilesysSuite) SetUpTest(c *C) {
 	if err != nil {
 		panic(err)
 	}
-	s.FilesysSuite = FilesysSuite{fs: DirFs(s.dir)}
+	s.FilesysSuite = FilesysSuite{fs: filesys.DirFs(s.dir)}
 }
 
 func (s *DirFilesysSuite) TearDownTest(c *C) {

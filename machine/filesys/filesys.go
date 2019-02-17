@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/afero"
 )
@@ -25,6 +26,9 @@ type Filesys interface {
 	Close(f File)
 	Open(fname string) File
 	ReadAt(f File, offset uint64, length uint64) []byte
+	Delete(fname string)
+	AtomicCreate(fname string, data []byte)
+	List() []string
 }
 
 // Fs is a global instance of Filesys.
@@ -54,6 +58,18 @@ func ReadAt(f File, offset uint64, length uint64) []byte {
 	return Fs.ReadAt(f, offset, length)
 }
 
+func Delete(fname string) {
+	Fs.Delete(fname)
+}
+
+func AtomicCreate(fname string, data []byte) {
+	Fs.AtomicCreate(fname, data)
+}
+
+func List() []string {
+	return Fs.List()
+}
+
 type filesys struct {
 	fs afero.Afero
 }
@@ -64,6 +80,23 @@ func DefaultFs() Filesys {
 		panic("default filesystem relies on flag parsing")
 	}
 	return DirFs(rootDirectory)
+}
+
+// deleteTmpFiles deletes all files *.tmp,
+// as a "recovery" procedure for crashes during AtomicCreate.
+func (fs filesys) deleteTmpFiles() {
+	names, err := fs.fs.ReadDir(".")
+	if err != nil {
+		panic(err)
+	}
+	for _, info := range names {
+		if strings.HasSuffix(".tmp", info.Name()) {
+			err = fs.fs.Remove(abs(info.Name()))
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }
 
 func fromAfero(fs afero.Fs) filesys {
@@ -101,6 +134,9 @@ func abs(fname string) string {
 
 // Create an appendable file
 func (fs filesys) Create(fname string) File {
+	if strings.HasSuffix(fname, ".tmp") {
+		panic("attempt to directly create a *.tmp file")
+	}
 	f, err := fs.fs.Create(abs(fname))
 	if err != nil {
 		panic(err)
@@ -146,4 +182,40 @@ func (fs filesys) ReadAt(f File, offset uint64, length uint64) []byte {
 		panic(err)
 	}
 	return p[:n]
+}
+
+// Delete deletes a file by name.
+//
+// The named file must exist.
+//
+// Requires that there be no open handles to the file.
+func (fs filesys) Delete(fname string) {
+	err := fs.fs.RemoveAll(abs(fname))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (fs filesys) AtomicCreate(fname string, data []byte) {
+	tmpName := abs(fname + ".tmp")
+	err := fs.fs.WriteFile(tmpName, data, 0644)
+	if err != nil {
+		panic(err)
+	}
+	err = fs.fs.Rename(tmpName, abs(fname))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (fs filesys) List() []string {
+	infos, err := fs.fs.ReadDir(".")
+	if err != nil {
+		panic(err)
+	}
+	var names []string
+	for _, info := range infos {
+		names = append(names, info.Name())
+	}
+	return names
 }
