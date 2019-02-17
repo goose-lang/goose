@@ -24,3 +24,26 @@ func UsePtr() {
 	x := *p
 	*p = x
 }
+
+func IterMapKeysAndValues(m map[uint64]uint64) uint64 {
+	sumPtr := new(uint64)
+	for k, v := range m {
+		sum := *sumPtr
+		*sumPtr = sum + k + v
+	}
+	sum := *sumPtr
+	return sum
+}
+
+func IterMapKeys(m map[uint64]uint64) []uint64 {
+	keysSlice := make([]uint64, 0)
+	keysRef := new([]uint64)
+	*keysRef = keysSlice
+	for k, _ := range m {
+		keys := *keysRef
+		newKeys := append(keys, k)
+		*keysRef = newKeys
+	}
+	keys := *keysRef
+	return keys
+}

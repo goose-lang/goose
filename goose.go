@@ -752,6 +752,38 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
 	return loop
 }
 
+func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
+	if e == nil {
+		return "_", true
+	}
+	return getIdent(e)
+}
+
+func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
+	if _, ok := ctx.typeOf(s.X).(*types.Map); !ok {
+		ctx.unsupported(s,
+			"range over %v (only maps are supported)",
+			ctx.typeOf(s.X))
+		return nil
+	}
+	key, ok := getIdentOrAnonymous(s.Key)
+	if !ok {
+		ctx.nope(s.Key, "range with non-ident key")
+		return nil
+	}
+	val, ok := getIdentOrAnonymous(s.Value)
+	if !ok {
+		ctx.nope(s.Value, "range with non-ident value")
+		return nil
+	}
+	return coq.MapIterExpr{
+		KeyIdent:   key,
+		ValueIdent: val,
+		Map:        ctx.expr(s.X),
+		Body:       ctx.blockStmt(s.Body, nil),
+	}
+}
+
 func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	if len(s.Rhs) > 1 {
 		ctx.futureWork(s, "multiple defines (split them up)")
@@ -862,6 +894,8 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return ctx.ifStmt(s, c, loopVar)
 	case *ast.ForStmt:
 		return coq.NewAnon(ctx.forStmt(s))
+	case *ast.RangeStmt:
+		return coq.NewAnon(ctx.rangeStmt(s))
 	case *ast.GoStmt:
 		ctx.todo(s, "go func(){ ... } statements")
 	default:

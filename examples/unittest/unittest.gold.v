@@ -37,6 +37,25 @@ Definition UsePtr  : proc unit :=
   x <- Data.readPtr p;
   Data.writePtr p x.
 
+Definition IterMapKeysAndValues (m:Map uint64) : proc uint64 :=
+  sumPtr <- Data.newPtr uint64;
+  _ <- Data.mapIter m (fun k v =>
+    sum <- Data.readPtr sumPtr;
+    Data.writePtr sumPtr (sum + k + v));
+  sum <- Data.readPtr sumPtr;
+  Ret sum.
+
+Definition IterMapKeys (m:Map uint64) : proc (slice.t uint64) :=
+  keysSlice <- Data.newSlice uint64 0;
+  keysRef <- Data.newPtr (slice.t uint64);
+  _ <- Data.writePtr keysRef keysSlice;
+  _ <- Data.mapIter m (fun k _ =>
+    keys <- Data.readPtr keysRef;
+    newKeys <- Data.sliceAppend keys k;
+    Data.writePtr keysRef newKeys);
+  keys <- Data.readPtr keysRef;
+  Ret keys.
+
 Definition Empty  : proc unit :=
   Ret tt.
 

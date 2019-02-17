@@ -457,6 +457,24 @@ func (e LoopExpr) Coq() string {
 	return pp.Build()
 }
 
+type MapIterExpr struct {
+	// name of key and value identifiers
+	KeyIdent, ValueIdent string
+	// map to iterate over
+	Map Expr
+	// body of loop, with KeyIdent and ValueIdent as free variables
+	Body BlockExpr
+}
+
+func (e MapIterExpr) Coq() string {
+	var pp buffer
+	pp.Add("Data.mapIter %s (fun %s %s =>",
+		e.Map, e.KeyIdent, e.ValueIdent)
+	pp.Indent(2)
+	pp.Add("%s)", e.Body.Coq())
+	return pp.Build()
+}
+
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
