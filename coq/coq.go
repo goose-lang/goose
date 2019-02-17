@@ -145,7 +145,7 @@ type MapType struct {
 }
 
 func (t MapType) Coq() string {
-	return fmt.Sprintf("HashTable %s", addParens(t.Value.Coq()))
+	return fmt.Sprintf("Map %s", addParens(t.Value.Coq()))
 }
 
 type SliceType struct {
@@ -260,18 +260,7 @@ type IntLiteral struct {
 }
 
 func (l IntLiteral) Coq() string {
-	switch l.Value {
-	// yes, these constants are special: they are parsed correctly in u64 scope,
-	// while other numbers will be parsed as nat's.
-	case 0:
-		return "0"
-	case 1:
-		return "1"
-	case 4096:
-		return "4096"
-	default:
-		return fmt.Sprintf("fromNum %d", l.Value)
-	}
+	return fmt.Sprintf("%d", l.Value)
 }
 
 type StringLiteral struct {
@@ -302,10 +291,10 @@ func (be BinaryExpr) Coq() string {
 	switch be.Op {
 	case OpLessThan:
 		// TODO: should just have a binary operator for this in Coq
-		return fmt.Sprintf("compare %s %s == Lt",
+		return fmt.Sprintf("compare_to %s %s Lt",
 			addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	case OpGreaterThan:
-		return fmt.Sprintf("compare %s %s == Gt",
+		return fmt.Sprintf("compare_to %s %s Gt",
 			addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	}
 
@@ -527,10 +516,10 @@ type PtrType struct {
 }
 
 func (t PtrType) Coq() string {
-	return "IORef " + addParens(t.Value.Coq())
+	return "ptr " + addParens(t.Value.Coq())
 }
 
-const importHeader string = "From RecoveryRefinement Require Import Database.CodeSetup."
+const importHeader string = "From RecoveryRefinement.Goose Require Import base."
 
 type File []Decl
 

@@ -82,7 +82,7 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return coq.TypeIdent("Fd")
+		return coq.TypeIdent("File")
 	}
 	ctx.unsupported(e, "selector for unknown type %s", e)
 	return coq.TypeIdent("<selector expr>")
@@ -99,14 +99,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.StructName(t.String())
 	case *types.Basic:
 		switch t.Name() {
-		case "string":
-			return coq.TypeIdent("Path")
-		case "uint64":
-			return coq.TypeIdent("uint64")
-		case "byte":
-			return coq.TypeIdent("byte")
-		case "bool":
-			return coq.TypeIdent("bool")
+		case "string", "uint64", "byte", "bool":
+			return coq.TypeIdent(t.Name())
 		default:
 			ctx.unsupported(n, "basic types")
 		}
@@ -244,12 +238,6 @@ func (ctx Ctx) methodExpr(f ast.Expr) (method string, args []coq.Expr) {
 		return f.Name, nil
 	case *ast.SelectorExpr:
 		if isIdent(f.X, "filesys") {
-			switch f.Sel.Name {
-			case "ReadAt":
-				return "Base.sliceReadAt", nil
-			case "Append":
-				return "Base.sliceAppend", nil
-			}
 			return "FS." + toInitialLower(f.Sel.Name), nil
 		}
 		if isIdent(f.X, "machine") {
@@ -264,6 +252,7 @@ func (ctx Ctx) methodExpr(f ast.Expr) (method string, args []coq.Expr) {
 			}
 		}
 		if isLockRef(ctx.typeOf(f.X)) {
+			args = []coq.Expr{ctx.expr(f.X)}
 			var acquire, writer bool
 			switch f.Sel.Name {
 			case "Lock":
@@ -278,17 +267,16 @@ func (ctx Ctx) methodExpr(f ast.Expr) (method string, args []coq.Expr) {
 				ctx.unsupported(f, "method %s of sync.RWMutex", f.Sel.Name)
 				return "<lock method>", nil
 			}
+			if writer {
+				args = append(args, coq.IdentExpr("Writer"))
+			} else {
+				args = append(args, coq.IdentExpr("Reader"))
+			}
 			if acquire {
 				method = "Data.lockAcquire"
 			} else {
 				method = "Data.lockRelease"
 			}
-			if writer {
-				args = []coq.Expr{coq.IdentExpr("Writer")}
-			} else {
-				args = []coq.Expr{coq.IdentExpr("Reader")}
-			}
-			args = append(args, ctx.expr(f.X))
 			return
 		}
 		ctx.unsupported(f, "cannot call methods selected from %s", f.X)
@@ -304,7 +292,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr("Data.newHashTable", mapTy.Value)
+		return coq.NewCallExpr("Data.newMap", mapTy.Value)
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
@@ -324,8 +312,7 @@ func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 			return coq.NewCallExpr("Data.newLock")
 		}
 	}
-	return coq.NewCallExpr("Data.newIORef",
-		coq.NewCallExpr("zeroValue", ctx.coqType(ty)))
+	return coq.NewCallExpr("Data.newPtr", ctx.coqType(ty))
 }
 
 // basicallyUInt64 returns true conservatively when an
@@ -548,7 +535,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		xTy := ctx.typeOf(e.X)
 		switch xTy.(type) {
 		case *types.Map:
-			return coq.NewCallExpr("Data.goHashTableLookup",
+			return coq.NewCallExpr("Data.mapGet",
 				ctx.expr(e.X), ctx.expr(e.Index))
 		case *types.Slice:
 			ctx.todo(e, "slice indexing")
@@ -560,7 +547,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
-		return coq.NewCallExpr("Data.readIORef", ctx.expr(e.X))
+		return coq.NewCallExpr("Data.readPtr", ctx.expr(e.X))
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}
@@ -782,7 +769,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		case *types.Map:
 			value := ctx.expr(s.Rhs[0])
 			return coq.NewAnon(coq.NewCallExpr(
-				"Data.hashTableAlter",
+				"Data.mapAlter",
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				coq.HashTableInsert{value}))
@@ -790,7 +777,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		return coq.NewAnon(coq.NewCallExpr("Data.writeIORef",
+		return coq.NewAnon(coq.NewCallExpr("Data.writePtr",
 			ctx.expr(lhs.X), ctx.expr(s.Rhs[0])))
 	default:
 		ctx.unsupported(s, "assigning to complex ")

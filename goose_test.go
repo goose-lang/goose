@@ -75,7 +75,7 @@ type Table struct {
 		Comment: "A Table provides fast access to an on-disk table",
 		Fields: []coq.FieldDecl{
 			{"Index", coq.MapType{coq.TypeIdent("uint64")}},
-			{"File", coq.TypeIdent("Fd")},
+			{"File", coq.TypeIdent("File")},
 		},
 	})
 }
@@ -128,11 +128,11 @@ func CreateTable(p string) Table {
 	c.Check(decl, DeepEquals, coq.FuncDecl{
 		Name: "CreateTable",
 		Args: []coq.FieldDecl{
-			{"p", coq.TypeIdent("Path")},
+			{"p", coq.TypeIdent("string")},
 		},
 		ReturnType: coq.StructName("Table"),
 		Body: block(
-			binding("index", callExpr("Data.newHashTable", coq.TypeIdent("uint64"))),
+			binding("index", callExpr("Data.newMap", coq.TypeIdent("uint64"))),
 			binding("f", callExpr("FS.create", ident("p"))),
 			coq.NewAnon(callExpr("FS.close", ident("f"))),
 			binding("f2", callExpr("FS.open", ident("p"))),

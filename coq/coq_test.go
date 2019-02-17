@@ -33,7 +33,7 @@ End Entry.`))
 }
 
 func (s *CoqSuite) TestTypes(c *C) {
-	c.Check(MapType{TypeIdent("uint64")}.Coq(), Equals, "HashTable uint64")
+	c.Check(MapType{TypeIdent("uint64")}.Coq(), Equals, "Map uint64")
 	c.Check(StructName("Table").Coq(), Equals, "Table.t")
 }
 
@@ -123,7 +123,7 @@ func (s *CoqSuite) TestTuples(c *C) {
 	c.Check(tupleExpr(IdentExpr("a"), IdentExpr("b")).Coq(),
 		Equals, "(a, b)")
 	c.Check(tupleType(TypeIdent("uint64"), MapType{TypeIdent("uint64")}).Coq(),
-		Equals, "(uint64 * HashTable uint64)")
+		Equals, "(uint64 * Map uint64)")
 
 	entry := StructLiteral{
 		StructName: "Entry",
@@ -147,13 +147,13 @@ func (s *CoqSuite) TestBinOps(c *C) {
 	c.Check(BinaryExpr{x, OpEquals, y}.Coq(),
 		Equals, "a == 1")
 	c.Check(BinaryExpr{callExpr("slice.len", x), OpLessThan, y}.Coq(),
-		Equals, "compare (slice.len a) 1 == Lt")
+		Equals, "compare_to (slice.len a) 1 Lt")
 }
 
 func (s *CoqSuite) TestIntLiterals(c *C) {
 	c.Check(IntLiteral{0}.Coq(), Equals, "0")
 	c.Check(IntLiteral{1}.Coq(), Equals, "1")
-	c.Check(IntLiteral{2}.Coq(), Equals, "fromNum 2")
+	c.Check(IntLiteral{2}.Coq(), Equals, "2")
 	c.Check(IntLiteral{4096}.Coq(), Equals, "4096")
 }
 
@@ -166,7 +166,7 @@ func (s *CoqSuite) TestIfExpr(c *C) {
 	}
 	c.Check(ife.Coq(),
 		Equals, strings.TrimSpace(`
-if compare (slice.len p) (fromNum 8) == Lt
+if compare_to (slice.len p) 8 Lt
 then Ret (0, 0)
 else Ret tt
 `))
@@ -203,7 +203,7 @@ func (s *CoqSuite) TestPureImpure(c *C) {
 		retBinding(xyz),
 	).Coq(), Equals, strings.TrimSpace(`
 let x := slice.length p in
-let y := fromNum 2 + fromNum 3 in
+let y := 2 + 3 in
 z <- Data.uint64Get p;
 Ret (x + y + z)`))
 }
