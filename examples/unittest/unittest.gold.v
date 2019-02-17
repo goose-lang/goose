@@ -1,5 +1,15 @@
 From RecoveryRefinement.Goose Require Import base.
 
+Definition TypedLiteral  : proc uint64 :=
+  Ret 3.
+
+Definition LiteralCast  : proc uint64 :=
+  let x := 2 in
+  Ret (x + 2).
+
+Definition CastInt (p:slice.t byte) : proc uint64 :=
+  Ret (slice.length p).
+
 Definition UseSlice  : proc unit :=
   s <- Data.newSlice byte 1;
   s1 <- Data.sliceAppendSlice s s;
