@@ -232,59 +232,111 @@ func isLockRef(t types.Type) bool {
 	return false
 }
 
-func (ctx Ctx) methodExpr(f ast.Expr) (method string, args []coq.Expr) {
+func isByteSlice(t types.Type) bool {
+	if t, ok := t.(*types.Slice); ok {
+		if elTy, ok := t.Elem().(*types.Basic); ok {
+			return elTy.Name() == "byte"
+		}
+	}
+	return false
+}
+
+func isString(t types.Type) bool {
+	if t, ok := t.(*types.Basic); ok {
+		return t.Name() == "string"
+	}
+	return false
+}
+
+func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
+	args := []coq.Expr{ctx.expr(f.X)}
+	var acquire, writer bool
+	switch f.Sel.Name {
+	case "Lock":
+		acquire, writer = true, true
+	case "RLock":
+		acquire, writer = true, false
+	case "Unlock":
+		acquire, writer = false, true
+	case "RUnlock":
+		acquire, writer = false, false
+	default:
+		ctx.unsupported(f, "method %s of sync.RWMutex", f.Sel.Name)
+		return coq.CallExpr{}
+	}
+	if writer {
+		args = append(args, coq.IdentExpr("Writer"))
+	} else {
+		args = append(args, coq.IdentExpr("Reader"))
+	}
+	if acquire {
+		return coq.NewCallExpr("Data.lockAcquire", args...)
+	}
+	return coq.NewCallExpr("Data.lockRelease", args...)
+
+}
+
+func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
+	args []ast.Expr) coq.CallExpr {
+	if isIdent(f.X, "filesys") {
+		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
+	}
+	if isIdent(f.X, "machine") {
+		switch f.Sel.Name {
+		case "UInt64Get":
+			return ctx.newCoqCall("Data.uint64Get", args)
+		case "UInt64Put":
+			return ctx.newCoqCall("Data.uint64Put", args)
+		default:
+			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
+			return coq.CallExpr{}
+		}
+	}
+	if isLockRef(ctx.typeOf(f.X)) {
+		return ctx.lockMethod(f)
+	}
+	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
+	return coq.CallExpr{}
+}
+
+func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+	var args []coq.Expr
+	for _, e := range es {
+		args = append(args, ctx.expr(e))
+	}
+	return coq.NewCallExpr(method, args...)
+}
+
+func (ctx Ctx) methodExpr(f ast.Expr, args []ast.Expr) coq.CallExpr {
 	switch f := f.(type) {
 	case *ast.Ident:
-		return f.Name, nil
+		if f.Name == "string" {
+			arg := args[0]
+			if !isByteSlice(ctx.typeOf(arg)) {
+				ctx.unsupported(arg,
+					"conversion from type %v to string", ctx.typeOf(arg))
+				return coq.CallExpr{}
+			}
+			return ctx.newCoqCall("Data.bytesToString", args)
+		}
+		return ctx.newCoqCall(f.Name, args)
 	case *ast.SelectorExpr:
-		if isIdent(f.X, "filesys") {
-			return "FS." + toInitialLower(f.Sel.Name), nil
+		return ctx.selectorMethod(f, args)
+	case *ast.ArrayType:
+		// string -> []byte conversions are supported
+		if f.Len == nil && isIdent(f.Elt, "byte") {
+			arg := args[0]
+			if !isString(ctx.typeOf(arg)) {
+				ctx.unsupported(arg,
+					"conversion from type %v to []byte", ctx.typeOf(arg))
+				return coq.CallExpr{}
+			}
+			return ctx.newCoqCall("Data.stringToBytes", args)
 		}
-		if isIdent(f.X, "machine") {
-			switch f.Sel.Name {
-			case "UInt64Get":
-				return "Data.uint64Get", nil
-			case "UInt64Put":
-				return "Data.uint64Put", nil
-			default:
-				ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
-				return "Data.<unknown>", nil
-			}
-		}
-		if isLockRef(ctx.typeOf(f.X)) {
-			args = []coq.Expr{ctx.expr(f.X)}
-			var acquire, writer bool
-			switch f.Sel.Name {
-			case "Lock":
-				acquire, writer = true, true
-			case "RLock":
-				acquire, writer = true, false
-			case "Unlock":
-				acquire, writer = false, true
-			case "RUnlock":
-				acquire, writer = false, false
-			default:
-				ctx.unsupported(f, "method %s of sync.RWMutex", f.Sel.Name)
-				return "<lock method>", nil
-			}
-			if writer {
-				args = append(args, coq.IdentExpr("Writer"))
-			} else {
-				args = append(args, coq.IdentExpr("Reader"))
-			}
-			if acquire {
-				method = "Data.lockAcquire"
-			} else {
-				method = "Data.lockRelease"
-			}
-			return
-		}
-		ctx.unsupported(f, "cannot call methods selected from %s", f.X)
-		return "<selector>", nil
 	default:
-		ctx.unsupported(f, "call on expression")
+		ctx.unsupported(f, "call on this expression")
 	}
-	return "<fun expr>", nil
+	return coq.CallExpr{}
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
@@ -332,7 +384,6 @@ func (ctx Ctx) basicallyUInt64(e ast.Expr) bool {
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
-	call := coq.CallExpr{}
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
 	}
@@ -357,11 +408,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.typeOf(x))
 		return nil
 	}
-	call.MethodName, call.Args = ctx.methodExpr(s.Fun)
-	for _, arg := range s.Args {
-		call.Args = append(call.Args, ctx.expr(arg))
-	}
-	return call
+	return ctx.methodExpr(s.Fun, s.Args)
 }
 
 func (ctx Ctx) structSelector(e *ast.SelectorExpr) coq.ProjExpr {

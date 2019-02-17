@@ -10,6 +10,14 @@ Definition LiteralCast  : proc uint64 :=
 Definition CastInt (p:slice.t byte) : proc uint64 :=
   Ret (slice.length p).
 
+Definition StringToByteSlice (s:string) : proc (slice.t byte) :=
+  p <- Data.stringToBytes s;
+  Ret p.
+
+Definition ByteSliceToString (p:slice.t byte) : proc string :=
+  s <- Data.bytesToString p;
+  Ret s.
+
 Definition UseSlice  : proc unit :=
   s <- Data.newSlice byte 1;
   s1 <- Data.sliceAppendSlice s s;
@@ -58,6 +66,13 @@ Definition oddLiterals  : proc allTheLiterals.t :=
   Ret {| allTheLiterals.int := 5;
          allTheLiterals.s := "backquote string";
          allTheLiterals.b := false; |}.
+
+Definition ReturnTwo (p:slice.t byte) : proc (uint64 * uint64) :=
+  Ret (0, 0).
+
+Definition ReturnTwoWrapper (data:slice.t byte) : proc (uint64 * uint64) :=
+  let! (a, b) <- ReturnTwo data;
+  Ret (a, b).
 
 Definition DoSomeLocking (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire l Writer;
