@@ -475,6 +475,16 @@ func (e MapIterExpr) Coq() string {
 	return pp.Build()
 }
 
+type SpawnExpr struct {
+	Body BlockExpr
+}
+
+func (e SpawnExpr) Coq() string {
+	var pp buffer
+	pp.Block("Spawn (", "%s)", e.Body.Coq())
+	return pp.Build()
+}
+
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string

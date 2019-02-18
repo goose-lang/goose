@@ -111,6 +111,22 @@ Definition ReturnTwoWrapper (data:slice.t byte) : proc (uint64 * uint64) :=
   let! (a, b) <- ReturnTwo data;
   Ret (a, b).
 
+Definition Skip  : proc unit :=
+  Ret tt.
+
+Definition SimpleSpawn  : proc unit :=
+  l <- Data.newLock;
+  v <- Data.newPtr uint64;
+  _ <- Spawn (_ <- Data.lockAcquire l Reader;
+         x <- Data.readPtr v;
+         _ <- if compare_to x 0 Gt
+         then Skip
+         else Ret tt;
+         Data.lockRelease l Reader);
+  _ <- Data.lockAcquire l Writer;
+  _ <- Data.writePtr v 1;
+  Data.lockRelease l Writer.
+
 Definition DoSomeLocking (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire l Writer;
   _ <- Data.lockRelease l Writer;

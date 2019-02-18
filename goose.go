@@ -876,6 +876,24 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	return coq.Binding{}
 }
 
+func (ctx Ctx) goStmt(s *ast.GoStmt, loopVar *string) coq.Expr {
+	f, ok := s.Call.Fun.(*ast.FuncLit)
+	if !ok {
+		ctx.futureWork(s, "only go <func literal> is supported")
+		return nil
+	}
+	if loopVar != nil {
+		ctx.todo(s, "capturing loop variables is not implemented")
+		return nil
+	}
+	if f.Type.Params.NumFields() != 0 {
+		ctx.unsupported(f, "go of functions with arguments "+
+			"(other than capturing loop variables)")
+		return nil
+	}
+	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -913,7 +931,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
 	case *ast.GoStmt:
-		ctx.todo(s, "go func(){ ... } statements")
+		return coq.NewAnon(ctx.goStmt(s, loopVar))
 	default:
 		ctx.unsupported(s, "statement")
 	}
