@@ -53,6 +53,9 @@ func DecodeEntry(data []byte) (Entry, uint64) {
 	if l2 == 0 {
 		return Entry{Key: 0, Value: nil}, 0
 	}
+	if uint64(len(data)) < l1+l2+valueLen {
+		return Entry{Key: 0, Value: nil}, 0
+	}
 	value := data[l1+l2 : l1+l2+valueLen]
 	return Entry{
 		Key:   key,
@@ -74,7 +77,8 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 			buf = lazyFileBuf{offset: buf.offset + l, next: buf.next[l:]}
 			continue
 		} else {
-			p := filesys.ReadAt(f, buf.offset, 4096)
+			p := filesys.ReadAt(f,
+				buf.offset+uint64(len(buf.next)), 4096)
 			if len(p) == 0 {
 				break
 			} else {
@@ -329,7 +333,8 @@ func tablePutOldTable(w tableWriter, t Table, b map[uint64][]byte) {
 			buf = lazyFileBuf{offset: buf.offset + l, next: buf.next[l:]}
 			continue
 		} else {
-			p := filesys.ReadAt(t.File, buf.offset, 4096)
+			p := filesys.ReadAt(t.File,
+				buf.offset+uint64(len(buf.next)), 4096)
 			if len(p) == 0 {
 				break
 			} else {
