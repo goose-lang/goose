@@ -30,6 +30,7 @@ type Filesys interface {
 	ReadAt(f File, offset uint64, length uint64) []byte
 	Delete(fname string)
 	AtomicCreate(fname string, data []byte)
+	Link(oldName, newName string) bool
 	List() []string
 }
 
@@ -66,6 +67,10 @@ func Delete(fname string) {
 
 func AtomicCreate(fname string, data []byte) {
 	Fs.AtomicCreate(fname, data)
+}
+
+func Link(oldName, newName string) bool {
+	return Fs.Link(oldName, newName)
 }
 
 func List() []string {
@@ -161,6 +166,14 @@ func (fs DirFs) AtomicCreate(fname string, data []byte) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (fs DirFs) Link(oldName, newName string) bool {
+	err := syscall.Link(fs.resolve(oldName), fs.resolve(newName))
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func parseDirents(buf []byte, names []string) ([]byte, []string) {

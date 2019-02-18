@@ -35,14 +35,21 @@ func (s FilesysSuite) TestCreateReadExact(c *C) {
 	c.Check(data, DeepEquals, written)
 }
 
+// readAll only works for files < 4096 bytes
+func (s FilesysSuite) readAll(fname string) []byte {
+	f := s.fs.Open(fname)
+	data := s.fs.ReadAt(f, 0, 4096)
+	s.fs.Close(f)
+	return data
+}
+
 func (s FilesysSuite) TestCreateReadExtra(c *C) {
 	written := []byte("some data")
 	f := s.fs.Create("test.bin")
 	s.fs.Append(f, written)
 	s.fs.Close(f)
 
-	f2 := s.fs.Open("test.bin")
-	data := s.fs.ReadAt(f2, 0, 4096)
+	data := s.readAll("test.bin")
 	c.Check(data, DeepEquals, written)
 }
 
@@ -86,6 +93,20 @@ func (s FilesysSuite) TestAtomicCreate(c *C) {
 	f := s.fs.Open("testfile")
 	data := s.fs.ReadAt(f, 0, uint64(len(contents)))
 	c.Check(data, DeepEquals, contents)
+}
+
+func (s FilesysSuite) TestLink(c *C) {
+	contents := []byte("hello world")
+	s.fs.AtomicCreate("file1", contents)
+	ok := s.fs.Link("file1", "file2")
+	c.Assert(ok, Equals, true)
+	ok = s.fs.Link("file2", "file1")
+	c.Check(ok, Equals, false)
+	c.Check(s.readAll("file1"), DeepEquals, contents)
+	c.Check(s.readAll("file2"), DeepEquals, contents)
+	s.fs.Delete("file1")
+	c.Check(s.readAll("file2"), DeepEquals, contents)
+	c.Check(sorted(s.fs.List()), DeepEquals, []string{"file2"})
 }
 
 type MemFilesysSuite struct {

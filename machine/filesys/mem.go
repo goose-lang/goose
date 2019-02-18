@@ -129,6 +129,20 @@ func (fs *MemFs) AtomicCreate(fname string, data []byte) {
 	fs.dirents[fname] = fd
 }
 
+func (fs *MemFs) Link(oldName, newName string) bool {
+	fs.m.Lock()
+	defer fs.m.Unlock()
+	fd, ok := fs.dirents[oldName]
+	if !ok {
+		panic(fmt.Errorf("attempt to link non-existent file %s", oldName))
+	}
+	if _, ok := fs.dirents[newName]; ok {
+		return false
+	}
+	fs.dirents[newName] = fd
+	return true
+}
+
 func (fs *MemFs) List() (names []string) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
