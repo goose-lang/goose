@@ -676,12 +676,18 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	// of Else == nil should be supported, though.
 
 	remaining := c.HasNext()
-	if endsWithReturn(s.Body) && remaining {
+	bodyEndsWithReturn := endsWithReturn(s.Body)
+	if bodyEndsWithReturn && remaining {
 		if s.Else != nil {
 			ctx.futureWork(s.Else, "else with early return")
 			return coq.Binding{}
 		}
 		ife.Else = ctx.stmts(c.Remainder(), loopVar)
+		return coq.NewAnon(ife)
+	}
+	if !bodyEndsWithReturn && remaining && s.Else == nil {
+		// conditional statement in the middle of a block
+		ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
 		return coq.NewAnon(ife)
 	}
 	if !remaining {

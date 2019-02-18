@@ -86,6 +86,18 @@ Definition oddLiterals  : proc allTheLiterals.t :=
          allTheLiterals.s := "backquote string";
          allTheLiterals.b := false; |}.
 
+Definition DoSomething (s:string) : proc unit :=
+  Ret tt.
+
+Definition ConditionalInLoop  : proc unit :=
+  Loop (fun i =>
+        _ <- if compare_to i 3 Lt
+        then DoSomething ("i is small")
+        else Ret tt;
+        if compare_to i 5 Gt
+        then LoopRet tt
+        else Continue (i + 1)) 0.
+
 Definition ReturnTwo (p:slice.t byte) : proc (uint64 * uint64) :=
   Ret (0, 0).
 

@@ -167,11 +167,12 @@ func (s *ExamplesSuite) TestNegativeExamples(c *C) {
 		}
 		c.Check(tt.Err.Category, Matches, `(unsupported|future)`)
 		if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
-			c.Errorf(`error message "%s" does not contain "%s"`,
-				tt.Err.Message, tt.Expected.Error)
+			c.Errorf(`%s: error message "%s" does not contain "%s"`,
+				n, tt.Err.Message, tt.Expected.Error)
 		}
 		if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
-			c.Errorf("error is incorrectly attributed to %s", tt.Err.GoSrcFile)
+			c.Errorf("%s: error is incorrectly attributed to %s",
+				n, tt.Err.GoSrcFile)
 		}
 	}
 }
