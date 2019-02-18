@@ -905,6 +905,10 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.IfStmt:
 		return ctx.ifStmt(s, c, loopVar)
 	case *ast.ForStmt:
+		if loopVar != nil {
+			ctx.unsupported(s, "nested loops")
+			return coq.Binding{}
+		}
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
