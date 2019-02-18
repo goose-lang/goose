@@ -883,13 +883,26 @@ func (ctx Ctx) goStmt(s *ast.GoStmt, loopVar *string) coq.Expr {
 		return nil
 	}
 	if loopVar != nil {
-		ctx.todo(s, "capturing loop variables is not implemented")
-		return nil
-	}
-	if f.Type.Params.NumFields() != 0 {
-		ctx.unsupported(f, "go of functions with arguments "+
-			"(other than capturing loop variables)")
-		return nil
+		if !(len(s.Call.Args) == 1 &&
+			isIdent(s.Call.Args[0], *loopVar)) {
+			// if loop variable is not passed, function literal
+			// captures the variable itself rather than its
+			// value, which is not captured in the Coq model.
+			//
+			// note that go vet will catch this issue and reject such code
+			// (this check also catches trying to pass some other expression,
+			// which we don't substitute in Coq)
+			ctx.unsupported(s,
+				"go statement must pass loop variable %s",
+				*loopVar)
+			return nil
+		}
+	} else {
+		if len(s.Call.Args) != 0 {
+			ctx.unsupported(f, "go of functions with arguments "+
+				"(other than passing loop variables)")
+			return nil
+		}
 	}
 	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
 }

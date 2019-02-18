@@ -127,6 +127,19 @@ Definition SimpleSpawn  : proc unit :=
   _ <- Data.writePtr v 1;
   Data.lockRelease l Writer.
 
+Definition threadCode (tid:uint64) : proc unit :=
+  Ret tt.
+
+Definition LoopSpawn  : proc unit :=
+  _ <- Loop (fun i =>
+        if compare_to i 10 Gt
+        then LoopRet tt
+        else
+          _ <- Spawn (threadCode i);
+          Continue (i + 1)) 0;
+  Loop (fun dummy =>
+        Continue dummy) true.
+
 Definition DoSomeLocking (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire l Writer;
   _ <- Data.lockRelease l Writer;
