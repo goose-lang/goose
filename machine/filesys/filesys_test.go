@@ -3,8 +3,8 @@
 package filesys_test
 
 import (
+	"io/ioutil"
 	"os"
-	"path"
 	"sort"
 	"testing"
 
@@ -95,7 +95,7 @@ type MemFilesysSuite struct {
 var _ = Suite(&MemFilesysSuite{})
 
 func (s *MemFilesysSuite) SetUpTest(c *C) {
-	s.FilesysSuite = FilesysSuite{fs: filesys.MemFs()}
+	s.FilesysSuite = FilesysSuite{fs: filesys.NewMemFs()}
 }
 
 type DirFilesysSuite struct {
@@ -106,12 +106,12 @@ type DirFilesysSuite struct {
 var _ = Suite(&DirFilesysSuite{})
 
 func (s *DirFilesysSuite) SetUpTest(c *C) {
-	s.dir = path.Join(os.TempDir(), "test.dir")
-	err := os.Mkdir(s.dir, 0744)
+	var err error
+	s.dir, err = ioutil.TempDir("", "test.dir")
 	if err != nil {
 		panic(err)
 	}
-	s.FilesysSuite = FilesysSuite{fs: filesys.DirFs(s.dir)}
+	s.FilesysSuite = FilesysSuite{fs: filesys.NewDirFs(s.dir)}
 }
 
 func (s *DirFilesysSuite) TearDownTest(c *C) {

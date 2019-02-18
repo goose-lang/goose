@@ -3,10 +3,8 @@ package filesys
 import (
 	"flag"
 	"fmt"
-	"io"
-	"strings"
-
-	"github.com/spf13/afero"
+	"path"
+	"syscall"
 )
 
 var rootDirectory string
@@ -15,9 +13,13 @@ func init() {
 	flag.StringVar(&rootDirectory, "filesys.root", "simple.db", "directory to store database in")
 }
 
-// File is an opaque handle to a file. Unlike typical Go, File does not have
-// methods and instead must be passed back to a filesystem to anything with it.
-type File afero.File
+// A File is a file descriptor
+// (either a real OS fd or an in-memory "inode number")
+type File int
+
+func (f File) fd() int {
+	return int(f)
+}
 
 // Filesys provides access a single directory.
 type Filesys interface {
@@ -70,152 +72,127 @@ func List() []string {
 	return Fs.List()
 }
 
-type filesys struct {
-	fs afero.Afero
-}
-
 // Init prepares the global filesystem Fs to a single directory based on flags.
 func DefaultFs() Filesys {
 	if !flag.Parsed() {
 		panic("default filesystem relies on flag parsing")
 	}
-	return DirFs(rootDirectory)
+	return NewDirFs(rootDirectory)
 }
 
-// deleteTmpFiles deletes all files *.tmp,
-// as a "recovery" procedure for crashes during AtomicCreate.
-func (fs filesys) deleteTmpFiles() {
-	names, err := fs.fs.ReadDir(".")
+type DirFs struct {
+	rootDirectory string
+}
+
+func NewDirFs(root string) DirFs {
+	return DirFs{rootDirectory: root}
+}
+
+func (fs DirFs) resolve(p string) string {
+	return path.Join(fs.rootDirectory, p)
+}
+
+func (fs DirFs) Create(fname string) File {
+	fd, err := syscall.Open(fs.resolve(fname),
+		syscall.O_CREAT|syscall.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
-	for _, info := range names {
-		if strings.HasSuffix(".tmp", info.Name()) {
-			err = fs.fs.Remove(abs(info.Name()))
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
+	return File(fd)
 }
 
-func fromAfero(fs afero.Fs) filesys {
-	return filesys{afero.Afero{Fs: fs}}
-}
-
-// MemFs creates an in-memory Filesys
-func MemFs() Filesys {
-	fs := afero.NewMemMapFs()
-	return fromAfero(fs)
-}
-
-// DirFs creates a Filesys backed by the OS, using basedir.
-//
-// Creates basedir if it does not exist.
-func DirFs(basedir string) Filesys {
-	fs := afero.NewOsFs()
-	ok, err := afero.Exists(fs, basedir)
+func (fs DirFs) Append(f File, data []byte) {
+	n, err := syscall.Write(f.fd(), data)
 	if err != nil {
 		panic(err)
 	}
-	if !ok {
-		err = fs.Mkdir(basedir, 0755)
-		if err != nil {
-			panic(err)
-		}
+	if n < len(data) {
+		panic(fmt.Errorf("short write: %d < %d bytes", n, len(data)))
 	}
-	baseFs := afero.NewBasePathFs(fs, basedir)
-	return fromAfero(baseFs)
 }
 
-func abs(fname string) string {
-	return fmt.Sprintf("/%s", fname)
-}
-
-// Create an appendable file
-func (fs filesys) Create(fname string) File {
-	if strings.HasSuffix(fname, ".tmp") {
-		panic("attempt to directly create a *.tmp file")
-	}
-	f, err := fs.fs.Create(abs(fname))
-	if err != nil {
-		panic(err)
-	}
-	return File(f)
-}
-
-// Append to a file
-func (fs filesys) Append(f File, data []byte) {
-	_, err := f.Write(data)
+func (fs DirFs) Close(f File) {
+	err := syscall.Close(f.fd())
 	if err != nil {
 		panic(err)
 	}
 }
 
-// Close a file
-//
-// Frees up file descriptor. Further operations are illegal.
-func (fs filesys) Close(f File) {
-	err := f.Close()
+func (fs DirFs) Open(fname string) File {
+	fd, err := syscall.Open(fs.resolve(fname),
+		syscall.O_RDONLY, 0)
 	if err != nil {
 		panic(err)
 	}
+	return File(fd)
 }
 
-// Open a file in read-only mode.
-func (fs filesys) Open(fname string) File {
-	f, err := fs.fs.Open(abs(fname))
-	if err != nil {
-		panic(err)
-	}
-	return File(f)
-}
-
-// ReadAt reads data from an absolute position in the file.
-//
-// Readable files never modify or use the file descriptor seek pointer.
-func (fs filesys) ReadAt(f File, offset uint64, length uint64) []byte {
+func (fs DirFs) ReadAt(f File, offset uint64, length uint64) []byte {
 	p := make([]byte, length)
-	n, err := f.ReadAt(p, int64(offset))
-	// we use ReadAt slightly differently than Go expects, and EOF during a ReadAt is expected
-	if err != nil && err != io.EOF {
+	n, err := syscall.Pread(f.fd(), p, int64(offset))
+	if err != nil {
 		panic(err)
 	}
 	return p[:n]
 }
 
-// Delete deletes a file by name.
-//
-// The named file must exist.
-//
-// Requires that there be no open handles to the file.
-func (fs filesys) Delete(fname string) {
-	err := fs.fs.RemoveAll(abs(fname))
+func (fs DirFs) Delete(fname string) {
+	err := syscall.Unlink(fs.resolve(fname))
+	if err != nil {
+		panic(fmt.Errorf("unlink(%s): %s", fname, err))
+	}
+}
+
+func (fs DirFs) AtomicCreate(fname string, data []byte) {
+	tmpFile := fs.resolve(fname + ".tmp")
+	fd, err := syscall.Open(tmpFile,
+		syscall.O_CREAT|syscall.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	for len(data) > 0 {
+		n, err := syscall.Write(fd, data)
+		if err != nil {
+			panic(err)
+		}
+		data = data[n:]
+	}
+	err = syscall.Rename(tmpFile, fs.resolve(fname))
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (fs filesys) AtomicCreate(fname string, data []byte) {
-	tmpName := abs(fname + ".tmp")
-	err := fs.fs.WriteFile(tmpName, data, 0644)
-	if err != nil {
-		panic(err)
-	}
-	err = fs.fs.Rename(tmpName, abs(fname))
-	if err != nil {
-		panic(err)
+func parseDirents(buf []byte, names []string) ([]byte, []string) {
+	for {
+		var consumed, n int
+		consumed, n, names = syscall.ParseDirent(buf, 100, names)
+		buf = buf[consumed:]
+		if n == 0 {
+			return buf, names
+		}
 	}
 }
 
-func (fs filesys) List() []string {
-	infos, err := fs.fs.ReadDir(".")
+func (fs DirFs) List() []string {
+	fd, err := syscall.Open(fs.rootDirectory, syscall.O_DIRECTORY, 0)
 	if err != nil {
 		panic(err)
 	}
+	// buf holds the partial encoded data so far (starting with nothing)
+	var buf []byte
 	var names []string
-	for _, info := range infos {
-		names = append(names, info.Name())
+	for {
+		newData := make([]byte, 4096)
+		n, err := readDirents(fd, newData)
+		if err != nil {
+			panic(err)
+		}
+		buf = append(buf, newData[:n]...)
+		buf, names = parseDirents(buf, names)
+		if len(buf) == 0 {
+			break
+		}
 	}
 	return names
 }
