@@ -889,9 +889,15 @@ func (ctx Ctx) goStmt(s *ast.GoStmt, loopVar *string) coq.Expr {
 			// captures the variable itself rather than its
 			// value, which is not captured in the Coq model.
 			//
-			// note that go vet will catch this issue and reject such code
-			// (this check also catches trying to pass some other expression,
-			// which we don't substitute in Coq)
+			// go vet has a special check for this issue (see
+			// https://play.golang.org/p/OBqSYKLtv4E for incorrect code it
+			// catches, and https://play.golang.org/p/b7jZQ_QXcrF
+			// for one idiomatic fix),
+			//
+			// We still need this check if the loop variable is unused in the
+			// body (go vet won't complain in that case), but the code passes
+			// something into the spawned code, which we don't substitute in
+			// the emitted Coq.
 			ctx.unsupported(s,
 				"go statement must pass loop variable %s",
 				*loopVar)
