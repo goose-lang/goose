@@ -23,6 +23,12 @@ Definition UseSlice  : proc unit :=
   s1 <- Data.sliceAppendSlice s s;
   FS.atomicCreate "file" s1.
 
+Definition UseSliceIndexing  : proc uint64 :=
+  s <- Data.newSlice uint64 2;
+  _ <- Data.sliceWrite s 1 2;
+  x <- Data.sliceRead s 0;
+  Ret x.
+
 Definition UseMap  : proc unit :=
   m <- Data.newMap (slice.t byte);
   _ <- Data.mapAlter m 1 (fun _ => Some (slice.nil _));

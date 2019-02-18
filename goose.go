@@ -585,7 +585,8 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 			return coq.NewCallExpr("Data.mapGet",
 				ctx.expr(e.X), ctx.expr(e.Index))
 		case *types.Slice:
-			ctx.todo(e, "slice indexing")
+			return coq.NewCallExpr("Data.sliceRead",
+				ctx.expr(e.X), ctx.expr(e.Index))
 		}
 		ctx.unsupported(e, "index into unknown type %v", xTy)
 		return nil
@@ -850,7 +851,12 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
 		case *types.Slice:
-			ctx.todo(s, "slice updates")
+			value := ctx.expr(s.Rhs[0])
+			return coq.NewAnon(coq.NewCallExpr(
+				"Data.sliceWrite",
+				ctx.expr(lhs.X),
+				ctx.expr(lhs.Index),
+				value))
 		case *types.Map:
 			value := ctx.expr(s.Rhs[0])
 			return coq.NewAnon(coq.NewCallExpr(

@@ -8,6 +8,13 @@ func UseSlice() {
 	filesys.AtomicCreate("file", s1)
 }
 
+func UseSliceIndexing() uint64 {
+	s := make([]uint64, 2)
+	s[1] = 2
+	x := s[0]
+	return x
+}
+
 func UseMap() {
 	m := make(map[uint64][]byte)
 	m[1] = nil
