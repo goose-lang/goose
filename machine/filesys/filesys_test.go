@@ -46,6 +46,17 @@ func (s FilesysSuite) TestCreateReadExtra(c *C) {
 	c.Check(data, DeepEquals, written)
 }
 
+func (s FilesysSuite) TestReadAtOffset(c *C) {
+	written := []byte("some longer data")
+	f := s.fs.Create("test.bin")
+	s.fs.Append(f, written)
+	s.fs.Close(f)
+
+	f2 := s.fs.Open("test.bin")
+	data := s.fs.ReadAt(f2, uint64(len("some ")), uint64(len("longer")))
+	c.Check(data, DeepEquals, []byte("longer"))
+}
+
 // for checking directory listings in canonical order
 func sorted(s []string) []string {
 	sort.Slice(s, func(i, j int) bool {
