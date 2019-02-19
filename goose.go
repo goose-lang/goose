@@ -289,6 +289,8 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("Data.uint64Put", args)
 		case "RandomUint64":
 			return ctx.newCoqCall("Data.randomUint64", nil)
+		case "UInt64ToString":
+			return ctx.newCoqCall("uint64_to_string", args)
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}

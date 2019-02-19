@@ -2,6 +2,7 @@ package machine
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 )
 
@@ -27,4 +28,11 @@ func UInt64Put(p []byte, n uint64) {
 
 func RandomUint64() uint64 {
 	return rand.Uint64()
+}
+
+// UInt64ToString formats a number as a string.
+//
+// Assumed to be pure and injective in the Coq model.
+func UInt64ToString(x uint64) string {
+	return fmt.Sprintf("%d", x)
 }
