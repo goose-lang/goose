@@ -1,6 +1,9 @@
 package machine
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math/rand"
+)
 
 // UInt64Get converts the first 8 bytes of p to a uint64.
 //
@@ -20,4 +23,8 @@ func UInt64Get(p []byte) uint64 {
 // inverse of UInt64Get.
 func UInt64Put(p []byte, n uint64) {
 	binary.LittleEndian.PutUint64(p, n)
+}
+
+func RandomUint64() uint64 {
+	return rand.Uint64()
 }

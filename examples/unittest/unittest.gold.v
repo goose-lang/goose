@@ -62,6 +62,10 @@ Definition IterMapKeys (m:Map uint64) : proc (slice.t uint64) :=
   keys <- Data.readPtr keysRef;
   Ret keys.
 
+Definition GetRandom  : proc uint64 :=
+  r <- Data.randomUint64;
+  Ret r.
+
 Definition Empty  : proc unit :=
   Ret tt.
 

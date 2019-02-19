@@ -1,6 +1,9 @@
 package unittest
 
-import "github.com/tchajed/goose/machine/filesys"
+import (
+	"github.com/tchajed/goose/machine"
+	"github.com/tchajed/goose/machine/filesys"
+)
 
 func UseSlice() {
 	s := make([]byte, 1)
@@ -53,4 +56,9 @@ func IterMapKeys(m map[uint64]uint64) []uint64 {
 	}
 	keys := *keysRef
 	return keys
+}
+
+func GetRandom() uint64 {
+	r := machine.RandomUint64()
+	return r
 }
