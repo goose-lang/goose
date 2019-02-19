@@ -3,6 +3,7 @@ package filesys
 import (
 	"flag"
 	"fmt"
+	"os"
 	"path"
 	"syscall"
 )
@@ -176,36 +177,14 @@ func (fs DirFs) Link(oldName, newName string) bool {
 	return true
 }
 
-func parseDirents(buf []byte, names []string) ([]byte, []string) {
-	for {
-		var consumed, n int
-		consumed, n, names = syscall.ParseDirent(buf, 100, names)
-		buf = buf[consumed:]
-		if n == 0 {
-			return buf, names
-		}
-	}
-}
-
 func (fs DirFs) List() []string {
-	fd, err := syscall.Open(fs.rootDirectory, syscall.O_DIRECTORY, 0)
+	d, err := os.Open(fs.rootDirectory)
 	if err != nil {
 		panic(err)
 	}
-	// buf holds the partial encoded data so far (starting with nothing)
-	var buf []byte
-	var names []string
-	for {
-		newData := make([]byte, 4096)
-		n, err := readDirents(fd, newData)
-		if err != nil {
-			panic(err)
-		}
-		buf = append(buf, newData[:n]...)
-		buf, names = parseDirents(buf, names)
-		if len(buf) == 0 {
-			break
-		}
+	names, err := d.Readdirnames(0)
+	if err != nil {
+		panic(err)
 	}
 	return names
 }
