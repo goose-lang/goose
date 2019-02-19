@@ -279,6 +279,7 @@ const (
 	OpEquals
 	OpLessThan
 	OpGreaterThan
+	OpAppend
 )
 
 type BinaryExpr struct {
@@ -308,6 +309,8 @@ func (be BinaryExpr) Coq() string {
 		// note that this is not a boolean; shouldn't be a problem for a while
 		// since we don't actually support Go booleans, only if-statements
 		binop = "=="
+	case OpAppend:
+		binop = "++"
 	default:
 		panic("unknown binop")
 	}

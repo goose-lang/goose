@@ -140,6 +140,9 @@ Definition LoopSpawn  : proc unit :=
   Loop (fun dummy =>
         Continue dummy) true.
 
+Definition StringAppend (s:string) : proc string :=
+  Ret ("prefix " ++ s).
+
 Definition DoSomeLocking (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire l Writer;
   _ <- Data.lockRelease l Writer;

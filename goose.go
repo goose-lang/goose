@@ -491,10 +491,17 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	op, ok := map[token.Token]coq.BinOp{
 		token.LSS: coq.OpLessThan,
 		token.GTR: coq.OpGreaterThan,
-		token.ADD: coq.OpPlus,
 		token.SUB: coq.OpMinus,
 		token.EQL: coq.OpEquals,
 	}[e.Op]
+	if e.Op == token.ADD {
+		if b, ok := ctx.typeOf(e.X).(*types.Basic); ok && b.Name() == "string" {
+			op = coq.OpAppend
+		} else {
+			op = coq.OpPlus
+		}
+		ok = true
+	}
 	if ok {
 		return coq.BinaryExpr{X: ctx.expr(e.X), Op: op, Y: ctx.expr(e.Y)}
 	}
