@@ -153,7 +153,7 @@ type SliceType struct {
 }
 
 func (t SliceType) Coq() string {
-	return fmt.Sprintf("slice.t %s", t.Value.Coq())
+	return fmt.Sprintf("slice.t %s", addParens(t.Value.Coq()))
 }
 
 type Expr interface {
