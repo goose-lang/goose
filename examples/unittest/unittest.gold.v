@@ -1,5 +1,20 @@
 From RecoveryRefinement.Goose Require Import base.
 
+Module importantStruct.
+  (* This struct is very important.
+
+     This is despite it being empty. *)
+  Record t := mk {
+  }.
+  Global Instance t_zero : HasGoZero t := mk .
+End importantStruct.
+
+(* doSubtleThings does a number of subtle things:
+
+   (actually, it does nothing) *)
+Definition doSubtleThings  : proc unit :=
+  Ret tt.
+
 Definition TypedLiteral  : proc uint64 :=
   Ret 3.
 
