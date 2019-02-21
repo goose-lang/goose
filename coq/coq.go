@@ -74,12 +74,15 @@ func addParens(s string) string {
 }
 
 func indent(spaces int, s string) string {
-	repl := make([]byte, 1+spaces)
-	repl[0] = '\n'
-	for i := 1; i < len(repl); i++ {
-		repl[i] = ' '
+	lines := strings.Split(s, "\n")
+	indentation := strings.Repeat(" ", spaces)
+	for i, line := range lines {
+		if i == 0 || line == "" {
+			continue
+		}
+		lines[i] = indentation + line
 	}
-	return strings.Replace(s, "\n", string(repl), -1)
+	return strings.Join(lines, "\n")
 }
 
 // FieldDecl is a name:type declaration (for a struct or function binders)
@@ -104,7 +107,8 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	if d.Comment != "" {
-		pp.Add("(* %s *)", d.Comment)
+		pp.Block("(* ", "%s *)", d.Comment)
+		pp.Indent(-len("(* "))
 	}
 	pp.Add("Record t := mk {")
 	pp.Indent(2)
@@ -511,7 +515,8 @@ func (d FuncDecl) Signature() string {
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	if d.Comment != "" {
-		pp.Add("(* %s *)", d.Comment)
+		pp.Block("(* ", "%s *)", d.Comment)
+		pp.Indent(-len("(* "))
 	}
 	pp.Add("Definition %s :=", d.Signature())
 	pp.Indent(2)
