@@ -1,3 +1,11 @@
+/*
+Simple DB is a one-table version of LevelDB
+
+It buffers all writes in memory; to make data durable, call Compact().
+This operation re-writes all of the data in the database
+(including in-memory writes) in a crash-safe manner.
+Keys in the table are cached for efficient reads.
+*/
 package simpledb
 
 import (

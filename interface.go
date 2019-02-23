@@ -26,6 +26,9 @@ func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
 	}()
 	var decls []coq.Decl
 	for _, f := range fs {
+		if f.Doc != nil {
+			decls = append(decls, coq.NewComment(f.Doc.Text()))
+		}
 		for _, d := range f.Decls {
 			if d := ctx.maybeDecl(d); d != nil {
 				decls = append(decls, d)

@@ -85,6 +85,14 @@ func indent(spaces int, s string) string {
 	return strings.Join(lines, "\n")
 }
 
+func addComment(pp *buffer, c string) {
+	if c == "" {
+		return
+	}
+	pp.Block("(* ", "%s *)", c)
+	pp.Indent(-len("(* "))
+}
+
 // FieldDecl is a name:type declaration (for a struct or function binders)
 type FieldDecl struct {
 	Name string
@@ -106,10 +114,7 @@ func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
-	if d.Comment != "" {
-		pp.Block("(* ", "%s *)", d.Comment)
-		pp.Indent(-len("(* "))
-	}
+	addComment(&pp, d.Comment)
 	pp.Add("Record t := mk {")
 	pp.Indent(2)
 	for _, fd := range d.Fields {
@@ -514,17 +519,30 @@ func (d FuncDecl) Signature() string {
 
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
-	if d.Comment != "" {
-		pp.Block("(* ", "%s *)", d.Comment)
-		pp.Indent(-len("(* "))
-	}
+	addComment(&pp, d.Comment)
 	pp.Add("Definition %s :=", d.Signature())
 	pp.Indent(2)
 	pp.AddLine(d.Body.Coq() + ".")
 	return pp.Build()
 }
 
-// Decl is either a FuncDecl or StructDecl
+// CommentDecl is a top-level comment
+//
+// Pretends to be a declaration so it can sit among declarations within a file.
+type CommentDecl string
+
+func NewComment(s string) CommentDecl {
+	comment := strings.TrimRight(s, " \t\n")
+	return CommentDecl(comment)
+}
+
+func (d CommentDecl) CoqDecl() string {
+	var pp buffer
+	addComment(&pp, string(d))
+	return pp.Build()
+}
+
+// Decl is a FuncDecl, StructDecl, or CommentDecl
 type Decl interface {
 	CoqDecl() string
 }
