@@ -49,7 +49,7 @@ func IterMapKeys(m map[uint64]uint64) []uint64 {
 	keysSlice := make([]uint64, 0)
 	keysRef := new([]uint64)
 	*keysRef = keysSlice
-	for k, _ := range m {
+	for k := range m {
 		keys := *keysRef
 		newKeys := append(keys, k)
 		*keysRef = newKeys
