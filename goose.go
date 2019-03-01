@@ -562,6 +562,35 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	return nil
 }
 
+func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
+	n := e.Name
+	if e.Obj != nil {
+		return coq.IdentExpr(n)
+	}
+	if n == "nil" {
+		return ctx.nilExpr(e)
+	}
+	if n == "true" || n == "false" {
+		return coq.IdentExpr(n)
+	}
+	ctx.unsupported(e, "special identifier")
+	return nil
+}
+
+func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
+	xTy := ctx.typeOf(e.X)
+	switch xTy.(type) {
+	case *types.Map:
+		return coq.NewCallExpr("Data.mapGet",
+			ctx.expr(e.X), ctx.expr(e.Index))
+	case *types.Slice:
+		return coq.NewCallExpr("Data.sliceRead",
+			ctx.expr(e.X), ctx.expr(e.Index))
+	}
+	ctx.unsupported(e, "index into unknown type %v", xTy)
+	return coq.CallExpr{}
+}
+
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -569,16 +598,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.MapType:
 		return ctx.mapType(e)
 	case *ast.Ident:
-		if e.Obj != nil {
-			return coq.IdentExpr(e.Name)
-		}
-		if e.Name == "nil" {
-			return ctx.nilExpr(e)
-		}
-		if e.Name == "true" || e.Name == "false" {
-			return coq.IdentExpr(e.Name)
-		}
-		ctx.unsupported(e, "special identifier")
+		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
 		return ctx.structSelector(e)
 	case *ast.CompositeLit:
@@ -590,17 +610,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.SliceExpr:
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
-		xTy := ctx.typeOf(e.X)
-		switch xTy.(type) {
-		case *types.Map:
-			return coq.NewCallExpr("Data.mapGet",
-				ctx.expr(e.X), ctx.expr(e.Index))
-		case *types.Slice:
-			return coq.NewCallExpr("Data.sliceRead",
-				ctx.expr(e.X), ctx.expr(e.Index))
-		}
-		ctx.unsupported(e, "index into unknown type %v", xTy)
-		return nil
+		return ctx.indexExpr(e)
 	case *ast.UnaryExpr:
 		return ctx.unaryExpr(e)
 	case *ast.ParenExpr:
@@ -924,6 +934,13 @@ func (ctx Ctx) goStmt(s *ast.GoStmt, loopVar *string) coq.Expr {
 	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
 }
 
+func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.LoopRetExpr {
+	if s.Tok != token.BREAK {
+		ctx.unsupported(s, "only break is supported to exit loops")
+	}
+	return coq.LoopRetExpr{}
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -940,10 +957,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		if loopVar == nil {
 			ctx.unsupported(s, "branching outside of a loop")
 		}
-		if s.Tok != token.BREAK {
-			ctx.unsupported(s, "only break is supported to exit loops")
-		}
-		return coq.NewAnon(coq.LoopRetExpr{})
+		return coq.NewAnon(ctx.branchStmt(s))
 	case *ast.ExprStmt:
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
