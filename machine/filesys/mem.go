@@ -23,6 +23,7 @@ func (m fileMode) String() string {
 	return "invalidMode"
 }
 
+// MemFs is an in-memory, thread-safe implementation of filesys.Filesys.
 type MemFs struct {
 	m sync.Mutex
 	// fd -> data
@@ -35,6 +36,7 @@ type MemFs struct {
 	openFiles map[int]fileMode
 }
 
+// NewMemFs creates an empty MemFs
 func NewMemFs() *MemFs {
 	return &MemFs{
 		inodes:    make(map[int][]byte),
@@ -43,7 +45,7 @@ func NewMemFs() *MemFs {
 	}
 }
 
-func (fs MemFs) nextFd() int {
+func (fs *MemFs) nextFd() int {
 	return len(fs.inodes) + 1
 }
 
@@ -57,7 +59,7 @@ func (fs *MemFs) Create(fname string) File {
 	return File(fd)
 }
 
-func (fs MemFs) checkMode(f File, mode fileMode) int {
+func (fs *MemFs) checkMode(f File, mode fileMode) int {
 	actual, ok := fs.openFiles[f.fd()]
 	if !ok {
 		panic(fmt.Errorf("use of unopened file %d", f.fd()))
