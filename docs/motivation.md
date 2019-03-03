@@ -1,6 +1,6 @@
 # Problem: executable, verified code
 
-Goose converts a stylized subset of Go to a program in Argosy. The conversion is _trusted_: we run the Go program but prove properties about the Coq code, so it's important that the semantics of the translated code cover all the behaviors of the running Go. We take a few steps to increase the reliability of goose, for example using the Go and Coq type systems and careful choice of the subset of Go (see below for a more detailed argument).
+Goose converts a stylized subset of Go to a program in Armada. The conversion is _trusted_: we run the Go program but prove properties about the Coq code, so it's important that the semantics of the translated code cover all the behaviors of the running Go. We take a few steps to increase the reliability of goose, for example using the Go and Coq type systems and careful choice of the subset of Go (see below for a more detailed argument).
 
 # Motivation
 

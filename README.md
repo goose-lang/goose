@@ -1,6 +1,8 @@
 # goose: Go to Coq conversion
 
 [![Build Status](https://travis-ci.org/tchajed/goose.svg?branch=master)](https://travis-ci.org/tchajed/goose)
+[![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
+
 
 Goose imports code written in Go into [Armada](https://github.com/mit-pdos/armada), a framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Armada program has a precise semantics in Coq describing its behavior, and we can use the tools in Armada to prove that the code meets its specification.
 

@@ -10,6 +10,11 @@ import (
 )
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")
+
+		flag.PrintDefaults()
+	}
 	var config goose.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
@@ -20,7 +25,7 @@ func main() {
 
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: goose <path to source dir>")
+		flag.Usage()
 		os.Exit(1)
 	}
 	srcDir := flag.Arg(0)
