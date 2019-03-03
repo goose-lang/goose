@@ -35,7 +35,8 @@ func loopSpawn() {
 		continue
 	}
 	for dummy := true; ; {
-		dummy = dummy
+		// do some work to avoid a self-assignment
+		dummy = !dummy
 		continue
 	}
 }

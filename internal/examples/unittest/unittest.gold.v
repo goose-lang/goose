@@ -159,7 +159,7 @@ Definition loopSpawn  : proc unit :=
           _ <- Spawn (threadCode i);
           Continue (i + 1)) 0;
   Loop (fun dummy =>
-        Continue dummy) true.
+        Continue (negb dummy)) true.
 
 Definition stringAppend (s:string) (x:uint64) : proc string :=
   Ret ("prefix " ++ s ++ " " ++ uint64_to_string x).
