@@ -1,3 +1,19 @@
+// Package filesys provides access to a single directory filesystem.
+//
+// These operations have corresponding operations in Armada in `Goose/Filesys.v`
+// and are exported as functions in the `FS` module.
+//
+// The interface is a subset of the filesystem API specific to the needs of the
+// key-value store. That said, each method (with the notable exceptions of
+// AtomicCreate and List) is a straightforward wrapper around a system call.
+//
+// AtomicCreate provides the temp file + rename pattern for convenience to
+// create files atomically.
+//
+// List is a wrapper around readdir, which is not a system call but a library
+// function that reads a directory entry in chunks and returns parsed entries
+// from it. As a result the List operation is not atomic with respect to
+// concurrent filesystem operations.
 package filesys
 
 import (
@@ -11,7 +27,8 @@ import (
 var rootDirectory string
 
 func init() {
-	flag.StringVar(&rootDirectory, "filesys.root", "simple.db", "directory to store database in")
+	flag.StringVar(&rootDirectory, "filesys.root", "simple.db",
+		"directory to store database in")
 }
 
 // A File is a file descriptor
@@ -24,14 +41,31 @@ func (f File) fd() int {
 
 // Filesys provides access a single directory.
 type Filesys interface {
+	// Create creates an empty file at fname (which must not exist) in
+	// write-only mode
 	Create(fname string) File
+	// Append to an open file
 	Append(f File, data []byte)
+	// Close closes a file, invalidating the file descriptor
 	Close(f File)
+	// Open opens a file for reading
+	//
+	// Read-only files do not use the read offset managed by the kernel since
+	// all reads are absolute.
 	Open(fname string) File
+	// ReadAt reads from an offset in the file (using pread)
 	ReadAt(f File, offset uint64, length uint64) []byte
+	// Delete deletes a file (which must exist).
 	Delete(fname string)
+	// AtomicCreate creates a file with data atomically using a temp file and
+	// rename.
 	AtomicCreate(fname string, data []byte)
+	// Link creates a hard link from newName to oldName
 	Link(oldName, newName string) bool
+	// List lists the directory using readdir().
+	//
+	// This is a non-atomic operation since multiple system calls might be
+	// needed to read the entire directory entry.
 	List() []string
 }
 
@@ -42,43 +76,52 @@ var Fs Filesys
 
 // Re-export the filesystem methods on the global Filesys
 
+// Create calls Create on the global Filesys
 func Create(fname string) File {
 	return Fs.Create(fname)
 }
 
+// Append calls Append on the global Filesys
 func Append(f File, data []byte) {
 	Fs.Append(f, data)
 }
 
+// Close calls Close on the global Filesys
 func Close(f File) {
 	Fs.Close(f)
 }
 
+// Open calls Open on the global Filesys
 func Open(fname string) File {
 	return Fs.Open(fname)
 }
 
+// ReadAt calls ReadAt on the global Filesys
 func ReadAt(f File, offset uint64, length uint64) []byte {
 	return Fs.ReadAt(f, offset, length)
 }
 
+// Delete calls Delete on the global Filesys
 func Delete(fname string) {
 	Fs.Delete(fname)
 }
 
+// AtomicCreate calls AtomicCreate on the global Filesys
 func AtomicCreate(fname string, data []byte) {
 	Fs.AtomicCreate(fname, data)
 }
 
+// Link calls Link on the global Filesys
 func Link(oldName, newName string) bool {
 	return Fs.Link(oldName, newName)
 }
 
+// List calls List on the global Filesys
 func List() []string {
 	return Fs.List()
 }
 
-// Init prepares the global filesystem Fs to a single directory based on flags.
+// DefaultFs returns a directory filesystem using the global flag configuration.
 func DefaultFs() Filesys {
 	if !flag.Parsed() {
 		panic("default filesystem relies on flag parsing")
@@ -86,10 +129,12 @@ func DefaultFs() Filesys {
 	return NewDirFs(rootDirectory)
 }
 
+// DirFs is a Filesys backed by a directory on some host filesystem.
 type DirFs struct {
 	rootDirectory string
 }
 
+// NewDirFs creates a DirFs using root as the root directory for all operations.
 func NewDirFs(root string) DirFs {
 	return DirFs{rootDirectory: root}
 }
