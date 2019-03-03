@@ -55,8 +55,8 @@ func getCaller(skip int) string {
 
 type gooseError struct{ err *ConversionError }
 
-// A ConversionError reports detailed information on an error producing Coq
-// code.
+// A ConversionError is a detailed and structured error encountered while
+// converting Go to Coq.
 //
 // Errors include a category describing the severity of the error.
 //

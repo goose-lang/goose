@@ -1,3 +1,8 @@
+// Package machine is a support library for operations on integers.
+//
+// Goose code can use these additional functions. They have corresponding
+// primitives and a model in the Goose `Heap.v` model of Go's built-in heap data
+// structures, under the `Data` module.
 package machine
 
 import (

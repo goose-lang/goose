@@ -1,4 +1,5 @@
-// Package filesys provides access to a single directory filesystem.
+// Package filesys is a support library providing access to a single directory
+// in the filesystem.
 //
 // These operations have corresponding operations in Armada in `Goose/Filesys.v`
 // and are exported as functions in the `FS` module.

@@ -1,3 +1,13 @@
+// Package goose implements conversion from Go source to Armada definitions.
+//
+// The exposed interface allows converting individual files as well as whole
+// packages to a single Coq file with all the converted definitions, which
+// include user-defined structs in Go as Coq records and an Armada procedure for
+// each Go function.
+//
+// See the Goose README at https://github.com/tchajed/goose for a high-level
+// overview. The source also has some design documentation at
+// https://github.com/tchajed/goose/tree/master/docs.
 package goose
 
 import (
