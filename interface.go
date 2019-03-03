@@ -1,13 +1,14 @@
 package goose
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/tchajed/goose/internal/coq"
 )
@@ -38,21 +39,6 @@ func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
 	return coq.File(decls), nil
 }
 
-// A TranslationError wraps an error with a message indicating what aspect of
-// translation failed.
-type TranslationError struct {
-	Message string
-	Err     error
-}
-
-// Error implements the error interface
-func (e *TranslationError) Error() string {
-	if e.Err == nil {
-		return e.Message
-	}
-	return fmt.Sprintf("%s\n%s", e.Message, e.Err)
-}
-
 type fileName struct {
 	name string
 	file *ast.File
@@ -81,7 +67,7 @@ func sortedFiles(files map[string]*ast.File) []*ast.File {
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
 // and not dependent on hashmap or directory iteration order.
-func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationError) {
+func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {
 		if strings.HasSuffix(info.Name(), "_test.go") {
@@ -91,14 +77,11 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationErro
 	}
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
-		return nil, &TranslationError{
-			Message: "code does not parse",
-			Err:     err,
-		}
+		return nil, errors.Wrap(err, "code does not parse")
 	}
 
 	if len(packages) > 1 {
-		return nil, &TranslationError{Message: "found multiple packages"}
+		return nil, errors.New("found multiple packages")
 	}
 
 	var pkgName string
@@ -111,18 +94,12 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationErro
 	ctx := NewCtx(fset, config)
 	err = ctx.TypeCheck(pkgName, files)
 	if err != nil {
-		return nil, &TranslationError{
-			Message: "code does not type check",
-			Err:     err,
-		}
+		return nil, errors.Wrap(err, "code does not type check")
 	}
 
 	f, err := ctx.File(files...)
 	if err != nil {
-		return nil, &TranslationError{
-			Message: "failed to convert to Coq",
-			Err:     err,
-		}
+		return nil, errors.Wrap(err, "conversion failed")
 	}
 	return f, nil
 }

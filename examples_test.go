@@ -128,8 +128,8 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 
 		f, terr := conf.TranslatePackage(t.path)
 		if terr != nil {
-			c.Errorf("%s translation failed (%s)", t.name, terr.Message)
-			fmt.Fprintln(os.Stderr, terr.Err)
+			c.Errorf("%s translation failed", t.name)
+			fmt.Fprintln(os.Stderr, terr)
 			continue
 		}
 
