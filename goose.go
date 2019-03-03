@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tchajed/goose/coq"
+	"github.com/tchajed/goose/internal/coq"
 )
 
 // Ctx is a context for resolving Go code's types and source code

@@ -11,7 +11,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
-	"github.com/tchajed/goose/coq"
+	"github.com/tchajed/goose/internal/coq"
 	// there's an implicit dependency on filesys within the test code
 	_ "github.com/tchajed/goose/machine/filesys"
 )

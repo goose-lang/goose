@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tchajed/goose/coq"
+	"github.com/tchajed/goose/internal/coq"
 )
 
 // File converts an entire package (possibly multiple files) to a coq.File
