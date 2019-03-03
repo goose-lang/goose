@@ -114,10 +114,10 @@ type StructDecl struct {
 //
 // For StructDecl this consists of several commands to wrap the record
 // definition in a module, which nicely namespaces the record's field accessors.
-// The pattern is slightly verbose, but not moreso than prefixing fields with
+// The pattern is slightly verbose, but not more so than prefixing fields with
 // the record name anyway.
 //
-// Since records are auto-generated, they can also include boierplate. For
+// Since records are auto-generated, they can also include boilerplate. For
 // example, we currently define an instance for HasGoZero to give the Go zero
 // value by emitting the right boilerplate (rather than Ltac/typeclass magic for
 // example). We could do the same to implement `Settable`.
