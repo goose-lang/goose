@@ -27,6 +27,7 @@ func readMessage(name string) []byte {
 	return fileData
 }
 
+// Pickup reads all stored messages
 func Pickup() [][]byte {
 	names := filesys.List()
 	messages := new([][]byte)
@@ -62,16 +63,19 @@ func writeAll(fname string, data []byte) {
 	filesys.Close(f)
 }
 
+// Deliver stores a new message
+//
+// tid should be a unique thread ID (used as a helper for spooling the message).
 func Deliver(tid string, msg []byte) {
 	writeAll(tid, msg)
-	initId := machine.RandomUint64()
-	for id := initId; ; {
+	initID := machine.RandomUint64()
+	for id := initID; ; {
 		ok := filesys.Link(tid, "msg"+machine.UInt64ToString(id))
 		if ok {
 			break
 		} else {
-			newId := machine.RandomUint64()
-			id = newId
+			newID := machine.RandomUint64()
+			id = newID
 			continue
 		}
 	}

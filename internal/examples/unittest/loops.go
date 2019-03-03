@@ -1,8 +1,9 @@
 package unittest
 
+// DoSomething is an impure function
 func DoSomething(s string) {}
 
-func ConditionalInLoop() {
+func conditionalInLoop() {
 	for i := uint64(0); ; {
 		if i < 3 {
 			DoSomething("i is small")

@@ -2,9 +2,10 @@ package unittest
 
 import "sync"
 
+// Skip is a placeholder for some impure code
 func Skip() {}
 
-func SimpleSpawn() {
+func simpleSpawn() {
 	l := new(sync.RWMutex)
 	v := new(uint64)
 	go func() {
@@ -20,10 +21,9 @@ func SimpleSpawn() {
 	l.Unlock()
 }
 
-func threadCode(tid uint64) {
-}
+func threadCode(tid uint64) {}
 
-func LoopSpawn() {
+func loopSpawn() {
 	for i := uint64(0); ; {
 		if i > 10 {
 			break

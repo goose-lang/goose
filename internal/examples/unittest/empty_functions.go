@@ -1,7 +1,7 @@
 package unittest
 
-func Empty() {}
+func empty() {}
 
-func EmptyReturn() {
+func emptyReturn() {
 	return
 }

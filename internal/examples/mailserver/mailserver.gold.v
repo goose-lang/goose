@@ -25,6 +25,7 @@ Definition readMessage (name:string) : proc (slice.t byte) :=
   fileData <- Data.readPtr fileContents;
   Ret fileData.
 
+(* Pickup reads all stored messages *)
 Definition Pickup  : proc (slice.t (slice.t byte)) :=
   names <- FS.list;
   messages <- Data.newPtr (slice.t (slice.t byte));
@@ -55,13 +56,16 @@ Definition writeAll (fname:string) (data:slice.t byte) : proc unit :=
           Continue (slice.skip 4096 buf)) data;
   FS.close f.
 
+(* Deliver stores a new message
+
+   tid should be a unique thread ID (used as a helper for spooling the message). *)
 Definition Deliver (tid:string) (msg:slice.t byte) : proc unit :=
   _ <- writeAll tid msg;
-  initId <- Data.randomUint64;
+  initID <- Data.randomUint64;
   Loop (fun id =>
         ok <- FS.link tid ("msg" ++ uint64_to_string id);
         if ok
         then LoopRet tt
         else
-          newId <- Data.randomUint64;
-          Continue newId) initId.
+          newID <- Data.randomUint64;
+          Continue newID) initID.

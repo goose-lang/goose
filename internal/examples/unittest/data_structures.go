@@ -5,20 +5,20 @@ import (
 	"github.com/tchajed/goose/machine/filesys"
 )
 
-func UseSlice() {
+func useSlice() {
 	s := make([]byte, 1)
 	s1 := append(s, s...)
 	filesys.AtomicCreate("file", s1)
 }
 
-func UseSliceIndexing() uint64 {
+func useSliceIndexing() uint64 {
 	s := make([]uint64, 2)
 	s[1] = 2
 	x := s[0]
 	return x
 }
 
-func UseMap() {
+func useMap() {
 	m := make(map[uint64][]byte)
 	m[1] = nil
 	x, ok := m[2]
@@ -28,14 +28,14 @@ func UseMap() {
 	m[3] = x
 }
 
-func UsePtr() {
+func usePtr() {
 	p := new(uint64)
 	*p = 1
 	x := *p
 	*p = x
 }
 
-func IterMapKeysAndValues(m map[uint64]uint64) uint64 {
+func iterMapKeysAndValues(m map[uint64]uint64) uint64 {
 	sumPtr := new(uint64)
 	for k, v := range m {
 		sum := *sumPtr
@@ -45,7 +45,7 @@ func IterMapKeysAndValues(m map[uint64]uint64) uint64 {
 	return sum
 }
 
-func IterMapKeys(m map[uint64]uint64) []uint64 {
+func iterMapKeys(m map[uint64]uint64) []uint64 {
 	keysSlice := make([]uint64, 0)
 	keysRef := new([]uint64)
 	*keysRef = keysSlice
@@ -58,7 +58,7 @@ func IterMapKeys(m map[uint64]uint64) []uint64 {
 	return keys
 }
 
-func GetRandom() uint64 {
+func getRandom() uint64 {
 	r := machine.RandomUint64()
 	return r
 }

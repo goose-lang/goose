@@ -2,6 +2,7 @@ package unittest
 
 import "sync"
 
+// DoSomeLocking uses the entire lock API
 func DoSomeLocking(l *sync.RWMutex) {
 	l.Lock()
 	l.Unlock()
@@ -11,7 +12,7 @@ func DoSomeLocking(l *sync.RWMutex) {
 	l.RUnlock()
 }
 
-func MakeLock() {
+func makeLock() {
 	l := new(sync.RWMutex)
 	DoSomeLocking(l)
 }

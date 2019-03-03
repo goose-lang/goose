@@ -1,10 +1,10 @@
 package unittest
 
-func ReturnTwo(p []byte) (uint64, uint64) {
+func returnTwo(p []byte) (uint64, uint64) {
 	return 0, 0
 }
 
-func ReturnTwoWrapper(data []byte) (uint64, uint64) {
-	a, b := ReturnTwo(data)
+func returnTwoWrapper(data []byte) (uint64, uint64) {
+	a, b := returnTwo(data)
 	return a, b
 }
