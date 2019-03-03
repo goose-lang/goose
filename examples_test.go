@@ -27,7 +27,7 @@ type ExamplesSuite struct{}
 var _ = Suite(&ExamplesSuite{})
 
 func (s *ExamplesSuite) TestPositiveExamples(c *C) {
-	f, err := os.Open("./examples")
+	f, err := os.Open("./internal/examples")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -38,7 +38,8 @@ func (s *ExamplesSuite) TestPositiveExamples(c *C) {
 	}
 	var conf goose.Config
 	for _, srcDir := range names {
-		srcPath := path.Join("examples", srcDir)
+		c.Logf("testing example %s", srcDir)
+		srcPath := path.Join("./internal/examples", srcDir)
 		info, _ := os.Stat(srcPath)
 		if !info.IsDir() {
 			continue
@@ -160,6 +161,7 @@ func (s *ExamplesSuite) TestNegativeExamples(c *C) {
 		c.Fatal(err)
 	}
 	for _, n := range names {
+		c.Logf("testing negative example %s", n)
 		tt := translateErrorFile(path.Join("testdata", n))
 		if tt.Err == nil {
 			c.Errorf("expected error while translating %s", n)
