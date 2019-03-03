@@ -110,6 +110,17 @@ type StructDecl struct {
 	Comment string
 }
 
+// CoqDecl implements the Decl interface
+//
+// For StructDecl this consists of several commands to wrap the record
+// definition in a module, which nicely namespaces the record's field accessors.
+// The pattern is slightly verbose, but not moreso than prefixing fields with
+// the record name anyway.
+//
+// Since records are auto-generated, they can also include boierplate. For
+// example, we currently define an instance for HasGoZero to give the Go zero
+// value by emitting the right boilerplate (rather than Ltac/typeclass magic for
+// example). We could do the same to implement `Settable`.
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Module %s.", d.Name)
@@ -133,16 +144,27 @@ func (d StructDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+// Type represents some Coq type.
+//
+// Structurally identical to Expr but serves as a nice annotation in the type
+// system for where types are expected.
 type Type interface {
 	Coq() string
 }
 
+// TypeIdent is an identifier referencing a type.
+//
+// Much like the Type interface this is the same as Ident but signals that a Go
+// type rather than a value is being referenced.
 type TypeIdent string
 
 func (t TypeIdent) Coq() string {
 	return string(t)
 }
 
+// StructName refers to a struct type from its name.
+//
+// This is Type rather than an Expr.
 type StructName string
 
 func (t StructName) Coq() string {
@@ -169,6 +191,7 @@ type Expr interface {
 	Coq() string
 }
 
+// IdentExpr is an identifier expression.
 type IdentExpr string
 
 func (e IdentExpr) Coq() string {
@@ -181,6 +204,8 @@ type CallExpr struct {
 	Args       []Expr
 }
 
+// NewCallExpr is a convenience to construct a CallExpr statically, especially
+// for a fixed number of arguments.
 func NewCallExpr(name string, args ...Expr) CallExpr {
 	return CallExpr{MethodName: name, Args: args}
 }
@@ -200,6 +225,10 @@ func (s PureCall) Coq() string {
 	return CallExpr(s).Coq()
 }
 
+// ProjExpr is a record projection
+//
+// Projections could always be written using normal function call syntax, but
+// using record syntax for projections makes code look nicer.
 type ProjExpr struct {
 	Projection string
 	Arg        Expr
@@ -217,11 +246,26 @@ func (e ReturnExpr) Coq() string {
 	return blocked("Ret ", addParens(e.Value.Coq()))
 }
 
+// Binding is a Coq binding (a part of a Bind expression)
+//
+// Note that a Binding is not an Expr. This is because emitting a binding
+// requires knowing if it is the last binding in a sequence (in which case no
+// binder should be written). A more accurate representation would be a cons
+// representation, but this recursive structure is more awkward to work with; in
+// practice delying handling the special last-binding to printing time is
+// easier.
 type Binding struct {
+	// Names is a list to support anonymous and tuple-destructuring bindings.
+	//
+	// If Names is an empty list the binding is anonymous.
+	//
+	// If len(Names) > 1 then the binding uses the `let! p <- f; rx` notation,
+	// exploiting a pattern in `p` to destructure a tuple.
 	Names []string
 	Expr  Expr
 }
 
+// NewAnon constructs an anonymous binding for an expression.
 func NewAnon(e Expr) Binding {
 	return Binding{Expr: e}
 }
@@ -230,6 +274,8 @@ func (b Binding) isAnonymous() bool {
 	return len(b.Names) == 0
 }
 
+// Binder emits the appropriate binder part of a binding, handling anonymous and
+// tuple-destructuring forms.
 func (b Binding) Binder() string {
 	if b.isAnonymous() {
 		return "_"
@@ -240,21 +286,35 @@ func (b Binding) Binder() string {
 	return fmt.Sprintf("let! (%s)", strings.Join(b.Names, ", "))
 }
 
-type FieldVal struct {
+type fieldVal struct {
 	Field string
 	Value Expr
 }
 
+// A StructLiteral represents a record literal construction using name fields.
+//
+// Relies on Coq record syntax to correctly order fields for the record's
+// constructor.
 type StructLiteral struct {
 	StructName string
-	Elts       []FieldVal
+	elts       []fieldVal
 }
 
-func (s StructLiteral) Coq() string {
+// NewStructLiteral creates a StructLiteral with no values.
+func NewStructLiteral(structName string) StructLiteral {
+	return StructLiteral{StructName: structName}
+}
+
+// AddField appends a new (field, val) pair to a StructLiteral.
+func (sl *StructLiteral) AddField(field string, value Expr) {
+	sl.elts = append(sl.elts, fieldVal{field, value})
+}
+
+func (sl StructLiteral) Coq() string {
 	var pieces []string
-	for i, f := range s.Elts {
+	for i, f := range sl.elts {
 		field := fmt.Sprintf("%s.%s := %s;",
-			s.StructName, f.Field, f.Value.Coq())
+			sl.StructName, f.Field, f.Value.Coq())
 		if i == 0 {
 			pieces = append(pieces, field)
 		} else {
@@ -280,8 +340,10 @@ func (l StringLiteral) Coq() string {
 	return fmt.Sprintf(`"%s"`, l.Value)
 }
 
+// BinOp is an enum for a Coq binary operator
 type BinOp int
 
+// Constants for the supported Coq binary operators
 const (
 	OpPlus BinOp = iota
 	OpMinus
@@ -418,6 +480,7 @@ func (ife IfExpr) Coq() string {
 	return pp.Build()
 }
 
+// Unwrap returns the expression in a Binding expected to be anonymous.
 func (b Binding) Unwrap() (e Expr, ok bool) {
 	if b.isAnonymous() {
 		return b.Expr, true
@@ -433,15 +496,21 @@ func (e HashTableInsert) Coq() string {
 	return fmt.Sprintf("(fun _ => Some %s)", addParens(e.Value.Coq()))
 }
 
-// currently restrict loops to return nothing
-// good way to lift this restriction is to require loops to be at the end of the
-// function and then support return inside a loop instead of break
+// A LoopRetExpr breaks out of a loop.
+//
+// The Loop constructor in proc permits returning a value (of an arbitrary type)
+// when breaking, but we don't support that here.
+//
+// We could support returning something for loops at the end of a function,
+// where a Go `return` would correspond to a Coq `LoopRet`. function and then
+// support return inside a loop instead of break
 type LoopRetExpr struct{}
 
 func (e LoopRetExpr) Coq() string {
 	return "LoopRet tt"
 }
 
+// A LoopContinueExpr moves to the next iteration in a loop.
 type LoopContinueExpr struct {
 	// Value is the value to start the next loop with
 	Value Expr
@@ -451,6 +520,10 @@ func (e LoopContinueExpr) Coq() string {
 	return blocked("Continue ", addParens(e.Value.Coq()))
 }
 
+// A LoopExpr is a complete Coq loop
+//
+// Loops are allowed any type for loop variables (although there's no way to
+// express the unit type or value for the loop variable).
 type LoopExpr struct {
 	// name of loop variable
 	LoopVarIdent string
@@ -469,6 +542,11 @@ func (e LoopExpr) Coq() string {
 	return pp.Build()
 }
 
+// MapIterExpr is a call to the map iteration helper.
+//
+// The Coq support for this call handles the looping, and happens to do so with
+// finite iteration over a list rather than a Loop (although this is unimportant
+// to emitting a correct call to Data.mapIter).
 type MapIterExpr struct {
 	// name of key and value identifiers
 	KeyIdent, ValueIdent string
@@ -487,6 +565,9 @@ func (e MapIterExpr) Coq() string {
 	return pp.Build()
 }
 
+// SpawnExpr is a call to Spawn a thread running a procedure.
+//
+// The body can capture variables in the environment.
 type SpawnExpr struct {
 	Body BlockExpr
 }
@@ -517,6 +598,10 @@ func (d FuncDecl) Signature() string {
 		addParens(d.ReturnType.Coq()))
 }
 
+// CoqDecl implements the Decl interface
+//
+// For FuncDecl this emits the Coq vernacular Definition that defines the whole
+// function.
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	addComment(&pp, d.Comment)
@@ -531,11 +616,15 @@ func (d FuncDecl) CoqDecl() string {
 // Pretends to be a declaration so it can sit among declarations within a file.
 type CommentDecl string
 
+// NewComment creates a CommentDecl with proper whitespacing.
 func NewComment(s string) CommentDecl {
 	comment := strings.TrimRight(s, " \t\n")
 	return CommentDecl(comment)
 }
 
+// CoqDecl implements the Decl interface
+//
+// For CommentDecl this emits a Coq top-level comment.
 func (d CommentDecl) CoqDecl() string {
 	var pp buffer
 	addComment(&pp, string(d))
@@ -575,8 +664,10 @@ func (t PtrType) Coq() string {
 
 const importHeader string = "From RecoveryRefinement.Goose Require Import base."
 
+// File represents a complete Coq file (a sequence of declarations).
 type File []Decl
 
+// Write outputs the Coq source for a File.
 func (decls File) Write(w io.Writer) {
 	fmt.Fprintln(w, importHeader)
 	fmt.Fprintln(w)

@@ -26,6 +26,7 @@ type Config struct {
 	AddSourceFileComments bool
 }
 
+// NewCtx initializes a context
 func NewCtx(fset *token.FileSet, config Config) Ctx {
 	info := &types.Info{
 		Defs:  make(map[*ast.Ident]types.Object),
@@ -145,19 +146,23 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	return coq.TypeIdent("<type>")
 }
 
-func (ctx Ctx) fieldDecl(f *ast.Field) coq.FieldDecl {
-	if len(f.Names) > 1 {
-		ctx.futureWork(f, "multiple fields for same type (split them up)")
-		return coq.FieldDecl{}
+func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
+	var decls []coq.FieldDecl
+	for _, f := range fs.List {
+		if len(f.Names) > 1 {
+			ctx.futureWork(f, "multiple fields for same type (split them up)")
+			return nil
+		}
+		if len(f.Names) == 0 {
+			ctx.unsupported(f, "unnamed field/parameter")
+			return nil
+		}
+		decls = append(decls, coq.FieldDecl{
+			Name: f.Names[0].Name,
+			Type: ctx.coqType(f.Type),
+		})
 	}
-	if len(f.Names) == 0 {
-		ctx.unsupported(f, "unnamed field/parameter")
-		return coq.FieldDecl{}
-	}
-	return coq.FieldDecl{
-		Name: f.Names[0].Name,
-		Type: ctx.coqType(f.Type),
-	}
+	return decls
 }
 
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
@@ -191,9 +196,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDec
 	}
 	addSourceDoc(doc, &ty.Comment)
 	ctx.addSourceFile(spec, &ty.Comment)
-	for _, f := range structTy.Fields.List {
-		ty.Fields = append(ty.Fields, ctx.fieldDecl(f))
-	}
+	ty.Fields = ctx.paramList(structTy.Fields)
 	return ty
 }
 
@@ -438,7 +441,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 	if !ok {
 		ctx.nope(e.Type, "non-struct literal after type check")
 	}
-	lit := coq.StructLiteral{StructName: structName}
+	lit := coq.NewStructLiteral(structName)
 	foundFields := make(map[string]bool)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
@@ -448,10 +451,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 				ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
 				return coq.StructLiteral{}
 			}
-			lit.Elts = append(lit.Elts, coq.FieldVal{
-				Field: ident,
-				Value: ctx.expr(el.Value),
-			})
+			lit.AddField(ident, ctx.expr(el.Value))
 			foundFields[ident] = true
 		default:
 			// shouldn't be possible given type checking above
@@ -499,7 +499,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		token.EQL: coq.OpEquals,
 	}[e.Op]
 	if e.Op == token.ADD {
-		if b, ok := ctx.typeOf(e.X).(*types.Basic); ok && b.Name() == "string" {
+		if isString(ctx.typeOf(e.X)) {
 			op = coq.OpAppend
 		} else {
 			op = coq.OpPlus
@@ -994,6 +994,7 @@ func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
 	return coq.ReturnExpr{coq.NewTuple(exprs)}
 }
 
+// returnType converts an ast.FuncType's Results to a Coq return type
 func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 	if results == nil {
 		return coq.TypeIdent("unit")
@@ -1033,9 +1034,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	if d.Recv != nil {
 		ctx.futureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
 	}
-	for _, p := range d.Type.Params.List {
-		fd.Args = append(fd.Args, ctx.fieldDecl(p))
-	}
+	fd.Args = ctx.paramList(d.Type.Params)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd

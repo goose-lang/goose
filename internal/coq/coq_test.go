@@ -41,10 +41,6 @@ func callExpr(name string, args ...Expr) CallExpr {
 	return CallExpr{MethodName: name, Args: args}
 }
 
-func field(name string, e Expr) FieldVal {
-	return FieldVal{name, e}
-}
-
 func binding(name string, e Expr) Binding {
 	return Binding{Names: []string{name}, Expr: e}
 }
@@ -54,19 +50,16 @@ func ident(name string) IdentExpr {
 }
 
 func (s *CoqSuite) TestStraightLineCode(c *C) {
+	retVal := NewStructLiteral("Table")
+	retVal.AddField("Index", IdentExpr("index"))
+	retVal.AddField("File", IdentExpr("f2"))
 	expr := BlockExpr{
 		[]Binding{
 			binding("index", callExpr("Data.newHashTable", TypeIdent("uint64"))),
 			binding("f", callExpr("FS.create", IdentExpr("p"))),
 			NewAnon(callExpr("FS.close", IdentExpr("f"))),
 			binding("f2", callExpr("FS.open", IdentExpr("p"))),
-			NewAnon(ReturnExpr{StructLiteral{
-				"Table",
-				[]FieldVal{
-					field("Index", IdentExpr("index")),
-					field("File", IdentExpr("f2")),
-				},
-			}}),
+			NewAnon(ReturnExpr{retVal}),
 		},
 	}
 	c.Check(expr.Coq(), Equals, strings.TrimSpace(`
@@ -125,13 +118,9 @@ func (s *CoqSuite) TestTuples(c *C) {
 	c.Check(tupleType(TypeIdent("uint64"), MapType{TypeIdent("uint64")}).Coq(),
 		Equals, "(uint64 * Map uint64)")
 
-	entry := StructLiteral{
-		StructName: "Entry",
-		Elts: []FieldVal{
-			{"Key", IntLiteral{0}},
-			{"Value", IdentExpr("_")},
-		},
-	}
+	entry := NewStructLiteral("Entry")
+	entry.AddField("Key", IntLiteral{0})
+	entry.AddField("Value", IdentExpr("_"))
 
 	c.Check(tupleExpr(entry, IntLiteral{1}).Coq(),
 		Equals, strings.TrimSpace(`

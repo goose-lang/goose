@@ -38,11 +38,14 @@ func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
 	return coq.File(decls), nil
 }
 
+// A TranslationError wraps an error with a message indicating what aspect of
+// translation failed.
 type TranslationError struct {
 	Message string
 	Err     error
 }
 
+// Error implements the error interface
 func (e *TranslationError) Error() string {
 	if e.Err == nil {
 		return e.Message
@@ -70,6 +73,14 @@ func sortedFiles(files map[string]*ast.File) []*ast.File {
 	return sortedFiles
 }
 
+// TranslatePackage translates an entire package in a directory to a single Coq
+// file with all the declarations in the package.
+//
+// If the source directory has multiple source files, these are processed in
+// alphabetical order; this must be a topological sort of the definitions or the
+// Coq code will be out-of-order. Realistically files should not have
+// dependencies on each other, although sorting ensures the results are stable
+// and not dependent on hashmap or directory iteration order.
 func (config Config) TranslatePackage(srcDir string) (coq.File, *TranslationError) {
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {

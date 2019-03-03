@@ -88,10 +88,6 @@ func ident(name string) coq.IdentExpr {
 	return coq.IdentExpr(name)
 }
 
-func field(name string, e coq.Expr) coq.FieldVal {
-	return coq.FieldVal{Field: name, Value: e}
-}
-
 func binding(name string, e coq.Expr) coq.Binding {
 	return coq.Binding{Names: []string{name}, Expr: e}
 }
@@ -109,6 +105,9 @@ func tuple(es ...coq.Expr) coq.Expr {
 }
 
 func (s *ConversionSuite) TestStraightLineFunc(c *C) {
+	retVal := coq.NewStructLiteral("Table")
+	retVal.AddField("Index", ident("index"))
+	retVal.AddField("File", ident("f2"))
 	decl := goFunc(filesysImport + `
 // A Table provides fast access to an on-disk table
 type Table struct {
@@ -136,13 +135,7 @@ func CreateTable(p string) Table {
 			binding("f", callExpr("FS.create", ident("p"))),
 			coq.NewAnon(callExpr("FS.close", ident("f"))),
 			binding("f2", callExpr("FS.open", ident("p"))),
-			retBinding(coq.StructLiteral{
-				StructName: "Table",
-				Elts: []coq.FieldVal{
-					field("Index", ident("index")),
-					field("File", ident("f2")),
-				},
-			}),
+			retBinding(retVal),
 		),
 		Comment: "CreateTable creates a new, empty table.",
 	})
@@ -203,6 +196,9 @@ func (s *ConversionSuite) TestEmptyFunc(c *C) {
 }
 
 func (s *ConversionSuite) TestStructNil(c *C) {
+	retVal := coq.NewStructLiteral("HasNil")
+	retVal.AddField(
+		"Data", callExpr("slice.nil", coq.TypeIdent("_")))
 	decl := goFunc(`
 type HasNil struct{
 	Data []byte
@@ -212,12 +208,7 @@ func NewHasNil() HasNil {
     return HasNil{Data: nil}
 }`)
 	c.Check(decl.Body, DeepEquals,
-		block(retBinding(coq.StructLiteral{
-			StructName: "HasNil",
-			Elts: []coq.FieldVal{
-				{"Data", callExpr("slice.nil", coq.TypeIdent("_"))},
-			},
-		})))
+		block(retBinding(retVal)))
 }
 
 func (s *ConversionSuite) TestSliceExpr(c *C) {

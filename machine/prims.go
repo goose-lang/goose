@@ -26,6 +26,7 @@ func UInt64Put(p []byte, n uint64) {
 	binary.LittleEndian.PutUint64(p, n)
 }
 
+// RandomUint64 returns a random uint64 using the global seed.
 func RandomUint64() uint64 {
 	return rand.Uint64()
 }
