@@ -4,13 +4,13 @@
 [![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
 
 
-Goose imports code written in Go into [Armada](https://github.com/mit-pdos/armada), a framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Armada program has a precise semantics in Coq describing its behavior, and we can use the tools in Armada to prove that the code meets its specification.
+Goose imports code written in Go into [Armada](https://github.com/mit-pdos/armada), a Coq framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Armada program has a precise semantics in Coq describing its behavior, and we can use Armada to prove that the code meets its specification.
 
-Goose supports only a stylized subset of Go, and part of the Armada support includes a model for how Go pointers, slices, and maps work (for example). The conversion is _trusted_: we run the Go program but prove properties about the Coq code. The subset of Go is carefully chosen to make the translation simpler and more trustworthy, and the model in Armada is more restrictive than Go in some places to make it more simpler.
+Goose supports only a stylized subset of Go, and part of the Armada support includes a model for how Go pointers, slices, and maps work (for example). The conversion is _trusted_: we run the Go program but prove properties about the Coq code. The subset of Go and Armada model are carefully chosen to make the translation simpler and more trustworthy.
 
 ## Demo: an example conversion
 
-To give a flavor of what goose looks like, let's look at an example:
+To give a flavor of what goose does, let's look at an example:
 
 File `db.go`:
 ```go
@@ -55,7 +55,7 @@ Definition CreateTable (p:string) : proc Table.t :=
 
 Goose translates Go structs to Coq records; it uses a module to provide better namespacing for the fields.
 
-The Coq version of `CreateTable` is written as a definition of type `proc Table.t`. A library called `Goose.base` defines all the support needed for this definition; it pulls in the type `proc T`, an Armada function that returns a value of type `T`. Functions are written using "bind" notation; to understand the examples all you need to know is that `x <- f; ...` means to run `f` and store the result in the variable `x`, then continue running with the new variable `x`.
+The Coq version of `CreateTable` is written as a definition of type `proc Table.t`. A library called `Goose.base` defines all the support needed for this definition; it pulls in the type `proc T`, an Armada procedure that returns a value of type `T`. Procedures are written using "bind" notation; to understand the examples all you need to know is that `x <- f; ...` means to run `f` and store the result in the variable `x`, then continue running with the new variable `x`.
 
 Armada functions using `Goose.base` can call a few primitive operations. Here we see two types of primitives: `Data.newMap` corresponds to creating a map (complete with the type of values), and the `filesys.*` functions in Go are turned into `FS.*` methods in Coq (after lower-casing). The Coq definitions are primitives that form the Goose API, and include heap-manipulating functions `Data.*` as well as a filesystem API under `FS.`. The filesystem API is one provided by Goose via the `github.com/tchajed/goose/machine/filesys` package.
 
