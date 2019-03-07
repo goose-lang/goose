@@ -24,11 +24,12 @@ func (s *CoqSuite) TestRecord(c *C) {
 	}.CoqDecl(), Equals, strings.TrimSpace(`
 Module Entry.
   (* An Entry is a key-value pair. *)
-  Record t := mk {
+  Record t {model:GoModel} := mk {
     Key: uint64;
     Value: slice.t byte;
   }.
-  Global Instance t_zero : HasGoZero t := mk (zeroValue _) (zeroValue _).
+  Arguments mk {model}.
+  Global Instance t_zero {model:GoModel} : HasGoZero t := mk (zeroValue _) (zeroValue _).
 End Entry.`))
 }
 
@@ -90,7 +91,7 @@ func (s *CoqSuite) TestFuncDecl(c *C) {
 	}
 	c.Check(f.CoqDecl(), Equals, strings.TrimSpace(`
 (* returnConstant ignores its arguments *)
-Definition returnConstant (p:Path) (f:Fd) : proc uint64 :=
+Definition returnConstant {model:GoModel} (p:Path) (f:Fd) : proc uint64 :=
   Ret 0.
 `))
 }
