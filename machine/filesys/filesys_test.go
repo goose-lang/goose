@@ -53,6 +53,16 @@ func (s FilesysSuite) TestCreateReadExtra(c *C) {
 	c.Check(data, DeepEquals, written)
 }
 
+func (s FilesysSuite) TestReadAtOob(c *C) {
+	f := s.fs.Create("test.bin")
+	s.fs.Append(f, []byte("some data"))
+	s.fs.Close(f)
+
+	f2 := s.fs.Open("test.bin")
+	data := s.fs.ReadAt(f2, 1000, 10)
+	c.Check(data, HasLen, 0)
+}
+
 func (s FilesysSuite) TestReadAtOffset(c *C) {
 	written := []byte("some longer data")
 	f := s.fs.Create("test.bin")

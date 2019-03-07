@@ -30,3 +30,23 @@ func (s *PrimSuite) TestUInt64GetPut(c *C) {
 		c.Check(UInt64Get(p), Equals, tt, Commentf("with larger buffer"))
 	}
 }
+
+func (s *PrimSuite) TestUInt64ToString(c *C) {
+	tests := []struct {
+		Num uint64
+		Str string
+	}{
+		{0, "0"},
+		{2, "2"},
+		{1024, "1024"},
+	}
+	for _, tt := range tests {
+		c.Check(UInt64ToString(tt.Num), Equals, tt.Str)
+	}
+}
+
+func (s *PrimSuite) TestRandomDoesNotPanic(c *C) {
+	// not much we can test here
+	RandomUint64()
+	RandomUint64()
+}
