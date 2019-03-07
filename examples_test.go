@@ -24,6 +24,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"testing"
 
 	"github.com/tchajed/goose"
 )
@@ -33,6 +34,8 @@ import . "gopkg.in/check.v1"
 var updateGold = flag.Bool("update-gold",
 	false,
 	"update *.gold.v files in internal/examples/ with current output")
+
+func Test(t *testing.T) { TestingT(t) }
 
 type ExamplesSuite struct{}
 

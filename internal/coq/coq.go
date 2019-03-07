@@ -85,7 +85,7 @@ func indent(spaces int, s string) string {
 	return strings.Join(lines, "\n")
 }
 
-func addComment(pp *buffer, c string) {
+func (pp *buffer) AddComment(c string) {
 	if c == "" {
 		return
 	}
@@ -125,7 +125,7 @@ func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
-	addComment(&pp, d.Comment)
+	pp.AddComment(d.Comment)
 	pp.Add("Record t {model:GoModel} := mk {")
 	pp.Indent(2)
 	for _, fd := range d.Fields {
@@ -605,7 +605,7 @@ func (d FuncDecl) Signature() string {
 // function.
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
-	addComment(&pp, d.Comment)
+	pp.AddComment(d.Comment)
 	pp.Add("Definition %s :=", d.Signature())
 	pp.Indent(2)
 	pp.AddLine(d.Body.Coq() + ".")
@@ -628,7 +628,7 @@ func NewComment(s string) CommentDecl {
 // For CommentDecl this emits a Coq top-level comment.
 func (d CommentDecl) CoqDecl() string {
 	var pp buffer
-	addComment(&pp, string(d))
+	pp.AddComment(string(d))
 	return pp.Build()
 }
 
