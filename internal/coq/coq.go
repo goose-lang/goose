@@ -126,18 +126,19 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	addComment(&pp, d.Comment)
-	pp.Add("Record t := mk {")
+	pp.Add("Record t {model:GoModel} := mk {")
 	pp.Indent(2)
 	for _, fd := range d.Fields {
 		pp.Add("%s: %s;", fd.Name, fd.Type.Coq())
 	}
 	pp.Indent(-2)
 	pp.Add("}.")
+	pp.Add("Arguments mk {model}.")
 	var zeroValueArgs []string
 	for range d.Fields {
 		zeroValueArgs = append(zeroValueArgs, "(zeroValue _)")
 	}
-	pp.Add("Global Instance t_zero : HasGoZero t := mk %s.",
+	pp.Add("Global Instance t_zero {model:GoModel} : HasGoZero t := mk %s.",
 		strings.Join(zeroValueArgs, " "))
 	pp.Indent(-2)
 	pp.Add("End %s.", d.Name)
@@ -589,7 +590,7 @@ type FuncDecl struct {
 
 // Signature renders the function declaration's type signature for Coq
 func (d FuncDecl) Signature() string {
-	var args []string
+	args := []string{"{model:GoModel}"}
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
 	}
