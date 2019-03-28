@@ -8,7 +8,7 @@ import (
 func useSlice() {
 	s := make([]byte, 1)
 	s1 := append(s, s...)
-	filesys.AtomicCreate("file", s1)
+	filesys.AtomicCreate("dir", "file", s1)
 }
 
 func useSliceIndexing() uint64 {

@@ -40,11 +40,11 @@ func (f File) fd() int {
 	return int(f)
 }
 
-// Filesys provides access a single directory.
+// Filesys provides access a directory with one layer of nested directories.
 type Filesys interface {
 	// Create creates an empty file at fname (which must not exist) in
 	// write-only mode
-	Create(fname string) File
+	Create(dir, fname string) File
 	// Append to an open file
 	Append(f File, data []byte)
 	// Close closes a file, invalidating the file descriptor
@@ -53,21 +53,21 @@ type Filesys interface {
 	//
 	// Read-only files do not use the read offset managed by the kernel since
 	// all reads are absolute.
-	Open(fname string) File
+	Open(dir, fname string) File
 	// ReadAt reads from an offset in the file (using pread)
 	ReadAt(f File, offset uint64, length uint64) []byte
 	// Delete deletes a file (which must exist).
-	Delete(fname string)
+	Delete(dir, fname string)
 	// AtomicCreate creates a file with data atomically using a temp file and
 	// rename.
-	AtomicCreate(fname string, data []byte)
+	AtomicCreate(dir, fname string, data []byte)
 	// Link creates a hard link from newName to oldName
-	Link(oldName, newName string) bool
+	Link(oldDir, oldName, newDir, newName string) bool
 	// List lists the directory using readdir().
 	//
 	// This is a non-atomic operation since multiple system calls might be
 	// needed to read the entire directory entry.
-	List() []string
+	List(dir string) []string
 }
 
 // Fs is a global instance of Filesys.
@@ -78,8 +78,8 @@ var Fs Filesys
 // Re-export the filesystem methods on the global Filesys
 
 // Create calls Create on the global Filesys
-func Create(fname string) File {
-	return Fs.Create(fname)
+func Create(dir, fname string) File {
+	return Fs.Create(dir, fname)
 }
 
 // Append calls Append on the global Filesys
@@ -93,8 +93,8 @@ func Close(f File) {
 }
 
 // Open calls Open on the global Filesys
-func Open(fname string) File {
-	return Fs.Open(fname)
+func Open(dir, fname string) File {
+	return Fs.Open(dir, fname)
 }
 
 // ReadAt calls ReadAt on the global Filesys
@@ -103,23 +103,23 @@ func ReadAt(f File, offset uint64, length uint64) []byte {
 }
 
 // Delete calls Delete on the global Filesys
-func Delete(fname string) {
-	Fs.Delete(fname)
+func Delete(dir, fname string) {
+	Fs.Delete(dir, fname)
 }
 
 // AtomicCreate calls AtomicCreate on the global Filesys
-func AtomicCreate(fname string, data []byte) {
-	Fs.AtomicCreate(fname, data)
+func AtomicCreate(dir, fname string, data []byte) {
+	Fs.AtomicCreate(dir, fname, data)
 }
 
 // Link calls Link on the global Filesys
-func Link(oldName, newName string) bool {
-	return Fs.Link(oldName, newName)
+func Link(oldDir, oldName, newDir, newName string) bool {
+	return Fs.Link(oldDir, oldName, newDir, newName)
 }
 
 // List calls List on the global Filesys
-func List() []string {
-	return Fs.List()
+func List(dir string) []string {
+	return Fs.List(dir)
 }
 
 // DefaultFs returns a directory filesystem using the global flag configuration.
@@ -140,12 +140,19 @@ func NewDirFs(root string) DirFs {
 	return DirFs{rootDirectory: root}
 }
 
-func (fs DirFs) resolve(p string) string {
-	return path.Join(fs.rootDirectory, p)
+func (fs DirFs) resolve(dir, p string) string {
+	return path.Join(fs.rootDirectory, dir, p)
 }
 
-func (fs DirFs) Create(fname string) File {
-	fd, err := syscall.Open(fs.resolve(fname),
+func (fs DirFs) Mkdir(p string) {
+	err := syscall.Mkdir(fs.resolve(".", p), 0755)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (fs DirFs) Create(dir, fname string) File {
+	fd, err := syscall.Open(fs.resolve(dir, fname),
 		syscall.O_CREAT|syscall.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
@@ -170,8 +177,8 @@ func (fs DirFs) Close(f File) {
 	}
 }
 
-func (fs DirFs) Open(fname string) File {
-	fd, err := syscall.Open(fs.resolve(fname),
+func (fs DirFs) Open(dir, fname string) File {
+	fd, err := syscall.Open(fs.resolve(dir, fname),
 		syscall.O_RDONLY, 0)
 	if err != nil {
 		panic(err)
@@ -188,15 +195,15 @@ func (fs DirFs) ReadAt(f File, offset uint64, length uint64) []byte {
 	return p[:n]
 }
 
-func (fs DirFs) Delete(fname string) {
-	err := syscall.Unlink(fs.resolve(fname))
+func (fs DirFs) Delete(dir, fname string) {
+	err := syscall.Unlink(fs.resolve(dir, fname))
 	if err != nil {
 		panic(fmt.Errorf("unlink(%s): %s", fname, err))
 	}
 }
 
-func (fs DirFs) AtomicCreate(fname string, data []byte) {
-	tmpFile := fs.resolve(fname + ".tmp")
+func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
+	tmpFile := fs.resolve(".", fname+".tmp")
 	fd, err := syscall.Open(tmpFile,
 		syscall.O_CREAT|syscall.O_WRONLY, 0644)
 	if err != nil {
@@ -209,22 +216,20 @@ func (fs DirFs) AtomicCreate(fname string, data []byte) {
 		}
 		data = data[n:]
 	}
-	err = syscall.Rename(tmpFile, fs.resolve(fname))
+	err = syscall.Rename(tmpFile, fs.resolve(dir, fname))
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (fs DirFs) Link(oldName, newName string) bool {
-	err := syscall.Link(fs.resolve(oldName), fs.resolve(newName))
-	if err != nil {
-		return false
-	}
-	return true
+func (fs DirFs) Link(oldDir, oldName, newDir, newName string) bool {
+	err := syscall.Link(fs.resolve(oldDir, oldName),
+		fs.resolve(newDir, newName))
+	return err == nil
 }
 
-func (fs DirFs) List() []string {
-	d, err := os.Open(fs.rootDirectory)
+func (fs DirFs) List(dir string) []string {
+	d, err := os.Open(fs.resolve(".", dir))
 	if err != nil {
 		panic(err)
 	}

@@ -25,9 +25,9 @@ type Table struct {
 // CreateTable creates a new, empty table.
 func CreateTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := filesys.Create(p)
+	f := filesys.Create("db", p)
 	filesys.Close(f)
-	f2 := filesys.Open(p)
+	f2 := filesys.Open("db", p)
 	return Table{Index: index, File: f2}
 }
 
@@ -104,7 +104,7 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 // RecoverTable restores a table from disk on startup.
 func RecoverTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := filesys.Open(p)
+	f := filesys.Open("db", p)
 	readTableIndex(f, index)
 	return Table{Index: index, File: f}
 }
@@ -179,7 +179,7 @@ type tableWriter struct {
 
 func newTableWriter(p string) tableWriter {
 	index := make(map[uint64]uint64)
-	f := filesys.Create(p)
+	f := filesys.Create("db", p)
 	buf := newBuf(f)
 	off := new(uint64)
 	return tableWriter{
@@ -198,7 +198,7 @@ func tableWriterAppend(w tableWriter, p []byte) {
 
 func tableWriterClose(w tableWriter) Table {
 	bufClose(w.file)
-	f := filesys.Open(w.name)
+	f := filesys.Open("db", w.name)
 	return Table{
 		Index: w.index,
 		File:  f,
@@ -427,9 +427,9 @@ func Compact(db Database) {
 	*db.table = t
 	*db.tableName = newTable
 	manifestData := []byte(newTable)
-	filesys.AtomicCreate("manifest", manifestData)
+	filesys.AtomicCreate("db", "manifest", manifestData)
 	CloseTable(oldTable)
-	filesys.Delete(oldTableName)
+	filesys.Delete("db", oldTableName)
 	// note that we don't need to remove the rbuffer (it's just a cache for
 	// the part of the table we just persisted)
 	db.tableL.Unlock()
@@ -438,7 +438,7 @@ func Compact(db Database) {
 }
 
 func recoverManifest() string {
-	f := filesys.Open("manifest")
+	f := filesys.Open("db", "manifest")
 	// need to know that table names are less than 4096 bytes
 	// (eventually we'll probably restrict ReadAt to read at most 4096 bytes
 	//  at a time due to it being atomic,
@@ -458,11 +458,11 @@ func deleteOtherFile(name string, tableName string) {
 	if name == "manifest" {
 		return
 	}
-	filesys.Delete(name)
+	filesys.Delete("db", name)
 }
 
 func deleteOtherFiles(tableName string) {
-	files := filesys.List()
+	files := filesys.List("db")
 	nfiles := uint64(len(files))
 	for i := uint64(0); ; {
 		if i == nfiles {

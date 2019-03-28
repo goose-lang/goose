@@ -23,6 +23,14 @@ func (m fileMode) String() string {
 	return "invalidMode"
 }
 
+type pathname struct {
+	dir, name string
+}
+
+func mkpath(dir, name string) pathname {
+	return pathname{dir: dir, name: name}
+}
+
 // MemFs is an in-memory, thread-safe implementation of filesys.Filesys.
 type MemFs struct {
 	m sync.Mutex
@@ -30,8 +38,8 @@ type MemFs struct {
 	// (note that fds and inodes overlap)
 	// (note also that there are no directory fds, so these are all files)
 	inodes map[int][]byte
-	// filename -> inode
-	dirents map[string]int
+	// (dir,name) -> inode
+	dirents map[pathname]int
 	// solely for catching misuse we track open files
 	openFiles map[int]fileMode
 }
@@ -40,7 +48,7 @@ type MemFs struct {
 func NewMemFs() *MemFs {
 	return &MemFs{
 		inodes:    make(map[int][]byte),
-		dirents:   make(map[string]int),
+		dirents:   make(map[pathname]int),
 		openFiles: make(map[int]fileMode),
 	}
 }
@@ -49,12 +57,12 @@ func (fs *MemFs) nextFd() int {
 	return len(fs.inodes) + 1
 }
 
-func (fs *MemFs) Create(fname string) File {
+func (fs *MemFs) Create(dir, fname string) File {
 	fs.m.Lock()
 	defer fs.m.Unlock()
 	fd := fs.nextFd()
 	fs.inodes[fd] = nil
-	fs.dirents[fname] = fd
+	fs.dirents[mkpath(dir, fname)] = fd
 	fs.openFiles[fd] = appendMode
 	return File(fd)
 }
@@ -86,11 +94,11 @@ func (fs *MemFs) Close(f File) {
 	delete(fs.openFiles, f.fd())
 }
 
-func (fs *MemFs) Open(fname string) File {
+func (fs *MemFs) Open(dir, fname string) File {
 	fs.m.Lock()
 	defer fs.m.Unlock()
 	fname = path.Clean(fname)
-	fd, ok := fs.dirents[fname]
+	fd, ok := fs.dirents[mkpath(dir, fname)]
 	if !ok {
 		panic(fmt.Errorf("file %s does not exist", fname))
 	}
@@ -114,42 +122,44 @@ func (fs *MemFs) ReadAt(f File, offset uint64, length uint64) []byte {
 	return p[:n]
 }
 
-func (fs *MemFs) Delete(fname string) {
+func (fs *MemFs) Delete(dir, fname string) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
-	delete(fs.dirents, fname)
+	delete(fs.dirents, mkpath(dir, fname))
 	// NOTE: we don't actually garbage collect unreachable files
 }
 
-func (fs *MemFs) AtomicCreate(fname string, data []byte) {
+func (fs *MemFs) AtomicCreate(dir, fname string, data []byte) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
 	fd := fs.nextFd()
 	p := make([]byte, len(data))
 	copy(p, data)
 	fs.inodes[fd] = p
-	fs.dirents[fname] = fd
+	fs.dirents[mkpath(dir, fname)] = fd
 }
 
-func (fs *MemFs) Link(oldName, newName string) bool {
+func (fs *MemFs) Link(oldDir, oldName, newDir, newName string) bool {
 	fs.m.Lock()
 	defer fs.m.Unlock()
-	fd, ok := fs.dirents[oldName]
+	fd, ok := fs.dirents[mkpath(oldDir, oldName)]
 	if !ok {
-		panic(fmt.Errorf("attempt to link non-existent file %s", oldName))
+		panic(fmt.Errorf("attempt to link non-existent file %s/%s", oldDir, oldName))
 	}
-	if _, ok := fs.dirents[newName]; ok {
+	if _, ok := fs.dirents[mkpath(newDir, newName)]; ok {
 		return false
 	}
-	fs.dirents[newName] = fd
+	fs.dirents[mkpath(newDir, newName)] = fd
 	return true
 }
 
-func (fs *MemFs) List() (names []string) {
+func (fs *MemFs) List(dir string) (names []string) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
 	for n := range fs.dirents {
-		names = append(names, n)
+		if n.dir == dir {
+			names = append(names, n.name)
+		}
 	}
 	return
 }

@@ -26,18 +26,18 @@ type FilesysSuite struct {
 
 func (s FilesysSuite) TestCreateReadExact(c *C) {
 	written := []byte("some data")
-	f := s.fs.Create("test.bin")
+	f := s.fs.Create("dir", "test.bin")
 	s.fs.Append(f, written)
 	s.fs.Close(f)
 
-	f2 := s.fs.Open("test.bin")
+	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, 0, uint64(len(written)))
 	c.Check(data, DeepEquals, written)
 }
 
 // readAll only works for files < 4096 bytes
 func (s FilesysSuite) readAll(fname string) []byte {
-	f := s.fs.Open(fname)
+	f := s.fs.Open("dir", fname)
 	data := s.fs.ReadAt(f, 0, 4096)
 	s.fs.Close(f)
 	return data
@@ -45,7 +45,7 @@ func (s FilesysSuite) readAll(fname string) []byte {
 
 func (s FilesysSuite) TestCreateReadExtra(c *C) {
 	written := []byte("some data")
-	f := s.fs.Create("test.bin")
+	f := s.fs.Create("dir", "test.bin")
 	s.fs.Append(f, written)
 	s.fs.Close(f)
 
@@ -54,22 +54,22 @@ func (s FilesysSuite) TestCreateReadExtra(c *C) {
 }
 
 func (s FilesysSuite) TestReadAtOob(c *C) {
-	f := s.fs.Create("test.bin")
+	f := s.fs.Create("dir", "test.bin")
 	s.fs.Append(f, []byte("some data"))
 	s.fs.Close(f)
 
-	f2 := s.fs.Open("test.bin")
+	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, 1000, 10)
 	c.Check(data, HasLen, 0)
 }
 
 func (s FilesysSuite) TestReadAtOffset(c *C) {
 	written := []byte("some longer data")
-	f := s.fs.Create("test.bin")
+	f := s.fs.Create("dir", "test.bin")
 	s.fs.Append(f, written)
 	s.fs.Close(f)
 
-	f2 := s.fs.Open("test.bin")
+	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, uint64(len("some ")), uint64(len("longer")))
 	c.Check(data, DeepEquals, []byte("longer"))
 }
@@ -83,40 +83,40 @@ func sorted(s []string) []string {
 }
 
 func (s FilesysSuite) TestList(c *C) {
-	c.Check(s.fs.List(), HasLen, 0)
-	s.fs.Close(s.fs.Create("f1"))
-	s.fs.Close(s.fs.Create("f2"))
-	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f1", "f2"})
+	c.Check(s.fs.List("dir"), HasLen, 0)
+	s.fs.Close(s.fs.Create("dir", "f1"))
+	s.fs.Close(s.fs.Create("dir", "f2"))
+	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f1", "f2"})
 }
 
 func (s FilesysSuite) TestDelete(c *C) {
-	s.fs.Close(s.fs.Create("f1"))
-	s.fs.Close(s.fs.Create("f2"))
-	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f1", "f2"})
-	s.fs.Delete("f1")
-	c.Check(sorted(s.fs.List()), DeepEquals, []string{"f2"})
+	s.fs.Close(s.fs.Create("dir", "f1"))
+	s.fs.Close(s.fs.Create("dir", "f2"))
+	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f1", "f2"})
+	s.fs.Delete("dir", "f1")
+	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f2"})
 }
 
 func (s FilesysSuite) TestAtomicCreate(c *C) {
 	contents := []byte("hello world")
-	s.fs.AtomicCreate("testfile", contents)
-	f := s.fs.Open("testfile")
+	s.fs.AtomicCreate("dir", "testfile", contents)
+	f := s.fs.Open("dir", "testfile")
 	data := s.fs.ReadAt(f, 0, uint64(len(contents)))
 	c.Check(data, DeepEquals, contents)
 }
 
 func (s FilesysSuite) TestLink(c *C) {
 	contents := []byte("hello world")
-	s.fs.AtomicCreate("file1", contents)
-	ok := s.fs.Link("file1", "file2")
+	s.fs.AtomicCreate("dir", "file1", contents)
+	ok := s.fs.Link("dir", "file1", "dir", "file2")
 	c.Assert(ok, Equals, true)
-	ok = s.fs.Link("file2", "file1")
+	ok = s.fs.Link("dir", "file2", "dir", "file1")
 	c.Check(ok, Equals, false)
 	c.Check(s.readAll("file1"), DeepEquals, contents)
 	c.Check(s.readAll("file2"), DeepEquals, contents)
-	s.fs.Delete("file1")
+	s.fs.Delete("dir", "file1")
 	c.Check(s.readAll("file2"), DeepEquals, contents)
-	c.Check(sorted(s.fs.List()), DeepEquals, []string{"file2"})
+	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"file2"})
 }
 
 type MemFilesysSuite struct {
@@ -142,7 +142,9 @@ func (s *DirFilesysSuite) SetUpTest(c *C) {
 	if err != nil {
 		panic(err)
 	}
-	s.FilesysSuite = FilesysSuite{fs: filesys.NewDirFs(s.dir)}
+	fs := filesys.NewDirFs(s.dir)
+	fs.Mkdir("dir")
+	s.FilesysSuite = FilesysSuite{fs: fs}
 }
 
 func (s *DirFilesysSuite) TearDownTest(c *C) {

@@ -10,8 +10,12 @@ type partialFile struct {
 	data []byte
 }
 
-func readMessage(name string) []byte {
-	f := filesys.Open(name)
+func getUserDir(user uint64) string {
+	return "user" + machine.UInt64ToString(user)
+}
+
+func readMessage(userDir string, name string) []byte {
+	f := filesys.Open(userDir, name)
 	fileContents := new([]byte)
 	for pf := (partialFile{off: 0, data: nil}); ; {
 		buf := filesys.ReadAt(f, pf.off, 4096)
@@ -28,8 +32,9 @@ func readMessage(name string) []byte {
 }
 
 // Pickup reads all stored messages
-func Pickup() [][]byte {
-	names := filesys.List()
+func Pickup(user uint64) [][]byte {
+	userDir := getUserDir(user)
+	names := filesys.List(userDir)
 	messages := new([][]byte)
 	initMessages := make([][]byte, 0)
 	*messages = initMessages
@@ -38,7 +43,7 @@ func Pickup() [][]byte {
 			break
 		}
 		name := names[i]
-		msg := readMessage(name)
+		msg := readMessage(userDir, name)
 		oldMessages := *messages
 		newMessages := append(oldMessages, msg)
 		*messages = newMessages
@@ -49,8 +54,8 @@ func Pickup() [][]byte {
 	return msgs
 }
 
-func writeAll(fname string, data []byte) {
-	f := filesys.Create(fname)
+func writeTmp(fname string, data []byte) {
+	f := filesys.Create("spool", fname)
 	for buf := data; ; {
 		if len(buf) < 4096 {
 			filesys.Append(f, buf)
@@ -66,11 +71,13 @@ func writeAll(fname string, data []byte) {
 // Deliver stores a new message
 //
 // tid should be a unique thread ID (used as a helper for spooling the message).
-func Deliver(tid string, msg []byte) {
-	writeAll(tid, msg)
+func Deliver(tid string, user uint64, msg []byte) {
+	userDir := getUserDir(user)
+	writeTmp(tid, msg)
 	initID := machine.RandomUint64()
 	for id := initID; ; {
-		ok := filesys.Link(tid, "msg"+machine.UInt64ToString(id))
+		ok := filesys.Link("spool", tid,
+			userDir, "msg"+machine.UInt64ToString(id))
 		if ok {
 			break
 		} else {
