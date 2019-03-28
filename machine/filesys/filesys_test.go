@@ -175,6 +175,8 @@ func (s *DirFilesysSuite) SetUpTest(c *C) {
 	}
 	fs := filesys.NewDirFs(s.dir)
 	fs.Mkdir("dir")
+	fs.Mkdir("dir1")
+	fs.Mkdir("dir2")
 	s.FilesysSuite = FilesysSuite{fs: fs}
 }
 
