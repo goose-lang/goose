@@ -25,7 +25,7 @@ type Table struct {
 // CreateTable creates a new, empty table.
 func CreateTable(p string) Table {
 	index := make(map[uint64]uint64)
-	f := filesys.Create("db", p)
+	f, _ := filesys.Create("db", p)
 	filesys.Close(f)
 	f2 := filesys.Open("db", p)
 	return Table{Index: index, File: f2}
@@ -179,7 +179,7 @@ type tableWriter struct {
 
 func newTableWriter(p string) tableWriter {
 	index := make(map[uint64]uint64)
-	f := filesys.Create("db", p)
+	f, _ := filesys.Create("db", p)
 	buf := newBuf(f)
 	off := new(uint64)
 	return tableWriter{

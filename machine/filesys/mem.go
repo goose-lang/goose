@@ -57,14 +57,18 @@ func (fs *MemFs) nextFd() int {
 	return len(fs.inodes) + 1
 }
 
-func (fs *MemFs) Create(dir, fname string) File {
+func (fs *MemFs) Create(dir, fname string) (f File, ok bool) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	p := mkpath(dir, fname)
+	if _, ok := fs.dirents[p]; ok {
+		return File(-1), false
+	}
 	fd := fs.nextFd()
 	fs.inodes[fd] = nil
-	fs.dirents[mkpath(dir, fname)] = fd
+	fs.dirents[p] = fd
 	fs.openFiles[fd] = appendMode
-	return File(fd)
+	return File(fd), true
 }
 
 func (fs *MemFs) checkMode(f File, mode fileMode) int {

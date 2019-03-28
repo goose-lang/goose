@@ -42,9 +42,9 @@ func (f File) fd() int {
 
 // Filesys provides access a directory with one layer of nested directories.
 type Filesys interface {
-	// Create creates an empty file at fname (which must not exist) in
-	// write-only mode
-	Create(dir, fname string) File
+	// Create creates an empty file at fname in write-only mode.
+	// Returns ok=false and does nothing if fname exists.
+	Create(dir, fname string) (f File, ok bool)
 	// Append to an open file
 	Append(f File, data []byte)
 	// Close closes a file, invalidating the file descriptor
@@ -78,7 +78,7 @@ var Fs Filesys
 // Re-export the filesystem methods on the global Filesys
 
 // Create calls Create on the global Filesys
-func Create(dir, fname string) File {
+func Create(dir, fname string) (File, bool) {
 	return Fs.Create(dir, fname)
 }
 
@@ -151,13 +151,16 @@ func (fs DirFs) Mkdir(p string) {
 	}
 }
 
-func (fs DirFs) Create(dir, fname string) File {
+func (fs DirFs) Create(dir, fname string) (f File, ok bool) {
 	fd, err := syscall.Open(fs.resolve(dir, fname),
-		syscall.O_CREAT|syscall.O_WRONLY, 0644)
+		syscall.O_CREAT|syscall.O_EXCL|syscall.O_WRONLY, 0644)
+	if err == syscall.EEXIST {
+		return File(-1), false
+	}
 	if err != nil {
 		panic(err)
 	}
-	return File(fd)
+	return File(fd), true
 }
 
 func (fs DirFs) Append(f File, data []byte) {

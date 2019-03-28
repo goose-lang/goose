@@ -54,8 +54,30 @@ func Pickup(user uint64) [][]byte {
 	return msgs
 }
 
-func writeTmp(fname string, data []byte) {
-	f := filesys.Create("spool", fname)
+func createTmp() (filesys.File, string) {
+	initID := machine.RandomUint64()
+	finalFile := new(filesys.File)
+	finalName := new(string)
+	for id := initID; ; {
+		fname := machine.UInt64ToString(id)
+		f, ok := filesys.Create("tmp", fname)
+		if ok {
+			*finalFile = f
+			*finalName = fname
+			break
+		} else {
+			newID := machine.RandomUint64()
+			id = newID
+			continue
+		}
+	}
+	f := *finalFile
+	name := *finalName
+	return f, name
+}
+
+func writeTmp(data []byte) string {
+	f, name := createTmp()
 	for buf := data; ; {
 		if len(buf) < 4096 {
 			filesys.Append(f, buf)
@@ -66,17 +88,16 @@ func writeTmp(fname string, data []byte) {
 		continue
 	}
 	filesys.Close(f)
+	return name
 }
 
 // Deliver stores a new message
-//
-// tid should be a unique thread ID (used as a helper for spooling the message).
-func Deliver(tid string, user uint64, msg []byte) {
+func Deliver(user uint64, msg []byte) {
 	userDir := getUserDir(user)
-	writeTmp(tid, msg)
+	tmpName := writeTmp(msg)
 	initID := machine.RandomUint64()
 	for id := initID; ; {
-		ok := filesys.Link("spool", tid,
+		ok := filesys.Link("spool", tmpName,
 			userDir, "msg"+machine.UInt64ToString(id))
 		if ok {
 			break
@@ -86,4 +107,9 @@ func Deliver(tid string, user uint64, msg []byte) {
 			continue
 		}
 	}
+	filesys.Delete("spool", tmpName)
+}
+
+func Recover() {
+	// TODO: implement (iterate over spool and unlink everything)
 }
