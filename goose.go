@@ -290,7 +290,7 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 }
 
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
-	args []ast.Expr) coq.CallExpr {
+	args []ast.Expr) coq.Expr {
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
@@ -303,7 +303,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		case "RandomUint64":
 			return ctx.newCoqCall("Data.randomUint64", nil)
 		case "UInt64ToString":
-			return ctx.newCoqCall("uint64_to_string", args)
+			return coq.PureCall(ctx.newCoqCall("uint64_to_string", args))
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}
@@ -324,7 +324,7 @@ func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
 	return coq.NewCallExpr(method, args...)
 }
 
-func (ctx Ctx) methodExpr(f ast.Expr, args []ast.Expr) coq.CallExpr {
+func (ctx Ctx) methodExpr(f ast.Expr, args []ast.Expr) coq.Expr {
 	switch f := f.(type) {
 	case *ast.Ident:
 		if f.Name == "string" {

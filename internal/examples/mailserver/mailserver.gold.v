@@ -54,7 +54,7 @@ Definition createTmp {model:GoModel} : proc (File * string) :=
   finalFile <- Data.newPtr File;
   finalName <- Data.newPtr string;
   _ <- Loop (fun id =>
-        fname <- uint64_to_string id;
+        let fname := uint64_to_string id in
         let! (f, ok) <- FS.create "tmp" fname;
         if ok
         then
