@@ -112,8 +112,10 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		switch t.Name() {
 		case "string", "uint64", "byte", "bool":
 			return coq.TypeIdent(t.Name())
+		case "untyped string":
+			return coq.TypeIdent("string")
 		default:
-			ctx.unsupported(n, "basic types")
+			ctx.unsupported(n, "basic type %s", t.Name())
 		}
 	}
 	return coq.TypeIdent("<type>")
@@ -1042,12 +1044,34 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
-		ctx.futureWork(d.Recv, "methods need to be lifted by moving the receiver to the arg list")
+		ctx.futureWork(d.Recv,
+			"methods need to be lifted by moving the receiver to the arg list")
 	}
 	fd.Args = ctx.paramList(d.Type.Params)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd
+}
+
+func (ctx Ctx) constDecl(d *ast.GenDecl) coq.ConstDecl {
+	spec := d.Specs[0].(*ast.ValueSpec)
+	if len(d.Specs) > 1 || len(spec.Names) > 1 {
+		ctx.unsupported(d, "multiple const declarations")
+		return coq.ConstDecl{}
+	}
+	cd := coq.ConstDecl{
+		Name: spec.Names[0].Name,
+	}
+	addSourceDoc(spec.Comment, &cd.Comment)
+	val := spec.Values[0]
+	cd.Val = ctx.expr(val)
+	if spec.Type == nil {
+		cd.Type = ctx.coqTypeOfType(spec, ctx.typeOf(val))
+	} else {
+		cd.Type = ctx.coqType(spec.Type)
+	}
+	cd.Val = ctx.expr(spec.Values[0])
+	return cd
 }
 
 func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
@@ -1092,7 +1116,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 			ctx.checkImports(d.Specs)
 			return nil
 		case token.CONST:
-			ctx.todo(d, "global constants")
+			return ctx.constDecl(d)
 		case token.VAR:
 			if len(d.Specs) > 1 {
 				ctx.unsupported(d, "multiple vars")

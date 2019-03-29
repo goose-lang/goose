@@ -632,7 +632,22 @@ func (d CommentDecl) CoqDecl() string {
 	return pp.Build()
 }
 
-// Decl is a FuncDecl, StructDecl, or CommentDecl
+type ConstDecl struct {
+	Name    string
+	Type    Type
+	Val     Expr
+	Comment string
+}
+
+func (d ConstDecl) CoqDecl() string {
+	var pp buffer
+	pp.AddComment(d.Comment)
+	pp.Block("Definition ", "%s : %s := %s.",
+		d.Name, d.Type.Coq(), d.Val.Coq())
+	return pp.Build()
+}
+
+// Decl is a FuncDecl, StructDecl, CommentDecl, or ConstDecl
 type Decl interface {
 	CoqDecl() string
 }
