@@ -291,8 +291,7 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 
 }
 
-func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
-	args []ast.Expr) coq.Expr {
+func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
@@ -918,39 +917,16 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	return coq.Binding{}
 }
 
-func (ctx Ctx) goStmt(s *ast.GoStmt, loopVar *string) coq.Expr {
-	f, ok := s.Call.Fun.(*ast.FuncLit)
+func (ctx Ctx) spawnExpr(thread ast.Expr, loopVar *string) coq.SpawnExpr {
+	f, ok := thread.(*ast.FuncLit)
 	if !ok {
-		ctx.futureWork(s, "only go <func literal> is supported")
-		return nil
+		ctx.futureWork(thread,
+			"only function literal spawns are supported")
+		return coq.SpawnExpr{}
 	}
 	if loopVar != nil {
-		if !(len(s.Call.Args) == 1 &&
-			isIdent(s.Call.Args[0], *loopVar)) {
-			// if loop variable is not passed, function literal
-			// captures the variable itself rather than its
-			// value, which is not captured in the Coq model.
-			//
-			// go vet has a special check for this issue (see
-			// https://play.golang.org/p/OBqSYKLtv4E for incorrect code it
-			// catches, and https://play.golang.org/p/b7jZQ_QXcrF
-			// for one idiomatic fix),
-			//
-			// We still need this check if the loop variable is unused in the
-			// body (go vet won't complain in that case), but the code passes
-			// something into the spawned code, which we don't substitute in
-			// the emitted Coq.
-			ctx.unsupported(s,
-				"go statement must pass loop variable %s",
-				*loopVar)
-			return nil
-		}
-	} else {
-		if len(s.Call.Args) != 0 {
-			ctx.unsupported(f, "go of functions with arguments "+
-				"(other than passing loop variables)")
-			return nil
-		}
+		ctx.futureWork(thread,
+			"need a strategy to properly capture loop variables")
 	}
 	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
 }
@@ -960,6 +936,24 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.LoopRetExpr {
 		ctx.unsupported(s, "only break is supported to exit loops")
 	}
 	return coq.LoopRetExpr{}
+}
+
+// getSpawn returns a non-nil spawned thread if the expression is a call to
+// machine.Spawn()
+func getSpawn(e *ast.ExprStmt) ast.Expr {
+	callExpr, ok := e.X.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	method, ok := callExpr.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil
+	}
+	if isIdent(method.X, "machine") &&
+		isIdent(method.Sel, "Spawn") {
+		return callExpr.Args[0]
+	}
+	return nil
 }
 
 func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
@@ -980,6 +974,9 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		}
 		return coq.NewAnon(ctx.branchStmt(s))
 	case *ast.ExprStmt:
+		if thread := getSpawn(s); thread != nil {
+			return coq.NewAnon(ctx.spawnExpr(thread, loopVar))
+		}
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		return ctx.assignStmt(s, c, loopVar)
@@ -996,7 +993,8 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
 	case *ast.GoStmt:
-		return coq.NewAnon(ctx.goStmt(s, loopVar))
+		ctx.unsupported(s, "threads must be spawned with machine.Spawn")
+		return coq.Binding{}
 	default:
 		ctx.unsupported(s, "statement")
 	}
