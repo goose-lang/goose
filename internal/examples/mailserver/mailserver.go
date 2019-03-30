@@ -31,12 +31,18 @@ func readMessage(userDir string, name string) []byte {
 	return fileData
 }
 
+type Message struct {
+	Id       string
+	Contents []byte
+}
+
 // Pickup reads all stored messages
-func Pickup(user uint64) [][]byte {
+func Pickup(user uint64) []Message {
+	// TODO: acquire pickup/delete lock
 	userDir := getUserDir(user)
 	names := filesys.List(userDir)
-	messages := new([][]byte)
-	initMessages := make([][]byte, 0)
+	messages := new([]Message)
+	initMessages := make([]Message, 0)
 	*messages = initMessages
 	for i := uint64(0); ; {
 		if i == uint64(len(names)) {
@@ -45,7 +51,7 @@ func Pickup(user uint64) [][]byte {
 		name := names[i]
 		msg := readMessage(userDir, name)
 		oldMessages := *messages
-		newMessages := append(oldMessages, msg)
+		newMessages := append(oldMessages, Message{Id: name, Contents: msg})
 		*messages = newMessages
 		i = i + 1
 		continue
@@ -108,6 +114,12 @@ func Deliver(user uint64, msg []byte) {
 		}
 	}
 	filesys.Delete("spool", tmpName)
+}
+
+func Delete(user uint64, msgID string) {
+	// TODO: acquire pickup/delete lock
+	userDir := getUserDir(user)
+	filesys.Delete(userDir, msgID)
 }
 
 func Recover() {
