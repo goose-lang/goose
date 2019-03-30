@@ -96,4 +96,11 @@ Definition Deliver {model:GoModel} (user:uint64) (msg:slice.t byte) : proc unit 
   FS.delete "spool" tmpName.
 
 Definition Recover {model:GoModel} : proc unit :=
-  Ret tt.
+  spooled <- FS.list "spool";
+  Loop (fun i =>
+        if i == slice.length spooled
+        then LoopRet tt
+        else
+          name <- Data.sliceRead spooled i;
+          _ <- FS.delete "spool" name;
+          Continue (i + 1)) 0.

@@ -111,5 +111,14 @@ func Deliver(user uint64, msg []byte) {
 }
 
 func Recover() {
-	// TODO: implement (iterate over spool and unlink everything)
+	spooled := filesys.List("spool")
+	for i := uint64(0); ; {
+		if i == uint64(len(spooled)) {
+			break
+		}
+		name := spooled[i]
+		filesys.Delete("spool", name)
+		i = i + 1
+		continue
+	}
 }
