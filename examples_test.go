@@ -26,6 +26,9 @@ import (
 	"strings"
 	"testing"
 
+	// this is needed to compile the mailserver example
+	_ "github.com/tchajed/mailboat/globals"
+
 	"github.com/tchajed/goose"
 )
 
