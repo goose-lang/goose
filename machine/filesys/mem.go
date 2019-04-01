@@ -33,7 +33,8 @@ func mkpath(dir, name string) pathname {
 
 // MemFs is an in-memory, thread-safe implementation of filesys.Filesys.
 type MemFs struct {
-	m sync.Mutex
+	m         sync.Mutex
+	validDirs map[string]bool
 	// fd -> data
 	// (note that fds and inodes overlap)
 	// (note also that there are no directory fds, so these are all files)
@@ -47,9 +48,16 @@ type MemFs struct {
 // NewMemFs creates an empty MemFs
 func NewMemFs() *MemFs {
 	return &MemFs{
+		validDirs: make(map[string]bool),
 		inodes:    make(map[int][]byte),
 		dirents:   make(map[pathname]int),
 		openFiles: make(map[int]fileMode),
+	}
+}
+
+func (fs *MemFs) checkDir(dir string) {
+	if !fs.validDirs[dir] {
+		panic(fmt.Errorf("non-existent dir %s (use Mkdir)", dir))
 	}
 }
 
@@ -60,6 +68,7 @@ func (fs *MemFs) nextFd() int {
 func (fs *MemFs) Create(dir, fname string) (f File, ok bool) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	fs.checkDir(dir)
 	p := mkpath(dir, fname)
 	if _, ok := fs.dirents[p]; ok {
 		return File(-1), false
@@ -101,6 +110,7 @@ func (fs *MemFs) Close(f File) {
 func (fs *MemFs) Open(dir, fname string) File {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	fs.checkDir(dir)
 	fname = path.Clean(fname)
 	fd, ok := fs.dirents[mkpath(dir, fname)]
 	if !ok {
@@ -136,6 +146,7 @@ func (fs *MemFs) Delete(dir, fname string) {
 func (fs *MemFs) AtomicCreate(dir, fname string, data []byte) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	fs.checkDir(dir)
 	fd := fs.nextFd()
 	p := make([]byte, len(data))
 	copy(p, data)
@@ -146,6 +157,8 @@ func (fs *MemFs) AtomicCreate(dir, fname string, data []byte) {
 func (fs *MemFs) Link(oldDir, oldName, newDir, newName string) bool {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	fs.checkDir(oldDir)
+	fs.checkDir(newDir)
 	fd, ok := fs.dirents[mkpath(oldDir, oldName)]
 	if !ok {
 		panic(fmt.Errorf("attempt to link non-existent file %s/%s", oldDir, oldName))
@@ -160,10 +173,17 @@ func (fs *MemFs) Link(oldDir, oldName, newDir, newName string) bool {
 func (fs *MemFs) List(dir string) (names []string) {
 	fs.m.Lock()
 	defer fs.m.Unlock()
+	fs.checkDir(dir)
 	for n := range fs.dirents {
 		if n.dir == dir {
 			names = append(names, n.name)
 		}
 	}
 	return
+}
+
+func (fs *MemFs) Mkdir(dir string) {
+	fs.m.Lock()
+	defer fs.m.Unlock()
+	fs.validDirs[dir] = true
 }

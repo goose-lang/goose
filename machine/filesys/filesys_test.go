@@ -25,6 +25,12 @@ type FilesysSuite struct {
 	fs filesys.Filesys
 }
 
+func (s FilesysSuite) setupDirs() {
+	s.fs.Mkdir("dir")
+	s.fs.Mkdir("dir1")
+	s.fs.Mkdir("dir2")
+}
+
 func (s FilesysSuite) CreateNew(fname string) filesys.File {
 	f, ok := s.fs.Create("dir", fname)
 	if !ok {
@@ -158,6 +164,7 @@ var _ = Suite(&MemFilesysSuite{})
 
 func (s *MemFilesysSuite) SetUpTest(c *C) {
 	s.FilesysSuite = FilesysSuite{fs: filesys.NewMemFs()}
+	s.FilesysSuite.setupDirs()
 }
 
 type DirFilesysSuite struct {
@@ -173,11 +180,8 @@ func (s *DirFilesysSuite) SetUpTest(c *C) {
 	if err != nil {
 		panic(err)
 	}
-	fs := filesys.NewDirFs(s.dir)
-	fs.Mkdir("dir")
-	fs.Mkdir("dir1")
-	fs.Mkdir("dir2")
-	s.FilesysSuite = FilesysSuite{fs: fs}
+	s.FilesysSuite = FilesysSuite{fs: filesys.NewDirFs(s.dir)}
+	s.FilesysSuite.setupDirs()
 }
 
 func (s *DirFilesysSuite) TearDownTest(c *C) {

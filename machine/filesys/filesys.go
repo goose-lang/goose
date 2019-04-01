@@ -68,6 +68,11 @@ type Filesys interface {
 	// This is a non-atomic operation since multiple system calls might be
 	// needed to read the entire directory entry.
 	List(dir string) []string
+	// Mkdir creates a root directory.
+	//
+	// Used only for initialization outside of verified code
+	// (Armada's Go model does not model this operation).
+	Mkdir(dir string)
 }
 
 // Fs is a global instance of Filesys.
