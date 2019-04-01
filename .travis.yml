@@ -4,4 +4,10 @@ go:
   - "1.12.x"
   - "1.11.x"
   - "1.10.x"
+install:
+  - go get -t ./...
+  # the goose integration tests implicitly depend on this dependency being
+  # installed (and not merely its source code being fetched) since they load
+  # the packages for type information
+  - go install github.com/tchajed/mailboat/globals
 script: go test -v ./... -check.v
