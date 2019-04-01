@@ -311,6 +311,15 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 			return coq.CallExpr{}
 		}
 	}
+	if isIdent(f.X, "globals") {
+		switch f.Sel.Name {
+		case "SetX", "GetX":
+			return ctx.newCoqCall("Globals."+toInitialLower(f.Sel.Name), args)
+		default:
+			ctx.futureWork(f, "unhandled call to globals.%s", f.Sel.Name)
+			return coq.CallExpr{}
+		}
+	}
 	if isLockRef(ctx.typeOf(f.X)) {
 		return ctx.lockMethod(f)
 	}
@@ -1089,7 +1098,8 @@ func stringBasicLit(lit *ast.BasicLit) string {
 var okImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
 	"github.com/tchajed/goose/machine/filesys": true,
-	"sync": true,
+	"github.com/tchajed/mailboat/globals":      true,
+	"sync":                                     true,
 }
 
 func (ctx Ctx) checkImports(d []ast.Spec) {

@@ -1,8 +1,12 @@
-package mailserver
+package mailboat
 
 import (
+	"sync"
+
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/filesys"
+
+	"github.com/tchajed/mailboat/globals"
 )
 
 type partialFile struct {
@@ -13,6 +17,10 @@ type partialFile struct {
 func getUserDir(user uint64) string {
 	return "user" + machine.UInt64ToString(user)
 }
+
+const SpoolDir = "spool"
+
+const NumUsers uint64 = 100
 
 func readMessage(userDir string, name string) []byte {
 	f := filesys.Open(userDir, name)
@@ -38,7 +46,9 @@ type Message struct {
 
 // Pickup reads all stored messages
 func Pickup(user uint64) []Message {
-	// TODO: acquire pickup/delete lock
+	ls := globals.GetX()
+	l := ls[user]
+	l.Lock()
 	userDir := getUserDir(user)
 	names := filesys.List(userDir)
 	messages := new([]Message)
@@ -57,6 +67,7 @@ func Pickup(user uint64) []Message {
 		continue
 	}
 	msgs := *messages
+	l.Unlock()
 	return msgs
 }
 
@@ -66,7 +77,7 @@ func createTmp() (filesys.File, string) {
 	finalName := new(string)
 	for id := initID; ; {
 		fname := machine.UInt64ToString(id)
-		f, ok := filesys.Create("tmp", fname)
+		f, ok := filesys.Create(SpoolDir, fname)
 		if ok {
 			*finalFile = f
 			*finalName = fname
@@ -103,7 +114,7 @@ func Deliver(user uint64, msg []byte) {
 	tmpName := writeTmp(msg)
 	initID := machine.RandomUint64()
 	for id := initID; ; {
-		ok := filesys.Link("spool", tmpName,
+		ok := filesys.Link(SpoolDir, tmpName,
 			userDir, "msg"+machine.UInt64ToString(id))
 		if ok {
 			break
@@ -113,23 +124,44 @@ func Deliver(user uint64, msg []byte) {
 			continue
 		}
 	}
-	filesys.Delete("spool", tmpName)
+	filesys.Delete(SpoolDir, tmpName)
 }
 
 func Delete(user uint64, msgID string) {
-	// TODO: acquire pickup/delete lock
+	ls := globals.GetX()
+	l := ls[user]
+	l.Lock()
 	userDir := getUserDir(user)
 	filesys.Delete(userDir, msgID)
+	l.Unlock()
+}
+
+func initLocks() {
+	locks := new([]*sync.RWMutex)
+	for i := uint64(0); ; {
+		if i == NumUsers {
+			break
+		}
+		oldLocks := *locks
+		l := new(sync.RWMutex)
+		newLocks := append(oldLocks, l)
+		*locks = newLocks
+		i = i + 1
+		continue
+	}
+	finalLocks := *locks
+	globals.SetX(finalLocks)
 }
 
 func Recover() {
-	spooled := filesys.List("spool")
+	initLocks()
+	spooled := filesys.List(SpoolDir)
 	for i := uint64(0); ; {
 		if i == uint64(len(spooled)) {
 			break
 		}
 		name := spooled[i]
-		filesys.Delete("spool", name)
+		filesys.Delete(SpoolDir, name)
 		i = i + 1
 		continue
 	}
