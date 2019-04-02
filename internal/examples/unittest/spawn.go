@@ -29,6 +29,7 @@ func threadCode(tid uint64) {}
 
 func loopSpawn() {
 	for i := uint64(0); ; {
+		i := i
 		if i > 10 {
 			break
 		}
