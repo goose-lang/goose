@@ -16,9 +16,10 @@ Definition SpoolDir : string := "spool".
 
 Definition NumUsers : uint64 := 100.
 
-Definition readMessage {model:GoModel} (userDir:string) (name:string) : proc (slice.t byte) :=
+Definition readMessage {model:GoModel} (userDir:string) (name:string) : proc string :=
   f <- FS.open userDir name;
   fileContents <- Data.newPtr (slice.t byte);
+  initData <- Data.newSlice byte 0;
   _ <- Loop (fun pf =>
         buf <- FS.readAt f pf.(partialFile.off) 4096;
         newData <- Data.sliceAppendSlice pf.(partialFile.data) buf;
@@ -27,16 +28,17 @@ Definition readMessage {model:GoModel} (userDir:string) (name:string) : proc (sl
           _ <- Data.writePtr fileContents newData;
           LoopRet tt
         else
-          Continue {| partialFile.off := pf.(partialFile.off);
+          Continue {| partialFile.off := pf.(partialFile.off) + slice.length buf;
                       partialFile.data := newData; |}) {| partialFile.off := 0;
-           partialFile.data := slice.nil _; |};
+           partialFile.data := initData; |};
   fileData <- Data.readPtr fileContents;
-  Ret fileData.
+  fileStr <- Data.bytesToString fileData;
+  Ret fileStr.
 
 Module Message.
   Record t {model:GoModel} := mk {
     Id: string;
-    Contents: slice.t byte;
+    Contents: string;
   }.
   Arguments mk {model}.
   Global Instance t_zero {model:GoModel} : HasGoZero t := mk (zeroValue _) (zeroValue _).
