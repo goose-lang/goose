@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/fatih/color"
+
 	"github.com/tchajed/goose"
 )
 
@@ -30,9 +32,10 @@ func main() {
 	}
 	srcDir := flag.Arg(0)
 
+	red := color.New(color.FgRed).SprintFunc()
 	f, err := config.TranslatePackage(srcDir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, red(err.Error()))
 		os.Exit(1)
 	}
 	if outFile == "-" {
@@ -41,7 +44,7 @@ func main() {
 		out, err := os.Create(outFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			fmt.Fprintln(os.Stderr, "could not write output")
+			fmt.Fprintln(os.Stderr, red("could not write output"))
 			os.Exit(1)
 		}
 		defer out.Close()

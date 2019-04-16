@@ -1,6 +1,7 @@
 package goose
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -74,6 +75,13 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 			return false
 		}
 		return true
+	}
+	s, err := os.Stat(srcDir)
+	if err != nil {
+		return nil, fmt.Errorf("source directory %s does not exist", srcDir)
+	}
+	if !s.IsDir() {
+		return nil, fmt.Errorf("%s is a file (expected a directory)", srcDir)
 	}
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
