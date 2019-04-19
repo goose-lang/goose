@@ -224,6 +224,14 @@ func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
 		}
 		data = data[n:]
 	}
+	err = syscall.Fsync(fd)
+	if err != nil {
+		panic(err)
+	}
+	err = syscall.Close(fd)
+	if err != nil {
+		panic(err)
+	}
 	err = syscall.Rename(tmpFile, fs.resolve(dir, fname))
 	if err != nil {
 		panic(err)
@@ -242,6 +250,10 @@ func (fs DirFs) List(dir string) []string {
 		panic(err)
 	}
 	names, err := d.Readdirnames(0)
+	if err != nil {
+		panic(err)
+	}
+	err = d.Close()
 	if err != nil {
 		panic(err)
 	}
