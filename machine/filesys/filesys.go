@@ -217,6 +217,7 @@ func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
 	if err != nil {
 		panic(err)
 	}
+	defer syscall.Close(fd)
 	for len(data) > 0 {
 		n, err := syscall.Write(fd, data)
 		if err != nil {
@@ -225,10 +226,6 @@ func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
 		data = data[n:]
 	}
 	err = syscall.Fsync(fd)
-	if err != nil {
-		panic(err)
-	}
-	err = syscall.Close(fd)
 	if err != nil {
 		panic(err)
 	}
@@ -249,11 +246,8 @@ func (fs DirFs) List(dir string) []string {
 	if err != nil {
 		panic(err)
 	}
+	defer d.Close()
 	names, err := d.Readdirnames(0)
-	if err != nil {
-		panic(err)
-	}
-	err = d.Close()
 	if err != nil {
 		panic(err)
 	}
