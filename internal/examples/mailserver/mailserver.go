@@ -14,7 +14,7 @@ type partialFile struct {
 	data []byte
 }
 
-func getUserDir(user uint64) string {
+func GetUserDir(user uint64) string {
 	return "user" + machine.UInt64ToString(user)
 }
 
@@ -27,9 +27,9 @@ func readMessage(userDir string, name string) string {
 	fileContents := new([]byte)
 	initData := make([]byte, 0)
 	for pf := (partialFile{off: 0, data: initData}); ; {
-		buf := filesys.ReadAt(f, pf.off, 4096)
+		buf := filesys.ReadAt(f, pf.off, 512)
 		newData := append(pf.data, buf...)
-		if uint64(len(buf)) < 4096 {
+		if uint64(len(buf)) < 512 {
 			*fileContents = newData
 			break
 		}
@@ -38,6 +38,7 @@ func readMessage(userDir string, name string) string {
 	}
 	fileData := *fileContents
 	fileStr := string(fileData)
+	filesys.Close(f)
 	return fileStr
 }
 
@@ -51,7 +52,7 @@ func Pickup(user uint64) []Message {
 	ls := globals.GetX()
 	l := ls[user]
 	l.Lock()
-	userDir := getUserDir(user)
+	userDir := GetUserDir(user)
 	names := filesys.List(userDir)
 	messages := new([]Message)
 	initMessages := make([]Message, 0)
@@ -112,7 +113,7 @@ func writeTmp(data []byte) string {
 // Deliver stores a new message.
 // Does not require holding the per-user pickup/delete lock.
 func Deliver(user uint64, msg []byte) {
-	userDir := getUserDir(user)
+	userDir := GetUserDir(user)
 	tmpName := writeTmp(msg)
 	initID := machine.RandomUint64()
 	for id := initID; ; {
@@ -132,8 +133,15 @@ func Deliver(user uint64, msg []byte) {
 // Delete deletes a message for the current user.
 // Requires the per-user lock, acquired with pickup.
 func Delete(user uint64, msgID string) {
-	userDir := getUserDir(user)
+	userDir := GetUserDir(user)
 	filesys.Delete(userDir, msgID)
+}
+
+// Lock acquires the lock for the current user
+func Lock(user uint64) {
+	locks := globals.GetX()
+	l := locks[user]
+	l.Lock()
 }
 
 // Unlock releases the lock for the current user.
@@ -143,8 +151,10 @@ func Unlock(user uint64) {
 	l.Unlock()
 }
 
-func initLocks() {
+func open() {
 	locks := new([]*sync.RWMutex)
+	initLocks := make([]*sync.RWMutex, 0)
+	*locks = initLocks
 	for i := uint64(0); ; {
 		if i == NumUsers {
 			break
@@ -160,8 +170,11 @@ func initLocks() {
 	globals.SetX(finalLocks)
 }
 
+func init() {
+	open()
+}
+
 func Recover() {
-	initLocks()
 	spooled := filesys.List(SpoolDir)
 	for i := uint64(0); ; {
 		if i == uint64(len(spooled)) {
