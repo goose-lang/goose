@@ -729,7 +729,12 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	}
 	if !bodyEndsWithReturn && remaining && s.Else == nil {
 		// conditional statement in the middle of a block
-		ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
+		retUnit := coq.ReturnExpr{coq.IdentExpr("tt")}
+		ife.Then = coq.BlockExpr{[]coq.Binding{
+			coq.NewAnon(ife.Then),
+			coq.NewAnon(retUnit),
+		}}
+		ife.Else = retUnit
 		return coq.NewAnon(ife)
 	}
 	if !remaining {

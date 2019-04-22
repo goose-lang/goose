@@ -127,7 +127,9 @@ Definition DoSomething {model:GoModel} (s:string) : proc unit :=
 Definition conditionalInLoop {model:GoModel} : proc unit :=
   Loop (fun i =>
         _ <- if compare_to i 3 Lt
-        then DoSomething ("i is small")
+        then
+          _ <- DoSomething ("i is small");
+          Ret tt
         else Ret tt;
         if compare_to i 5 Gt
         then LoopRet tt
@@ -150,7 +152,9 @@ Definition simpleSpawn {model:GoModel} : proc unit :=
   _ <- Spawn (_ <- Data.lockAcquire l Reader;
          x <- Data.readPtr v;
          _ <- if compare_to x 0 Gt
-         then Skip
+         then
+           _ <- Skip;
+           Ret tt
          else Ret tt;
          Data.lockRelease l Reader);
   _ <- Data.lockAcquire l Writer;
