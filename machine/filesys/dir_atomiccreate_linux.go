@@ -7,7 +7,7 @@ import (
 )
 
 func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
-	fd, err := unix.Openat(fs.rootFd, "",
+	fd, err := unix.Openat(fs.rootFd, ".",
 		unix.O_TMPFILE|unix.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
