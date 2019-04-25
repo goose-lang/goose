@@ -1,9 +1,12 @@
 dist: xenial
 language: go
-go:
-  - "1.12.x"
-  - "1.11.x"
-  - "1.10.x"
+matrix:
+  include:
+    - go: "1.12.x"
+    - go: "1.12.x"
+      os: osx
+    - go: "1.11.x"
+    - go: "1.10.x"
 install:
   - go get -t ./...
   # the goose integration tests implicitly depend on this dependency being
