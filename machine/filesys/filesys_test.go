@@ -109,6 +109,17 @@ func (s FilesysSuite) TestList(c *C) {
 	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f1", "f2"})
 }
 
+func (s FilesysSuite) TestListLargeDir(c *C) {
+	c.Check(s.fs.List("dir"), HasLen, 0)
+	var expected []string
+	for i := 0; i < 1000; i++ {
+		fname := fmt.Sprintf("file%d", i)
+		s.fs.Close(s.CreateNew(fname))
+		expected = append(expected, fname)
+	}
+	c.Check(sorted(s.fs.List("dir")), DeepEquals, sorted(expected))
+}
+
 func (s FilesysSuite) TestDelete(c *C) {
 	s.fs.Close(s.CreateNew("f1"))
 	s.fs.Close(s.CreateNew("f2"))

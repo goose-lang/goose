@@ -20,9 +20,10 @@ package filesys
 import (
 	"flag"
 	"fmt"
-	"os"
 	"path"
-	"syscall"
+
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 var rootDirectory string
@@ -137,29 +138,29 @@ func DefaultFs() Filesys {
 
 // DirFs is a Filesys backed by a directory on some host filesystem.
 type DirFs struct {
-	rootDirectory string
+	rootFd int
 }
 
 // NewDirFs creates a DirFs using root as the root directory for all operations.
 func NewDirFs(root string) DirFs {
-	return DirFs{rootDirectory: root}
-}
-
-func (fs DirFs) resolve(dir, p string) string {
-	return path.Join(fs.rootDirectory, dir, p)
+	rootFd, err := unix.Open(root, unix.O_DIRECTORY|unix.O_RDONLY, 0)
+	if err != nil {
+		panic(err)
+	}
+	return DirFs{rootFd: rootFd}
 }
 
 func (fs DirFs) Mkdir(p string) {
-	err := syscall.Mkdir(fs.resolve(".", p), 0755)
+	err := unix.Mkdirat(fs.rootFd, p, 0755)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (fs DirFs) Create(dir, fname string) (f File, ok bool) {
-	fd, err := syscall.Open(fs.resolve(dir, fname),
-		syscall.O_CREAT|syscall.O_EXCL|syscall.O_WRONLY, 0644)
-	if err == syscall.EEXIST {
+	fd, err := unix.Openat(fs.rootFd, path.Join(dir, fname),
+		unix.O_CREAT|unix.O_EXCL|unix.O_WRONLY, 0644)
+	if err == unix.EEXIST {
 		return File(-1), false
 	}
 	if err != nil {
@@ -169,7 +170,7 @@ func (fs DirFs) Create(dir, fname string) (f File, ok bool) {
 }
 
 func (fs DirFs) Append(f File, data []byte) {
-	n, err := syscall.Write(f.fd(), data)
+	n, err := unix.Write(f.fd(), data)
 	if err != nil {
 		panic(err)
 	}
@@ -179,15 +180,15 @@ func (fs DirFs) Append(f File, data []byte) {
 }
 
 func (fs DirFs) Close(f File) {
-	err := syscall.Close(f.fd())
+	err := unix.Close(f.fd())
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (fs DirFs) Open(dir, fname string) File {
-	fd, err := syscall.Open(fs.resolve(dir, fname),
-		syscall.O_RDONLY, 0)
+	fd, err := unix.Openat(fs.rootFd, path.Join(dir, fname),
+		unix.O_RDONLY, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -196,7 +197,7 @@ func (fs DirFs) Open(dir, fname string) File {
 
 func (fs DirFs) ReadAt(f File, offset uint64, length uint64) []byte {
 	p := make([]byte, length)
-	n, err := syscall.Pread(f.fd(), p, int64(offset))
+	n, err := unix.Pread(f.fd(), p, int64(offset))
 	if err != nil {
 		panic(err)
 	}
@@ -204,52 +205,75 @@ func (fs DirFs) ReadAt(f File, offset uint64, length uint64) []byte {
 }
 
 func (fs DirFs) Delete(dir, fname string) {
-	err := syscall.Unlink(fs.resolve(dir, fname))
+	err := unix.Unlinkat(fs.rootFd, path.Join(dir, fname), 0)
 	if err != nil {
 		panic(fmt.Errorf("unlink(%s): %s", fname, err))
 	}
 }
 
 func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
-	tmpFile := fs.resolve(".", fname+".tmp")
-	fd, err := syscall.Open(tmpFile,
-		syscall.O_CREAT|syscall.O_WRONLY, 0644)
+	tmpFile := fname + ".tmp"
+	fd, err := unix.Openat(fs.rootFd, tmpFile,
+		unix.O_CREAT|unix.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
-	defer syscall.Close(fd)
+	defer unix.Close(fd)
 	for len(data) > 0 {
-		n, err := syscall.Write(fd, data)
+		n, err := unix.Write(fd, data)
 		if err != nil {
 			panic(err)
 		}
 		data = data[n:]
 	}
-	err = syscall.Fsync(fd)
+	err = unix.Fsync(fd)
 	if err != nil {
 		panic(err)
 	}
-	err = syscall.Rename(tmpFile, fs.resolve(dir, fname))
+	err = unix.Renameat(fs.rootFd, tmpFile, fs.rootFd, path.Join(dir, fname))
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (fs DirFs) Link(oldDir, oldName, newDir, newName string) bool {
-	err := syscall.Link(fs.resolve(oldDir, oldName),
-		fs.resolve(newDir, newName))
+	err := unix.Linkat(fs.rootFd, path.Join(oldDir, oldName),
+		fs.rootFd, path.Join(newDir, newName),
+		0)
 	return err == nil
 }
 
 func (fs DirFs) List(dir string) []string {
-	d, err := os.Open(fs.resolve(".", dir))
+	d, err := unix.Openat(fs.rootFd, dir, unix.O_DIRECTORY, 0)
 	if err != nil {
 		panic(err)
 	}
-	defer d.Close()
-	names, err := d.Readdirnames(0)
-	if err != nil {
-		panic(err)
+	defer unix.Close(d)
+	// written to match dir_unix.go's (f *os.File) readdirnames()
+	// as much as possible, except to always read all the entries
+	// in the directory without an n limit
+	bufp := 0
+	nbuf := 0
+	buf := make([]byte, 4096)
+	names := make([]string, 0, 100)
+	for {
+		// Refill the buffer if necessary
+		if bufp >= nbuf {
+			bufp = 0
+			var errno error
+			nbuf, errno = unix.ReadDirent(d, buf)
+			if errno != nil {
+				panic(errors.Wrapf(errno, "readdirent %s", dir))
+			}
+			if nbuf <= 0 {
+				break // EOF
+			}
+		}
+
+		// Drain the buffer by parsing entries
+		var nb int
+		nb, _, names = unix.ParseDirent(buf[bufp:nbuf], 100, names)
+		bufp += nb
 	}
 	return names
 }
