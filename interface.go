@@ -14,9 +14,8 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-// File converts an entire package (possibly multiple files) to a coq.File
-// (which is just a list of declarations)
-func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
+// Decls converts an entire package (possibly multiple files) to a list of decls
+func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if r, ok := r.(gooseError); ok {
@@ -26,7 +25,6 @@ func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
 			}
 		}
 	}()
-	var decls []coq.Decl
 	for _, f := range fs {
 		if f.Doc != nil {
 			decls = append(decls, coq.NewComment(f.Doc.Text()))
@@ -37,7 +35,7 @@ func (ctx Ctx) File(fs ...*ast.File) (file coq.File, err error) {
 			}
 		}
 	}
-	return coq.File(decls), nil
+	return
 }
 
 type fileName struct {
@@ -78,18 +76,22 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	}
 	s, err := os.Stat(srcDir)
 	if err != nil {
-		return nil, fmt.Errorf("source directory %s does not exist", srcDir)
+		return coq.File{},
+			fmt.Errorf("source directory %s does not exist", srcDir)
 	}
 	if !s.IsDir() {
-		return nil, fmt.Errorf("%s is a file (expected a directory)", srcDir)
+		return coq.File{},
+			fmt.Errorf("%s is a file (expected a directory)", srcDir)
 	}
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
-		return nil, errors.Wrap(err, "code does not parse")
+		return coq.File{},
+			errors.Wrap(err, "code does not parse")
 	}
 
 	if len(packages) > 1 {
-		return nil, errors.New("found multiple packages")
+		return coq.File{},
+			errors.New("found multiple packages")
 	}
 
 	var pkgName string
@@ -102,12 +104,13 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	ctx := NewCtx(fset, config)
 	err = ctx.TypeCheck(pkgName, files)
 	if err != nil {
-		return nil, errors.Wrap(err, "code does not type check")
+		return coq.File{},
+			errors.Wrap(err, "code does not type check")
 	}
 
-	f, err := ctx.File(files...)
+	decls, err := ctx.Decls(files...)
 	if err != nil {
-		return nil, errors.Wrap(err, "conversion failed")
+		return coq.File{}, errors.Wrap(err, "conversion failed")
 	}
-	return f, nil
+	return coq.File{GoPackage: pkgName, Decls: decls}, nil
 }

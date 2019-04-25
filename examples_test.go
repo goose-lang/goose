@@ -215,7 +215,7 @@ func translateErrorFile(c *C, filePath string) *errorTestResult {
 		return nil
 	}
 
-	_, err = ctx.File(f)
+	_, err = ctx.Decls(f)
 	if err == nil {
 		c.Errorf("expected error while translating %s", filePath)
 		return nil
