@@ -24,7 +24,8 @@ func (fs DirFs) AtomicCreate(dir, fname string, data []byte) {
 	if err != nil {
 		panic(err)
 	}
-	err = unix.Linkat(fs.rootFd, "", fs.rootFd, path.Join(dir, fname),
+	err = unix.Linkat(fd, "",
+		fs.rootFd, path.Join(dir, fname),
 		unix.AT_EMPTY_PATH)
 	if err != nil {
 		panic(err)
