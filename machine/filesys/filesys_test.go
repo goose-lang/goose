@@ -196,6 +196,7 @@ func (s *DirFilesysSuite) SetUpTest(c *C) {
 }
 
 func (s *DirFilesysSuite) TearDownTest(c *C) {
+	s.fs.(filesys.DirFs).CloseFs()
 	err := os.RemoveAll(s.dir)
 	if err != nil {
 		panic(err)

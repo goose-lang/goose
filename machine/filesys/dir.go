@@ -124,3 +124,10 @@ func (fs DirFs) List(dir string) []string {
 	}
 	return names
 }
+
+func (fs DirFs) CloseFs() {
+	err := unix.Close(fs.rootFd)
+	if err != nil {
+		panic(err)
+	}
+}
