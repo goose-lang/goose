@@ -1,7 +1,7 @@
 // Package filesys is a support library providing access to a single directory
 // in the filesystem.
 //
-// These operations have corresponding operations in Armada in `Goose/Filesys.v`
+// These operations have corresponding operations in Perennial in `Goose/Filesys.v`
 // and are exported as functions in the `FS` module.
 //
 // The interface is a subset of the filesystem API specific to the needs of the
@@ -67,7 +67,7 @@ type Filesys interface {
 	// Mkdir creates a root directory.
 	//
 	// Used only for initialization outside of verified code
-	// (Armada's Go model does not model this operation).
+	// (Perennial's Go model does not model this operation).
 	Mkdir(dir string)
 }
 

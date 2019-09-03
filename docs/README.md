@@ -2,7 +2,7 @@
 
 [Motivation](motivation.md) documents why we use the approach of converting from Go at all in the context of our verification work.
 
-[Implementation](implementation.md) walks through the design decisions in the Goose implementation. This includes details on the subset of Go supported, measure to make the translation more trustworthy, and goose works together with a Go support library (the `github.com/tchajed/goose/machine` and `github.com/tchjaed/goose/machine/filesys` packages) and the Armada Goose support code in Coq.
+[Implementation](implementation.md) walks through the design decisions in the Goose implementation. This includes details on the subset of Go supported, measure to make the translation more trustworthy, and goose works together with a Go support library (the `github.com/tchajed/goose/machine` and `github.com/tchjaed/goose/machine/filesys` packages) and the Perennial Goose support code in Coq.
 
 ## Proposals
 

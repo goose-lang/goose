@@ -4,9 +4,9 @@
 [![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
 
 
-Goose imports code written in Go into [Armada](https://github.com/mit-pdos/armada), a Coq framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Armada program has a precise semantics in Coq describing its behavior, and we can use Armada to prove that the code meets its specification.
+Goose imports code written in Go into [Perennial](https://github.com/mit-pdos/perennial), a Coq framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Perennial program has a precise semantics in Coq describing its behavior, and we can use Perennial to prove that the code meets its specification.
 
-Goose supports only a stylized subset of Go, and part of the Armada support includes a model for how Go pointers, slices, and maps work (for example). The conversion is _trusted_: we run the Go program but prove properties about the Coq code. The subset of Go and Armada model are carefully chosen to make the translation simpler and more trustworthy.
+Goose supports only a stylized subset of Go, and part of the Perennial support includes a model for how Go pointers, slices, and maps work (for example). The conversion is _trusted_: we run the Go program but prove properties about the Coq code. The subset of Go and Perennial model are carefully chosen to make the translation simpler and more trustworthy.
 
 ## Demo: an example conversion
 
@@ -55,9 +55,9 @@ Definition CreateTable (p:string) : proc Table.t :=
 
 Goose translates Go structs to Coq records; it uses a module to provide better namespacing for the fields.
 
-The Coq version of `CreateTable` is written as a definition of type `proc Table.t`. A library called `Goose.base` defines all the support needed for this definition; it pulls in the type `proc T`, an Armada procedure that returns a value of type `T`. Procedures are written using "bind" notation; to understand the examples all you need to know is that `x <- f; ...` means to run `f` and store the result in the variable `x`, then continue running with the new variable `x`.
+The Coq version of `CreateTable` is written as a definition of type `proc Table.t`. A library called `Goose.base` defines all the support needed for this definition; it pulls in the type `proc T`, an Perennial procedure that returns a value of type `T`. Procedures are written using "bind" notation; to understand the examples all you need to know is that `x <- f; ...` means to run `f` and store the result in the variable `x`, then continue running with the new variable `x`.
 
-Armada functions using `Goose.base` can call a few primitive operations. Here we see two types of primitives: `Data.newMap` corresponds to creating a map (complete with the type of values), and the `filesys.*` functions in Go are turned into `FS.*` methods in Coq (after lower-casing). The Coq definitions are primitives that form the Goose API, and include heap-manipulating functions `Data.*` as well as a filesystem API under `FS.`. The filesystem API is one provided by Goose via the `github.com/tchajed/goose/machine/filesys` package.
+Perennial functions using `Goose.base` can call a few primitive operations. Here we see two types of primitives: `Data.newMap` corresponds to creating a map (complete with the type of values), and the `filesys.*` functions in Go are turned into `FS.*` methods in Coq (after lower-casing). The Coq definitions are primitives that form the Goose API, and include heap-manipulating functions `Data.*` as well as a filesystem API under `FS.`. The filesystem API is one provided by Goose via the `github.com/tchajed/goose/machine/filesys` package.
 
 Finally, the CreateTable function ends with `Ret` for the return statement in Go. It constructs a `Table.t` literal in much the same way as the Go code, using Coq's support for records.
 
@@ -66,13 +66,13 @@ Finally, the CreateTable function ends with `Ret` for the return statement in Go
 Goose doesn't support arbitrary Go code; it uses a carefully-selected subset of Go that is still idiomatic Go (for the most part) while being easy to translate. See the [implementation design doc](docs/implementation.md) for more details.
 
 There are three aspects of the Go model worth mentioning here:
-- Assignments are not supported, only bindings. This imposes a "linearity" restriction where each variable is constant after being first defined, which aligns well with how Armada code works. Mutable variables can still be emulated using pointers and heap allocation.
+- Assignments are not supported, only bindings. This imposes a "linearity" restriction where each variable is constant after being first defined, which aligns well with how Perennial code works. Mutable variables can still be emulated using pointers and heap allocation.
 - Goose supports a few common control flow patterns so code can be written with early returns and some loops.
-- Many operations are carefully modeled as being non-linearizable in Armada, although this area is subtle and hard to reconcile with Go's documented memory model.
+- Many operations are carefully modeled as being non-linearizable in Perennial, although this area is subtle and hard to reconcile with Go's documented memory model.
 
 ## Related approaches
 
-Goose solves the problem of using Armada to verify runnable systems while ensuring some connection between the verification and the code. How else do verification projects get executable code?
+Goose solves the problem of using Perennial to verify runnable systems while ensuring some connection between the verification and the code. How else do verification projects get executable code?
 
 _Extraction_ is a popular approach, especially in Coq. Extraction is much like compilation in that Coq code is translated to OCaml or Haskell, relying on many similarities between the languages. (Side note: the reason it's called extraction is that it also does _proof erasure_, where proofs mixed into Coq code are removed so they don't have to be run.) To get side effects in extracted code the verification engineers write an interpreter in the target language that runs the verified part, using the power of the target language to interact with the outside world (eg, via the console, filesystem, or network stack).
 

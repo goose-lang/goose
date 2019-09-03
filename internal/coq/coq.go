@@ -678,7 +678,7 @@ func (t PtrType) Coq() string {
 	return "ptr " + addParens(t.Value.Coq())
 }
 
-const importHeader string = "From Armada.Goose Require Import base."
+const importHeader string = "From Perennial.Goose Require Import base."
 
 // File represents a complete Coq file (a sequence of declarations).
 type File struct {
