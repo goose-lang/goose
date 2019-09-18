@@ -465,6 +465,9 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.typeOf(x))
 		return nil
 	}
+	if isIdent(s.Fun, "panic") {
+		return coq.NewCallExpr("Data.panic")
+	}
 	return ctx.methodExpr(s.Fun, s.Args)
 }
 
