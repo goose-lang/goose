@@ -2,8 +2,8 @@
 //
 // The exposed interface allows converting individual files as well as whole
 // packages to a single Coq file with all the converted definitions, which
-// include user-defined structs in Go as Coq records and an Perennial procedure for
-// each Go function.
+// include user-defined structs in Go as Coq records and a Perennial procedure
+// for each Go function.
 //
 // See the Goose README at https://github.com/tchajed/goose for a high-level
 // overview. The source also has some design documentation at
@@ -17,6 +17,7 @@ import (
 	"go/importer"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -184,7 +185,7 @@ func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 	if *comment != "" {
 		*comment += "\n\n"
 	}
-	*comment += stripTrailingNewline(doc.Text())
+	*comment += strings.TrimSuffix(doc.Text(), "\n")
 }
 
 func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
@@ -1097,16 +1098,6 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 	return coq.NewTupleType(ts)
 }
 
-func stripTrailingNewline(text string) string {
-	if text == "" {
-		return text
-	}
-	if text[len(text)-1] == '\n' {
-		return text[:len(text)-1]
-	}
-	return text
-}
-
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	fd := coq.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
@@ -1146,12 +1137,15 @@ func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
 	ctx.futureWork(d, "global variables (might be used for objects)")
 }
 
-func stringBasicLit(lit *ast.BasicLit) string {
+func stringLitValue(lit *ast.BasicLit) string {
 	if lit.Kind != token.STRING {
 		panic("unexpected non-string literal")
 	}
-	s := lit.Value
-	return s[1 : len(s)-1]
+	s, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		panic("unexpected string literal value: " + err.Error())
+	}
+	return s
 }
 
 var okImports = map[string]bool{
@@ -1164,7 +1158,7 @@ var okImports = map[string]bool{
 func (ctx Ctx) checkImports(d []ast.Spec) {
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
-		importPath := stringBasicLit(s.Path)
+		importPath := stringLitValue(s.Path)
 		if !okImports[importPath] {
 			ctx.unsupported(s, "non-whitelisted import")
 		}
