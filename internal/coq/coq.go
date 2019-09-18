@@ -351,6 +351,8 @@ const (
 	OpEquals
 	OpLessThan
 	OpGreaterThan
+	OpLessEq
+	OpGreaterEq
 	OpAppend
 	OpMul
 )
@@ -362,34 +364,32 @@ type BinaryExpr struct {
 }
 
 func (be BinaryExpr) Coq() string {
-	switch be.Op {
-	case OpLessThan:
-		// TODO: should just have a binary operator for this in Coq
-		return fmt.Sprintf("compare_to %s %s Lt",
-			addParens(be.X.Coq()), addParens(be.Y.Coq()))
-	case OpGreaterThan:
-		return fmt.Sprintf("compare_to %s %s Gt",
-			addParens(be.X.Coq()), addParens(be.Y.Coq()))
+	coqFunc := map[BinOp]string{
+		// TODO: should maybe have binary operators in Coq for these, too
+		OpLessThan:    "compare_to Lt",
+		OpGreaterThan: "compare_to Gt",
+		OpLessEq:      "uint64_le",
+		OpGreaterEq:   "uint64_ge",
+	}
+	if f, ok := coqFunc[be.Op]; ok {
+		return fmt.Sprintf("%s %s %s",
+			f, addParens(be.X.Coq()), addParens(be.Y.Coq()))
 	}
 
-	var binop string
-	switch be.Op {
-	case OpPlus:
-		binop = "+"
-	case OpMinus:
-		binop = "-"
-	case OpEquals:
+	coqBinOp := map[BinOp]string{
+		OpPlus:  "+",
+		OpMinus: "-",
 		// note that this is not a boolean; shouldn't be a problem for a while
 		// since we don't actually support Go booleans, only if-statements
-		binop = "=="
-	case OpAppend:
-		binop = "++"
-	case OpMul:
-		binop = "*"
-	default:
-		panic("unknown binop")
+		OpEquals: "==",
+		OpAppend: "++",
+		OpMul:    "*",
 	}
-	return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
+	if binop, ok := coqBinOp[be.Op]; ok {
+		return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
+	}
+
+	panic(fmt.Sprintf("unknown binop %d", be.Op))
 }
 
 type NotExpr struct {
