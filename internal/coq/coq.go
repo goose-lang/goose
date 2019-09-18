@@ -352,6 +352,7 @@ const (
 	OpLessThan
 	OpGreaterThan
 	OpAppend
+	OpMul
 )
 
 type BinaryExpr struct {
@@ -383,6 +384,8 @@ func (be BinaryExpr) Coq() string {
 		binop = "=="
 	case OpAppend:
 		binop = "++"
+	case OpMul:
+		binop = "*"
 	default:
 		panic("unknown binop")
 	}

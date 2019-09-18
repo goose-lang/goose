@@ -24,6 +24,8 @@ Definition UntypedStringConstant : string := "bar".
 
 Definition TypedInt : uint64 := 32.
 
+Definition ConstWithArith : uint64 := 4 + 3 * TypedInt.
+
 Definition typedLiteral {model:GoModel} : proc uint64 :=
   Ret 3.
 
