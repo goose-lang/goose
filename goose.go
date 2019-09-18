@@ -159,21 +159,25 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	return coq.TypeIdent("<type>")
 }
 
+func (ctx Ctx) field(f *ast.Field) coq.FieldDecl {
+	if len(f.Names) > 1 {
+		ctx.futureWork(f, "multiple fields for same type (split them up)")
+		return coq.FieldDecl{}
+	}
+	if len(f.Names) == 0 {
+		ctx.unsupported(f, "unnamed field/parameter")
+		return coq.FieldDecl{}
+	}
+	return coq.FieldDecl{
+		Name: f.Names[0].Name,
+		Type: ctx.coqType(f.Type),
+	}
+}
+
 func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
-		if len(f.Names) > 1 {
-			ctx.futureWork(f, "multiple fields for same type (split them up)")
-			return nil
-		}
-		if len(f.Names) == 0 {
-			ctx.unsupported(f, "unnamed field/parameter")
-			return nil
-		}
-		decls = append(decls, coq.FieldDecl{
-			Name: f.Names[0].Name,
-			Type: ctx.coqType(f.Type),
-		})
+		decls = append(decls, ctx.field(f))
 	}
 	return decls
 }
@@ -1107,11 +1111,9 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 			ctx.nope(d, "function with multiple receivers")
 		}
 		receiver := d.Recv.List[0]
-		ctx.futureWork(receiver,
-			"methods need to be de-sugared "+
-				"by moving the receiver to the arg list")
+		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
-	fd.Args = ctx.paramList(d.Type.Params)
+	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd
