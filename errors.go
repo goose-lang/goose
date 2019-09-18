@@ -41,6 +41,13 @@ func (r errorReporter) printGo(n ast.Node) string {
 	if f, ok := n.(*ast.Field); ok {
 		return r.printField(f)
 	}
+	if fl, ok := n.(*ast.FieldList); ok {
+		var fields []string
+		for _, f := range fl.List {
+			fields = append(fields, r.printField(f))
+		}
+		return strings.Join(fields, "; ")
+	}
 	var what bytes.Buffer
 	err := printer.Fprint(&what, r.fset, n)
 	if err != nil {

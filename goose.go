@@ -296,7 +296,7 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 
 }
 
-func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
+func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
@@ -324,11 +324,20 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 			return coq.CallExpr{}
 		}
 	}
-	if isLockRef(ctx.typeOf(f.X)) {
-		return ctx.lockMethod(f)
-	}
 	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
 	return coq.CallExpr{}
+}
+
+func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
+	selectorType := ctx.typeOf(f.X)
+	if selectorType == types.Typ[types.Invalid] {
+		return ctx.packageMethod(f, args)
+	}
+	if isLockRef(selectorType) {
+		return ctx.lockMethod(f)
+	}
+	callArgs := append([]ast.Expr{f.X}, args...)
+	return ctx.newCoqCall(f.Sel.Name, callArgs)
 }
 
 func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
@@ -444,7 +453,11 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(e *ast.SelectorExpr) coq.ProjExpr {
-	structType := ctx.typeOf(e.X).(*types.Named)
+	structType, ok := ctx.typeOf(e.X).(*types.Named)
+	if !ok {
+		ctx.unsupported(e, "select expression from non-named type")
+		return coq.ProjExpr{}
+	}
 	proj := fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name)
 	return coq.ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
 }

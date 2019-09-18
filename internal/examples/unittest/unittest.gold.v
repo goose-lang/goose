@@ -253,6 +253,17 @@ End C.
 Definition Add {model:GoModel} (c:C.t) (z:uint64) : proc uint64 :=
   Ret (c.(C.x) + c.(C.y) + z).
 
+Definition UseAdd {model:GoModel} : proc uint64 :=
+  let c := {| C.x := 2;
+     C.y := 3; |} in
+  r <- Add c 4;
+  Ret r.
+
+Definition UseAddWithLiteral {model:GoModel} : proc uint64 :=
+  r <- Add {| C.x := 2;
+     C.y := 3; |} 4;
+  Ret r.
+
 (* DoSomeLocking uses the entire lock API *)
 Definition DoSomeLocking {model:GoModel} (l:LockRef) : proc unit :=
   _ <- Data.lockAcquire l Writer;

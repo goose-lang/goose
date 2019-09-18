@@ -423,7 +423,7 @@ type BlockExpr struct {
 
 func isPure(e Expr) bool {
 	switch e.(type) {
-	case BinaryExpr, PureCall, IntLiteral, StringLiteral:
+	case BinaryExpr, PureCall, IntLiteral, StringLiteral, StructLiteral:
 		return true
 	case CallExpr: // distinct from PureCall
 		return false
