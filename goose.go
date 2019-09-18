@@ -69,6 +69,12 @@ func (ctx Ctx) typeOf(e ast.Expr) types.Type {
 	return ctx.info.TypeOf(e)
 }
 
+func (ctx Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
+	typ = ctx.typeOf(e)
+	ok = typ != types.Typ[types.Invalid]
+	return
+}
+
 func getIdent(e ast.Expr) (ident string, ok bool) {
 	if ident, ok := e.(*ast.Ident); ok {
 		return ident.Name, true
@@ -96,7 +102,10 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return coq.TypeIdent("File")
 	}
-	ctx.unsupported(e, "selector for unknown type %s", e)
+	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
+		return coq.TypeIdent("Block")
+	}
+	ctx.unsupported(e, "unknown package type %s", e)
 	return coq.TypeIdent("<selector expr>")
 }
 
@@ -300,6 +309,18 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
+	if isIdent(f.X, "disk") {
+		return ctx.newCoqCall("Disk."+toInitialLower(f.Sel.Name), args)
+	}
+	if isIdent(f.X, "globals") {
+		switch f.Sel.Name {
+		case "SetX", "GetX":
+			return ctx.newCoqCall("Globals."+toInitialLower(f.Sel.Name), args)
+		default:
+			ctx.futureWork(f, "unhandled call to globals.%s", f.Sel.Name)
+			return coq.CallExpr{}
+		}
+	}
 	if isIdent(f.X, "machine") {
 		switch f.Sel.Name {
 		case "UInt64Get":
@@ -315,29 +336,24 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 			return coq.CallExpr{}
 		}
 	}
-	if isIdent(f.X, "globals") {
-		switch f.Sel.Name {
-		case "SetX", "GetX":
-			return ctx.newCoqCall("Globals."+toInitialLower(f.Sel.Name), args)
-		default:
-			ctx.futureWork(f, "unhandled call to globals.%s", f.Sel.Name)
-			return coq.CallExpr{}
-		}
-	}
 	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
 	return coq.CallExpr{}
 }
 
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
-	selectorType := ctx.typeOf(f.X)
-	if selectorType == types.Typ[types.Invalid] {
+	selectorType, ok := ctx.getType(f.X)
+	if !ok {
 		return ctx.packageMethod(f, args)
 	}
 	if isLockRef(selectorType) {
 		return ctx.lockMethod(f)
 	}
-	callArgs := append([]ast.Expr{f.X}, args...)
-	return ctx.newCoqCall(f.Sel.Name, callArgs)
+	if _, ok := selectorType.Underlying().(*types.Struct); ok {
+		callArgs := append([]ast.Expr{f.X}, args...)
+		return ctx.newCoqCall(f.Sel.Name, callArgs)
+	}
+	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
+	return nil
 }
 
 func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
@@ -452,13 +468,30 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	return ctx.methodExpr(s.Fun, s.Args)
 }
 
-func (ctx Ctx) structSelector(e *ast.SelectorExpr) coq.ProjExpr {
-	structType, ok := ctx.typeOf(e.X).(*types.Named)
+func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
+	selectorType, ok := ctx.getType(e.X)
 	if !ok {
-		ctx.unsupported(e, "select expression from non-named type")
-		return coq.ProjExpr{}
+		if isIdent(e.X, "filesys") {
+			return coq.IdentExpr("FS." + e.Sel.Name)
+		}
+		if isIdent(e.X, "disk") {
+			return coq.IdentExpr("Disk." + e.Sel.Name)
+		}
+		ctx.unsupported(e, "package select")
+		return nil
 	}
-	proj := fmt.Sprintf("%s.%s", structType.Obj().Name(), e.Sel.Name)
+	if t, ok := selectorType.(*types.Named); ok {
+		if structType, ok := t.Obj().Type().Underlying().(*types.Struct); ok {
+			return ctx.structSelector(t.Obj().Name(), structType, e)
+		}
+	}
+	ctx.unsupported(e, "unexpected select expression")
+	return nil
+}
+
+func (ctx Ctx) structSelector(name string, ty *types.Struct,
+	e *ast.SelectorExpr) coq.ProjExpr {
+	proj := fmt.Sprintf("%s.%s", name, e.Sel.Name)
 	return coq.ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
 }
 
@@ -639,7 +672,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.Ident:
 		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
-		return ctx.structSelector(e)
+		return ctx.selectExpr(e)
 	case *ast.CompositeLit:
 		return ctx.structLiteral(e)
 	case *ast.BasicLit:
@@ -1171,6 +1204,7 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 var okImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
+	"github.com/tchajed/goose/machine/disk":    true,
 	"github.com/tchajed/goose/machine/filesys": true,
 	"github.com/tchajed/mailboat/globals":      true,
 	"sync":                                     true,
