@@ -3,7 +3,7 @@ package disk
 import "fmt"
 
 // Block is a 4096-byte buffer
-type Block []byte
+type Block = []byte
 
 const BlockSize uint64 = 4096
 
