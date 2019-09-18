@@ -20,23 +20,28 @@ func newErrorReporter(fset *token.FileSet) errorReporter {
 	return errorReporter{fset}
 }
 
-func (r errorReporter) printGo(n ast.Node) string {
+// printField implements custom printing for fields, since printer.Fprint does
+// not support fields (the go syntax is somewhat context-sensitive)
+func (r errorReporter) printField(f *ast.Field) string {
 	var what bytes.Buffer
-	// printer.Fprint does not support fields (the go syntax is somewhat
-	// context-sensitive)
-	if f, ok := n.(*ast.Field); ok {
-		var names []string
-		for _, n := range f.Names {
-			names = append(names, n.Name)
-		}
-		err := printer.Fprint(&what, r.fset, f.Type)
-		if err != nil {
-			panic(err.Error())
-		}
-		return fmt.Sprintf("%s %s",
-			strings.Join(names, ", "),
-			what.String())
+	var names []string
+	for _, n := range f.Names {
+		names = append(names, n.Name)
 	}
+	err := printer.Fprint(&what, r.fset, f.Type)
+	if err != nil {
+		panic(err.Error())
+	}
+	return fmt.Sprintf("%s %s",
+		strings.Join(names, ", "),
+		what.String())
+}
+
+func (r errorReporter) printGo(n ast.Node) string {
+	if f, ok := n.(*ast.Field); ok {
+		return r.printField(f)
+	}
+	var what bytes.Buffer
 	err := printer.Fprint(&what, r.fset, n)
 	if err != nil {
 		panic(err.Error())

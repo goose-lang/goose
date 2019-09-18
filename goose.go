@@ -1103,8 +1103,13 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
-		ctx.futureWork(d.Recv,
-			"methods need to be lifted by moving the receiver to the arg list")
+		if len(d.Recv.List) != 1 {
+			ctx.nope(d, "function with multiple receivers")
+		}
+		receiver := d.Recv.List[0]
+		ctx.futureWork(receiver,
+			"methods need to be de-sugared "+
+				"by moving the receiver to the arg list")
 	}
 	fd.Args = ctx.paramList(d.Type.Params)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
