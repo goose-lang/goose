@@ -1,6 +1,8 @@
 package awol
 
 import (
+	"sync"
+
 	"github.com/tchajed/goose/machine"
 
 	"github.com/tchajed/goose/machine/disk"
@@ -9,9 +11,11 @@ import (
 // MaxTxnWrites is a guaranteed reservation for each transaction.
 const MaxTxnWrites uint64 = 10 // 10 is completely arbitrary
 
-const logLength uint64 = 1 + 2*MaxTxnWrites
+const logLength = 1 + 2*MaxTxnWrites
 
 type Log struct {
+	// protects cache and length
+	l     *sync.RWMutex
 	cache map[uint64]disk.Block
 	// length of current transaction, in blocks
 	length *uint64
@@ -39,17 +43,29 @@ func New() Log {
 	disk.Write(0, header)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
-	return Log{cache: cache, length: lengthPtr}
+	l := new(sync.RWMutex)
+	return Log{cache: cache, length: lengthPtr, l: l}
+}
+
+func (l Log) lock() {
+	l.l.Lock()
+}
+
+func (l Log) unlock() {
+	l.l.Unlock()
 }
 
 // BeginTxn allocates space for a new transaction in the log.
 //
 // Returns true if the allocation succeeded.
 func (l Log) BeginTxn() bool {
+	l.lock()
 	length := *l.length
 	if length == 0 {
+		l.unlock()
 		return true
 	}
+	l.unlock()
 	return false
 }
 
@@ -57,20 +73,27 @@ func (l Log) BeginTxn() bool {
 //
 // Reads must go through the log to return committed but un-applied writes.
 func (l Log) Read(a uint64) disk.Block {
+	l.lock()
 	v, ok := l.cache[a]
 	if ok {
+		l.unlock()
 		return v
 	}
+	// TODO: maybe safe to unlock before reading from disk?
+	l.unlock()
 	dv := disk.Read(logLength + a)
 	return dv
 }
 
 func (l Log) Size() uint64 {
-	return disk.Size() - logLength
+	// safe to do lock-free
+	sz := disk.Size()
+	return sz - logLength
 }
 
 // Write to the disk through the log.
 func (l Log) Write(a uint64, v disk.Block) {
+	l.lock()
 	length := *l.length
 	if length >= MaxTxnWrites {
 		panic("transaction is at capacity")
@@ -81,11 +104,15 @@ func (l Log) Write(a uint64, v disk.Block) {
 	disk.Write(nextAddr+1, v)
 	l.cache[a] = v
 	*l.length = length + 1
+	l.unlock()
 }
 
 // Commit the current transaction.
 func (l Log) Commit() {
+	l.lock()
 	length := *l.length
+	// TODO: maybe safe to unlock early?
+	l.unlock()
 	header := intToBlock(length)
 	disk.Write(0, header)
 }
@@ -98,6 +125,7 @@ func getLogEntry(logOffset uint64) (uint64, disk.Block) {
 	return a, v
 }
 
+// applyLog assumes we are running sequentially
 func applyLog(length uint64) {
 	for i := uint64(0); ; {
 		if i < length {
@@ -118,10 +146,12 @@ func clearLog() {
 //
 // Frees all the space in the log.
 func (l Log) Apply() {
+	l.lock()
 	length := *l.length
 	applyLog(length)
 	clearLog()
 	*l.length = 0
+	l.unlock()
 	// technically the log cache is no longer needed, but it is still valid;
 	// clearing it might make verification easier,
 	// depending on the exact invariants
@@ -137,5 +167,6 @@ func Open() Log {
 	cache := make(map[uint64]disk.Block)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
-	return Log{cache: cache, length: lengthPtr}
+	l := new(sync.RWMutex)
+	return Log{cache: cache, length: lengthPtr, l: l}
 }
