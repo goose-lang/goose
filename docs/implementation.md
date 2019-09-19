@@ -26,7 +26,7 @@ Goose code is particularly rigid about outside operations. Goose includes the `g
 
 Some Go features that are not supported include `defer`, `panic`, channels, anonymous functions, taking the address of variables, and re-assignments.
 
-## Go support
+## Go support library
 
 Goose supplies `github.com/tchajed/goose/machine` for a handful of additional base operations (eg, for encoding integers as bytes) and `github.com/tchajed/goose/machine/filesys` for interacting with the filesystem. The filesystem layer is specific to the Argosy concurrent key-value store's needs and thus supports a subset of operations and only a single directory.
 
