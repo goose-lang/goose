@@ -1,6 +1,9 @@
 package disk
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Block is a 4096-byte buffer
 type Block = []byte
@@ -29,31 +32,39 @@ type Disk interface {
 	Barrier()
 }
 
-type MemDisk []Block
+type MemDisk struct {
+	l      *sync.RWMutex
+	blocks []Block
+}
 
-var _ Disk = MemDisk(nil)
+var _ Disk = MemDisk{}
 
 func NewMemDisk(numBlocks uint64) MemDisk {
-	disk := make([]Block, numBlocks)
-	for i := range disk {
-		disk[i] = make([]byte, BlockSize)
+	blocks := make([]Block, numBlocks)
+	for i := range blocks {
+		blocks[i] = make([]byte, BlockSize)
 	}
-	return disk
+	return MemDisk{l: new(sync.RWMutex), blocks: blocks}
 }
 
 func (d MemDisk) Read(a uint64) Block {
-	return d[a]
+	d.l.RLock()
+	defer d.l.RUnlock()
+	return d.blocks[a]
 }
 
 func (d MemDisk) Write(a uint64, v Block) {
 	if uint64(len(v)) != BlockSize {
 		panic(fmt.Errorf("v is not block-sized (%d bytes)", len(v)))
 	}
-	d[a] = v
+	d.l.Lock()
+	defer d.l.Unlock()
+	d.blocks[a] = v
 }
 
 func (d MemDisk) Size() uint64 {
-	return uint64(len(d))
+	// this never changes so we assume it's safe to run lock-free
+	return uint64(len(d.blocks))
 }
 
 func (d MemDisk) Barrier() {}
