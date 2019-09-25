@@ -128,16 +128,17 @@ Definition DoSomething {model:GoModel} (s:string) : proc unit :=
   Ret tt.
 
 Definition standardForLoop {model:GoModel} (s:slice.t uint64) : proc uint64 :=
-  sum <- Data.newPtr uint64;
+  sumPtr <- Data.newPtr uint64;
   _ <- Loop (fun i =>
         if compare_to Lt i (slice.length s)
         then
-          oldSum <- Data.readPtr sum;
+          sum <- Data.readPtr sumPtr;
           x <- Data.sliceRead s i;
-          _ <- Data.writePtr sum (oldSum + x);
+          _ <- Data.writePtr sumPtr (sum + x);
           Continue (i + 1)
         else LoopRet tt) 0;
-  Ret (Data.readPtr sum).
+  sum <- Data.readPtr sumPtr;
+  Ret sum.
 
 Definition conditionalInLoop {model:GoModel} : proc unit :=
   Loop (fun i =>

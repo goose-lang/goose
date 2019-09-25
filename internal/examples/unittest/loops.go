@@ -5,20 +5,21 @@ func DoSomething(s string) {}
 
 func standardForLoop(s []uint64) uint64 {
 	// this is the boilerplate needed to do a normal for loop
-	sum := new(uint64)
+	sumPtr := new(uint64)
 	for i := uint64(0); ; {
 		if i < uint64(len(s)) {
 			// the body of the loop
-			oldSum := *sum
+			sum := *sumPtr
 			x := s[i]
-			*sum = oldSum + x
+			*sumPtr = sum + x
 
 			i = i + 1
 			continue
 		}
 		break
 	}
-	return *sum
+	sum := *sumPtr
+	return sum
 }
 
 func conditionalInLoop() {
