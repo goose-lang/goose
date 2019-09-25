@@ -929,12 +929,50 @@ func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
 	return getIdent(e)
 }
 
+func (ctx Ctx) getMapClearIdiom(s *ast.RangeStmt) coq.Expr {
+	if _, ok := ctx.typeOf(s.X).(*types.Map); !ok {
+		return nil
+	}
+	key, ok := getIdent(s.Key)
+	if !ok {
+		ctx.nope(s.Key, "range with non-ident key")
+		return nil
+	}
+	if s.Value != nil {
+		return nil
+	}
+	if len(s.Body.List) != 1 {
+		return nil
+	}
+	exprStmt, ok := s.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return nil
+	}
+	callExpr, ok := exprStmt.X.(*ast.CallExpr)
+	if !(ok && isIdent(callExpr.Fun, "delete") && len(callExpr.Args) == 2) {
+		return nil
+	}
+	// we have a single call to a delete
+	mapName, ok := getIdent(s.X)
+	if !ok {
+		ctx.unsupported(s.X, "clearing a complex map expression")
+	}
+	if !(isIdent(callExpr.Args[0], mapName) &&
+		isIdent(callExpr.Args[1], key)) {
+		return nil
+	}
+	return coq.NewCallExpr("Data.mapClear", coq.IdentExpr(mapName))
+}
+
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 	if _, ok := ctx.typeOf(s.X).(*types.Map); !ok {
 		ctx.unsupported(s,
 			"range over %v (only maps are supported)",
 			ctx.typeOf(s.X))
 		return nil
+	}
+	if expr := ctx.getMapClearIdiom(s); expr != nil {
+		return expr
 	}
 	key, ok := getIdentOrAnonymous(s.Key)
 	if !ok {

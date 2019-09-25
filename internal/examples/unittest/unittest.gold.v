@@ -151,6 +151,9 @@ Definition conditionalInLoop {model:GoModel} : proc unit :=
         then LoopRet tt
         else Continue (i + 1)) 0.
 
+Definition clearMap {model:GoModel} (m:Map uint64) : proc unit :=
+  Data.mapClear m.
+
 Definition IterateMapKeys {model:GoModel} (m:Map uint64) (sum:ptr uint64) : proc unit :=
   Data.mapIter m (fun k _ =>
     oldSum <- Data.readPtr sum;
