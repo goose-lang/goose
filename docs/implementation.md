@@ -2,7 +2,7 @@
 
 Goose translates struct definitions and functions. The design aims for a simple implementation and secondarily for natural Go code.
 
-When we talk about converting to "Coq" in goose what we really mean is translating `struct` definitions to Coq records and functions to `proc`s in Argosy using the Goose operations.
+When we talk about converting to "Coq" in goose what we really mean is translating `struct` definitions to Coq records and functions to `proc`s in Perennial using the Goose operations.
 
 We made a conscious decision not to model a local environment in Coq. As a result we can translate Go's variable declarations using `:=` to Coq immutable bindings; values can never change since re-assignments in Go are not supported. This greatly simplifies goose: it can translate Go declarations to bindings in a nearly one-to-one manner.
 
@@ -28,12 +28,12 @@ Some Go features that are not supported include `defer`, `panic`, channels, anon
 
 ## Go support library
 
-Goose supplies `github.com/tchajed/goose/machine` for a handful of additional base operations (eg, for encoding integers as bytes) and `github.com/tchajed/goose/machine/filesys` for interacting with the filesystem. The filesystem layer is specific to the Argosy concurrent key-value store's needs and thus supports a subset of operations and only a single directory.
+Goose supplies `github.com/tchajed/goose/machine` for a handful of additional base operations (eg, for encoding integers as bytes) and `github.com/tchajed/goose/machine/filesys` for interacting with the filesystem. The filesystem layer is specific to the Perennial concurrent key-value store's needs and thus supports a subset of operations and only a single directory.
 
 ## Coq support
 
 Goose translates to a `proc` using the `Goose.GoLayer` layer, which models the Go heap (pointers, slices, and maps) and the Goose `filesys` package. All of the native Go operations are intended to model features built-in to the language. The filesystem model applies only to our `filesys` package, which aims carefully to be a thin wrapper around system calls.
 
-Most operations are modeled as being non-atomic using a trick that makes concurrent writes and reads an error. This is because Go's slices, pointers, and maps are not thread-safe; even pointers are not thread safe since they don't use x86's atomic read and write instructions (which are more expensive than the non-atomic versions). The only safe model of these operations, which can do anything in Go, is to use Argosy's "error" transition, the equivalent of undefined behavior in the style of C. The filesystem operations are largely atomic (assuming the kernel does the appropriate synchronization), except for `List`, which might make multiple calls to read a directory.
+Most operations are modeled as being non-atomic using a trick that makes concurrent writes and reads an error. This is because Go's slices, pointers, and maps are not thread-safe; even pointers are not thread safe since they don't use x86's atomic read and write instructions (which are more expensive than the non-atomic versions). The only safe model of these operations, which can do anything in Go, is to use Perennial "error" transition, the equivalent of undefined behavior in the style of C. The filesystem operations are largely atomic (assuming the kernel does the appropriate synchronization), except for `List`, which might make multiple calls to read a directory.
 
 Go maps deserve some special attention because they need iteration. We handle this iteration using a combination of support from goose and Coq. First, we model non-atomic iteration (that is, iteration where concurrent writes are unsafe) using `MapStartIter` and `MapEndIter` surrounding the actual body. Second, goose recognizes iterations over maps. It translates them to a call to a helper function in Coq that encapsulates the entire pattern of `MapStartIter`, calling the body of the loop on every key-value pair, and finally calling `MapEndIter`.
