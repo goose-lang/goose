@@ -722,8 +722,11 @@ func (t PtrType) Coq() string {
 //  target interface.
 const importHeader string = `
 From Perennial.go_lang Require Import prelude.
+
+(* disk FFI *)
 From Perennial.go_lang Require Import ffi.disk.
 Existing Instances disk_op disk_model disk_ty.
+Local Coercion Var' (s: string) := Var s.
 `
 
 // File represents a complete Coq file (a sequence of declarations).
