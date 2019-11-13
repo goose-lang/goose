@@ -120,10 +120,16 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.StructName(t.String())
 	case *types.Basic:
 		switch t.Name() {
-		case "string", "uint64", "byte", "bool":
-			return coq.TypeIdent(t.Name())
-		case "untyped string":
-			return coq.TypeIdent("string")
+		case "uint64":
+			return coq.TypeIdent("intT")
+		case "byte":
+			return coq.TypeIdent("byteT")
+		case "bool":
+			return coq.TypeIdent("boolT")
+		case "string", "untyped string":
+			ctx.unsupported(n,
+				"need to think about how to add pure string values")
+			// return coq.TypeIdent("string")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -245,7 +251,7 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
 		ctx.unsupported(e, "length of object of type %v", xTy)
 		return coq.PureCall(coq.CallExpr{})
 	}
-	return coq.PureCall(coq.NewCallExpr("slice.length",
+	return coq.PureCall(coq.NewCallExpr("slice.len",
 		ctx.expr(x),
 	))
 }
@@ -324,9 +330,9 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if isIdent(f.X, "machine") {
 		switch f.Sel.Name {
 		case "UInt64Get":
-			return ctx.newCoqCall("Data.uint64Get", args)
+			return ctx.newCoqCall("UInt64Get", args)
 		case "UInt64Put":
-			return ctx.newCoqCall("Data.uint64Put", args)
+			return ctx.newCoqCall("UInt64Put", args)
 		case "RandomUint64":
 			return ctx.newCoqCall("Data.randomUint64", nil)
 		case "UInt64ToString":
@@ -407,7 +413,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
 		}
 		elt := ctx.coqType(typeArg.Elt)
-		return coq.NewCallExpr("Data.newSlice", elt, ctx.expr(args[1]))
+		return coq.NewCallExpr("NewSlice", elt, ctx.expr(args[1]))
 	default:
 		ctx.nope(typeArg, "make() of %s, not a map or array", typeArg)
 	}
@@ -471,6 +477,16 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	return ctx.methodExpr(s.Fun, s.Args)
 }
 
+// TODO: *types.Struct is actually unused
+func getStructType(t types.Type) (string, *types.Struct, bool) {
+	if t, ok := t.(*types.Named); ok {
+		if structType, ok := t.Obj().Type().Underlying().(*types.Struct); ok {
+			return t.Obj().Name(), structType, true
+		}
+	}
+	return "", nil, false
+}
+
 func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	selectorType, ok := ctx.getType(e.X)
 	if !ok {
@@ -483,9 +499,14 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 		ctx.unsupported(e, "package select")
 		return nil
 	}
-	if t, ok := selectorType.(*types.Named); ok {
-		if structType, ok := t.Obj().Type().Underlying().(*types.Struct); ok {
-			return ctx.structSelector(t.Obj().Name(), structType, e)
+	structName, structType, ok := getStructType(selectorType)
+	if ok {
+		return ctx.structSelector(structName, structType, e)
+	}
+	if t, ok := selectorType.(*types.Pointer); ok {
+		structName, structType, ok = getStructType(t.Elem())
+		if ok {
+			return ctx.structPointerSelector(structName, structType, e)
 		}
 	}
 	ctx.unsupported(e, "unexpected select expression")
@@ -493,9 +514,15 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(name string, ty *types.Struct,
-	e *ast.SelectorExpr) coq.ProjExpr {
+	e *ast.SelectorExpr) coq.CallExpr {
 	proj := fmt.Sprintf("%s.%s", name, e.Sel.Name)
-	return coq.ProjExpr{Projection: proj, Arg: ctx.expr(e.X)}
+	return coq.NewCallExpr(proj, ctx.expr(e.X))
+}
+
+func (ctx Ctx) structPointerSelector(name string, ty *types.Struct,
+	e *ast.SelectorExpr) coq.CallExpr {
+	proj := fmt.Sprintf("%s.%s", name, e.Sel.Name)
+	return coq.NewCallExpr(proj, coq.DerefExpr{ctx.expr(e.X)})
 }
 
 func structTypeFields(ty *types.Struct) []string {
@@ -597,11 +624,11 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
-		return coq.PureCall(coq.NewCallExpr("slice.skip",
+		return coq.PureCall(coq.NewCallExpr("SliceSkip",
 			ctx.expr(e.Low), x))
 	}
 	if e.Low == nil && e.High != nil {
-		return coq.PureCall(coq.NewCallExpr("slice.take",
+		return coq.PureCall(coq.NewCallExpr("SliceTake",
 			ctx.expr(e.High), x))
 	}
 	if e.Low != nil && e.High != nil {
@@ -615,20 +642,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 }
 
 func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
-	valueType := coq.TypeIdent("_")
-	switch nilTy := ctx.typeOf(e).(type) {
-	case *types.Basic:
-		if nilTy.Kind() != types.UntypedNil {
-			ctx.nope(e, "nil that is of a non-nil basic kind")
-			return coq.CallExpr{}
-		}
-	default:
-		ctx.todo(e, "take advantage of nil type %s", nilTy)
-	}
-	return coq.CallExpr{
-		MethodName: "slice.nil",
-		Args:       []coq.Expr{valueType},
-	}
+	return coq.NewCallExpr("slice.nil")
 }
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
@@ -644,11 +658,13 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 	if e.Obj != nil {
 		return coq.IdentExpr(n)
 	}
-	if n == "nil" {
+	switch n {
+	case "nil":
 		return ctx.nilExpr(e)
-	}
-	if n == "true" || n == "false" {
-		return coq.IdentExpr(n)
+	case "true":
+		return coq.True
+	case "false":
+		return coq.False
 	}
 	ctx.unsupported(e, "special identifier")
 	return nil
@@ -661,7 +677,7 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
 		return coq.NewCallExpr("Data.mapGet",
 			ctx.expr(e.X), ctx.expr(e.Index))
 	case *types.Slice:
-		return coq.NewCallExpr("Data.sliceRead",
+		return coq.NewCallExpr("SliceGet",
 			ctx.expr(e.X), ctx.expr(e.Index))
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
@@ -693,7 +709,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
-		return coq.NewCallExpr("Data.readPtr", ctx.expr(e.X))
+		return coq.DerefExpr{ctx.expr(e.X)}
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}
@@ -742,7 +758,7 @@ func (ctx Ctx) stmts(ss []ast.Stmt, loopVar *string) coq.BlockExpr {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
 	if len(bindings) == 0 {
-		retExpr := coq.ReturnExpr{coq.IdentExpr("tt")}
+		retExpr := coq.ReturnExpr{coq.Tt}
 		return coq.BlockExpr{[]coq.Binding{coq.NewAnon(retExpr)}}
 	}
 	return coq.BlockExpr{bindings}
@@ -1069,8 +1085,10 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		return coq.NewAnon(coq.NewCallExpr("Data.writePtr",
-			ctx.expr(lhs.X), ctx.expr(s.Rhs[0])))
+		return coq.NewAnon(coq.StoreStmt{
+			Dst: ctx.expr(lhs.X),
+			X:   ctx.expr(s.Rhs[0]),
+		})
 	default:
 		ctx.unsupported(s, "assigning to complex ")
 	}

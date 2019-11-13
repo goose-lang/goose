@@ -43,11 +43,13 @@ func (log Log) Get(i uint64) (disk.Block, bool) {
 }
 
 func writeAll(bks []disk.Block, off uint64) {
-	numBks := uint64(len(bks))
-	for i := uint64(0); i < numBks; i++ {
-		bk := bks[i]
-		disk.Write(off+i, bk)
-	}
+	/*
+		numBks := uint64(len(bks))
+		for i := uint64(0); i < numBks; i++ {
+			bk := bks[i]
+			disk.Write(off+i, bk)
+		}
+	*/
 }
 
 func (log *Log) Append(bks []disk.Block) bool {

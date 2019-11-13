@@ -93,6 +93,10 @@ func (pp *buffer) AddComment(c string) {
 	pp.Indent(-len("(* "))
 }
 
+func quote(s string) string {
+	return `"` + s + `"`
+}
+
 // FieldDecl is a name:type declaration (for a struct or function binders)
 type FieldDecl struct {
 	Name string
@@ -100,7 +104,7 @@ type FieldDecl struct {
 }
 
 func (d FieldDecl) CoqBinder() string {
-	return fmt.Sprintf("(%s:%s)", d.Name, d.Type.Coq())
+	return quote(d.Name)
 }
 
 // StructDecl is a Coq record for a Go struct
@@ -126,20 +130,28 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	pp.AddComment(d.Comment)
-	pp.Add("Record t {model:GoModel} := mk {")
+	pp.Add("Definition S := mkStruct [")
 	pp.Indent(2)
+	var fieldList []string
 	for _, fd := range d.Fields {
-		pp.Add("%s: %s;", fd.Name, fd.Type.Coq())
+		fieldList = append(fieldList, quote(fd.Name))
+	}
+	pp.Add("%s", strings.Join(fieldList, "; "))
+	pp.Indent(-2)
+	pp.Add("].")
+	var typeList []string
+	for _, fd := range d.Fields {
+		typeList = append(typeList, fd.Type.Coq())
+	}
+	pp.Add("Definition T: ty := %s.", strings.Join(typeList, " * "))
+	pp.Add("Section fields.")
+	pp.Indent(2)
+	pp.Add("%s", "Context `{ext_ty: ext_types}.")
+	for _, fd := range d.Fields {
+		pp.Add("Definition %s := structF! S %s.", fd.Name, quote(fd.Name))
 	}
 	pp.Indent(-2)
-	pp.Add("}.")
-	pp.Add("Arguments mk {model}.")
-	var zeroValueArgs []string
-	for range d.Fields {
-		zeroValueArgs = append(zeroValueArgs, "(zeroValue _)")
-	}
-	pp.Add("Global Instance t_zero {model:GoModel} : HasGoZero t := mk %s.",
-		strings.Join(zeroValueArgs, " "))
+	pp.Add("End fields.")
 	pp.Indent(-2)
 	pp.Add("End %s.", d.Name)
 	return pp.Build()
@@ -196,7 +208,7 @@ type Expr interface {
 type IdentExpr string
 
 func (e IdentExpr) Coq() string {
-	return string(e)
+	return quote(string(e))
 }
 
 // CallExpr includes primitives and references to other functions.
@@ -244,7 +256,7 @@ type ReturnExpr struct {
 }
 
 func (e ReturnExpr) Coq() string {
-	return blocked("Ret ", addParens(e.Value.Coq()))
+	return e.Value.Coq()
 }
 
 // Binding is a Coq binding (a part of a Bind expression)
@@ -325,12 +337,32 @@ func (sl StructLiteral) Coq() string {
 	return fmt.Sprintf("{| %s |}", strings.Join(pieces, "\n"))
 }
 
+type BoolLiteral bool
+
+var True, False BoolLiteral = true, false
+
+func (b BoolLiteral) Coq() string {
+	if b {
+		return "#true"
+	} else {
+		return "#false"
+	}
+}
+
+type UnitLiteral struct{}
+
+var Tt UnitLiteral = struct{}{}
+
+func (tt UnitLiteral) Coq() string {
+	return "#()"
+}
+
 type IntLiteral struct {
 	Value uint64
 }
 
 func (l IntLiteral) Coq() string {
-	return fmt.Sprintf("%d", l.Value)
+	return fmt.Sprintf("#%d", l.Value)
 }
 
 type StringLiteral struct {
@@ -364,26 +396,16 @@ type BinaryExpr struct {
 }
 
 func (be BinaryExpr) Coq() string {
-	coqFunc := map[BinOp]string{
-		// TODO: should maybe have binary operators in Coq for these, too
-		OpLessThan:    "compare_to Lt",
-		OpGreaterThan: "compare_to Gt",
-		OpLessEq:      "uint64_le",
-		OpGreaterEq:   "uint64_ge",
-	}
-	if f, ok := coqFunc[be.Op]; ok {
-		return fmt.Sprintf("%s %s %s",
-			f, addParens(be.X.Coq()), addParens(be.Y.Coq()))
-	}
-
 	coqBinOp := map[BinOp]string{
-		OpPlus:  "+",
-		OpMinus: "-",
-		// note that this is not a boolean; shouldn't be a problem for a while
-		// since we don't actually support Go booleans, only if-statements
-		OpEquals: "==",
-		OpAppend: "++",
-		OpMul:    "*",
+		OpPlus:        "+",
+		OpMinus:       "-",
+		OpEquals:      "=",
+		OpAppend:      "++",
+		OpMul:         "*",
+		OpLessThan:    "<",
+		OpGreaterThan: ">",
+		OpLessEq:      "≤",
+		OpGreaterEq:   "≥",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
 		return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
@@ -442,17 +464,32 @@ func (be BlockExpr) Coq() string {
 			pp.AddLine(b.Expr.Coq())
 			continue
 		}
-		if isPure(b.Expr) {
-			// this generates invalid code if the binder happens to be for multiple values
-			// (which would only happen if we supported some pure function with multiple return values)
-			pp.Add("let %s := %s in",
-				b.Binder(), b.Expr.Coq())
+		if b.isAnonymous() {
+			pp.Add("%s;;", b.Expr.Coq())
+		} else if len(b.Names) == 1 {
+			pp.Add("let: %s := %s in", quote(b.Names[0]), b.Expr.Coq())
 		} else {
-			pp.Add("%s <- %s;",
-				b.Binder(), b.Expr.Coq())
+			panic("TODO: go_lang destructuring notation")
 		}
 	}
 	return pp.Build()
+}
+
+type DerefExpr struct {
+	X Expr
+}
+
+func (e DerefExpr) Coq() string {
+	return "!" + e.X.Coq()
+}
+
+type StoreStmt struct {
+	Dst Expr
+	X   Expr
+}
+
+func (e StoreStmt) Coq() string {
+	return fmt.Sprintf("%s <- %s", e.Dst, e.X)
 }
 
 type IfExpr struct {
@@ -478,7 +515,7 @@ func flowBranch(pp *buffer, prefix string, e Expr) {
 
 func (ife IfExpr) Coq() string {
 	var pp buffer
-	pp.Add("if %s", ife.Cond.Coq())
+	pp.Add("if: %s", ife.Cond.Coq())
 	flowBranch(&pp, "then", ife.Then)
 	flowBranch(&pp, "else", ife.Else)
 	return pp.Build()
@@ -591,15 +628,13 @@ type FuncDecl struct {
 	Comment    string
 }
 
-// Signature renders the function declaration's type signature for Coq
+// Signature renders the function declaration's bindings
 func (d FuncDecl) Signature() string {
-	args := []string{"{model:GoModel}"}
+	var args []string
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
 	}
-	return fmt.Sprintf("%s %s : proc %s",
-		d.Name, strings.Join(args, " "),
-		addParens(d.ReturnType.Coq()))
+	return strings.Join(args, " ")
 }
 
 // CoqDecl implements the Decl interface
@@ -609,7 +644,9 @@ func (d FuncDecl) Signature() string {
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Definition %s :=", d.Signature())
+	pp.Add("Definition %s: val :=", d.Name)
+	pp.Indent(2)
+	pp.Add("λ: %s,", d.Signature())
 	pp.Indent(2)
 	pp.AddLine(d.Body.Coq() + ".")
 	return pp.Build()
@@ -695,6 +732,7 @@ func (f File) autogeneratedNotice() CommentDecl {
 }
 
 // Write outputs the Coq source for a File.
+//noinspection GoUnhandledErrorResult
 func (f File) Write(w io.Writer) {
 	fmt.Fprintln(w, f.autogeneratedNotice().CoqDecl())
 	fmt.Fprintln(w, importHeader)
