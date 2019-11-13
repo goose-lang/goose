@@ -14,28 +14,28 @@ import (
 */
 
 type Log struct {
-	logSz  uint64
+	sz     uint64
 	diskSz uint64
 }
 
 func (log Log) writeHdr() {
 	hdr := make([]byte, 4096)
-	machine.UInt64Put(hdr, log.logSz)
-	machine.UInt64Put(hdr[8:], log.logSz)
+	machine.UInt64Put(hdr, log.sz)
+	machine.UInt64Put(hdr[8:], log.sz)
 	disk.Write(0, hdr)
 }
 
 func Init(diskSz uint64) (Log, bool) {
 	if diskSz < 1 {
-		return Log{logSz: 0, diskSz: 0}, false
+		return Log{sz: 0, diskSz: 0}, false
 	}
-	log := Log{logSz: 0, diskSz: diskSz}
+	log := Log{sz: 0, diskSz: diskSz}
 	log.writeHdr()
 	return log, true
 }
 
 func (log Log) Get(i uint64) (disk.Block, bool) {
-	sz := log.logSz
+	sz := log.sz
 	if i < sz {
 		return disk.Read(1 + i), true
 	}
@@ -53,19 +53,19 @@ func writeAll(bks []disk.Block, off uint64) {
 }
 
 func (log *Log) Append(bks []disk.Block) bool {
-	sz := log.logSz
+	sz := log.sz
 	if 1+sz+uint64(len(bks)) >= log.diskSz {
 		return false
 	}
 	writeAll(bks, 1+sz)
-	newLog := Log{logSz: sz + uint64(len(bks)), diskSz: log.diskSz}
+	newLog := Log{sz: sz + uint64(len(bks)), diskSz: log.diskSz}
 	newLog.writeHdr()
 	*log = newLog
 	return true
 }
 
 func (log *Log) Reset() {
-	newLog := Log{logSz: 0, diskSz: log.diskSz}
+	newLog := Log{sz: 0, diskSz: log.diskSz}
 	newLog.writeHdr()
 	*log = newLog
 }

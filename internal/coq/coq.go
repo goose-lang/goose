@@ -324,17 +324,15 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 }
 
 func (sl StructLiteral) Coq() string {
-	var pieces []string
-	for i, f := range sl.elts {
-		field := fmt.Sprintf("%s.%s := %s;",
-			sl.StructName, f.Field, f.Value.Coq())
-		if i == 0 {
-			pieces = append(pieces, field)
-		} else {
-			pieces = append(pieces, "   "+field)
-		}
+	var pp buffer
+	pp.Add("buildStruct %s.S [", sl.StructName)
+	pp.Indent(2)
+	for _, f := range sl.elts {
+		pp.Add("%s ::= %s;", quote(f.Field), f.Value.Coq())
 	}
-	return fmt.Sprintf("{| %s |}", strings.Join(pieces, "\n"))
+	pp.Indent(-2)
+	pp.Add("]")
+	return pp.Build()
 }
 
 type BoolLiteral bool
