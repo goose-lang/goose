@@ -487,7 +487,7 @@ type StoreStmt struct {
 }
 
 func (e StoreStmt) Coq() string {
-	return fmt.Sprintf("%s <- %s", e.Dst, e.X)
+	return fmt.Sprintf("%s <- %s", e.Dst.Coq(), e.X.Coq())
 }
 
 type IfExpr struct {
