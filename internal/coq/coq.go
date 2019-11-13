@@ -327,8 +327,12 @@ func (sl StructLiteral) Coq() string {
 	var pp buffer
 	pp.Add("buildStruct %s.S [", sl.StructName)
 	pp.Indent(2)
-	for _, f := range sl.elts {
-		pp.Add("%s ::= %s;", quote(f.Field), f.Value.Coq())
+	for i, f := range sl.elts {
+		terminator := ";"
+		if i == len(sl.elts)-1 {
+			terminator = ""
+		}
+		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(), terminator)
 	}
 	pp.Indent(-2)
 	pp.Add("]")

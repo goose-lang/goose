@@ -316,7 +316,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
 	if isIdent(f.X, "disk") {
-		return ctx.newCoqCall("Disk."+toInitialLower(f.Sel.Name), args)
+		return ctx.newCoqCall("disk."+f.Sel.Name, args)
 	}
 	if isIdent(f.X, "globals") {
 		switch f.Sel.Name {

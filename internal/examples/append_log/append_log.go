@@ -43,6 +43,7 @@ func (log Log) Get(i uint64) (disk.Block, bool) {
 }
 
 func writeAll(bks []disk.Block, off uint64) {
+	// TODO: support for loops
 	/*
 		numBks := uint64(len(bks))
 		for i := uint64(0); i < numBks; i++ {
