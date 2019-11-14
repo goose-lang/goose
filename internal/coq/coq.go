@@ -459,6 +459,17 @@ func isPure(e Expr) bool {
 	}
 }
 
+// AddTo adds a binding as a non-terminal line to a block
+func (b Binding) AddTo(pp *buffer) {
+	if b.isAnonymous() {
+		pp.Add("%s;;", b.Expr.Coq())
+	} else if len(b.Names) == 1 {
+		pp.Add("let: %s := %s in", quote(b.Names[0]), b.Expr.Coq())
+	} else {
+		panic("TODO: go_lang destructuring notation")
+	}
+}
+
 func (be BlockExpr) Coq() string {
 	var pp buffer
 	for n, b := range be.Bindings {
@@ -466,13 +477,7 @@ func (be BlockExpr) Coq() string {
 			pp.AddLine(b.Expr.Coq())
 			continue
 		}
-		if b.isAnonymous() {
-			pp.Add("%s;;", b.Expr.Coq())
-		} else if len(b.Names) == 1 {
-			pp.Add("let: %s := %s in", quote(b.Names[0]), b.Expr.Coq())
-		} else {
-			panic("TODO: go_lang destructuring notation")
-		}
+		b.AddTo(&pp)
 	}
 	return pp.Build()
 }
@@ -483,6 +488,14 @@ type DerefExpr struct {
 
 func (e DerefExpr) Coq() string {
 	return "!" + e.X.Coq()
+}
+
+type RefExpr struct {
+	X Expr
+}
+
+func (e RefExpr) Coq() string {
+	return NewCallExpr("ref", e.X).Coq()
 }
 
 type StoreStmt struct {
@@ -563,25 +576,20 @@ func (e LoopContinueExpr) Coq() string {
 	return blocked("Continue ", addParens(e.Value.Coq()))
 }
 
-// A LoopExpr is a complete Coq loop
-//
-// Loops are allowed any type for loop variables (although there's no way to
-// express the unit type or value for the loop variable).
-type LoopExpr struct {
-	// name of loop variable
-	LoopVarIdent string
-	// the initial loop variable value to use
-	Initial Expr
-	// the body of the loop, with LoopVarIdent as a free variable
+type ForLoopExpr struct {
+	Init Binding
+	Cond Expr
+	Post Expr
+	// the body of the loop
 	Body BlockExpr
 }
 
-func (e LoopExpr) Coq() string {
+func (e ForLoopExpr) Coq() string {
 	var pp buffer
-	pp.Block("Loop (", "fun %s =>", e.LoopVarIdent)
-	pp.Add("%s) %s",
-		e.Body.Coq(),
-		addParens(e.Initial.Coq()))
+	e.Init.AddTo(&pp)
+	pp.Add("for: (%s); (%s) :=", e.Cond.Coq(), e.Post.Coq())
+	pp.Indent(2)
+	pp.Add("%s", e.Body.Coq())
 	return pp.Build()
 }
 

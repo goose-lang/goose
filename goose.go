@@ -24,12 +24,46 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
+type ScopeCtx struct {
+	// TODO: this is too simple; need nested scopes and shadowing
+	ptrVars map[string]bool
+}
+
+func (ctx ScopeCtx) IsPointer(ident string) bool {
+	_, ok := ctx.ptrVars[ident]
+	return ok
+}
+
+func (ctx ScopeCtx) AddVar(ident string) {
+	ctx.ptrVars[ident] = true
+}
+
+func (ctx ScopeCtx) RemoveVar(ident string) {
+	if !ctx.IsPointer(ident) {
+		panic(fmt.Errorf("attempt to remove var %s which was not added", ident))
+	}
+	ctx.ptrVars[ident] = false
+}
+
+func newScopeCtx() *ScopeCtx {
+	return &ScopeCtx{ptrVars: make(map[string]bool)}
+}
+
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	info *types.Info
-	fset *token.FileSet
+	scope *ScopeCtx
+	info  *types.Info
+	fset  *token.FileSet
 	errorReporter
 	Config
+}
+
+func (ctx Ctx) newScope() {
+	ctx.scope = newScopeCtx()
+}
+
+func (ctx Ctx) clearScope() {
+	ctx.scope = nil
 }
 
 // Config holds global configuration for Coq conversion
@@ -45,6 +79,7 @@ func NewCtx(fset *token.FileSet, config Config) Ctx {
 		Types: make(map[ast.Expr]types.TypeAndValue),
 	}
 	return Ctx{
+		scope:         newScopeCtx(),
 		info:          info,
 		fset:          fset,
 		errorReporter: newErrorReporter(fset),
@@ -653,12 +688,18 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
-	n := e.Name
-	if e.Obj != nil {
-		return coq.IdentExpr(n)
+func (ctx Ctx) variable(s string) coq.Expr {
+	if ctx.scope.IsPointer(s) {
+		return coq.DerefExpr{coq.IdentExpr(s)}
 	}
-	switch n {
+	return coq.IdentExpr(s)
+}
+
+func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
+	if e.Obj != nil {
+		return ctx.variable(e.Name)
+	}
+	switch e.Name {
 	case "nil":
 		return ctx.nilExpr(e)
 	case "true":
@@ -898,44 +939,55 @@ func isLoopVarReassign(s ast.Node, loopVar string) bool {
 		isIdent(assign.Rhs[0], loopVar)
 }
 
-func (ctx Ctx) forStmt(s *ast.ForStmt) coq.LoopExpr {
-	if s.Cond != nil || s.Post != nil {
-		var bad ast.Node = s.Cond
-		if s.Cond == nil {
-			bad = s.Post
+func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
+	var init coq.Binding = coq.NewAnon(coq.NewCallExpr("Skip"))
+	var ident string
+	var loopVar *string = nil
+	if s.Init != nil {
+		ident, _ = ctx.loopVar(s.Init)
+		ctx.scope.AddVar(ident)
+		defer ctx.scope.RemoveVar(ident)
+		init = ctx.stmt(s.Init, &cursor{nil}, nil)
+		loopVar = &ident
+	}
+	var cond coq.Expr = coq.True
+	if s.Cond != nil {
+		cond = ctx.expr(s.Cond)
+	}
+	var post coq.Expr = coq.NewCallExpr("Skip")
+	if s.Post != nil {
+		postBlock := ctx.stmt(s.Post, &cursor{nil}, loopVar)
+		if len(postBlock.Names) > 0 {
+			ctx.unsupported(s.Post, "post cannot bind names")
 		}
-		ctx.unsupported(bad, "loop conditions and post expressions are unsupported")
-		return coq.LoopExpr{}
-	}
-	if s.Init == nil {
-		// need special handling (in particular, need to skip looking for a loop variable assignment)
-		ctx.futureWork(s, "loop without a loop variable")
-		return coq.LoopExpr{}
-	}
-	ident, init := ctx.loopVar(s.Init)
-	loop := coq.LoopExpr{
-		LoopVarIdent: ident,
-		Initial:      init,
+		post = postBlock.Expr
 	}
 
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
-
-	if hasFuncLit(s.Body) {
-		first := c.Next()
-		if !isLoopVarReassign(first, ident) {
-			ctx.unsupported(first,
-				"add %s := %s to start of loop"+
-					" to avoid incorrect loop var capture",
-				ident, ident)
-			return coq.LoopExpr{}
+	/*
+		if hasFuncLit(s.Body) {
+			first := c.Next()
+			if !isLoopVarReassign(first, ident) {
+				ctx.unsupported(first,
+					"add %s := %s to start of loop"+
+						" to avoid incorrect loop var capture",
+					ident, ident)
+				return coq.LoopExpr{}
+			}
 		}
-	}
+	*/
 	for c.HasNext() {
-		bindings = append(bindings, ctx.stmt(c.Next(), c, &ident))
+		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	loop.Body = coq.BlockExpr{bindings}
-	return loop
+	bindings = append(bindings, coq.NewAnon(coq.True))
+	body := coq.BlockExpr{bindings}
+	return coq.ForLoopExpr{
+		Init: init,
+		Cond: cond,
+		Post: post,
+		Body: body,
+	}
 }
 
 func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
@@ -1028,6 +1080,9 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 		}
 		names = append(names, ident)
 	}
+	if len(names) == 1 && ctx.scope.IsPointer(names[0]) {
+		return coq.Binding{names, coq.RefExpr{ctx.expr(rhs)}}
+	}
 	return coq.Binding{names, ctx.expr(rhs)}
 }
 
@@ -1048,6 +1103,9 @@ func (ctx Ctx) loopAssignStmt(s *ast.AssignStmt, c *cursor) coq.Binding {
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
+	}
+	if s.Tok != token.ASSIGN {
+		ctx.unsupported(s, "%v assignment", s.Tok)
 	}
 	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
 		ctx.unsupported(s, "multiple assignment")
@@ -1093,6 +1151,26 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		ctx.unsupported(s, "assigning to complex ")
 	}
 	return coq.Binding{}
+}
+
+func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.Binding {
+	if loopVar == nil || !isIdent(stmt.X, *loopVar) {
+		ctx.todo(stmt, "cannot inc/dec non-loop var")
+		return coq.Binding{}
+	}
+	x := *loopVar
+	op := coq.OpPlus
+	if stmt.Tok == token.DEC {
+		op = coq.OpMinus
+	}
+	return coq.NewAnon(coq.StoreStmt{
+		Dst: coq.IdentExpr(x),
+		X: coq.BinaryExpr{
+			X:  ctx.variable(x),
+			Op: op,
+			Y:  coq.IntLiteral{1},
+		},
+	})
 }
 
 func (ctx Ctx) spawnExpr(thread ast.Expr, loopVar *string) coq.SpawnExpr {
@@ -1154,6 +1232,8 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		return ctx.assignStmt(s, c, loopVar)
+	case *ast.IncDecStmt:
+		return ctx.incDecStmt(s, c, loopVar)
 	case *ast.BlockStmt:
 		return coq.NewAnon(ctx.blockStmt(s, loopVar))
 	case *ast.IfStmt:
@@ -1223,6 +1303,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	}
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
+	ctx.newScope()
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd
 }
