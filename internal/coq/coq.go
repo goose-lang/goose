@@ -595,6 +595,9 @@ func (e LoopContinueExpr) Coq() string {
 	return blocked("Continue ", addParens(e.Value.Coq()))
 }
 
+var LoopContinue = GallinaIdent("Continue")
+var LoopBreak = GallinaIdent("Break")
+
 type ForLoopExpr struct {
 	Init Binding
 	Cond Expr

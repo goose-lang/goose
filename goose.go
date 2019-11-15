@@ -333,9 +333,9 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 		return coq.CallExpr{}
 	}
 	if writer {
-		args = append(args, coq.IdentExpr("Writer"))
+		args = append(args, coq.GallinaIdent("Writer"))
 	} else {
-		args = append(args, coq.IdentExpr("Reader"))
+		args = append(args, coq.GallinaIdent("Reader"))
 	}
 	if acquire {
 		return coq.NewCallExpr("Data.lockAcquire", args...)
@@ -918,7 +918,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	bindings = append(bindings, coq.NewAnon(coq.True))
+	bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
 	body := coq.BlockExpr{bindings}
 	return coq.ForLoopExpr{
 		Init: init,
@@ -1038,6 +1038,13 @@ func (ctx Ctx) loopAssignStmt(s *ast.AssignStmt, c *cursor) coq.Binding {
 	return coq.NewAnon(coq.LoopContinueExpr{rhs})
 }
 
+func pointerAssign(name string, x coq.Expr) coq.Binding {
+	return coq.NewAnon(coq.StoreStmt{
+		Dst: coq.IdentExpr(name),
+		X:   x,
+	})
+}
+
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
@@ -1048,18 +1055,18 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
 		ctx.unsupported(s, "multiple assignment")
 	}
+	rhs := s.Rhs[0]
 	// assignments can mean various things
 	switch lhs := s.Lhs[0].(type) {
 	case *ast.Ident:
-		if loopVar != nil {
-			if lhs.Name != *loopVar {
-				ctx.unsupported(s, "expected assignment to loop variable %s", *loopVar)
-				return coq.Binding{}
-			}
-			return ctx.loopAssignStmt(s, c)
+		ident := lhs.Name
+		if ctx.scope.IsPointer(ident) {
+			return pointerAssign(ident, ctx.expr(rhs))
 		}
-		ctx.futureWork(s, "general re-assignments are future work")
-		return coq.Binding{}
+		// the support for making variables assignable is in flux, but currently
+		// the only way the assignment would be supported is if it was created
+		// in a loop initializer
+		ctx.unsupported(s, "variable %s is not assignable", ident)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
@@ -1111,13 +1118,10 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.
 	if stmt.Tok == token.DEC {
 		op = coq.OpMinus
 	}
-	return coq.NewAnon(coq.StoreStmt{
-		Dst: coq.IdentExpr(x),
-		X: coq.BinaryExpr{
-			X:  ctx.variable(x),
-			Op: op,
-			Y:  coq.IntLiteral{1},
-		},
+	return pointerAssign(x, coq.BinaryExpr{
+		X:  ctx.variable(x),
+		Op: op,
+		Y:  coq.IntLiteral{1},
 	})
 }
 
@@ -1131,11 +1135,15 @@ func (ctx Ctx) spawnExpr(thread ast.Expr, loopVar *string) coq.SpawnExpr {
 	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
 }
 
-func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.LoopRetExpr {
-	if s.Tok != token.BREAK {
-		ctx.unsupported(s, "only break is supported to exit loops")
+func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.Expr {
+	if s.Tok == token.CONTINUE {
+		return coq.LoopContinue
 	}
-	return coq.LoopRetExpr{}
+	if s.Tok == token.BREAK {
+		return coq.LoopBreak
+	}
+	ctx.noExample(s, "unexpected control flow %v in loop", s.Tok)
+	return nil
 }
 
 // getSpawn returns a non-nil spawned thread if the expression is a call to
