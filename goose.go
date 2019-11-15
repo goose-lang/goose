@@ -135,13 +135,13 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return coq.TypeIdent("File")
+		return "File"
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return coq.TypeIdent("Block")
+		return "Block"
 	}
 	ctx.unsupported(e, "unknown package type %s", e)
-	return coq.TypeIdent("<selector expr>")
+	return "<selector expr>"
 }
 
 func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
@@ -902,7 +902,7 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
 }
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
-	var init coq.Binding = coq.NewAnon(coq.Skip)
+	var init = coq.NewAnon(coq.Skip)
 	var ident string
 	var loopVar *string = nil
 	if s.Init != nil {
@@ -1034,9 +1034,9 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 		names = append(names, ident)
 	}
 	if len(names) == 1 && ctx.scope.IsPointer(names[0]) {
-		return coq.Binding{names, coq.RefExpr{ctx.expr(rhs)}}
+		return coq.Binding{Names: names, Expr: coq.RefExpr{ctx.expr(rhs)}}
 	}
-	return coq.Binding{names, ctx.expr(rhs)}
+	return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
 }
 
 func pointerAssign(name string, x coq.Expr) coq.Binding {

@@ -10,6 +10,7 @@ import (
 	"github.com/tchajed/goose"
 )
 
+//noinspection GoUnhandledErrorResult
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")

@@ -3,7 +3,6 @@
 [![Build Status](https://travis-ci.org/tchajed/goose.svg?branch=master)](https://travis-ci.org/tchajed/goose)
 [![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
 
-
 Goose imports code written in Go into [Perennial](https://github.com/mit-pdos/perennial), a Coq framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Perennial program has a precise semantics in Coq describing its behavior, and we can use Perennial to prove that the code meets its specification.
 
 Goose supports only a stylized subset of Go, and part of the Perennial support includes a model for how Go pointers, slices, and maps work (for example). The conversion is _trusted_: we run the Go program but prove properties about the Coq code. The subset of Go and Perennial model are carefully chosen to make the translation simpler and more trustworthy.
@@ -13,6 +12,7 @@ Goose supports only a stylized subset of Go, and part of the Perennial support i
 To give a flavor of what goose does, let's look at an example:
 
 File `db.go`:
+
 ```go
 // A Table provides access to an immutable copy of data on the filesystem,
 // along with an index for fast random access.
@@ -32,6 +32,7 @@ func CreateTable(p string) Table {
 ```
 
 Goose output:
+
 ```coq
 Module Table.
   (* A Table provides access to an immutable copy of data on the filesystem,
@@ -53,7 +54,7 @@ Definition CreateTable (p:string) : proc Table.t :=
          Table.File := f2; |}.
 ```
 
-Goose translates Go structs to Coq records; it uses a module to provide better namespacing for the fields.
+Goose translates Go structs to Coq records; it uses a module to wrap the fields in their own namespace.
 
 The Coq version of `CreateTable` is written as a definition of type `proc Table.t`. A library called `Goose.base` defines all the support needed for this definition; it pulls in the type `proc T`, an Perennial procedure that returns a value of type `T`. Procedures are written using "bind" notation; to understand the examples all you need to know is that `x <- f; ...` means to run `f` and store the result in the variable `x`, then continue running with the new variable `x`.
 
@@ -66,6 +67,7 @@ Finally, the CreateTable function ends with `Ret` for the return statement in Go
 Goose doesn't support arbitrary Go code; it uses a carefully-selected subset of Go that is still idiomatic Go (for the most part) while being easy to translate. See the [implementation design doc](docs/implementation.md) for more details.
 
 There are three aspects of the Go model worth mentioning here:
+
 - Assignments are not supported, only bindings. This imposes a "linearity" restriction where each variable is constant after being first defined, which aligns well with how Perennial code works. Mutable variables can still be emulated using pointers and heap allocation.
 - Goose supports a few common control flow patterns so code can be written with early returns and some loops.
 - Many operations are carefully modeled as being non-linearizable in Perennial, although this area is subtle and hard to reconcile with Go's documented memory model.

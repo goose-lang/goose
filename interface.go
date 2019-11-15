@@ -65,7 +65,7 @@ func sortedFiles(files map[string]*ast.File) []*ast.File {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
-// and not dependent on hashmap or directory iteration order.
+// and not dependent on map or directory iteration order.
 func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {

@@ -57,12 +57,6 @@ func (pp buffer) Build() string {
 	return strings.Join(pp.lines, "\n")
 }
 
-func blocked(prefix string, code string) string {
-	var pp buffer
-	pp.Block(prefix, "%s", code)
-	return pp.Build()
-}
-
 func addParens(s string) string {
 	// conservative avoidance of parentheses
 	if !strings.Contains(s, " ") ||
@@ -310,7 +304,7 @@ func (e ReturnExpr) Coq() string {
 // requires knowing if it is the last binding in a sequence (in which case no
 // binder should be written). A more accurate representation would be a cons
 // representation, but this recursive structure is more awkward to work with; in
-// practice delying handling the special last-binding to printing time is
+// practice delaying handling the special last-binding to printing time is
 // easier.
 type Binding struct {
 	// Names is a list to support anonymous and tuple-destructuring bindings.
@@ -374,7 +368,10 @@ func (sl StructLiteral) Coq() string {
 
 type BoolLiteral bool
 
-var True, False BoolLiteral = true, false
+var (
+	False BoolLiteral = false
+	True  BoolLiteral = true
+)
 
 func (b BoolLiteral) Coq() string {
 	if b {
@@ -479,17 +476,6 @@ func NewTuple(es []Expr) Expr {
 // A BlockExpr is a sequence of bindings, ending with some expression.
 type BlockExpr struct {
 	Bindings []Binding
-}
-
-func isPure(e Expr) bool {
-	switch e.(type) {
-	case BinaryExpr, PureCall, IntLiteral, StringLiteral, StructLiteral, ProjExpr:
-		return true
-	case CallExpr: // distinct from PureCall
-		return false
-	default:
-		return false
-	}
 }
 
 // AddTo adds a binding as a non-terminal line to a block
