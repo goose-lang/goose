@@ -889,54 +889,6 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
 	return loopIdent, ctx.expr(rhs)
 }
 
-type anyChildVisitor struct {
-	found bool
-	pred  func(node ast.Node) bool
-}
-
-func (v *anyChildVisitor) Visit(node ast.Node) ast.Visitor {
-	if node == nil {
-		return nil
-	}
-	if v.pred(node) {
-		v.found = true
-		// no need to search further
-		return nil
-	}
-	return v
-}
-
-// anyChild returns true if node or any child satisfies pred
-//
-// pred is only called on non-nil nodes
-func anyChild(node ast.Node, pred func(node ast.Node) bool) bool {
-	v := &anyChildVisitor{false, pred}
-	ast.Walk(v, node)
-	return v.found
-}
-
-func hasFuncLit(node ast.Node) bool {
-	return anyChild(node, func(node ast.Node) bool {
-		_, ok := node.(*ast.FuncLit)
-		return ok
-	})
-}
-
-func isLoopVarReassign(s ast.Node, loopVar string) bool {
-	assign, ok := s.(*ast.AssignStmt)
-	if !ok {
-		return false
-	}
-	if assign.Tok != token.DEFINE {
-		return false
-	}
-	if !(len(assign.Lhs) == 1 && len(assign.Rhs) == 1) {
-		return false
-	}
-	return isIdent(assign.Lhs[0], loopVar) &&
-		isIdent(assign.Rhs[0], loopVar)
-}
-
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	var init coq.Binding = coq.NewAnon(coq.Skip)
 	var ident string
@@ -963,18 +915,6 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
-	/*
-		if hasFuncLit(s.Body) {
-			first := c.Next()
-			if !isLoopVarReassign(first, ident) {
-				ctx.unsupported(first,
-					"add %s := %s to start of loop"+
-						" to avoid incorrect loop var capture",
-					ident, ident)
-				return coq.LoopExpr{}
-			}
-		}
-	*/
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
