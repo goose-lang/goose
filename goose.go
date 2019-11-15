@@ -913,12 +913,15 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 		post = postBlock.Expr
 	}
 
+	hasExplicitBranch := endsWithReturn(s.Body)
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
+	if !hasExplicitBranch {
+		bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
+	}
 	body := coq.BlockExpr{bindings}
 	return coq.ForLoopExpr{
 		Init: init,

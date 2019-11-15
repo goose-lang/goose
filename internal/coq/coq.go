@@ -153,7 +153,11 @@ func (d StructDecl) CoqDecl() string {
 	for _, fd := range d.Fields {
 		typeList = append(typeList, fd.Type.Coq())
 	}
-	pp.Add("Definition T: ty := %s.", strings.Join(typeList, " * "))
+	ty := strings.Join(typeList, " * ")
+	if len(typeList) == 0 {
+		ty = "unitT"
+	}
+	pp.Add("Definition T: ty := %s.", ty)
 	pp.Add("Section fields.")
 	pp.Indent(2)
 	pp.Add("%s", "Context `{ext_ty: ext_types}.")
@@ -386,7 +390,7 @@ type StringLiteral struct {
 }
 
 func (l StringLiteral) Coq() string {
-	return fmt.Sprintf(`str"%s"`, l.Value)
+	return fmt.Sprintf(`#(str"%s")`, l.Value)
 }
 
 // BinOp is an enum for a Coq binary operator
@@ -435,7 +439,7 @@ type NotExpr struct {
 }
 
 func (e NotExpr) Coq() string {
-	return fmt.Sprintf("negb %s", addParens(e.X.Coq()))
+	return fmt.Sprintf("~ %s", addParens(e.X.Coq()))
 }
 
 type TupleExpr []Expr
@@ -717,8 +721,8 @@ type ConstDecl struct {
 func (d ConstDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Block("Definition ", "%s : %s := %s.",
-		d.Name, d.Type.Coq(), d.Val.Coq())
+	pp.Block("Definition ", "%s : expr := %s.",
+		d.Name, d.Val.Coq())
 	return pp.Build()
 }
 
