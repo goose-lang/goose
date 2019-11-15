@@ -666,7 +666,7 @@ type SpawnExpr struct {
 
 func (e SpawnExpr) Coq() string {
 	var pp buffer
-	pp.Block("Fork (", "λ: <>, %s)", e.Body.Coq())
+	pp.Block("Fork (", "%s)", e.Body.Coq())
 	return pp.Build()
 }
 
