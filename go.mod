@@ -9,6 +9,6 @@ require (
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/tchajed/mailboat v0.0.0-20191026015926-338a5b81ac1d
-	golang.org/x/sys v0.0.0-20191008105621-543471e840be
+	golang.org/x/sys v0.0.0-20191115151921-52ab43148777
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
 )
