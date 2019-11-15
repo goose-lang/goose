@@ -162,9 +162,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		case "bool":
 			return coq.TypeIdent("boolT")
 		case "string", "untyped string":
-			ctx.unsupported(n,
-				"need to think about how to add pure string values")
-			// return coq.TypeIdent("string")
+			return coq.TypeIdent("stringT")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -676,8 +674,8 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) nilExpr(e *ast.Ident) coq.CallExpr {
-	return coq.NewCallExpr("slice.nil")
+func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
+	return coq.GallinaIdent("slice.nil")
 }
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
@@ -843,7 +841,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	}
 	if !bodyEndsWithReturn && remaining && s.Else == nil {
 		// conditional statement in the middle of a block
-		retUnit := coq.ReturnExpr{coq.IdentExpr("tt")}
+		retUnit := coq.ReturnExpr{coq.Tt}
 		ife.Then = coq.BlockExpr{[]coq.Binding{
 			coq.NewAnon(ife.Then),
 			coq.NewAnon(retUnit),
@@ -857,7 +855,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 				ctx.unsupported(s, "implicit loop continue")
 				return coq.Binding{}
 			}
-			ife.Else = coq.ReturnExpr{coq.IdentExpr("tt")}
+			ife.Else = coq.ReturnExpr{coq.Tt}
 			return coq.NewAnon(ife)
 		}
 		elseExpr, ok := ctx.stmt(s.Else, c, loopVar).Unwrap()
@@ -940,7 +938,7 @@ func isLoopVarReassign(s ast.Node, loopVar string) bool {
 }
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
-	var init coq.Binding = coq.NewAnon(coq.NewCallExpr("Skip"))
+	var init coq.Binding = coq.NewAnon(coq.Skip)
 	var ident string
 	var loopVar *string = nil
 	if s.Init != nil {
@@ -954,7 +952,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	if s.Cond != nil {
 		cond = ctx.expr(s.Cond)
 	}
-	var post coq.Expr = coq.NewCallExpr("Skip")
+	var post coq.Expr = coq.Skip
 	if s.Post != nil {
 		postBlock := ctx.stmt(s.Post, &cursor{nil}, loopVar)
 		if len(postBlock.Names) > 0 {

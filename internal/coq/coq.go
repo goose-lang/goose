@@ -94,7 +94,17 @@ func (pp *buffer) AddComment(c string) {
 }
 
 func quote(s string) string {
+	if s == "_" {
+		return "<>"
+	}
 	return `"` + s + `"`
+}
+
+func binder(s string) string {
+	if s == "_" {
+		return "<>"
+	}
+	return quote(s)
 }
 
 // FieldDecl is a name:type declaration (for a struct or function binders)
@@ -104,7 +114,7 @@ type FieldDecl struct {
 }
 
 func (d FieldDecl) CoqBinder() string {
-	return quote(d.Name)
+	return binder(d.Name)
 }
 
 // StructDecl is a Coq record for a Go struct
@@ -204,7 +214,20 @@ type Expr interface {
 	Coq() string
 }
 
-// IdentExpr is an identifier expression.
+// GallinaIdent is a identifier in Gallina (and not a variable)
+//
+// A GallinaIdent is translated literally to Coq.
+type GallinaIdent string
+
+func (e GallinaIdent) Coq() string {
+	return string(e)
+}
+
+var Skip Expr = GallinaIdent("Skip")
+
+// IdentExpr is a go_lang-level variable
+//
+// An IdentExpr is quoted in Coq.
 type IdentExpr string
 
 func (e IdentExpr) Coq() string {
@@ -220,6 +243,9 @@ type CallExpr struct {
 // NewCallExpr is a convenience to construct a CallExpr statically, especially
 // for a fixed number of arguments.
 func NewCallExpr(name string, args ...Expr) CallExpr {
+	if len(args) == 0 {
+		args = []Expr{Tt}
+	}
 	return CallExpr{MethodName: name, Args: args}
 }
 
@@ -285,18 +311,6 @@ func NewAnon(e Expr) Binding {
 
 func (b Binding) isAnonymous() bool {
 	return len(b.Names) == 0
-}
-
-// Binder emits the appropriate binder part of a binding, handling anonymous and
-// tuple-destructuring forms.
-func (b Binding) Binder() string {
-	if b.isAnonymous() {
-		return "_"
-	}
-	if len(b.Names) == 1 {
-		return b.Names[0]
-	}
-	return fmt.Sprintf("let! (%s)", strings.Join(b.Names, ", "))
 }
 
 type fieldVal struct {
@@ -372,7 +386,7 @@ type StringLiteral struct {
 }
 
 func (l StringLiteral) Coq() string {
-	return fmt.Sprintf(`"%s"`, l.Value)
+	return fmt.Sprintf(`str"%s"`, l.Value)
 }
 
 // BinOp is an enum for a Coq binary operator
@@ -464,9 +478,14 @@ func (b Binding) AddTo(pp *buffer) {
 	if b.isAnonymous() {
 		pp.Add("%s;;", b.Expr.Coq())
 	} else if len(b.Names) == 1 {
-		pp.Add("let: %s := %s in", quote(b.Names[0]), b.Expr.Coq())
+		pp.Add("let: %s := %s in", binder(b.Names[0]), b.Expr.Coq())
+	} else if len(b.Names) == 2 {
+		pp.Add("let: (%s, %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			b.Expr.Coq())
 	} else {
-		panic("TODO: go_lang destructuring notation")
+		panic("no support for destructuring more than two return values")
 	}
 }
 
@@ -643,6 +662,9 @@ func (d FuncDecl) Signature() string {
 	var args []string
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
+	}
+	if len(args) == 0 {
+		args = []string{"<>"}
 	}
 	return strings.Join(args, " ")
 }
