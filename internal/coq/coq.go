@@ -416,7 +416,7 @@ func (be BinaryExpr) Coq() string {
 		OpPlus:        "+",
 		OpMinus:       "-",
 		OpEquals:      "=",
-		OpAppend:      "++",
+		OpAppend:      "+",
 		OpMul:         "*",
 		OpLessThan:    "<",
 		OpGreaterThan: ">",
