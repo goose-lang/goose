@@ -1085,8 +1085,18 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			Dst: ctx.expr(lhs.X),
 			X:   ctx.expr(s.Rhs[0]),
 		})
+	case *ast.SelectorExpr:
+		ty := ctx.typeOf(lhs)
+		if ty, ok := ty.(*types.Pointer); ok {
+			name, _, ok := getStructType(ty.Elem())
+			if ok {
+				ctx.todo(s, "store to %s.%s", name, lhs.Sel.Name)
+				return coq.Binding{}
+			}
+		}
+		ctx.unsupported(s, "assigning to field of non-struct pointer type")
 	default:
-		ctx.unsupported(s, "assigning to complex ")
+		ctx.unsupported(s, "assigning to complex expression")
 	}
 	return coq.Binding{}
 }
