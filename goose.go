@@ -905,7 +905,7 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	var init = coq.NewAnon(coq.Skip)
 	var ident string
-	var loopVar *string = nil
+	loopVar := new(string)
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
 		ctx.scope.AddVar(ident)

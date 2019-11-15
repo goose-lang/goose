@@ -27,20 +27,14 @@ func (log Log) writeHdr(len uint64) {
 }
 
 func Init(logSz uint64) Log {
-	memLenPtr := new(uint64)
-	*memLenPtr = 0
-	memTxnNxtPtr := new(uint64)
-	*memTxnNxtPtr = 0
-	logTxnNxtPtr := new(uint64)
-	*logTxnNxtPtr = 0
 	log := Log{
 		logLock:   new(sync.RWMutex),
 		memLock:   new(sync.RWMutex),
 		logSz:     logSz,
 		memLog:    new([]disk.Block),
-		memLen:    memLenPtr,
-		memTxnNxt: memTxnNxtPtr,
-		logTxnNxt: logTxnNxtPtr,
+		memLen:    new(uint64),
+		memTxnNxt: new(uint64),
+		logTxnNxt: new(uint64),
 	}
 	log.writeHdr(0)
 	return log
@@ -56,19 +50,13 @@ func (log Log) readBlocks(len uint64) []disk.Block {
 	blks := new([]disk.Block)
 	initblks := make([]disk.Block, 0)
 	*blks = initblks
-	for i := uint64(0); ; {
-		if i < len {
-			blk := disk.Read(LogStart + i)
-			oldblks := *blks
-			newblks := append(oldblks, blk)
-			*blks = newblks
-			i = i + 1
-			continue
-		}
-		break
+	for i := uint64(0); i < len; i++ {
+		blk := disk.Read(LogStart + i)
+		oldblks := *blks
+		newblks := append(oldblks, blk)
+		*blks = newblks
 	}
-	blocks := *blks
-	return blocks
+	return *blks
 }
 
 func (log Log) Read() []disk.Block {
@@ -80,15 +68,9 @@ func (log Log) Read() []disk.Block {
 }
 
 func (log Log) memWrite(l []disk.Block) {
-	for i := uint64(0); ; {
-		if i < uint64(len(l)) {
-			oldblks := *log.memLog
-			newblks := append(oldblks, l[i])
-			*log.memLog = newblks
-			i = i + 1
-			continue
-		}
-		break
+	n := uint64(len(l))
+	for i := uint64(0); i < n; i++ {
+		*log.memLog = append(*log.memLog, l[i])
 	}
 }
 
@@ -97,14 +79,13 @@ func (log Log) memAppend(l []disk.Block) (bool, uint64) {
 	if *log.memLen+uint64(len(l)) >= log.logSz {
 		log.memLock.Unlock()
 		return false, uint64(0)
-	} else {
-		txn := *log.memTxnNxt
-		n := *log.memLen + uint64(len(l))
-		*log.memLen = n
-		*log.memTxnNxt = *log.memTxnNxt + 1
-		log.memLock.Unlock()
-		return true, txn
 	}
+	txn := *log.memTxnNxt
+	n := *log.memLen + uint64(len(l))
+	*log.memLen = n
+	*log.memTxnNxt = *log.memTxnNxt + 1
+	log.memLock.Unlock()
+	return true, txn
 }
 
 // XXX just an atomic read?
@@ -116,12 +97,11 @@ func (log Log) readLogTxnNxt() uint64 {
 }
 
 func (log Log) diskAppendWait(txn uint64) {
-	for done := false; ; {
-		if done {
+	for {
+		logtxn := log.readLogTxnNxt()
+		if txn < logtxn {
 			break
 		}
-		logtxn := log.readLogTxnNxt()
-		done = txn < logtxn
 		continue
 	}
 }
@@ -162,9 +142,7 @@ func (log Log) diskAppend() {
 }
 
 func (log Log) Logger() {
-	for dummy := true; ; {
+	for {
 		log.diskAppend()
-		dummy = !dummy
-		continue
 	}
 }
