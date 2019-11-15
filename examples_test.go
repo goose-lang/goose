@@ -165,12 +165,9 @@ func (s *ExamplesSuite) TestUnitTests(c *C) {
 	s.testExample(c, "unittest")
 }
 
-// TODO: fix these tests, too
-/*
 func (s *ExamplesSuite) TestSimpleDb(c *C) {
 	s.testExample(c, "simpledb")
 }
-*/
 
 func (s *ExamplesSuite) TestMailServer(c *C) {
 	s.testExample(c, "mailserver")

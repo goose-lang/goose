@@ -22,7 +22,7 @@ Definition writeHdr: val :=
   λ: "log",
     let: "hdr" := NewSlice byteT #4096 in
     UInt64Put "hdr" (Log.sz "log");;
-    UInt64Put (SliceSkip #8 "hdr") (Log.sz "log");;
+    UInt64Put (SliceSkip "hdr" #8) (Log.sz "log");;
     disk.Write #0 "hdr".
 
 Definition Init: val :=

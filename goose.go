@@ -462,8 +462,8 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 			return coq.NewCallExpr("Data.newLock")
 		}
 	}
-	if name, _, ok := getStructType(ctx.typeOf(ty)); ok {
-		ctx.todo(s, "macro to allocate struct %s", name)
+	if _, _, ok := getStructType(ctx.typeOf(ty)); ok {
+		// TODO: should be flattening struct across multiple addresses
 	}
 	return coq.NewCallExpr("ref",
 		coq.NewCallExpr("zero_val", ctx.coqType(ty)))
@@ -671,15 +671,15 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
 		return coq.PureCall(coq.NewCallExpr("SliceSkip",
-			ctx.expr(e.Low), x))
+			x, ctx.expr(e.Low)))
 	}
 	if e.Low == nil && e.High != nil {
 		return coq.PureCall(coq.NewCallExpr("SliceTake",
-			ctx.expr(e.High), x))
+			x, ctx.expr(e.High)))
 	}
 	if e.Low != nil && e.High != nil {
-		return coq.PureCall(coq.NewCallExpr("slice.subslice",
-			ctx.expr(e.Low), ctx.expr(e.High), x))
+		return coq.PureCall(coq.NewCallExpr("SliceSubslice",
+			x, ctx.expr(e.Low), ctx.expr(e.High)))
 	}
 	if e.Low == nil && e.High == nil {
 		ctx.unsupported(e, "complete slice doesn't do anything")

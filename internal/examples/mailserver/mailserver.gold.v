@@ -127,8 +127,8 @@ Definition writeTmp: val :=
         FS.append "f" !"buf";;
         Break
       else
-        FS.append "f" (SliceTake #4096 !"buf");;
-        "buf" <- SliceSkip #4096 !"buf";;
+        FS.append "f" (SliceTake !"buf" #4096);;
+        "buf" <- SliceSkip !"buf" #4096;;
         Continue;;
     FS.close "f";;
     "name".
