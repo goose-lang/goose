@@ -1,4 +1,4 @@
-package loggin2
+package logging2
 
 import (
 	"github.com/tchajed/goose/machine"
@@ -20,6 +20,12 @@ type Log struct {
 	logTxnNxt *uint64       // next log transaction number
 }
 
+func (log Log) writeHdr(len uint64) {
+	hdr := make([]byte, 4096)
+	machine.UInt64Put(hdr, len)
+	disk.Write(LogCommit, hdr)
+}
+
 func Init(logSz uint64) Log {
 	memLenPtr := new(uint64)
 	*memLenPtr = 0
@@ -38,12 +44,6 @@ func Init(logSz uint64) Log {
 	}
 	log.writeHdr(0)
 	return log
-}
-
-func (log Log) writeHdr(len uint64) {
-	hdr := make([]byte, 4096)
-	machine.UInt64Put(hdr, len)
-	disk.Write(LogCommit, hdr)
 }
 
 func (log Log) readHdr() uint64 {

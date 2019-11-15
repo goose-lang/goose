@@ -177,6 +177,10 @@ func (s *ExamplesSuite) TestWal(c *C) {
 	s.testExample(c, "wal")
 }
 
+func (s *ExamplesSuite) TestLogging2(c *C) {
+	s.testExample(c, "logging2")
+}
+
 func (s *ExamplesSuite) TestAppendLog(c *C) {
 	s.testExample(c, "append_log")
 }
