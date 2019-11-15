@@ -278,16 +278,14 @@ func toInitialLower(s string) string {
 	}, s)
 }
 
-func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.PureCall {
+func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 	x := e.Args[0]
 	xTy := ctx.typeOf(x)
 	if _, ok := xTy.(*types.Slice); !ok {
 		ctx.unsupported(e, "length of object of type %v", xTy)
-		return coq.PureCall(coq.CallExpr{})
+		return coq.CallExpr{}
 	}
-	return coq.PureCall(coq.NewCallExpr("slice.len",
-		ctx.expr(x),
-	))
+	return coq.NewCallExpr("slice.len", ctx.expr(x))
 }
 
 func isLockRef(t types.Type) bool {
@@ -371,7 +369,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 		case "RandomUint64":
 			return ctx.newCoqCall("Data.randomUint64", nil)
 		case "UInt64ToString":
-			return coq.PureCall(ctx.newCoqCall("uint64_to_string", args))
+			return ctx.newCoqCall("uint64_to_string", args)
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}
@@ -670,16 +668,16 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
-		return coq.PureCall(coq.NewCallExpr("SliceSkip",
-			x, ctx.expr(e.Low)))
+		return coq.NewCallExpr("SliceSkip",
+			x, ctx.expr(e.Low))
 	}
 	if e.Low == nil && e.High != nil {
-		return coq.PureCall(coq.NewCallExpr("SliceTake",
-			x, ctx.expr(e.High)))
+		return coq.NewCallExpr("SliceTake",
+			x, ctx.expr(e.High))
 	}
 	if e.Low != nil && e.High != nil {
-		return coq.PureCall(coq.NewCallExpr("SliceSubslice",
-			x, ctx.expr(e.Low), ctx.expr(e.High)))
+		return coq.NewCallExpr("SliceSubslice",
+			x, ctx.expr(e.Low), ctx.expr(e.High))
 	}
 	if e.Low == nil && e.High == nil {
 		ctx.unsupported(e, "complete slice doesn't do anything")

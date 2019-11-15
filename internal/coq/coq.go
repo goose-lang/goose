@@ -270,13 +270,6 @@ func (s CallExpr) Coq() string {
 	return strings.Join(comps, " ")
 }
 
-// PureCall is a wrapper for a call to mark it as a pure expression.
-type PureCall CallExpr
-
-func (s PureCall) Coq() string {
-	return CallExpr(s).Coq()
-}
-
 // ProjExpr is a record projection
 //
 // Projections could always be written using normal function call syntax, but
