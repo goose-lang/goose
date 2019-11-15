@@ -139,7 +139,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 		return "File"
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return "Block"
+		return "blockT"
 	}
 	ctx.unsupported(e, "unknown package type %s", e)
 	return "<selector expr>"
@@ -184,7 +184,7 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 	// check for *sync.RWMutex
 	if e, ok := e.X.(*ast.SelectorExpr); ok {
 		if isIdent(e.X, "sync") && isIdent(e.Sel, "RWMutex") {
-			return coq.TypeIdent("LockRef")
+			return coq.TypeIdent("lockRefT")
 		}
 	}
 	return coq.PtrType{ctx.coqType(e.X)}

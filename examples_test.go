@@ -174,11 +174,11 @@ func (s *ExamplesSuite) TestSimpleDb(c *C) {
 func (s *ExamplesSuite) TestMailServer(c *C) {
 	s.testExample(c, "mailserver")
 }
+*/
 
 func (s *ExamplesSuite) TestWal(c *C) {
 	s.testExample(c, "wal")
 }
-*/
 
 func (s *ExamplesSuite) TestAppendLog(c *C) {
 	s.testExample(c, "append_log")

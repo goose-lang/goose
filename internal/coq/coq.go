@@ -202,7 +202,7 @@ type MapType struct {
 }
 
 func (t MapType) Coq() string {
-	return fmt.Sprintf("Map %s", addParens(t.Value.Coq()))
+	return NewCallExpr("mapT", t.Value).Coq()
 }
 
 type SliceType struct {
@@ -731,7 +731,7 @@ type PtrType struct {
 }
 
 func (t PtrType) Coq() string {
-	return "ptr " + addParens(t.Value.Coq())
+	return NewCallExpr("refT", t.Value).Coq()
 }
 
 // TODO: note that the second two lines should be customized depending on the
