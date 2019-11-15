@@ -91,7 +91,8 @@ func NewCtx(fset *token.FileSet, config Config) Ctx {
 //
 // This is needed before conversion to Coq to disambiguate some methods.
 func (ctx Ctx) TypeCheck(pkgName string, files []*ast.File) error {
-	conf := types.Config{Importer: importer.Default()}
+	imp := importer.ForCompiler(ctx.fset, "source", nil)
+	conf := types.Config{Importer: imp}
 	_, err := conf.Check(pkgName, ctx.fset, files, ctx.info)
 	return err
 }
