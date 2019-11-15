@@ -1039,20 +1039,6 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	return coq.Binding{names, ctx.expr(rhs)}
 }
 
-func (ctx Ctx) loopAssignStmt(s *ast.AssignStmt, c *cursor) coq.Binding {
-	// look for correct loop continue/return
-	if !c.HasNext() {
-		ctx.unsupported(s, "implicit control flow in loop (expected continue)")
-	}
-	b, ok := c.Next().(*ast.BranchStmt)
-	if !ok || b.Tok != token.CONTINUE {
-		loopVar := s.Lhs[0].(*ast.Ident).Name
-		ctx.unsupported(s, "expected continue following %s loop assignment", loopVar)
-	}
-	rhs := ctx.expr(s.Rhs[0])
-	return coq.NewAnon(coq.LoopContinueExpr{rhs})
-}
-
 func pointerAssign(name string, x coq.Expr) coq.Binding {
 	return coq.NewAnon(coq.StoreStmt{
 		Dst: coq.IdentExpr(name),

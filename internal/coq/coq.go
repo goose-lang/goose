@@ -590,30 +590,6 @@ func (e HashTableInsert) Coq() string {
 	return fmt.Sprintf("(fun _ => Some %s)", addParens(e.Value.Coq()))
 }
 
-// A LoopRetExpr breaks out of a loop.
-//
-// The Loop constructor in proc permits returning a value (of an arbitrary type)
-// when breaking, but we don't support that here.
-//
-// We could support returning something for loops at the end of a function,
-// where a Go `return` would correspond to a Coq `LoopRet`. function and then
-// support return inside a loop instead of break
-type LoopRetExpr struct{}
-
-func (e LoopRetExpr) Coq() string {
-	return "LoopRet tt"
-}
-
-// A LoopContinueExpr moves to the next iteration in a loop.
-type LoopContinueExpr struct {
-	// Value is the value to start the next loop with
-	Value Expr
-}
-
-func (e LoopContinueExpr) Coq() string {
-	return blocked("Continue ", addParens(e.Value.Coq()))
-}
-
 var LoopContinue = GallinaIdent("Continue")
 var LoopBreak = GallinaIdent("Break")
 
