@@ -194,7 +194,7 @@ func (t TypeIdent) Coq() string {
 type StructName string
 
 func (t StructName) Coq() string {
-	return string(t) + ".t"
+	return string(t) + ".T"
 }
 
 type MapType struct {

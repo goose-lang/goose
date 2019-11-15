@@ -136,7 +136,7 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return "File"
+		return "fileT"
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
 		return "blockT"

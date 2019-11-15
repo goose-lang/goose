@@ -170,11 +170,11 @@ func (s *ExamplesSuite) TestUnitTests(c *C) {
 func (s *ExamplesSuite) TestSimpleDb(c *C) {
 	s.testExample(c, "simpledb")
 }
+*/
 
 func (s *ExamplesSuite) TestMailServer(c *C) {
 	s.testExample(c, "mailserver")
 }
-*/
 
 func (s *ExamplesSuite) TestWal(c *C) {
 	s.testExample(c, "wal")
