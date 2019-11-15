@@ -157,6 +157,11 @@ func (d StructDecl) CoqDecl() string {
 	if len(typeList) == 0 {
 		ty = "unitT"
 	}
+	if len(typeList) > 2 {
+		// TODO: for some reason Bind Scope in Coq doesn't handle this
+		//  notation if it's used recursively
+		ty = "(" + ty + ")%ht"
+	}
 	pp.Add("Definition T: ty := %s.", ty)
 	pp.Add("Section fields.")
 	pp.Indent(2)
@@ -211,7 +216,7 @@ type SliceType struct {
 }
 
 func (t SliceType) Coq() string {
-	return fmt.Sprintf("slice.t %s", addParens(t.Value.Coq()))
+	return fmt.Sprintf("slice.T %s", addParens(t.Value.Coq()))
 }
 
 type Expr interface {
@@ -236,6 +241,16 @@ type IdentExpr string
 
 func (e IdentExpr) Coq() string {
 	return quote(string(e))
+}
+
+// GallinaString is a Gallina string, wrapped in quotes
+//
+// This is functionally identical to IdentExpr, but semantically quite
+// different.
+type GallinaString string
+
+func (s GallinaString) Coq() string {
+	return quote(string(s))
 }
 
 // CallExpr includes primitives and references to other functions.
@@ -635,8 +650,8 @@ type MapIterExpr struct {
 
 func (e MapIterExpr) Coq() string {
 	var pp buffer
-	pp.Add("Data.mapIter %s (fun %s %s =>",
-		e.Map, e.KeyIdent, e.ValueIdent)
+	pp.Add("Data.mapIter %s (λ: %s %s,",
+		e.Map.Coq(), binder(e.KeyIdent), binder(e.ValueIdent))
 	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq())
 	return pp.Build()
@@ -651,7 +666,7 @@ type SpawnExpr struct {
 
 func (e SpawnExpr) Coq() string {
 	var pp buffer
-	pp.Block("Spawn (", "%s)", e.Body.Coq())
+	pp.Block("Fork (", "λ: <>, %s)", e.Body.Coq())
 	return pp.Build()
 }
 

@@ -317,7 +317,7 @@ func isString(t types.Type) bool {
 }
 
 func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
-	args := []coq.Expr{ctx.expr(f.X)}
+	var args []coq.Expr
 	var acquire, writer bool
 	switch f.Sel.Name {
 	case "Lock":
@@ -337,6 +337,7 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 	} else {
 		args = append(args, coq.GallinaIdent("Reader"))
 	}
+	args = append(args, ctx.expr(f.X))
 	if acquire {
 		return coq.NewCallExpr("Data.lockAcquire", args...)
 	}
@@ -440,7 +441,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr("Data.newMap", mapTy.Value)
+		return coq.NewCallExpr("NewMap", mapTy.Value)
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
@@ -454,13 +455,17 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
+func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "RWMutex") {
 			return coq.NewCallExpr("Data.newLock")
 		}
 	}
-	return coq.NewCallExpr("Data.newPtr", ctx.coqType(ty))
+	if name, _, ok := getStructType(ctx.typeOf(ty)); ok {
+		ctx.todo(s, "macro to allocate struct %s", name)
+	}
+	return coq.NewCallExpr("ref",
+		coq.NewCallExpr("zero_val", ctx.coqType(ty)))
 }
 
 // basicallyUInt64 returns true conservatively when an
@@ -484,14 +489,14 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return ctx.makeExpr(s.Args)
 	}
 	if isIdent(s.Fun, "new") {
-		return ctx.newExpr(s.Args[0])
+		return ctx.newExpr(s, s.Args[0])
 	}
 	if isIdent(s.Fun, "len") {
 		return ctx.lenExpr(s)
 	}
 	if isIdent(s.Fun, "append") {
 		if s.Ellipsis == token.NoPos {
-			return coq.NewCallExpr("Data.sliceAppend", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+			return coq.NewCallExpr("SliceAppend", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 		}
 		// append(s1, s2...)
 		return coq.NewCallExpr("Data.sliceAppendSlice", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
@@ -505,7 +510,14 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return nil
 	}
 	if isIdent(s.Fun, "panic") {
-		return coq.NewCallExpr("Data.panic")
+		msg := "oops"
+		if e, ok := s.Args[0].(*ast.BasicLit); ok {
+			if e.Kind == token.STRING {
+				v := ctx.info.Types[e].Value
+				msg = constant.StringVal(v)
+			}
+		}
+		return coq.NewCallExpr("Panic", coq.GallinaString(msg))
 	}
 	return ctx.methodExpr(s.Fun, s.Args)
 }
@@ -713,7 +725,7 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
 	xTy := ctx.typeOf(e.X)
 	switch xTy.(type) {
 	case *types.Map:
-		return coq.NewCallExpr("Data.mapGet",
+		return coq.NewCallExpr("MapGet",
 			ctx.expr(e.X), ctx.expr(e.Index))
 	case *types.Slice:
 		return coq.NewCallExpr("SliceGet",
@@ -1076,17 +1088,17 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		case *types.Slice:
 			value := ctx.expr(s.Rhs[0])
 			return coq.NewAnon(coq.NewCallExpr(
-				"Data.sliceWrite",
+				"SliceSet",
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
 		case *types.Map:
 			value := ctx.expr(s.Rhs[0])
 			return coq.NewAnon(coq.NewCallExpr(
-				"Data.mapAlter",
+				"MapInsert",
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
-				coq.HashTableInsert{value}))
+				value))
 		default:
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
