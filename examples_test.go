@@ -130,8 +130,8 @@ func (s *ExamplesSuite) testExample(c *C, name string) {
 	var conf goose.Config
 	f, terr := conf.TranslatePackage(t.path)
 	if terr != nil {
-		c.Fatalf("%s translation failed", t.name)
 		fmt.Fprintln(os.Stderr, terr)
+		c.Fatalf("%s translation failed", t.name)
 	}
 
 	var b bytes.Buffer

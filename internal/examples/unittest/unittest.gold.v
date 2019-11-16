@@ -217,6 +217,33 @@ Definition PanicAtTheDisco: val :=
   λ: <>,
     Panic "disco".
 
+Module composite.
+  Definition S := mkStruct [
+    "a"; "b"
+  ].
+  Definition T: ty := intT * intT.
+  Section fields.
+    Context `{ext_ty: ext_types}.
+    Definition a := structF! S "a".
+    Definition b := structF! S "b".
+  End fields.
+End composite.
+
+Definition ReassignVars: val :=
+  λ: <>,
+    let: "x" := ref #2 in
+    let: "y" := #0 in
+    "x" <- #3;;
+    let: "z" := ref (buildStruct composite.S [
+      "a" ::= !"x";
+      "b" ::= "y"
+    ]) in
+    "z" <- buildStruct composite.S [
+      "a" ::= "y";
+      "b" ::= !"x"
+    ];;
+    "x" <- composite.a !"z".
+
 Module Block.
   Definition S := mkStruct [
     "Value"

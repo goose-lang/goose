@@ -1060,6 +1060,11 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 	}
 }
 
+func (ctx Ctx) referenceTo(rhs ast.Expr) coq.Expr {
+	// TODO: this may need some type info to handle struct allocation
+	return coq.RefExpr{X: ctx.expr(rhs)}
+}
+
 func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	if len(s.Rhs) > 1 {
 		ctx.futureWork(s, "multiple defines (split them up)")
@@ -1094,10 +1099,44 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	// 	pointer wrapped, so to work correctly the caller must set this identInfo
 	// 	before processing the defining expression.
 	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
-		return coq.Binding{Names: names, Expr: coq.RefExpr{ctx.expr(rhs)}}
+		return coq.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 	} else {
 		return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
 	}
+}
+
+func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
+	if len(s.Names) > 1 {
+		ctx.unsupported(s, "multiple declarations in one block")
+	}
+	lhs := s.Names[0]
+	rhs := s.Values[0]
+	ctx.addDef(lhs, identInfo{
+		IsPtrWrapped: true,
+		IsMacro:      false,
+	})
+	return coq.Binding{
+		Names: []string{lhs.Name},
+		Expr:  ctx.referenceTo(rhs),
+	}
+}
+
+// varDeclStmt translates declarations within functions
+func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
+	decl, ok := s.Decl.(*ast.GenDecl)
+	if !ok {
+		ctx.noExample(s, "declaration that is not a GenDecl")
+	}
+	if decl.Tok != token.VAR {
+		ctx.unsupported(s, "non-var declaration for %v", decl.Tok)
+	}
+	if len(decl.Specs) > 1 {
+		ctx.unsupported(s, "multiple declarations in one var statement")
+	}
+	// guaranteed to be a *ast.ValueSpec due to decl.Tok
+	//
+	// https://golang.org/pkg/go/ast/#GenDecl
+	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec))
 }
 
 func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
@@ -1245,6 +1284,8 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		return ctx.assignStmt(s, c, loopVar)
+	case *ast.DeclStmt:
+		return ctx.varDeclStmt(s)
 	case *ast.IncDecStmt:
 		return ctx.incDecStmt(s, c, loopVar)
 	case *ast.BlockStmt:
