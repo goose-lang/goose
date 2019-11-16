@@ -24,46 +24,76 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-type ScopeCtx struct {
-	// TODO: this is too simple; need nested scopes and shadowing
-	ptrVars map[string]bool
+type identInfo struct {
+	IsPtrWrapped bool
+	IsMacro      bool
 }
 
-func (ctx ScopeCtx) IsPointer(ident string) bool {
-	_, ok := ctx.ptrVars[ident]
-	return ok
+type scopedName struct {
+	scope *types.Scope
+	name  string
 }
 
-func (ctx ScopeCtx) AddVar(ident string) {
-	ctx.ptrVars[ident] = true
+type identCtx struct {
+	info map[scopedName]identInfo
 }
 
-func (ctx ScopeCtx) RemoveVar(ident string) {
-	if !ctx.IsPointer(ident) {
-		panic(fmt.Errorf("attempt to remove var %s which was not added", ident))
+func newIdentCtx() identCtx {
+	return identCtx{info: make(map[scopedName]identInfo)}
+}
+
+func (ctx Ctx) lookupIdentScope(ident *ast.Ident) scopedName {
+	obj, ok := ctx.info.Uses[ident]
+	if !ok {
+		return scopedName{nil, ""}
 	}
-	ctx.ptrVars[ident] = false
+	useScope := obj.Parent()
+	name := ident.Name
+	defScope, _ := useScope.LookupParent(name, ident.Pos())
+	return scopedName{scope: defScope, name: name}
 }
 
-func newScopeCtx() *ScopeCtx {
-	return &ScopeCtx{ptrVars: make(map[string]bool)}
+func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
+	if scope == types.Universe {
+		return identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      true,
+		}
+	}
+	info, ok := idents.info[scopedName{scope, name}]
+	if ok {
+		return info
+	}
+	return idents.lookupName(scope.Parent(), name)
+}
+
+func (ctx Ctx) isPtrWrapped(ident *ast.Ident) bool {
+	scope := ctx.info.Uses[ident].Parent()
+	info := ctx.idents.lookupName(scope, ident.Name)
+	return info.IsPtrWrapped
+}
+
+func (ctx Ctx) addDef(ident *ast.Ident, info identInfo) {
+	obj := ctx.info.Defs[ident]
+	defScope := obj.Parent()
+	key := scopedName{scope: defScope, name: ident.Name}
+	ctx.idents.info[key] = info
+}
+
+func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
+	obj := ctx.info.Defs[ident]
+	defScope := obj.Parent()
+	key := scopedName{scope: defScope, name: ident.Name}
+	return ctx.idents.info[key].IsPtrWrapped
 }
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	scope *ScopeCtx
-	info  *types.Info
-	fset  *token.FileSet
+	idents identCtx
+	info   *types.Info
+	fset   *token.FileSet
 	errorReporter
 	Config
-}
-
-func (ctx Ctx) newScope() {
-	ctx.scope = newScopeCtx()
-}
-
-func (ctx Ctx) clearScope() {
-	ctx.scope = nil
 }
 
 // Config holds global configuration for Coq conversion
@@ -74,12 +104,13 @@ type Config struct {
 // NewCtx initializes a context
 func NewCtx(fset *token.FileSet, config Config) Ctx {
 	info := &types.Info{
-		Defs:  make(map[*ast.Ident]types.Object),
-		Uses:  make(map[*ast.Ident]types.Object),
-		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:   make(map[*ast.Ident]types.Object),
+		Uses:   make(map[*ast.Ident]types.Object),
+		Types:  make(map[ast.Expr]types.TypeAndValue),
+		Scopes: make(map[ast.Node]*types.Scope),
 	}
 	return Ctx{
-		scope:         newScopeCtx(),
+		idents:        newIdentCtx(),
 		info:          info,
 		fset:          fset,
 		errorReporter: newErrorReporter(fset),
@@ -697,16 +728,16 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) variable(s string) coq.Expr {
-	if ctx.scope.IsPointer(s) {
-		return coq.DerefExpr{coq.IdentExpr(s)}
+func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
+	if ctx.isPtrWrapped(s) {
+		return coq.DerefExpr{coq.IdentExpr(s.Name)}
 	}
-	return coq.IdentExpr(s)
+	return coq.IdentExpr(s.Name)
 }
 
 func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 	if e.Obj != nil {
-		return ctx.variable(e.Name)
+		return ctx.variable(e)
 	}
 	switch e.Name {
 	case "nil":
@@ -882,34 +913,34 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	return coq.Binding{}
 }
 
-func (ctx Ctx) loopVar(s ast.Stmt) (ident string, init coq.Expr) {
+func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init coq.Expr) {
 	initAssign, ok := s.(*ast.AssignStmt)
 	if !ok ||
 		len(initAssign.Lhs) > 1 ||
 		len(initAssign.Rhs) > 1 ||
 		initAssign.Tok != token.DEFINE {
 		ctx.unsupported(s, "loop initialization must be a single assignment")
-		return "", nil
+		return nil, nil
 	}
-	lhs, rhs := initAssign.Lhs[0], initAssign.Rhs[0]
-	loopIdent, ok := getIdent(lhs)
+	lhs, ok := initAssign.Lhs[0].(*ast.Ident)
 	if !ok {
-		ctx.nope(initAssign, "definition of non-identifier")
-		return "", nil
+		ctx.nope(s, "initialization must define an identifier")
 	}
-	return loopIdent, ctx.expr(rhs)
+	rhs := initAssign.Rhs[0]
+	return lhs, ctx.expr(rhs)
 }
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	var init = coq.NewAnon(coq.Skip)
-	var ident string
+	var ident *ast.Ident
 	loopVar := new(string)
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
-		ctx.scope.AddVar(ident)
-		defer ctx.scope.RemoveVar(ident)
+		ctx.addDef(ident, identInfo{
+			IsPtrWrapped: true,
+		})
 		init = ctx.stmt(s.Init, &cursor{nil}, nil)
-		loopVar = &ident
+		loopVar = &ident.Name
 	}
 	var cond coq.Expr = coq.True
 	if s.Cond != nil {
@@ -1024,25 +1055,30 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	//  iterations, so we can just conservatively disallow assignments within
 	//  loop bodies.
 
-	var names []string
+	var idents []*ast.Ident
 	for _, lhsExpr := range s.Lhs {
-		ident, ok := getIdent(lhsExpr)
-		if !ok {
+		if ident, ok := lhsExpr.(*ast.Ident); ok {
+			idents = append(idents, ident)
+		} else {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
-		names = append(names, ident)
 	}
-	if len(names) == 1 && ctx.scope.IsPointer(names[0]) {
+	var names []string
+	for _, ident := range idents {
+		names = append(names, ident.Name)
+	}
+	// NOTE: this checks whether the identifier being defined is supposed to be
+	// 	pointer wrapped, so to work correctly the caller must set this identInfo
+	// 	before processing the defining expression.
+	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
 		return coq.Binding{Names: names, Expr: coq.RefExpr{ctx.expr(rhs)}}
+	} else {
+		return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
 	}
-	return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
 }
 
-func pointerAssign(name string, x coq.Expr) coq.Binding {
-	return coq.NewAnon(coq.StoreStmt{
-		Dst: coq.IdentExpr(name),
-		X:   x,
-	})
+func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
+	return coq.NewAnon(coq.StoreStmt{Dst: coq.IdentExpr(dst.Name), X: x})
 }
 
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
@@ -1059,14 +1095,13 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	// assignments can mean various things
 	switch lhs := s.Lhs[0].(type) {
 	case *ast.Ident:
-		ident := lhs.Name
-		if ctx.scope.IsPointer(ident) {
-			return pointerAssign(ident, ctx.expr(rhs))
+		if ctx.isPtrWrapped(lhs) {
+			return pointerAssign(lhs, ctx.expr(rhs))
 		}
 		// the support for making variables assignable is in flux, but currently
 		// the only way the assignment would be supported is if it was created
 		// in a loop initializer
-		ctx.unsupported(s, "variable %s is not assignable", ident)
+		ctx.unsupported(s, "variable %s is not assignable", lhs.Name)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
@@ -1113,13 +1148,12 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.
 		ctx.todo(stmt, "cannot inc/dec non-loop var")
 		return coq.Binding{}
 	}
-	x := *loopVar
 	op := coq.OpPlus
 	if stmt.Tok == token.DEC {
 		op = coq.OpMinus
 	}
-	return pointerAssign(x, coq.BinaryExpr{
-		X:  ctx.variable(x),
+	return pointerAssign(stmt.X.(*ast.Ident), coq.BinaryExpr{
+		X:  ctx.expr(stmt.X),
 		Op: op,
 		Y:  coq.IntLiteral{1},
 	})
@@ -1259,7 +1293,6 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	}
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	ctx.newScope()
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	return fd
 }

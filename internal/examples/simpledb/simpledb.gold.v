@@ -160,14 +160,14 @@ Definition readValue: val :=
   λ: "f" "off",
     let: "startBuf" := FS.readAt "f" "off" #512 in
     let: "totalBytes" := UInt64Get "startBuf" in
-    let: "buf" := ref (SliceSkip "startBuf" #8) in
-    let: "haveBytes" := slice.len !"buf" in
+    let: "buf" := SliceSkip "startBuf" #8 in
+    let: "haveBytes" := slice.len "buf" in
     if: "haveBytes" < "totalBytes"
     then
       let: "buf2" := FS.readAt "f" ("off" + #512) ("totalBytes" - "haveBytes") in
-      let: "newBuf" := Data.sliceAppendSlice !"buf" "buf2" in
+      let: "newBuf" := Data.sliceAppendSlice "buf" "buf2" in
       "newBuf"
-    else SliceTake !"buf" "totalBytes".
+    else SliceTake "buf" "totalBytes".
 
 Definition tableRead: val :=
   λ: "t" "k",
@@ -192,25 +192,25 @@ End bufFile.
 
 Definition newBuf: val :=
   λ: "f",
-    let: "buf" := ref (ref (zero_val (slice.T byteT))) in
+    let: "buf" := ref (zero_val (slice.T byteT)) in
     buildStruct bufFile.S [
       "file" ::= "f";
-      "buf" ::= !"buf"
+      "buf" ::= "buf"
     ].
 
 Definition bufFlush: val :=
   λ: "f",
-    let: "buf" := ref (!bufFile.buf "f") in
-    if: slice.len !"buf" = #0
+    let: "buf" := !bufFile.buf "f" in
+    if: slice.len "buf" = #0
     then "tt"
     else
-      FS.append (bufFile.file "f") !"buf";;
+      FS.append (bufFile.file "f") "buf";;
       bufFile.buf "f" <- slice.nil.
 
 Definition bufAppend: val :=
   λ: "f" "p",
-    let: "buf" := ref (!bufFile.buf "f") in
-    let: "buf2" := Data.sliceAppendSlice !"buf" "p" in
+    let: "buf" := !bufFile.buf "f" in
+    let: "buf2" := Data.sliceAppendSlice "buf" "p" in
     bufFile.buf "f" <- "buf2".
 
 Definition bufClose: val :=
@@ -236,12 +236,12 @@ Definition newTableWriter: val :=
   λ: "p",
     let: "index" := NewMap intT in
     let: ("f", <>) := FS.create #(str"db") "p" in
-    let: "buf" := ref (newBuf "f") in
+    let: "buf" := newBuf "f" in
     let: "off" := ref (zero_val intT) in
     buildStruct tableWriter.S [
       "index" ::= "index";
       "name" ::= "p";
-      "file" ::= !"buf";
+      "file" ::= "buf";
       "offset" ::= "off"
     ].
 
@@ -304,9 +304,9 @@ End Database.
 
 Definition makeValueBuffer: val :=
   λ: <>,
-    let: "buf" := ref (NewMap (slice.T byteT)) in
+    let: "buf" := NewMap (slice.T byteT) in
     let: "bufPtr" := ref (zero_val (mapT (slice.T byteT))) in
-    "bufPtr" <- !"buf";;
+    "bufPtr" <- "buf";;
     "bufPtr".
 
 (* NewDb initializes a new database on top of an empty filesys. *)
@@ -342,8 +342,8 @@ Definition NewDb: val :=
 Definition Read: val :=
   λ: "db" "k",
     Data.lockAcquire Reader (Database.bufferL "db");;
-    let: "buf" := ref (!Database.wbuffer "db") in
-    let: ("v", "ok") := MapGet !"buf" "k" in
+    let: "buf" := !Database.wbuffer "db" in
+    let: ("v", "ok") := MapGet "buf" "k" in
     if: "ok"
     then
       Data.lockRelease Reader (Database.bufferL "db");;
@@ -372,8 +372,8 @@ Definition Read: val :=
 Definition Write: val :=
   λ: "db" "k" "v",
     Data.lockAcquire Writer (Database.bufferL "db");;
-    let: "buf" := ref (!Database.wbuffer "db") in
-    MapInsert !"buf" "k" "v";;
+    let: "buf" := !Database.wbuffer "db" in
+    MapInsert "buf" "k" "v";;
     Data.lockRelease Writer (Database.bufferL "db").
 
 Definition freshTable: val :=
@@ -387,7 +387,7 @@ Definition freshTable: val :=
 
 Definition tablePutBuffer: val :=
   λ: "w" "buf",
-    Data.mapIter !"buf" (λ: "k" "v",
+    Data.mapIter "buf" (λ: "k" "v",
       tablePut "w" "k" "v").
 
 (* add all of table t to the table w being created; skip any keys in the (read)
@@ -451,14 +451,14 @@ Definition Compact: val :=
   λ: "db",
     Data.lockAcquire Writer (Database.compactionL "db");;
     Data.lockAcquire Writer (Database.bufferL "db");;
-    let: "buf" := ref (!Database.wbuffer "db") in
+    let: "buf" := !Database.wbuffer "db" in
     let: "emptyWbuffer" := NewMap (slice.T byteT) in
     Database.wbuffer "db" <- "emptyWbuffer";;
-    Database.rbuffer "db" <- !"buf";;
+    Database.rbuffer "db" <- "buf";;
     Data.lockRelease Writer (Database.bufferL "db");;
     Data.lockAcquire Reader (Database.tableL "db");;
     let: "oldTableName" := !Database.tableName "db" in
-    let: ("oldTable", "t") := constructNewTable "db" !"buf" in
+    let: ("oldTable", "t") := constructNewTable "db" "buf" in
     let: "newTable" := freshTable "oldTableName" in
     Data.lockRelease Reader (Database.tableL "db");;
     Data.lockAcquire Writer (Database.tableL "db");;

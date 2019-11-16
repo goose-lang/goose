@@ -323,7 +323,7 @@ Definition loopSpawn: val :=
   λ: <>,
     let: "i" := ref #0 in
     for: (#true); (Skip) :=
-      let: "i" := ref !"i" in
+      let: "i" := !"i" in
       if: !"i" > #10
       then Break
       else
