@@ -194,6 +194,15 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 }
 
 func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
+	// TODO: move support for various types in ctx.coqType with this function
+	//
+	// ctx.coqType operates syntactically whereas this function uses type
+	// checker info. We can always write ctx.coqType in terms of this function,
+	// since the go/types package will give a types.Type expression for the
+	// "type" of an ast.Expr representing a type. Improving this function is
+	// also useful because there are some situations where there is no
+	// syntactic type and we need to operate on the output of type inference
+	// anyway.
 	switch t := t.(type) {
 	case *types.Named:
 		if _, ok := t.Underlying().(*types.Struct); ok {
