@@ -1,4 +1,4 @@
-package rfc4506
+package rfc1813
 
 const PROGRAM = 100003
 const VERSION = 3
