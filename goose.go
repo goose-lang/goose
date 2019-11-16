@@ -1110,14 +1110,20 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 		ctx.unsupported(s, "multiple declarations in one block")
 	}
 	lhs := s.Names[0]
-	rhs := s.Values[0]
 	ctx.addDef(lhs, identInfo{
 		IsPtrWrapped: true,
 		IsMacro:      false,
 	})
+	var rhs coq.Expr
+	if len(s.Values) == 0 {
+		ty := ctx.typeOf(lhs)
+		rhs = coq.NewCallExpr("zero_val", ctx.coqTypeOfType(s, ty))
+	} else {
+		rhs = ctx.referenceTo(s.Values[0])
+	}
 	return coq.Binding{
 		Names: []string{lhs.Name},
-		Expr:  ctx.referenceTo(rhs),
+		Expr:  rhs,
 	}
 }
 

@@ -6,7 +6,7 @@ type composite struct {
 }
 
 func ReassignVars() {
-	var x uint64 = 2
+	var x uint64
 	y := uint64(0)
 	x = 3
 	var z = composite{a: x, b: y}

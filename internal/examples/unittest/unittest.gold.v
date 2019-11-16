@@ -231,7 +231,7 @@ End composite.
 
 Definition ReassignVars: val :=
   λ: <>,
-    let: "x" := ref #2 in
+    let: "x" := zero_val intT in
     let: "y" := #0 in
     "x" <- #3;;
     let: "z" := ref (buildStruct composite.S [
