@@ -322,14 +322,10 @@ Definition threadCode: val :=
 Definition loopSpawn: val :=
   λ: <>,
     let: "i" := ref #0 in
-    for: (#true); (Skip) :=
+    for: (!"i" < #10); ("i" <- !"i" + #1) :=
       let: "i" := !"i" in
-      if: !"i" > #10
-      then Break
-      else
-        Fork (threadCode !"i");;
-        "i" <- !"i" + #1;;
-        Continue;;
+      Fork (threadCode "i");;
+      Continue;;
     let: "dummy" := ref #true in
     for: (#true); (Skip) :=
       "dummy" <- ~ !"dummy";;

@@ -28,16 +28,11 @@ func simpleSpawn() {
 func threadCode(tid uint64) {}
 
 func loopSpawn() {
-	for i := uint64(0); ; {
+	for i := uint64(0); i < 10; i++ {
 		i := i
-		if i > 10 {
-			break
-		}
 		machine.Spawn(func() {
 			threadCode(i)
 		})
-		i = i + 1
-		continue
 	}
 	for dummy := true; ; {
 		// do some work to avoid a self-assignment

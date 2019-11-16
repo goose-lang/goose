@@ -73,7 +73,24 @@ func (ctx Ctx) isPtrWrapped(ident *ast.Ident) bool {
 	return info.IsPtrWrapped
 }
 
+func (ctx Ctx) doesDefHaveInfo(ident *ast.Ident) bool {
+	obj := ctx.info.Defs[ident]
+	if obj == nil {
+		// ident is not actually a definition (this is what happens when you
+		// multiply assign variables and only one of them is fresh - the others
+		// are not being defined but just re-assigned)
+		return true
+	}
+	defScope := obj.Parent()
+	key := scopedName{scope: defScope, name: ident.Name}
+	_, ok := ctx.idents.info[key]
+	return ok
+}
+
 func (ctx Ctx) addDef(ident *ast.Ident, info identInfo) {
+	if ident.Name == "_" {
+		return
+	}
 	obj := ctx.info.Defs[ident]
 	defScope := obj.Parent()
 	key := scopedName{scope: defScope, name: ident.Name}
@@ -1059,6 +1076,12 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			idents = append(idents, ident)
+			if !ctx.doesDefHaveInfo(ident) {
+				ctx.addDef(ident, identInfo{
+					IsPtrWrapped: false,
+					IsMacro:      false,
+				})
+			}
 		} else {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
