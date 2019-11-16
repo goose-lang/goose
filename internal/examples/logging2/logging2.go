@@ -47,16 +47,12 @@ func (log Log) readHdr() uint64 {
 }
 
 func (log Log) readBlocks(len uint64) []disk.Block {
-	blks := new([]disk.Block)
-	initblks := make([]disk.Block, 0)
-	*blks = initblks
+	var blks = make([]disk.Block, 0)
 	for i := uint64(0); i < len; i++ {
 		blk := disk.Read(LogStart + i)
-		oldblks := *blks
-		newblks := append(oldblks, blk)
-		*blks = newblks
+		blks = append(blks, blk)
 	}
-	return *blks
+	return blks
 }
 
 func (log Log) Read() []disk.Block {

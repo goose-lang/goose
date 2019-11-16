@@ -55,15 +55,11 @@ Definition readHdr: val :=
 
 Definition readBlocks: val :=
   λ: "log" "len",
-    let: "blks" := ref (zero_val (slice.T blockT)) in
-    let: "initblks" := NewSlice blockT #0 in
-    "blks" <- "initblks";;
+    let: "blks" := ref (NewSlice blockT #0) in
     let: "i" := ref #0 in
     for: (!"i" < "len"); ("i" <- !"i" + #1) :=
       let: "blk" := disk.Read ("LogStart" + !"i") in
-      let: "oldblks" := !"blks" in
-      let: "newblks" := SliceAppend "oldblks" "blk" in
-      "blks" <- "newblks";;
+      "blks" <- SliceAppend !"blks" "blk";;
       Continue;;
     !"blks".
 
