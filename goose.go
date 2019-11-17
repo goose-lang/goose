@@ -602,12 +602,12 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	}
 	structName, structType, ok := getStructType(selectorType)
 	if ok {
-		return ctx.structSelector(structName, structType, e)
+		return ctx.structSelector(structName, structType, e, false)
 	}
 	if t, ok := selectorType.(*types.Pointer); ok {
 		structName, structType, ok = getStructType(t.Elem())
 		if ok {
-			return ctx.structPointerSelector(structName, structType, e)
+			return ctx.structSelector(structName, structType, e, true)
 		}
 	}
 	ctx.unsupported(e, "unexpected select expression")
@@ -615,15 +615,13 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(name string, ty *types.Struct,
-	e *ast.SelectorExpr) coq.CallExpr {
-	proj := fmt.Sprintf("%s.%s", name, e.Sel.Name)
-	return coq.NewCallExpr(proj, ctx.expr(e.X))
-}
-
-func (ctx Ctx) structPointerSelector(name string, ty *types.Struct,
-	e *ast.SelectorExpr) coq.CallExpr {
-	proj := fmt.Sprintf("%s.%s", name, e.Sel.Name)
-	return coq.NewCallExpr(proj, coq.DerefExpr{ctx.expr(e.X)})
+	e *ast.SelectorExpr, isPointer bool) coq.StructFieldAccessExpr {
+	return coq.StructFieldAccessExpr{
+		Struct:         name,
+		Field:          e.Sel.Name,
+		X:              ctx.expr(e.X),
+		ThroughPointer: isPointer,
+	}
 }
 
 func structTypeFields(ty *types.Struct) []string {

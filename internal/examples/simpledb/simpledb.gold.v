@@ -16,14 +16,13 @@ Local Coercion Var' (s: string) := Var s.
 Module Table.
   (* A Table provides access to an immutable copy of data on the filesystem,
      along with an index for fast random access. *)
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "Index"; "File"
   ].
   Definition T: ty := mapT intT * fileT.
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition Index := structF! S "Index".
-    Definition File := structF! S "File".
+    Definition get := struct.get S.
   End fields.
 End Table.
 
@@ -34,21 +33,20 @@ Definition CreateTable: val :=
     let: ("f", <>) := FS.create #(str"db") "p" in
     FS.close "f";;
     let: "f2" := FS.open #(str"db") "p" in
-    buildStruct Table.S [
+    struct.mk Table.S [
       "Index" ::= "index";
       "File" ::= "f2"
     ].
 
 Module Entry.
   (* Entry represents a (key, value) pair. *)
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "Key"; "Value"
   ].
   Definition T: ty := intT * slice.T byteT.
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition Key := structF! S "Key".
-    Definition Value := structF! S "Value".
+    Definition get := struct.get S.
   End fields.
 End Entry.
 
@@ -72,7 +70,7 @@ Definition DecodeEntry: val :=
     let: ("key", "l1") := DecodeUInt64 "data" in
     if: "l1" = #0
     then
-      (buildStruct Entry.S [
+      (struct.mk Entry.S [
          "Key" ::= #0;
          "Value" ::= slice.nil
        ], #0)
@@ -80,61 +78,60 @@ Definition DecodeEntry: val :=
       let: ("valueLen", "l2") := DecodeUInt64 (SliceSkip "data" "l1") in
       if: "l2" = #0
       then
-        (buildStruct Entry.S [
+        (struct.mk Entry.S [
            "Key" ::= #0;
            "Value" ::= slice.nil
          ], #0)
       else
         if: slice.len "data" < "l1" + "l2" + "valueLen"
         then
-          (buildStruct Entry.S [
+          (struct.mk Entry.S [
              "Key" ::= #0;
              "Value" ::= slice.nil
            ], #0)
         else
           let: "value" := SliceSubslice "data" ("l1" + "l2") ("l1" + "l2" + "valueLen") in
-          (buildStruct Entry.S [
+          (struct.mk Entry.S [
              "Key" ::= "key";
              "Value" ::= "value"
            ], "l1" + "l2" + "valueLen").
 
 Module lazyFileBuf.
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "offset"; "next"
   ].
   Definition T: ty := intT * slice.T byteT.
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition offset := structF! S "offset".
-    Definition next := structF! S "next".
+    Definition get := struct.get S.
   End fields.
 End lazyFileBuf.
 
 (* readTableIndex parses a complete table on disk into a key->offset index *)
 Definition readTableIndex: val :=
   λ: "f" "index",
-    let: "buf" := ref (buildStruct lazyFileBuf.S [
+    let: "buf" := ref (struct.mk lazyFileBuf.S [
       "offset" ::= #0;
       "next" ::= slice.nil
     ]) in
     for: (#true); (Skip) :=
-      let: ("e", "l") := DecodeEntry (lazyFileBuf.next !"buf") in
+      let: ("e", "l") := DecodeEntry (lazyFileBuf.get "next" !"buf") in
       if: "l" > #0
       then
-        MapInsert "index" (Entry.Key "e") (#8 + lazyFileBuf.offset !"buf");;
-        "buf" <- buildStruct lazyFileBuf.S [
-          "offset" ::= lazyFileBuf.offset !"buf" + "l";
-          "next" ::= SliceSkip (lazyFileBuf.next !"buf") "l"
+        MapInsert "index" (Entry.get "Key" "e") (#8 + lazyFileBuf.get "offset" !"buf");;
+        "buf" <- struct.mk lazyFileBuf.S [
+          "offset" ::= lazyFileBuf.get "offset" !"buf" + "l";
+          "next" ::= SliceSkip (lazyFileBuf.get "next" !"buf") "l"
         ];;
         Continue
       else
-        let: "p" := FS.readAt "f" (lazyFileBuf.offset !"buf" + slice.len (lazyFileBuf.next !"buf")) #4096 in
+        let: "p" := FS.readAt "f" (lazyFileBuf.get "offset" !"buf" + slice.len (lazyFileBuf.get "next" !"buf")) #4096 in
         if: slice.len "p" = #0
         then Break
         else
-          let: "newBuf" := Data.sliceAppendSlice (lazyFileBuf.next !"buf") "p" in
-          "buf" <- buildStruct lazyFileBuf.S [
-            "offset" ::= lazyFileBuf.offset !"buf";
+          let: "newBuf" := Data.sliceAppendSlice (lazyFileBuf.get "next" !"buf") "p" in
+          "buf" <- struct.mk lazyFileBuf.S [
+            "offset" ::= lazyFileBuf.get "offset" !"buf";
             "next" ::= "newBuf"
           ];;
           Continue;;
@@ -146,7 +143,7 @@ Definition RecoverTable: val :=
     let: "index" := NewMap intT in
     let: "f" := FS.open #(str"db") "p" in
     readTableIndex "f" "index";;
-    buildStruct Table.S [
+    struct.mk Table.S [
       "Index" ::= "index";
       "File" ::= "f"
     ].
@@ -154,7 +151,7 @@ Definition RecoverTable: val :=
 (* CloseTable frees up the fd held by a table. *)
 Definition CloseTable: val :=
   λ: "t",
-    FS.close (Table.File "t").
+    FS.close (Table.get "File" "t").
 
 Definition readValue: val :=
   λ: "f" "off",
@@ -171,64 +168,60 @@ Definition readValue: val :=
 
 Definition tableRead: val :=
   λ: "t" "k",
-    let: ("off", "ok") := MapGet (Table.Index "t") "k" in
+    let: ("off", "ok") := MapGet (Table.get "Index" "t") "k" in
     if: ~ "ok"
     then (slice.nil, #false)
     else
-      let: "p" := readValue (Table.File "t") "off" in
+      let: "p" := readValue (Table.get "File" "t") "off" in
       ("p", #true).
 
 Module bufFile.
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "file"; "buf"
   ].
   Definition T: ty := fileT * refT (slice.T byteT).
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition file := structF! S "file".
-    Definition buf := structF! S "buf".
+    Definition get := struct.get S.
   End fields.
 End bufFile.
 
 Definition newBuf: val :=
   λ: "f",
     let: "buf" := ref (zero_val (slice.T byteT)) in
-    buildStruct bufFile.S [
+    struct.mk bufFile.S [
       "file" ::= "f";
       "buf" ::= "buf"
     ].
 
 Definition bufFlush: val :=
   λ: "f",
-    let: "buf" := !bufFile.buf "f" in
+    let: "buf" := !(bufFile.get "buf" "f") in
     if: slice.len "buf" = #0
     then "tt"
     else
-      FS.append (bufFile.file "f") "buf";;
-      bufFile.buf "f" <- slice.nil.
+      FS.append (bufFile.get "file" "f") "buf";;
+      bufFile.get "buf" "f" <- slice.nil.
 
 Definition bufAppend: val :=
   λ: "f" "p",
-    let: "buf" := !bufFile.buf "f" in
+    let: "buf" := !(bufFile.get "buf" "f") in
     let: "buf2" := Data.sliceAppendSlice "buf" "p" in
-    bufFile.buf "f" <- "buf2".
+    bufFile.get "buf" "f" <- "buf2".
 
 Definition bufClose: val :=
   λ: "f",
     bufFlush "f";;
-    FS.close (bufFile.file "f").
+    FS.close (bufFile.get "file" "f").
 
 Module tableWriter.
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "index"; "name"; "file"; "offset"
   ].
   Definition T: ty := (mapT intT * stringT * bufFile.T * refT intT)%ht.
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition index := structF! S "index".
-    Definition name := structF! S "name".
-    Definition file := structF! S "file".
-    Definition offset := structF! S "offset".
+    Definition get := struct.get S.
   End fields.
 End tableWriter.
 
@@ -238,7 +231,7 @@ Definition newTableWriter: val :=
     let: ("f", <>) := FS.create #(str"db") "p" in
     let: "buf" := newBuf "f" in
     let: "off" := ref (zero_val intT) in
-    buildStruct tableWriter.S [
+    struct.mk tableWriter.S [
       "index" ::= "index";
       "name" ::= "p";
       "file" ::= "buf";
@@ -247,16 +240,16 @@ Definition newTableWriter: val :=
 
 Definition tableWriterAppend: val :=
   λ: "w" "p",
-    bufAppend (tableWriter.file "w") "p";;
-    let: "off" := !tableWriter.offset "w" in
-    tableWriter.offset "w" <- "off" + slice.len "p".
+    bufAppend (tableWriter.get "file" "w") "p";;
+    let: "off" := !(tableWriter.get "offset" "w") in
+    tableWriter.get "offset" "w" <- "off" + slice.len "p".
 
 Definition tableWriterClose: val :=
   λ: "w",
-    bufClose (tableWriter.file "w");;
-    let: "f" := FS.open #(str"db") (tableWriter.name "w") in
-    buildStruct Table.S [
-      "Index" ::= tableWriter.index "w";
+    bufClose (tableWriter.get "file" "w");;
+    let: "f" := FS.open #(str"db") (tableWriter.get "name" "w") in
+    struct.mk Table.S [
+      "Index" ::= tableWriter.get "index" "w";
       "File" ::= "f"
     ].
 
@@ -280,25 +273,19 @@ Definition tablePut: val :=
     let: "tmp" := NewSlice byteT #0 in
     let: "tmp2" := EncodeUInt64 "k" "tmp" in
     let: "tmp3" := EncodeSlice "v" "tmp2" in
-    let: "off" := !tableWriter.offset "w" in
-    MapInsert (tableWriter.index "w") "k" ("off" + slice.len "tmp2");;
+    let: "off" := !(tableWriter.get "offset" "w") in
+    MapInsert (tableWriter.get "index" "w") "k" ("off" + slice.len "tmp2");;
     tableWriterAppend "w" "tmp3".
 
 Module Database.
   (* Database is a handle to an open database. *)
-  Definition S := mkStruct [
+  Definition S := struct.new [
     "wbuffer"; "rbuffer"; "bufferL"; "table"; "tableName"; "tableL"; "compactionL"
   ].
   Definition T: ty := (refT (mapT (slice.T byteT)) * refT (mapT (slice.T byteT)) * lockRefT * refT Table.T * refT stringT * lockRefT * lockRefT)%ht.
   Section fields.
     Context `{ext_ty: ext_types}.
-    Definition wbuffer := structF! S "wbuffer".
-    Definition rbuffer := structF! S "rbuffer".
-    Definition bufferL := structF! S "bufferL".
-    Definition table := structF! S "table".
-    Definition tableName := structF! S "tableName".
-    Definition tableL := structF! S "tableL".
-    Definition compactionL := structF! S "compactionL".
+    Definition get := struct.get S.
   End fields.
 End Database.
 
@@ -323,7 +310,7 @@ Definition NewDb: val :=
     "tableRef" <- "table";;
     let: "tableL" := Data.newLock #() in
     let: "compactionL" := Data.newLock #() in
-    buildStruct Database.S [
+    struct.mk Database.S [
       "wbuffer" ::= "wbuf";
       "rbuffer" ::= "rbuf";
       "bufferL" ::= "bufferL";
@@ -341,26 +328,26 @@ Definition NewDb: val :=
    Reflects any completed in-memory writes. *)
 Definition Read: val :=
   λ: "db" "k",
-    Data.lockAcquire Reader (Database.bufferL "db");;
-    let: "buf" := !Database.wbuffer "db" in
+    Data.lockAcquire Reader (Database.get "bufferL" "db");;
+    let: "buf" := !(Database.get "wbuffer" "db") in
     let: ("v", "ok") := MapGet "buf" "k" in
     if: "ok"
     then
-      Data.lockRelease Reader (Database.bufferL "db");;
+      Data.lockRelease Reader (Database.get "bufferL" "db");;
       ("v", #true)
     else
-      let: "rbuf" := !Database.rbuffer "db" in
+      let: "rbuf" := !(Database.get "rbuffer" "db") in
       let: ("v2", "ok") := MapGet "rbuf" "k" in
       if: "ok"
       then
-        Data.lockRelease Reader (Database.bufferL "db");;
+        Data.lockRelease Reader (Database.get "bufferL" "db");;
         ("v2", #true)
       else
-        Data.lockAcquire Reader (Database.tableL "db");;
-        let: "tbl" := !Database.table "db" in
+        Data.lockAcquire Reader (Database.get "tableL" "db");;
+        let: "tbl" := !(Database.get "table" "db") in
         let: ("v3", "ok") := tableRead "tbl" "k" in
-        Data.lockRelease Reader (Database.tableL "db");;
-        Data.lockRelease Reader (Database.bufferL "db");;
+        Data.lockRelease Reader (Database.get "tableL" "db");;
+        Data.lockRelease Reader (Database.get "bufferL" "db");;
         ("v3", "ok").
 
 (* Write sets a key to a new value.
@@ -371,10 +358,10 @@ Definition Read: val :=
    The new value is buffered in memory. To persist it, call db.Compact(). *)
 Definition Write: val :=
   λ: "db" "k" "v",
-    Data.lockAcquire Writer (Database.bufferL "db");;
-    let: "buf" := !Database.wbuffer "db" in
+    Data.lockAcquire Writer (Database.get "bufferL" "db");;
+    let: "buf" := !(Database.get "wbuffer" "db") in
     MapInsert "buf" "k" "v";;
-    Data.lockRelease Writer (Database.bufferL "db").
+    Data.lockRelease Writer (Database.get "bufferL" "db").
 
 Definition freshTable: val :=
   λ: "p",
@@ -394,33 +381,33 @@ Definition tablePutBuffer: val :=
    buffer b since those writes overwrite old ones *)
 Definition tablePutOldTable: val :=
   λ: "w" "t" "b",
-    let: "buf" := ref (buildStruct lazyFileBuf.S [
+    let: "buf" := ref (struct.mk lazyFileBuf.S [
       "offset" ::= #0;
       "next" ::= slice.nil
     ]) in
     for: (#true); (Skip) :=
-      let: ("e", "l") := DecodeEntry (lazyFileBuf.next !"buf") in
+      let: ("e", "l") := DecodeEntry (lazyFileBuf.get "next" !"buf") in
       if: "l" > #0
       then
-        let: (<>, "ok") := MapGet "b" (Entry.Key "e") in
+        let: (<>, "ok") := MapGet "b" (Entry.get "Key" "e") in
         if: ~ "ok"
         then
-          tablePut "w" (Entry.Key "e") (Entry.Value "e");;
+          tablePut "w" (Entry.get "Key" "e") (Entry.get "Value" "e");;
           #()
         else #();;
-        "buf" <- buildStruct lazyFileBuf.S [
-          "offset" ::= lazyFileBuf.offset !"buf" + "l";
-          "next" ::= SliceSkip (lazyFileBuf.next !"buf") "l"
+        "buf" <- struct.mk lazyFileBuf.S [
+          "offset" ::= lazyFileBuf.get "offset" !"buf" + "l";
+          "next" ::= SliceSkip (lazyFileBuf.get "next" !"buf") "l"
         ];;
         Continue
       else
-        let: "p" := FS.readAt (Table.File "t") (lazyFileBuf.offset !"buf" + slice.len (lazyFileBuf.next !"buf")) #4096 in
+        let: "p" := FS.readAt (Table.get "File" "t") (lazyFileBuf.get "offset" !"buf" + slice.len (lazyFileBuf.get "next" !"buf")) #4096 in
         if: slice.len "p" = #0
         then Break
         else
-          let: "newBuf" := Data.sliceAppendSlice (lazyFileBuf.next !"buf") "p" in
-          "buf" <- buildStruct lazyFileBuf.S [
-            "offset" ::= lazyFileBuf.offset !"buf";
+          let: "newBuf" := Data.sliceAppendSlice (lazyFileBuf.get "next" !"buf") "p" in
+          "buf" <- struct.mk lazyFileBuf.S [
+            "offset" ::= lazyFileBuf.get "offset" !"buf";
             "next" ::= "newBuf"
           ];;
           Continue;;
@@ -434,10 +421,10 @@ Definition tablePutOldTable: val :=
    Returns the old table and new table. *)
 Definition constructNewTable: val :=
   λ: "db" "wbuf",
-    let: "oldName" := !Database.tableName "db" in
+    let: "oldName" := !(Database.get "tableName" "db") in
     let: "name" := freshTable "oldName" in
     let: "w" := newTableWriter "name" in
-    let: "oldTable" := !Database.table "db" in
+    let: "oldTable" := !(Database.get "table" "db") in
     tablePutOldTable "w" "oldTable" "wbuf";;
     tablePutBuffer "w" "wbuf";;
     let: "newTable" := tableWriterClose "w" in
@@ -449,27 +436,27 @@ Definition constructNewTable: val :=
    writes with existing writes. *)
 Definition Compact: val :=
   λ: "db",
-    Data.lockAcquire Writer (Database.compactionL "db");;
-    Data.lockAcquire Writer (Database.bufferL "db");;
-    let: "buf" := !Database.wbuffer "db" in
+    Data.lockAcquire Writer (Database.get "compactionL" "db");;
+    Data.lockAcquire Writer (Database.get "bufferL" "db");;
+    let: "buf" := !(Database.get "wbuffer" "db") in
     let: "emptyWbuffer" := NewMap (slice.T byteT) in
-    Database.wbuffer "db" <- "emptyWbuffer";;
-    Database.rbuffer "db" <- "buf";;
-    Data.lockRelease Writer (Database.bufferL "db");;
-    Data.lockAcquire Reader (Database.tableL "db");;
-    let: "oldTableName" := !Database.tableName "db" in
+    Database.get "wbuffer" "db" <- "emptyWbuffer";;
+    Database.get "rbuffer" "db" <- "buf";;
+    Data.lockRelease Writer (Database.get "bufferL" "db");;
+    Data.lockAcquire Reader (Database.get "tableL" "db");;
+    let: "oldTableName" := !(Database.get "tableName" "db") in
     let: ("oldTable", "t") := constructNewTable "db" "buf" in
     let: "newTable" := freshTable "oldTableName" in
-    Data.lockRelease Reader (Database.tableL "db");;
-    Data.lockAcquire Writer (Database.tableL "db");;
-    Database.table "db" <- "t";;
-    Database.tableName "db" <- "newTable";;
+    Data.lockRelease Reader (Database.get "tableL" "db");;
+    Data.lockAcquire Writer (Database.get "tableL" "db");;
+    Database.get "table" "db" <- "t";;
+    Database.get "tableName" "db" <- "newTable";;
     let: "manifestData" := Data.stringToBytes "newTable" in
     FS.atomicCreate #(str"db") #(str"manifest") "manifestData";;
     CloseTable "oldTable";;
     FS.delete #(str"db") "oldTableName";;
-    Data.lockRelease Writer (Database.tableL "db");;
-    Data.lockRelease Writer (Database.compactionL "db").
+    Data.lockRelease Writer (Database.get "tableL" "db");;
+    Data.lockRelease Writer (Database.get "compactionL" "db").
 
 Definition recoverManifest: val :=
   λ: <>,
@@ -518,7 +505,7 @@ Definition Recover: val :=
     let: "bufferL" := Data.newLock #() in
     let: "tableL" := Data.newLock #() in
     let: "compactionL" := Data.newLock #() in
-    buildStruct Database.S [
+    struct.mk Database.S [
       "wbuffer" ::= "wbuffer";
       "rbuffer" ::= "rbuffer";
       "bufferL" ::= "bufferL";
@@ -534,12 +521,12 @@ Definition Recover: val :=
    cleanly closing any open files. *)
 Definition Shutdown: val :=
   λ: "db",
-    Data.lockAcquire Writer (Database.bufferL "db");;
-    Data.lockAcquire Writer (Database.compactionL "db");;
-    let: "t" := !Database.table "db" in
+    Data.lockAcquire Writer (Database.get "bufferL" "db");;
+    Data.lockAcquire Writer (Database.get "compactionL" "db");;
+    let: "t" := !(Database.get "table" "db") in
     CloseTable "t";;
-    Data.lockRelease Writer (Database.compactionL "db");;
-    Data.lockRelease Writer (Database.bufferL "db").
+    Data.lockRelease Writer (Database.get "compactionL" "db");;
+    Data.lockRelease Writer (Database.get "bufferL" "db").
 
 (* Close closes an open database cleanly, flushing any in-memory writes.
 

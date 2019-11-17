@@ -134,7 +134,7 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	pp.AddComment(d.Comment)
-	pp.Add("Definition S := mkStruct [")
+	pp.Add("Definition S := struct.new [")
 	pp.Indent(2)
 	var fieldList []string
 	for _, fd := range d.Fields {
@@ -160,9 +160,7 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Section fields.")
 	pp.Indent(2)
 	pp.Add("%s", "Context `{ext_ty: ext_types}.")
-	for _, fd := range d.Fields {
-		pp.Add("Definition %s := structF! S %s.", fd.Name, quote(fd.Name))
-	}
+	pp.Add("%s", "Definition get := struct.get S.")
 	pp.Indent(-2)
 	pp.Add("End fields.")
 	pp.Indent(-2)
@@ -270,17 +268,24 @@ func (s CallExpr) Coq() string {
 	return strings.Join(comps, " ")
 }
 
-// ProjExpr is a record projection
-//
-// Projections could always be written using normal function call syntax, but
-// using record syntax for projections makes code look nicer.
-type ProjExpr struct {
-	Projection string
-	Arg        Expr
+type StructFieldAccessExpr struct {
+	Struct string
+	Field  string
+	X      Expr
+	// the expression X is a pointer to a struct (whether because of pointer
+	// wrapping or because it was a pointer in the program)
+	ThroughPointer bool
 }
 
-func (e ProjExpr) Coq() string {
-	return fmt.Sprintf("%s.(%s)", addParens(e.Arg.Coq()), e.Projection)
+func (e StructFieldAccessExpr) Coq() string {
+	method := fmt.Sprintf("%s.get", e.Struct)
+	x := e.X
+	if e.ThroughPointer {
+		x = DerefExpr{X: x}
+	}
+	return NewCallExpr(method,
+		GallinaString(e.Field),
+		x).Coq()
 }
 
 type ReturnExpr struct {
@@ -345,7 +350,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 
 func (sl StructLiteral) Coq() string {
 	var pp buffer
-	pp.Add("buildStruct %s.S [", sl.StructName)
+	pp.Add("struct.mk %s.S [", sl.StructName)
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
@@ -504,7 +509,7 @@ type DerefExpr struct {
 }
 
 func (e DerefExpr) Coq() string {
-	return "!" + e.X.Coq()
+	return "!" + addParens(e.X.Coq())
 }
 
 type RefExpr struct {
