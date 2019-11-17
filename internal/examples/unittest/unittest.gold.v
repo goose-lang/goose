@@ -11,9 +11,8 @@ Module importantStruct.
 
      This is despite it being empty. *)
   Definition S := struct.new [
-
   ].
-  Definition T: ty := unitT.
+  Definition T: ty := struct.t S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
@@ -124,9 +123,11 @@ Definition emptyReturn: val :=
 
 Module allTheLiterals.
   Definition S := struct.new [
-    "int"; "s"; "b"
+    "int" :: intT;
+    "s" :: stringT;
+    "b" :: boolT
   ].
-  Definition T: ty := (intT * stringT * boolT)%ht.
+  Definition T: ty := struct.t S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
@@ -218,9 +219,10 @@ Definition PanicAtTheDisco: val :=
 
 Module composite.
   Definition S := struct.new [
-    "a"; "b"
+    "a" :: intT;
+    "b" :: intT
   ].
-  Definition T: ty := intT * intT.
+  Definition T: ty := struct.t S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
@@ -244,9 +246,9 @@ Definition ReassignVars: val :=
 
 Module Block.
   Definition S := struct.new [
-    "Value"
+    "Value" :: intT
   ].
-  Definition T: ty := intT.
+  Definition T: ty := struct.t S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
@@ -362,9 +364,10 @@ Definition stringAppend: val :=
 
 Module C.
   Definition S := struct.new [
-    "x"; "y"
+    "x" :: intT;
+    "y" :: intT
   ].
-  Definition T: ty := intT * intT.
+  Definition T: ty := struct.t S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.

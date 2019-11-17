@@ -136,27 +136,16 @@ func (d StructDecl) CoqDecl() string {
 	pp.AddComment(d.Comment)
 	pp.Add("Definition S := struct.new [")
 	pp.Indent(2)
-	var fieldList []string
-	for _, fd := range d.Fields {
-		fieldList = append(fieldList, quote(fd.Name))
+	for i, fd := range d.Fields {
+		sep := ";"
+		if i == len(d.Fields)-1 {
+			sep = ""
+		}
+		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
 	}
-	pp.Add("%s", strings.Join(fieldList, "; "))
 	pp.Indent(-2)
 	pp.Add("].")
-	var typeList []string
-	for _, fd := range d.Fields {
-		typeList = append(typeList, fd.Type.Coq())
-	}
-	ty := strings.Join(typeList, " * ")
-	if len(typeList) == 0 {
-		ty = "unitT"
-	}
-	if len(typeList) > 2 {
-		// TODO: for some reason Bind Scope in Coq doesn't handle this
-		//  notation if it's used recursively
-		ty = "(" + ty + ")%ht"
-	}
-	pp.Add("Definition T: ty := %s.", ty)
+	pp.Add("%s", "Definition T: ty := struct.t S.")
 	pp.Add("Section fields.")
 	pp.Indent(2)
 	pp.Add("%s", "Context `{ext_ty: ext_types}.")
