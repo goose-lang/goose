@@ -7,8 +7,10 @@ import (
 	"sync"
 )
 
-const LogCommit = uint64(0)
-const LogStart = uint64(1)
+const LOGCOMMIT = uint64(0)
+const LOGSTART = uint64(1)
+const LOGMAXBLK = uint64(510)
+const LOGEND = LOGMAXBLK + LOGSTART
 
 type Log struct {
 	logLock   *sync.RWMutex // protects on disk log
@@ -23,7 +25,7 @@ type Log struct {
 func (log Log) writeHdr(len uint64) {
 	hdr := make([]byte, 4096)
 	machine.UInt64Put(hdr, len)
-	disk.Write(LogCommit, hdr)
+	disk.Write(LOGCOMMIT, hdr)
 }
 
 func Init(logSz uint64) Log {
@@ -41,7 +43,7 @@ func Init(logSz uint64) Log {
 }
 
 func (log Log) readHdr() uint64 {
-	hdr := disk.Read(LogCommit)
+	hdr := disk.Read(LOGCOMMIT)
 	disklen := machine.UInt64Get(hdr)
 	return disklen
 }
@@ -49,7 +51,7 @@ func (log Log) readHdr() uint64 {
 func (log Log) readBlocks(len uint64) []disk.Block {
 	var blks = make([]disk.Block, 0)
 	for i := uint64(0); i < len; i++ {
-		blk := disk.Read(LogStart + i)
+		blk := disk.Read(LOGSTART + i)
 		blks = append(blks, blk)
 	}
 	return blks
