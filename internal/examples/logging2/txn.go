@@ -24,10 +24,9 @@ func (txn Txn) Write(addr uint64, blk *disk.Block) bool {
 		(*txn.blks)[addr] = *blk
 	}
 	if !ok {
-		// goose doesn't like LogMaxBlk
-		//if n == LOGMAXBLK {
-		//	return false
-		//}
+		if addr == LOGMAXBLK {
+			return false
+		}
 		(*txn.blks)[addr] = *blk
 	}
 	return true

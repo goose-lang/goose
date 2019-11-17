@@ -187,7 +187,9 @@ Definition Write: val :=
     else #();;
     if: ~ "ok"
     then
-      MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
+      if: "addr" = "LOGMAXBLK"
+      then #false
+      else MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
       #()
     else #();;
     #true.

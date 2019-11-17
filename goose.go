@@ -759,20 +759,27 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	return coq.IdentExpr(s.Name)
 }
 
+func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
+	s, ok := ctx.info.Uses[e]
+	if !ok {
+		return false
+	}
+	return s.Parent() == types.Universe
+}
+
 func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
-	if e.Obj != nil {
-		return ctx.variable(e)
+	if ctx.goBuiltin(e) {
+		switch e.Name {
+		case "nil":
+			return ctx.nilExpr(e)
+		case "true":
+			return coq.True
+		case "false":
+			return coq.False
+		}
+		ctx.unsupported(e, "special identifier")
 	}
-	switch e.Name {
-	case "nil":
-		return ctx.nilExpr(e)
-	case "true":
-		return coq.True
-	case "false":
-		return coq.False
-	}
-	ctx.unsupported(e, "special identifier")
-	return nil
+	return ctx.variable(e)
 }
 
 func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
