@@ -199,7 +199,7 @@ Definition Read: val :=
     let: ("v", "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
     if: "ok"
     then "v"
-    else disk.Read "addr".
+    else disk.Read ("addr" + "LOGEND").
 
 Definition Commit: val :=
   λ: "txn",

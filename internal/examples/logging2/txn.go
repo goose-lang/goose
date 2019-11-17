@@ -37,9 +37,7 @@ func (txn Txn) Read(addr uint64) disk.Block {
 	if ok {
 		return v
 	} else {
-		// goose doesn't like LogEnd
-		// return disk.Read(addr + LOGEND)
-		return disk.Read(addr)
+		return disk.Read(addr + LOGEND)
 	}
 }
 
