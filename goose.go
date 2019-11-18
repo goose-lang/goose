@@ -57,7 +57,8 @@ func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
 	if scope == types.Universe {
 		return identInfo{
 			IsPtrWrapped: false,
-			IsMacro:      true,
+			// TODO: setting this to true triggers too often
+			IsMacro: false,
 		}
 	}
 	info, ok := idents.info[scopedName{scope, name}]
@@ -67,10 +68,9 @@ func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
 	return idents.lookupName(scope.Parent(), name)
 }
 
-func (ctx Ctx) isPtrWrapped(ident *ast.Ident) bool {
+func (ctx Ctx) identInfo(ident *ast.Ident) identInfo {
 	scope := ctx.info.Uses[ident].Parent()
-	info := ctx.idents.lookupName(scope, ident.Name)
-	return info.IsPtrWrapped
+	return ctx.idents.lookupName(scope, ident.Name)
 }
 
 func (ctx Ctx) doesDefHaveInfo(ident *ast.Ident) bool {
@@ -757,10 +757,15 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 }
 
 func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
-	if ctx.isPtrWrapped(s) {
-		return coq.DerefExpr{coq.IdentExpr(s.Name)}
+	info := ctx.identInfo(s)
+	if info.IsMacro {
+		return coq.GallinaIdent(s.Name)
 	}
-	return coq.IdentExpr(s.Name)
+	e := coq.IdentExpr(s.Name)
+	if info.IsPtrWrapped {
+		return coq.DerefExpr{e}
+	}
+	return e
 }
 
 func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
@@ -1181,7 +1186,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	// assignments can mean various things
 	switch lhs := s.Lhs[0].(type) {
 	case *ast.Ident:
-		if ctx.isPtrWrapped(lhs) {
+		if ctx.identInfo(lhs).IsPtrWrapped {
 			return pointerAssign(lhs, ctx.expr(rhs))
 		}
 		// the support for making variables assignable is in flux, but currently
@@ -1402,9 +1407,14 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) coq.ConstDecl {
 		ctx.unsupported(d, "multiple const declarations")
 		return coq.ConstDecl{}
 	}
+	ident := spec.Names[0]
 	cd := coq.ConstDecl{
-		Name: spec.Names[0].Name,
+		Name: ident.Name,
 	}
+	ctx.addDef(ident, identInfo{
+		IsPtrWrapped: false,
+		IsMacro:      true,
+	})
 	addSourceDoc(spec.Comment, &cd.Comment)
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)

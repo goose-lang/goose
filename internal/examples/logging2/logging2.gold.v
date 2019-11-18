@@ -10,7 +10,7 @@ Definition LOGSTART : expr := #1.
 
 Definition LOGMAXBLK : expr := #510.
 
-Definition LOGEND : expr := "LOGMAXBLK" + "LOGSTART".
+Definition LOGEND : expr := LOGMAXBLK + LOGSTART.
 
 Module Log.
   Definition S := struct.new [
@@ -33,7 +33,7 @@ Definition Log__writeHdr: val :=
   λ: "log" "len",
     let: "hdr" := NewSlice byteT #4096 in
     UInt64Put "hdr" "len";;
-    disk.Write "LOGCOMMIT" "hdr".
+    disk.Write LOGCOMMIT "hdr".
 
 Definition Init: val :=
   λ: "logSz",
@@ -51,7 +51,7 @@ Definition Init: val :=
 
 Definition Log__readHdr: val :=
   λ: "log",
-    let: "hdr" := disk.Read "LOGCOMMIT" in
+    let: "hdr" := disk.Read LOGCOMMIT in
     let: "disklen" := UInt64Get "hdr" in
     "disklen".
 
@@ -60,7 +60,7 @@ Definition Log__readBlocks: val :=
     let: "blks" := ref (NewSlice disk.blockT #0) in
     let: "i" := ref #0 in
     for: (!"i" < "len"); ("i" <- !"i" + #1) :=
-      let: "blk" := disk.Read ("LOGSTART" + !"i") in
+      let: "blk" := disk.Read (LOGSTART + !"i") in
       "blks" <- SliceAppend !"blks" "blk";;
       Continue;;
     !"blks".
@@ -185,7 +185,7 @@ Definition Txn__Write: val :=
     else #();;
     if: ~ "ok"
     then
-      if: "addr" = "LOGMAXBLK"
+      if: "addr" = LOGMAXBLK
       then #false
       else MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
       #()
@@ -197,7 +197,7 @@ Definition Txn__Read: val :=
     let: ("v", "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
     if: "ok"
     then "v"
-    else disk.Read ("addr" + "LOGEND").
+    else disk.Read ("addr" + LOGEND).
 
 Definition Txn__Commit: val :=
   λ: "txn",
