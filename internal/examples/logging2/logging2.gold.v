@@ -157,7 +157,7 @@ Definition Log__Logger: val :=
 Module Txn.
   Definition S := struct.new [
     "log" :: refT Log.T;
-    "blks" :: refT (mapT disk.blockT)
+    "blks" :: mapT disk.blockT
   ].
   Definition T: ty := struct.t S.
   Section fields.
@@ -171,31 +171,31 @@ Definition Begin: val :=
   λ: "log",
     let: "txn" := struct.mk Txn.S [
       "log" ::= "log";
-      "blks" ::= ref (zero_val (mapT disk.blockT))
+      "blks" ::= NewMap disk.blockT
     ] in
     "txn".
 
 Definition Txn__Write: val :=
   λ: "txn" "addr" "blk",
     let: "ret" := ref #true in
-    let: (<>, "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
+    let: (<>, "ok") := MapGet (Txn.get "blks" "txn") "addr" in
     (if: "ok"
     then
-      MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
+      MapInsert (Txn.get "blks" "txn") "addr" !"blk";;
       #()
     else #());;
     (if: ~ "ok"
     then
       (if: "addr" = LOGMAXBLK
       then "ret" <- #false
-      else MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk");;
+      else MapInsert (Txn.get "blks" "txn") "addr" !"blk");;
       #()
     else #());;
     !"ret".
 
 Definition Txn__Read: val :=
   λ: "txn" "addr",
-    let: ("v", "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
+    let: ("v", "ok") := MapGet (Txn.get "blks" "txn") "addr" in
     (if: "ok"
     then "v"
     else disk.Read ("addr" + LOGEND)).
@@ -203,7 +203,7 @@ Definition Txn__Read: val :=
 Definition Txn__Commit: val :=
   λ: "txn",
     let: "blks" := ref (zero_val (slice.T disk.blockT)) in
-    Data.mapIter !(Txn.get "blks" "txn") (λ: <> "v",
+    Data.mapIter Txn.get "blks" "txn" (λ: <> "v",
       "blks" <- SliceAppend !"blks" "v");;
     let: "ok" := Log__Append (!(Txn.get "log" "txn")) !"blks" in
     "ok".
