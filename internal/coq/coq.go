@@ -600,7 +600,8 @@ type MapIterExpr struct {
 func (e MapIterExpr) Coq() string {
 	var pp buffer
 	pp.Add("Data.mapIter %s (λ: %s %s,",
-		e.Map.Coq(), binder(e.KeyIdent), binder(e.ValueIdent))
+		addParens(e.Map.Coq()),
+		binder(e.KeyIdent), binder(e.ValueIdent))
 	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq())
 	return pp.Build()
