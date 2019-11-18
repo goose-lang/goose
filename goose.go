@@ -285,6 +285,12 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
 		decls = append(decls, ctx.field(f))
+		if len(f.Names) == 1 {
+			ctx.addDef(f.Names[0], identInfo{
+				IsPtrWrapped: false,
+				IsMacro:      false,
+			})
+		}
 	}
 	return decls
 }
