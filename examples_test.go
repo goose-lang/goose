@@ -120,14 +120,13 @@ func (t positiveTest) DeleteActual() {
 	_ = os.Remove(t.ActualFile())
 }
 
-func (s *ExamplesSuite) testExample(c *C, name string) {
+func (s *ExamplesSuite) testExample(c *C, name string, conf goose.Config) {
 	t := positiveTest{newTest("internal/examples", name)}
 	if !t.isDir() {
 		c.Fatalf("%s is not a test directory", t.path)
 	}
 	// c.Logf("testing example %s/", t.name)
 
-	var conf goose.Config
 	f, terr := conf.TranslatePackage(t.path)
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
@@ -162,27 +161,27 @@ func (s *ExamplesSuite) testExample(c *C, name string) {
 }
 
 func (s *ExamplesSuite) TestUnitTests(c *C) {
-	s.testExample(c, "unittest")
+	s.testExample(c, "unittest", goose.Config{})
 }
 
 func (s *ExamplesSuite) TestSimpleDb(c *C) {
-	s.testExample(c, "simpledb")
+	s.testExample(c, "simpledb", goose.Config{})
 }
 
 func (s *ExamplesSuite) TestMailServer(c *C) {
-	s.testExample(c, "mailserver")
+	s.testExample(c, "mailserver", goose.Config{})
 }
 
 func (s *ExamplesSuite) TestWal(c *C) {
-	s.testExample(c, "wal")
+	s.testExample(c, "wal", goose.Config{})
 }
 
 func (s *ExamplesSuite) TestLogging2(c *C) {
-	s.testExample(c, "logging2")
+	s.testExample(c, "logging2", goose.Config{})
 }
 
 func (s *ExamplesSuite) TestAppendLog(c *C) {
-	s.testExample(c, "append_log")
+	s.testExample(c, "append_log", goose.Config{TypeCheck: true})
 }
 
 type errorExpectation struct {
