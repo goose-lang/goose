@@ -177,7 +177,7 @@ func (s *ExamplesSuite) TestWal(c *C) {
 }
 
 func (s *ExamplesSuite) TestLogging2(c *C) {
-	s.testExample(c, "logging2", goose.Config{})
+	s.testExample(c, "logging2", goose.Config{TypeCheck: true})
 }
 
 func (s *ExamplesSuite) TestAppendLog(c *C) {
