@@ -743,15 +743,17 @@ func (t PtrType) Coq() string {
 	return NewCallExpr("refT", t.Value).Coq()
 }
 
+func StructMethod(structName string, methodName string) string {
+	return fmt.Sprintf("%s__%s", structName, methodName)
+}
+
 // TODO: note that the second two lines should be customized depending on the
 //  target interface.
 const importHeader string = `
 From Perennial.go_lang Require Import prelude.
 
 (* disk FFI *)
-From Perennial.go_lang Require Import ffi.disk.
-Existing Instances disk_op disk_model disk_ty.
-Local Coercion Var' (s: string) := Var s.
+From Perennial.go_lang Require Import ffi.disk_prelude.
 `
 
 // File represents a complete Coq file (a sequence of declarations).

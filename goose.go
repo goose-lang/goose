@@ -188,7 +188,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 		return "fileT"
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return "blockT"
+		return "disk.blockT"
 	}
 	ctx.unsupported(e, "unknown package type %s", e)
 	return "<selector expr>"
@@ -446,8 +446,11 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 		return ctx.lockMethod(f)
 	}
 	if _, ok := selectorType.Underlying().(*types.Struct); ok {
+		structName, _, _ := getStructType(selectorType)
 		callArgs := append([]ast.Expr{f.X}, args...)
-		return ctx.newCoqCall(f.Sel.Name, callArgs)
+		return ctx.newCoqCall(
+			coq.StructMethod(structName, f.Sel.Name),
+			callArgs)
 	}
 	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
 	return nil
@@ -1374,6 +1377,17 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 			ctx.nope(d, "function with multiple receivers")
 		}
 		receiver := d.Recv.List[0]
+		recvType := ctx.typeOf(receiver.Type)
+		// TODO: factor out this struct-or-struct pointer pattern
+		if pT, ok := recvType.(*types.Pointer); ok {
+			recvType = pT.Elem()
+		}
+
+		structName, _, ok := getStructType(recvType)
+		if !ok {
+			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
+		}
+		fd.Name = coq.StructMethod(structName, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
