@@ -602,10 +602,10 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	selectorType, ok := ctx.getType(e.X)
 	if !ok {
 		if isIdent(e.X, "filesys") {
-			return coq.IdentExpr("FS." + e.Sel.Name)
+			return coq.GallinaIdent("FS." + e.Sel.Name)
 		}
 		if isIdent(e.X, "disk") {
-			return coq.IdentExpr("Disk." + e.Sel.Name)
+			return coq.GallinaIdent("disk." + e.Sel.Name)
 		}
 		ctx.unsupported(e, "package select")
 		return nil

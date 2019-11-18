@@ -173,7 +173,7 @@ func (s *ExamplesSuite) TestMailServer(c *C) {
 }
 
 func (s *ExamplesSuite) TestWal(c *C) {
-	s.testExample(c, "wal", goose.Config{})
+	s.testExample(c, "wal", goose.Config{TypeCheck: true})
 }
 
 func (s *ExamplesSuite) TestLogging2(c *C) {
