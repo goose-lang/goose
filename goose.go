@@ -116,6 +116,7 @@ type Ctx struct {
 // Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
+	TypeCheck             bool
 }
 
 // NewCtx initializes a context
@@ -1344,7 +1345,7 @@ func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
 // returnType converts an ast.FuncType's Results to a Coq return type
 func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 	if results == nil {
-		return coq.TypeIdent("unit")
+		return coq.TypeIdent("unitT")
 	}
 	rs := results.List
 	for _, r := range rs {
@@ -1365,7 +1366,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
-	fd := coq.FuncDecl{Name: d.Name.Name}
+	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {

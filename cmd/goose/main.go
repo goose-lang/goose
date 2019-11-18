@@ -20,6 +20,8 @@ func main() {
 	var config goose.Config
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
+	flag.BoolVar(&config.TypeCheck, "typecheck", false,
+		"add type-checking theorems")
 
 	var outFile string
 	flag.StringVar(&outFile, "out", "-",

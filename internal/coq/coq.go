@@ -134,7 +134,7 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	pp.AddComment(d.Comment)
-	pp.Add("Definition S := struct.new [")
+	pp.AddLine("Definition S := struct.new [")
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -144,14 +144,14 @@ func (d StructDecl) CoqDecl() string {
 		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
 	}
 	pp.Indent(-2)
-	pp.Add("].")
-	pp.Add("%s", "Definition T: ty := struct.t S.")
-	pp.Add("Section fields.")
+	pp.AddLine("].")
+	pp.AddLine("Definition T: ty := struct.t S.")
+	pp.AddLine("Section fields.")
 	pp.Indent(2)
-	pp.Add("%s", "Context `{ext_ty: ext_types}.")
-	pp.Add("%s", "Definition get := struct.get S.")
+	pp.AddLine("Context `{ext_ty: ext_types}.")
+	pp.AddLine("Definition get := struct.get S.")
 	pp.Indent(-2)
-	pp.Add("End fields.")
+	pp.AddLine("End fields.")
 	pp.Indent(-2)
 	pp.Add("End %s.", d.Name)
 	return pp.Build()
@@ -626,6 +626,7 @@ type FuncDecl struct {
 	ReturnType Type
 	Body       Expr
 	Comment    string
+	AddTypes   bool
 }
 
 // Signature renders the function declaration's bindings
@@ -640,6 +641,18 @@ func (d FuncDecl) Signature() string {
 	return strings.Join(args, " ")
 }
 
+func (d FuncDecl) Type() string {
+	types := []string{}
+	for _, a := range d.Args {
+		types = append(types, a.Type.Coq())
+	}
+	if len(d.Args) == 0 {
+		types = append(types, TypeIdent("unitT").Coq())
+	}
+	types = append(types, d.ReturnType.Coq())
+	return strings.Join(types, " -> ")
+}
+
 // CoqDecl implements the Decl interface
 //
 // For FuncDecl this emits the Coq vernacular Definition that defines the whole
@@ -648,10 +661,19 @@ func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 	pp.Add("Definition %s: val :=", d.Name)
-	pp.Indent(2)
-	pp.Add("λ: %s,", d.Signature())
-	pp.Indent(2)
-	pp.AddLine(d.Body.Coq() + ".")
+	func() {
+		pp.Indent(2)
+		defer pp.Indent(-2)
+		pp.Add("λ: %s,", d.Signature())
+		pp.Indent(2)
+		defer pp.Indent(-2)
+		pp.AddLine(d.Body.Coq() + ".")
+	}()
+	if d.AddTypes {
+		pp.Add("Theorem %s_t: ⊢ %s : (%s).", d.Name, d.Name, d.Type())
+		pp.AddLine("Proof. typecheck. Qed.")
+		pp.Add("Hint Resolve %s_t : types.", d.Name)
+	}
 	return pp.Build()
 }
 
