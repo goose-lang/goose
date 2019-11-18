@@ -524,8 +524,8 @@ type IfExpr struct {
 	Else Expr
 }
 
-func flowBranch(pp *buffer, prefix string, e Expr) {
-	code := e.Coq()
+func flowBranch(pp *buffer, prefix string, e Expr, suffix string) {
+	code := e.Coq() + suffix
 	if !strings.ContainsRune(code, '\n') {
 		// compact, single-line form
 		pp.Block(prefix+" ", "%s", code)
@@ -541,9 +541,9 @@ func flowBranch(pp *buffer, prefix string, e Expr) {
 
 func (ife IfExpr) Coq() string {
 	var pp buffer
-	pp.Add("if: %s", ife.Cond.Coq())
-	flowBranch(&pp, "then", ife.Then)
-	flowBranch(&pp, "else", ife.Else)
+	pp.Add("(if: %s", ife.Cond.Coq())
+	flowBranch(&pp, "then", ife.Then, "")
+	flowBranch(&pp, "else", ife.Else, ")")
 	return pp.Build()
 }
 
@@ -577,9 +577,9 @@ type ForLoopExpr struct {
 func (e ForLoopExpr) Coq() string {
 	var pp buffer
 	e.Init.AddTo(&pp)
-	pp.Add("for: (%s); (%s) :=", e.Cond.Coq(), e.Post.Coq())
+	pp.Add("(for: (%s); (%s) :=", e.Cond.Coq(), e.Post.Coq())
 	pp.Indent(2)
-	pp.Add("%s", e.Body.Coq())
+	pp.Add("%s)", e.Body.Coq())
 	return pp.Build()
 }
 

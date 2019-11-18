@@ -19,17 +19,20 @@ func Begin(log *Log) Txn {
 }
 
 func (txn Txn) Write(addr uint64, blk *disk.Block) bool {
+	var ret bool = true
 	_, ok := (*txn.blks)[addr]
 	if ok {
 		(*txn.blks)[addr] = *blk
 	}
 	if !ok {
 		if addr == LOGMAXBLK {
-			return false
+			// TODO: should be able to return early here
+			ret = false
+		} else {
+			(*txn.blks)[addr] = *blk
 		}
-		(*txn.blks)[addr] = *blk
 	}
-	return true
+	return ret
 }
 
 func (txn Txn) Read(addr uint64) disk.Block {

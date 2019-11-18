@@ -59,10 +59,10 @@ Definition Log__readBlocks: val :=
   λ: "log" "len",
     let: "blks" := ref (NewSlice disk.blockT #0) in
     let: "i" := ref #0 in
-    for: (!"i" < "len"); ("i" <- !"i" + #1) :=
+    (for: (!"i" < "len"); ("i" <- !"i" + #1) :=
       let: "blk" := disk.Read (LOGSTART + !"i") in
       "blks" <- SliceAppend !"blks" "blk";;
-      Continue;;
+      Continue);;
     !"blks".
 
 Definition Log__Read: val :=
@@ -77,14 +77,14 @@ Definition Log__memWrite: val :=
   λ: "log" "l",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    for: (!"i" < "n"); ("i" <- !"i" + #1) :=
+    (for: (!"i" < "n"); ("i" <- !"i" + #1) :=
       Log.get "memLog" "log" <- SliceAppend (!(Log.get "memLog" "log")) (SliceGet "l" !"i");;
-      Continue.
+      Continue).
 
 Definition Log__memAppend: val :=
   λ: "log" "l",
     Data.lockAcquire Writer (Log.get "memLock" "log");;
-    if: !(Log.get "memLen" "log") + slice.len "l" ≥ Log.get "logSz" "log"
+    (if: !(Log.get "memLen" "log") + slice.len "l" ≥ Log.get "logSz" "log"
     then
       Data.lockRelease Writer (Log.get "memLock" "log");;
       (#false, #0)
@@ -94,7 +94,7 @@ Definition Log__memAppend: val :=
       Log.get "memLen" "log" <- "n";;
       Log.get "memTxnNxt" "log" <- !(Log.get "memTxnNxt" "log") + #1;;
       Data.lockRelease Writer (Log.get "memLock" "log");;
-      (#true, "txn").
+      (#true, "txn")).
 
 (* XXX just an atomic read? *)
 Definition Log__readLogTxnNxt: val :=
@@ -107,30 +107,30 @@ Definition Log__readLogTxnNxt: val :=
 Definition Log__diskAppendWait: val :=
   λ: "log" "txn",
     Skip;;
-    for: (#true); (Skip) :=
+    (for: (#true); (Skip) :=
       let: "logtxn" := Log__readLogTxnNxt "log" in
-      if: "txn" < "logtxn"
+      (if: "txn" < "logtxn"
       then Break
-      else Continue.
+      else Continue)).
 
 Definition Log__Append: val :=
   λ: "log" "l",
     let: ("ok", "txn") := Log__memAppend "log" "l" in
-    if: "ok"
+    (if: "ok"
     then
       Log__diskAppendWait "log" "txn";;
       #()
-    else #();;
+    else #());;
     "ok".
 
 Definition Log__writeBlocks: val :=
   λ: "log" "l" "pos",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    for: (!"i" < "n"); ("i" <- !"i" + #1) :=
+    (for: (!"i" < "n"); ("i" <- !"i" + #1) :=
       let: "bk" := SliceGet "l" !"i" in
       disk.Write ("pos" + !"i") "bk";;
-      Continue.
+      Continue).
 
 Definition Log__diskAppend: val :=
   λ: "log",
@@ -150,9 +150,9 @@ Definition Log__diskAppend: val :=
 Definition Log__Logger: val :=
   λ: "log",
     Skip;;
-    for: (#true); (Skip) :=
+    (for: (#true); (Skip) :=
       Log__diskAppend "log";;
-      Continue.
+      Continue).
 
 Module Txn.
   Definition S := struct.new [
@@ -177,27 +177,28 @@ Definition Begin: val :=
 
 Definition Txn__Write: val :=
   λ: "txn" "addr" "blk",
+    let: "ret" := ref #true in
     let: (<>, "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
-    if: "ok"
+    (if: "ok"
     then
       MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
       #()
-    else #();;
-    if: ~ "ok"
+    else #());;
+    (if: ~ "ok"
     then
-      if: "addr" = LOGMAXBLK
-      then #false
-      else MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk";;
+      (if: "addr" = LOGMAXBLK
+      then "ret" <- #false
+      else MapInsert (!(Txn.get "blks" "txn")) "addr" !"blk");;
       #()
-    else #();;
-    #true.
+    else #());;
+    !"ret".
 
 Definition Txn__Read: val :=
   λ: "txn" "addr",
     let: ("v", "ok") := MapGet (!(Txn.get "blks" "txn")) "addr" in
-    if: "ok"
+    (if: "ok"
     then "v"
-    else disk.Read ("addr" + LOGEND).
+    else disk.Read ("addr" + LOGEND)).
 
 Definition Txn__Commit: val :=
   λ: "txn",
