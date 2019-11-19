@@ -769,6 +769,7 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	}
 	e := coq.IdentExpr(s.Name)
 	if info.IsPtrWrapped {
+		// TODO: check if this should be a struct load
 		return coq.DerefExpr{e}
 	}
 	return e

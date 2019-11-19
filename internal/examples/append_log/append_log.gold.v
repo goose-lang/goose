@@ -5,14 +5,16 @@ From Perennial.go_lang Require Import prelude.
 From Perennial.go_lang Require Import ffi.disk_prelude.
 
 Module Log.
-  Definition S := struct.new [
+  Definition S := struct.decl [
     "sz" :: intT;
     "diskSz" :: intT
   ].
   Definition T: ty := struct.t S.
+  Definition Ptr: ty := struct.ptrT S.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
+    Definition loadF := struct.loadF S.
   End fields.
 End Log.
 
@@ -69,14 +71,14 @@ Hint Resolve writeAll_t : types.
 
 Definition Log__Append: val :=
   λ: "log" "bks",
-    let: "sz" := Log.get "sz" !"log" in
-    (if: #1 + "sz" + slice.len "bks" ≥ Log.get "diskSz" !"log"
+    let: "sz" := Log.loadF "sz" "log" in
+    (if: #1 + "sz" + slice.len "bks" ≥ Log.loadF "diskSz" "log"
     then #false
     else
       writeAll "bks" (#1 + "sz");;
       let: "newLog" := struct.mk Log.S [
         "sz" ::= "sz" + slice.len "bks";
-        "diskSz" ::= Log.get "diskSz" !"log"
+        "diskSz" ::= Log.loadF "diskSz" "log"
       ] in
       Log__writeHdr "newLog";;
       "log" <- "newLog";;
@@ -89,7 +91,7 @@ Definition Log__Reset: val :=
   λ: "log",
     let: "newLog" := struct.mk Log.S [
       "sz" ::= #0;
-      "diskSz" ::= Log.get "diskSz" !"log"
+      "diskSz" ::= Log.loadF "diskSz" "log"
     ] in
     Log__writeHdr "newLog";;
     "log" <- "newLog".

@@ -134,7 +134,7 @@ func (d StructDecl) CoqDecl() string {
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
 	pp.AddComment(d.Comment)
-	pp.AddLine("Definition S := struct.new [")
+	pp.AddLine("Definition S := struct.decl [")
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -146,10 +146,12 @@ func (d StructDecl) CoqDecl() string {
 	pp.Indent(-2)
 	pp.AddLine("].")
 	pp.AddLine("Definition T: ty := struct.t S.")
+	pp.AddLine("Definition Ptr: ty := struct.ptrT S.")
 	pp.AddLine("Section fields.")
 	pp.Indent(2)
 	pp.AddLine("Context `{ext_ty: ext_types}.")
 	pp.AddLine("Definition get := struct.get S.")
+	pp.AddLine("Definition loadF := struct.loadF S.")
 	pp.Indent(-2)
 	pp.AddLine("End fields.")
 	pp.Indent(-2)
@@ -270,7 +272,7 @@ func (e StructFieldAccessExpr) Coq() string {
 	method := fmt.Sprintf("%s.get", e.Struct)
 	x := e.X
 	if e.ThroughPointer {
-		x = DerefExpr{X: x}
+		method = fmt.Sprintf("%s.loadF", e.Struct)
 	}
 	return NewCallExpr(method,
 		GallinaString(e.Field),
