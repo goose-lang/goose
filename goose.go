@@ -251,6 +251,9 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
+		if ctx.identInfo(e).IsMacro {
+			return coq.TypeIdent(e.Name)
+		}
 		return ctx.coqTypeOfType(e, ctx.typeOf(e))
 	case *ast.MapType:
 		return ctx.mapType(e)
@@ -316,12 +319,12 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
-	ctx.addDef(spec.Name, identInfo{
-		IsPtrWrapped: false,
-		IsMacro:      true,
-	})
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
+		ctx.addDef(spec.Name, identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      false,
+		})
 		ty := coq.StructDecl{
 			Name: spec.Name.Name,
 		}
@@ -330,6 +333,10 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		ty.Fields = ctx.paramList(goTy.Fields)
 		return ty
 	default:
+		ctx.addDef(spec.Name, identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      true,
+		})
 		return coq.TypeDecl{
 			Name: spec.Name.Name,
 			Body: ctx.coqType(spec.Type),

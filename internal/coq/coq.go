@@ -166,7 +166,7 @@ type TypeDecl struct {
 
 func (d TypeDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s := %s.", d.Name, d.Body.Coq())
+	pp.Add("Definition %s: ty := %s.", d.Name, d.Body.Coq())
 	return pp.Build()
 }
 
