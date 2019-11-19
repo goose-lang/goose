@@ -315,19 +315,26 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
-func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.StructDecl {
-	structTy, ok := spec.Type.(*ast.StructType)
-	if !ok {
-		ctx.unsupported(spec, "non-struct type")
-		return coq.StructDecl{}
+func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
+	ctx.addDef(spec.Name, identInfo{
+		IsPtrWrapped: false,
+		IsMacro:      true,
+	})
+	switch goTy := spec.Type.(type) {
+	case *ast.StructType:
+		ty := coq.StructDecl{
+			Name: spec.Name.Name,
+		}
+		addSourceDoc(doc, &ty.Comment)
+		ctx.addSourceFile(spec, &ty.Comment)
+		ty.Fields = ctx.paramList(goTy.Fields)
+		return ty
+	default:
+		return coq.TypeDecl{
+			Name: spec.Name.Name,
+			Body: ctx.coqType(spec.Type),
+		}
 	}
-	ty := coq.StructDecl{
-		Name: spec.Name.Name,
-	}
-	addSourceDoc(doc, &ty.Comment)
-	ctx.addSourceFile(spec, &ty.Comment)
-	ty.Fields = ctx.paramList(structTy.Fields)
-	return ty
 }
 
 func toInitialLower(s string) string {

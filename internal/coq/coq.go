@@ -159,6 +159,17 @@ func (d StructDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+type TypeDecl struct {
+	Name string
+	Body Type
+}
+
+func (d TypeDecl) CoqDecl() string {
+	var pp buffer
+	pp.Add("Definition %s := %s.", d.Name, d.Body.Coq())
+	return pp.Build()
+}
+
 // Type represents some Coq type.
 //
 // Structurally identical to Expr but serves as a nice annotation in the type
