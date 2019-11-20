@@ -772,6 +772,21 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{ctx.expr(e.X)}
 	}
+	if e.Op == token.AND {
+		t := ctx.typeOf(e.X)
+		if _, ok := t.Underlying().(*types.Struct); !ok {
+			ctx.unsupported(e, "address-of & on non-struct type %v",
+				ctx.typeOf(e.X))
+		}
+		structLit, ok := e.X.(*ast.CompositeLit)
+		if !ok {
+			ctx.unsupported(e,
+				"address-of & can only be used on struct literals")
+		}
+		sl := ctx.structLiteral(structLit)
+		sl.Allocation = true
+		return sl
+	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
@@ -1240,15 +1255,21 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			X:   ctx.expr(s.Rhs[0]),
 		})
 	case *ast.SelectorExpr:
-		ty := ctx.typeOf(lhs)
+		ty := ctx.typeOf(lhs.X)
 		if ty, ok := ty.(*types.Pointer); ok {
 			name, _, ok := getStructType(ty.Elem())
 			if ok {
-				ctx.todo(s, "store to %s.%s", name, lhs.Sel.Name)
-				return coq.Binding{}
+				structDesc := fmt.Sprintf("%s.S", name)
+				fieldName := lhs.Sel.Name
+				return coq.NewAnon(coq.NewCallExpr("struct.storeF",
+					coq.GallinaIdent(structDesc),
+					coq.GallinaString(fieldName),
+					ctx.expr(lhs.X),
+					ctx.expr(rhs)))
 			}
 		}
-		ctx.unsupported(s, "assigning to field of non-struct pointer type")
+		ctx.unsupported(s,
+			"assigning to field of non-struct pointer type %v", ty)
 	default:
 		ctx.unsupported(s, "assigning to complex expression")
 	}

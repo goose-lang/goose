@@ -338,6 +338,7 @@ type fieldVal struct {
 type StructLiteral struct {
 	StructName string
 	elts       []fieldVal
+	Allocation bool // if true, struct is being allocated on the heap
 }
 
 // NewStructLiteral creates a StructLiteral with no values.
@@ -352,7 +353,11 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 
 func (sl StructLiteral) Coq() string {
 	var pp buffer
-	pp.Add("struct.mk %s.S [", sl.StructName)
+	method := "struct.mk"
+	if sl.Allocation {
+		method = "struct.new"
+	}
+	pp.Add("%s %s.S [", method, sl.StructName)
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
