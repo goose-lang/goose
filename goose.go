@@ -215,7 +215,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":
-			return coq.TypeIdent("intT")
+			return coq.TypeIdent("uint64T")
 		case "byte":
 			return coq.TypeIdent("byteT")
 		case "bool":
