@@ -8,9 +8,7 @@ const NFS3_CREATEVERFSIZE = 8
 const NFS3_WRITEVERFSIZE = 8
 
 type Uint64 uint64
-type Int64 int64
 type Uint32 uint32
-type Int32 int32
 type Filename3 string
 type Nfspath3 string
 type Fileid3 Uint64
@@ -24,7 +22,7 @@ type Size3 Uint64
 type Offset3 Uint64
 type Mode3 Uint32
 type Count3 Uint32
-type Nfsstat3 int32
+type Nfsstat3 uint32
 
 const NFS3_OK Nfsstat3 = 0
 const NFS3ERR_PERM Nfsstat3 = 1
@@ -56,7 +54,7 @@ const NFS3ERR_SERVERFAULT Nfsstat3 = 10006
 const NFS3ERR_BADTYPE Nfsstat3 = 10007
 const NFS3ERR_JUKEBOX Nfsstat3 = 10008
 
-type Ftype3 int32
+type Ftype3 uint32
 
 const NF3REG Ftype3 = 1
 const NF3DIR Ftype3 = 2
@@ -113,7 +111,7 @@ type Post_op_fh3 struct {
 	Handle_follows bool
 	Handle         Nfs_fh3
 }
-type Time_how int32
+type Time_how uint32
 
 const DONT_CHANGE Time_how = 0
 const SET_TO_SERVER_TIME Time_how = 1
@@ -285,7 +283,7 @@ type READ3res struct {
 	Resok   READ3resok
 	Resfail READ3resfail
 }
-type Stable_how int32
+type Stable_how uint32
 
 const UNSTABLE Stable_how = 0
 const DATA_SYNC Stable_how = 1
@@ -312,7 +310,7 @@ type WRITE3res struct {
 	Resok   WRITE3resok
 	Resfail WRITE3resfail
 }
-type Createmode3 int32
+type Createmode3 uint32
 
 const UNCHECKED Createmode3 = 0
 const GUARDED Createmode3 = 1
@@ -623,7 +621,7 @@ const FHSIZE3 = 64
 type Fhandle3 []byte
 type Dirpath3 string
 type Name3 string
-type Mountstat3 int32
+type Mountstat3 uint32
 
 const MNT3_OK Mountstat3 = 0
 const MNT3ERR_PERM Mountstat3 = 1
@@ -646,7 +644,7 @@ const MOUNTPROC3_EXPORT uint32 = 5
 
 type Mountres3_ok struct {
 	Fhandle      Fhandle3
-	Auth_flavors []int32
+	Auth_flavors []uint32
 }
 type Mountres3 struct {
 	Fhs_status Mountstat3
