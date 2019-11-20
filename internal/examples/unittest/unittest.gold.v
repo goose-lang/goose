@@ -35,6 +35,8 @@ Definition TypedInt : expr := #32.
 
 Definition ConstWithArith : expr := #4 + #3 * TypedInt.
 
+Definition TypedInt32 : expr := #(U32 3).
+
 Definition typedLiteral: val :=
   λ: <>,
     #3.
@@ -120,6 +122,15 @@ Definition empty: val :=
 Definition emptyReturn: val :=
   λ: <>,
     "tt".
+
+Definition useInts: val :=
+  λ: "x" "y",
+    let: "z" := zero_val uint64T in
+    "z" <- to_u64 "y";;
+    "z" <- !"z" + #1;;
+    let: "y2" := zero_val uint32T in
+    "y2" <- "y" + #(U32 3);;
+    (!"z", !"y2").
 
 Module allTheLiterals.
   Definition S := struct.decl [

@@ -402,6 +402,14 @@ func (l IntLiteral) Coq() string {
 	return fmt.Sprintf("#%d", l.Value)
 }
 
+type Int32Literal struct {
+	Value uint32
+}
+
+func (l Int32Literal) Coq() string {
+	return fmt.Sprintf("#(U32 %d)", l.Value)
+}
+
 type StringLiteral struct {
 	Value string
 }

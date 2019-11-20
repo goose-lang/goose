@@ -216,6 +216,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		switch t.Name() {
 		case "uint64":
 			return coq.TypeIdent("uint64T")
+		case "uint32":
+			return coq.TypeIdent("uint32T")
 		case "byte":
 			return coq.TypeIdent("byteT")
 		case "bool":
@@ -558,7 +560,19 @@ func (ctx Ctx) basicallyUInt64(e ast.Expr) bool {
 	switch basicTy.Kind() {
 	// conversion from uint64 -> uint64 is possible if the conversion
 	// causes an untyped literal to become a uint64
-	case types.Int, types.Uint64:
+	case types.Int, types.UntypedInt, types.Uint64:
+		return true
+	}
+	return false
+}
+
+func isUint32(t types.Type) bool {
+	basicTy, ok := t.(*types.Basic)
+	if !ok {
+		return false
+	}
+	switch basicTy.Kind() {
+	case types.UntypedInt, types.Uint32:
 		return true
 	}
 	return false
@@ -586,7 +600,11 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		if ctx.basicallyUInt64(x) {
 			return ctx.expr(x)
 		}
-		ctx.unsupported(s, "casts from non-int type %v to uint64", ctx.typeOf(x))
+		if isUint32(ctx.typeOf(x)) {
+			return coq.NewCallExpr("to_u64", ctx.expr(x))
+		}
+		ctx.unsupported(s, "casts from unsupported type %v to uint64",
+			ctx.typeOf(x))
 		return nil
 	}
 	if isIdent(s.Fun, "panic") {
@@ -703,13 +721,18 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 		return coq.StringLiteral{s}
 	}
 	if e.Kind == token.INT {
+		isU32 := isUint32(ctx.typeOf(e))
 		v := ctx.info.Types[e].Value
 		n, ok := constant.Uint64Val(v)
 		if !ok {
-			ctx.unsupported(e, "int literal isn't a valid uint64")
+			ctx.unsupported(e, "int literal isn't a valid number")
 			return nil
 		}
-		return coq.IntLiteral{n}
+		if isU32 {
+			return coq.Int32Literal{uint32(n)}
+		} else {
+			return coq.IntLiteral{n}
+		}
 	}
 	ctx.unsupported(e, "literal with kind %s", e.Kind)
 	return nil
