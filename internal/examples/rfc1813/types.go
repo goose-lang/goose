@@ -1,11 +1,11 @@
 package rfc1813
 
-const PROGRAM = 100003
-const VERSION = 3
-const NFS3_FHSIZE = 64
-const NFS3_COOKIEVERFSIZE = 8
-const NFS3_CREATEVERFSIZE = 8
-const NFS3_WRITEVERFSIZE = 8
+const PROGRAM uint32 = 100003
+const VERSION uint32 = 3
+const NFS3_FHSIZE uint32 = 64
+const NFS3_COOKIEVERFSIZE uint32 = 8
+const NFS3_CREATEVERFSIZE uint32 = 8
+const NFS3_WRITEVERFSIZE uint32 = 8
 
 type Uint64 uint64
 type Uint32 uint32
@@ -226,12 +226,12 @@ type LOOKUP3res struct {
 	Resfail LOOKUP3resfail
 }
 
-const ACCESS3_READ = 0x0001
-const ACCESS3_LOOKUP = 0x0002
-const ACCESS3_MODIFY = 0x0004
-const ACCESS3_EXTEND = 0x0008
-const ACCESS3_DELETE = 0x0010
-const ACCESS3_EXECUTE = 0x0020
+const ACCESS3_READ uint32 = 0x0001
+const ACCESS3_LOOKUP uint32 = 0x0002
+const ACCESS3_MODIFY uint32 = 0x0004
+const ACCESS3_EXTEND uint32 = 0x0008
+const ACCESS3_DELETE uint32 = 0x0010
+const ACCESS3_EXECUTE uint32 = 0x0020
 
 type ACCESS3args struct {
 	Object Nfs_fh3
@@ -547,10 +547,10 @@ type FSSTAT3res struct {
 	Resfail FSSTAT3resfail
 }
 
-const FSF3_LINK = 0x0001
-const FSF3_SYMLINK = 0x0002
-const FSF3_HOMOGENEOUS = 0x0008
-const FSF3_CANSETTIME = 0x0010
+const FSF3_LINK uint32 = 0x0001
+const FSF3_SYMLINK uint32 = 0x0002
+const FSF3_HOMOGENEOUS uint32 = 0x0008
+const FSF3_CANSETTIME uint32 = 0x0010
 
 type FSINFO3args struct {
 	Fsroot Nfs_fh3
@@ -614,9 +614,9 @@ type COMMIT3res struct {
 	Resfail COMMIT3resfail
 }
 
-const MNTPATHLEN3 = 1024
-const MNTNAMLEN3 = 255
-const FHSIZE3 = 64
+const MNTPATHLEN3 uint32 = 1024
+const MNTNAMLEN3 uint32 = 255
+const FHSIZE3 uint32 = 64
 
 type Fhandle3 []byte
 type Dirpath3 string
