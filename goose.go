@@ -773,19 +773,23 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		return coq.NotExpr{ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
-		t := ctx.typeOf(e.X)
-		if _, ok := t.Underlying().(*types.Struct); !ok {
-			ctx.unsupported(e, "address-of & on non-struct type %v",
-				ctx.typeOf(e.X))
+		if _, ok := ctx.typeOf(e.X).Underlying().(*types.Struct); ok {
+			structLit, ok := e.X.(*ast.CompositeLit)
+			if !ok {
+				ctx.unsupported(e,
+					"'&' on a struct can only be for literals")
+			}
+			sl := ctx.structLiteral(structLit)
+			sl.Allocation = true
+			return sl
 		}
-		structLit, ok := e.X.(*ast.CompositeLit)
-		if !ok {
-			ctx.unsupported(e,
-				"address-of & can only be used on struct literals")
+		if x, ok := e.X.(*ast.IndexExpr); ok {
+			// e is &a[b] where x is a.b
+			if _, ok := ctx.typeOf(x.X).(*types.Slice); ok {
+				return coq.NewCallExpr("SliceRef",
+					ctx.expr(x.X), ctx.expr(x.Index))
+			}
 		}
-		sl := ctx.structLiteral(structLit)
-		sl.Allocation = true
-		return sl
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
