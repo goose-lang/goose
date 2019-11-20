@@ -773,6 +773,13 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		return coq.NotExpr{ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
+		if x, ok := e.X.(*ast.IndexExpr); ok {
+			// e is &a[b] where x is a.b
+			if _, ok := ctx.typeOf(x.X).(*types.Slice); ok {
+				return coq.NewCallExpr("SliceRef",
+					ctx.expr(x.X), ctx.expr(x.Index))
+			}
+		}
 		if _, ok := ctx.typeOf(e.X).Underlying().(*types.Struct); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
 			if !ok {
@@ -782,13 +789,6 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 			sl := ctx.structLiteral(structLit)
 			sl.Allocation = true
 			return sl
-		}
-		if x, ok := e.X.(*ast.IndexExpr); ok {
-			// e is &a[b] where x is a.b
-			if _, ok := ctx.typeOf(x.X).(*types.Slice); ok {
-				return coq.NewCallExpr("SliceRef",
-					ctx.expr(x.X), ctx.expr(x.Index))
-			}
 		}
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)

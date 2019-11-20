@@ -8,3 +8,15 @@ func sliceOps() uint64 {
 	v4 := &x[2]
 	return v1 + v2[0] + v3[1] + *v4
 }
+
+type thing struct {
+	x uint64
+}
+
+type sliceOfThings struct {
+	things []thing
+}
+
+func (ts sliceOfThings) getThingRef(i uint64) *thing {
+	return &ts.things[i]
+}

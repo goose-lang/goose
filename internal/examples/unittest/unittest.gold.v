@@ -336,6 +336,36 @@ Definition sliceOps: val :=
     let: "v4" := SliceRef "x" #2 in
     "v1" + SliceGet "v2" #0 + SliceGet "v3" #1 + !"v4".
 
+Module thing.
+  Definition S := struct.decl [
+    "x" :: intT
+  ].
+  Definition T: ty := struct.t S.
+  Definition Ptr: ty := struct.ptrT S.
+  Section fields.
+    Context `{ext_ty: ext_types}.
+    Definition get := struct.get S.
+    Definition loadF := struct.loadF S.
+  End fields.
+End thing.
+
+Module sliceOfThings.
+  Definition S := struct.decl [
+    "things" :: slice.T thing.T
+  ].
+  Definition T: ty := struct.t S.
+  Definition Ptr: ty := struct.ptrT S.
+  Section fields.
+    Context `{ext_ty: ext_types}.
+    Definition get := struct.get S.
+    Definition loadF := struct.loadF S.
+  End fields.
+End sliceOfThings.
+
+Definition sliceOfThings__getThingRef: val :=
+  λ: "ts" "i",
+    SliceRef (sliceOfThings.get "things" "ts") "i".
+
 (* Skip is a placeholder for some impure code *)
 Definition Skip: val :=
   λ: <>,
