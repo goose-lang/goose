@@ -474,10 +474,10 @@ type Entry3 struct {
 	Fileid    Fileid3
 	Name      Filename3
 	Cookie    Cookie3
-	Nextentry struct{ P *Entry3 }
+	Nextentry *Entry3
 }
 type Dirlist3 struct {
-	Entries struct{ P *Entry3 }
+	Entries *Entry3
 	Eof     bool
 }
 type READDIR3resok struct {
@@ -506,10 +506,10 @@ type Entryplus3 struct {
 	Cookie          Cookie3
 	Name_attributes Post_op_attr
 	Name_handle     Post_op_fh3
-	Nextentry       struct{ P *Entryplus3 }
+	Nextentry       *Entryplus3
 }
 type Dirlistplus3 struct {
-	Entries struct{ P *Entryplus3 }
+	Entries *Entryplus3
 	Eof     bool
 }
 type READDIRPLUS3resok struct {
@@ -653,16 +653,16 @@ type Mountres3 struct {
 type Mount3 struct {
 	Ml_hostname  Name3
 	Ml_directory Dirpath3
-	Ml_next      struct{ P *Mount3 }
+	Ml_next      *Mount3
 }
 type Mountopt3 struct{ P *Mount3 }
 type Groups3 struct {
 	Gr_name Name3
-	Gr_next struct{ P *Groups3 }
+	Gr_next *Groups3
 }
 type Exports3 struct {
 	Ex_dir    Dirpath3
-	Ex_groups struct{ P *Groups3 }
-	Ex_next   struct{ P *Exports3 }
+	Ex_groups *Groups3
+	Ex_next   *Exports3
 }
 type Exportsopt3 struct{ P *Exports3 }
