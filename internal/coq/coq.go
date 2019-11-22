@@ -611,10 +611,6 @@ func (e ForLoopExpr) Coq() string {
 }
 
 // MapIterExpr is a call to the map iteration helper.
-//
-// The Coq support for this call handles the looping, and happens to do so with
-// finite iteration over a list rather than a Loop (although this is unimportant
-// to emitting a correct call to Data.mapIter).
 type MapIterExpr struct {
 	// name of key and value identifiers
 	KeyIdent, ValueIdent string
@@ -626,7 +622,7 @@ type MapIterExpr struct {
 
 func (e MapIterExpr) Coq() string {
 	var pp buffer
-	pp.Add("Data.mapIter %s (λ: %s %s,",
+	pp.Add("MapIter %s (λ: %s %s,",
 		addParens(e.Map.Coq()),
 		binder(e.KeyIdent), binder(e.ValueIdent))
 	pp.Indent(2)

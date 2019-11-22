@@ -323,7 +323,7 @@ Definition NewDb: val :=
     let: "tableNameRef" := ref (zero_val stringT) in
     "tableNameRef" <- "tableName";;
     let: "table" := CreateTable "tableName" in
-    let: "tableRef" := struct.alloc (zero_val Table.T) in
+    let: "tableRef" := struct.new (zero_val Table.T) in
     struct.store Table.S "tableRef" "table";;
     let: "tableL" := Data.newLock #() in
     let: "compactionL" := Data.newLock #() in
@@ -391,7 +391,7 @@ Definition freshTable: val :=
 
 Definition tablePutBuffer: val :=
   λ: "w" "buf",
-    Data.mapIter "buf" (λ: "k" "v",
+    MapIter "buf" (λ: "k" "v",
       tablePut "w" "k" "v").
 
 (* add all of table t to the table w being created; skip any keys in the (read)
