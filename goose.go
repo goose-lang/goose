@@ -247,9 +247,9 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 			return coq.TypeIdent("lockRefT")
 		}
 	}
-	name, _, ok := getStructType(ctx.typeOf(e.X))
+	info, ok := getStructInfo(ctx.typeOf(e.X))
 	if ok {
-		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(name))
+		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(info.name))
 	}
 	return coq.PtrType{ctx.coqType(e.X)}
 }
@@ -472,11 +472,11 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if t, ok := selectorType.(*types.Pointer); ok {
 		selectorType = t.Elem()
 	}
-	structName, _, ok := getStructType(selectorType)
+	structInfo, ok := getStructInfo(selectorType)
 	if ok {
 		callArgs := append([]ast.Expr{f.X}, args...)
 		return ctx.newCoqCall(
-			coq.StructMethod(structName, f.Sel.Name),
+			coq.StructMethod(structInfo.name, f.Sel.Name),
 			callArgs)
 	}
 	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
@@ -549,7 +549,10 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 		}
 	}
 	e := coq.NewCallExpr("zero_val", ctx.coqType(ty))
-	if _, _, ok := getStructType(ctx.typeOf(ty)); ok {
+	// check for new(T) where T is a struct, but not a pointer to a struct
+	// (new(*T) should be translated to ref (zero_val (ptrT ...)) as usual,
+	// a pointer to a nil pointer)
+	if info, ok := getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
 		return coq.NewCallExpr("struct.alloc", e)
 	}
 	return coq.NewCallExpr("ref", e)
@@ -625,24 +628,26 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	return ctx.methodExpr(s.Fun, s.Args)
 }
 
-// TODO: *types.Struct is actually unused
-func getStructType(t types.Type) (string, *types.Struct, bool) {
-	if t, ok := t.(*types.Named); ok {
-		if structType, ok := t.Obj().Type().Underlying().(*types.Struct); ok {
-			return t.Obj().Name(), structType, true
-		}
-	}
-	return "", nil, false
+type structTypeInfo struct {
+	name           string
+	throughPointer bool
 }
 
-// TODO: unify getStructType and getStructPointerType and have them return a
-//  struct of struct type info
-func getStructPointerType(t types.Type) (string, bool) {
-	if t, ok := t.(*types.Pointer); ok {
-		name, _, ok := getStructType(t.Elem())
-		return name, ok
+func getStructInfo(t types.Type) (structTypeInfo, bool) {
+	throughPointer := false
+	if pt, ok := t.(*types.Pointer); ok {
+		throughPointer = true
+		t = pt.Elem()
 	}
-	return "", false
+	if t, ok := t.(*types.Named); ok {
+		if _, ok := t.Underlying().(*types.Struct); ok {
+			return structTypeInfo{
+				name:           t.Obj().Name(),
+				throughPointer: throughPointer,
+			}, true
+		}
+	}
+	return structTypeInfo{}, false
 }
 
 func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
@@ -657,27 +662,20 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 		ctx.unsupported(e, "package select")
 		return nil
 	}
-	structName, structType, ok := getStructType(selectorType)
+	structInfo, ok := getStructInfo(selectorType)
 	if ok {
-		return ctx.structSelector(structName, structType, e, false)
-	}
-	if t, ok := selectorType.(*types.Pointer); ok {
-		structName, structType, ok = getStructType(t.Elem())
-		if ok {
-			return ctx.structSelector(structName, structType, e, true)
-		}
+		return ctx.structSelector(structInfo, e)
 	}
 	ctx.unsupported(e, "unexpected select expression")
 	return nil
 }
 
-func (ctx Ctx) structSelector(name string, ty *types.Struct,
-	e *ast.SelectorExpr, isPointer bool) coq.StructFieldAccessExpr {
+func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.StructFieldAccessExpr {
 	return coq.StructFieldAccessExpr{
-		Struct:         name,
+		Struct:         info.name,
 		Field:          e.Sel.Name,
 		X:              ctx.expr(e.X),
-		ThroughPointer: isPointer,
+		ThroughPointer: info.throughPointer,
 	}
 }
 
@@ -1292,10 +1290,10 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		name, ok := getStructPointerType(ctx.typeOf(lhs.X))
-		if ok {
+		info, ok := getStructInfo(ctx.typeOf(lhs.X))
+		if ok && info.throughPointer {
 			return coq.NewAnon(coq.NewCallExpr("struct.store",
-				coq.StructDesc(name),
+				coq.StructDesc(info.name),
 				ctx.expr(lhs.X),
 				ctx.expr(s.Rhs[0])))
 		}
@@ -1306,11 +1304,11 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
 		if ty, ok := ty.(*types.Pointer); ok {
-			name, _, ok := getStructType(ty.Elem())
+			info, ok := getStructInfo(ty.Elem())
 			if ok {
 				fieldName := lhs.Sel.Name
 				return coq.NewAnon(coq.NewCallExpr("struct.storeF",
-					coq.StructDesc(name),
+					coq.StructDesc(info.name),
 					coq.GallinaString(fieldName),
 					ctx.expr(lhs.X),
 					ctx.expr(rhs)))
@@ -1478,11 +1476,11 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 			recvType = pT.Elem()
 		}
 
-		structName, _, ok := getStructType(recvType)
+		structInfo, ok := getStructInfo(recvType)
 		if !ok {
 			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
 		}
-		fd.Name = coq.StructMethod(structName, d.Name.Name)
+		fd.Name = coq.StructMethod(structInfo.name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
