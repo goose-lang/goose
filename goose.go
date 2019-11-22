@@ -881,6 +881,16 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
 	return coq.CallExpr{}
 }
 
+func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
+	info, ok := getStructInfo(ctx.typeOf(e))
+	if ok && info.throughPointer {
+		return coq.NewCallExpr("struct.load",
+			coq.StructDesc(info.name),
+			ctx.expr(e))
+	}
+	return coq.DerefExpr{ctx.expr(e)}
+}
+
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -906,7 +916,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
-		return coq.DerefExpr{ctx.expr(e.X)}
+		return ctx.derefExpr(e.X)
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}

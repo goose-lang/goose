@@ -361,7 +361,7 @@ Definition Read: val :=
         ("v2", #true)
       else
         Data.lockAcquire Reader (Database.get "tableL" "db");;
-        let: "tbl" := !(Database.get "table" "db") in
+        let: "tbl" := struct.load Table.S (Database.get "table" "db") in
         let: ("v3", "ok") := tableRead "tbl" "k" in
         Data.lockRelease Reader (Database.get "tableL" "db");;
         Data.lockRelease Reader (Database.get "bufferL" "db");;
@@ -441,7 +441,7 @@ Definition constructNewTable: val :=
     let: "oldName" := !(Database.get "tableName" "db") in
     let: "name" := freshTable "oldName" in
     let: "w" := newTableWriter "name" in
-    let: "oldTable" := !(Database.get "table" "db") in
+    let: "oldTable" := struct.load Table.S (Database.get "table" "db") in
     tablePutOldTable "w" "oldTable" "wbuf";;
     tablePutBuffer "w" "wbuf";;
     let: "newTable" := tableWriterClose "w" in
@@ -540,7 +540,7 @@ Definition Shutdown: val :=
   λ: "db",
     Data.lockAcquire Writer (Database.get "bufferL" "db");;
     Data.lockAcquire Writer (Database.get "compactionL" "db");;
-    let: "t" := !(Database.get "table" "db") in
+    let: "t" := struct.load Table.S (Database.get "table" "db") in
     CloseTable "t";;
     Data.lockRelease Writer (Database.get "compactionL" "db");;
     Data.lockRelease Writer (Database.get "bufferL" "db").
