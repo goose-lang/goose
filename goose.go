@@ -465,8 +465,11 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	if isLockRef(selectorType) {
 		return ctx.lockMethod(f)
 	}
-	if _, ok := selectorType.Underlying().(*types.Struct); ok {
-		structName, _, _ := getStructType(selectorType)
+	if t, ok := selectorType.(*types.Pointer); ok {
+		selectorType = t.Elem()
+	}
+	structName, _, ok := getStructType(selectorType)
+	if ok {
 		callArgs := append([]ast.Expr{f.X}, args...)
 		return ctx.newCoqCall(
 			coq.StructMethod(structName, f.Sel.Name),
