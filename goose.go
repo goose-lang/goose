@@ -553,7 +553,7 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	// (new(*T) should be translated to ref (zero_val (ptrT ...)) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return coq.NewCallExpr("struct.new", e)
+		return coq.NewCallExpr("struct.alloc", coq.StructDesc(info.name), e)
 	}
 	return coq.NewCallExpr("ref", e)
 }
