@@ -247,6 +247,10 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 			return coq.TypeIdent("lockRefT")
 		}
 	}
+	name, _, ok := getStructType(ctx.typeOf(e.X))
+	if ok {
+		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(name))
+	}
 	return coq.PtrType{ctx.coqType(e.X)}
 }
 
@@ -544,11 +548,11 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 			return coq.NewCallExpr("Data.newLock")
 		}
 	}
+	e := coq.NewCallExpr("zero_val", ctx.coqType(ty))
 	if _, _, ok := getStructType(ctx.typeOf(ty)); ok {
-		// TODO: should be flattening struct across multiple addresses
+		return coq.NewCallExpr("struct.alloc", e)
 	}
-	return coq.NewCallExpr("ref",
-		coq.NewCallExpr("zero_val", ctx.coqType(ty)))
+	return coq.NewCallExpr("ref", e)
 }
 
 // basicallyUInt64 returns true conservatively when an
@@ -629,6 +633,16 @@ func getStructType(t types.Type) (string, *types.Struct, bool) {
 		}
 	}
 	return "", nil, false
+}
+
+// TODO: unify getStructType and getStructPointerType and have them return a
+//  struct of struct type info
+func getStructPointerType(t types.Type) (string, bool) {
+	if t, ok := t.(*types.Pointer); ok {
+		name, _, ok := getStructType(t.Elem())
+		return name, ok
+	}
+	return "", false
 }
 
 func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
@@ -1278,6 +1292,13 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
+		name, ok := getStructPointerType(ctx.typeOf(lhs.X))
+		if ok {
+			return coq.NewAnon(coq.NewCallExpr("struct.store",
+				coq.StructDesc(name),
+				ctx.expr(lhs.X),
+				ctx.expr(s.Rhs[0])))
+		}
 		return coq.NewAnon(coq.StoreStmt{
 			Dst: ctx.expr(lhs.X),
 			X:   ctx.expr(s.Rhs[0]),
@@ -1287,10 +1308,9 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		if ty, ok := ty.(*types.Pointer); ok {
 			name, _, ok := getStructType(ty.Elem())
 			if ok {
-				structDesc := fmt.Sprintf("%s.S", name)
 				fieldName := lhs.Sel.Name
 				return coq.NewAnon(coq.NewCallExpr("struct.storeF",
-					coq.GallinaIdent(structDesc),
+					coq.StructDesc(name),
 					coq.GallinaString(fieldName),
 					ctx.expr(lhs.X),
 					ctx.expr(rhs)))

@@ -14,7 +14,6 @@ Module Log.
   Section fields.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
-    Definition loadF := struct.loadF S.
   End fields.
 End Log.
 
@@ -71,19 +70,19 @@ Hint Resolve writeAll_t : types.
 
 Definition Log__Append: val :=
   λ: "log" "bks",
-    let: "sz" := Log.loadF "sz" "log" in
-    (if: #1 + "sz" + slice.len "bks" ≥ Log.loadF "diskSz" "log"
+    let: "sz" := struct.loadF Log.S "sz" "log" in
+    (if: #1 + "sz" + slice.len "bks" ≥ struct.loadF Log.S "diskSz" "log"
     then #false
     else
       writeAll "bks" (#1 + "sz");;
       let: "newLog" := struct.mk Log.S [
         "sz" ::= "sz" + slice.len "bks";
-        "diskSz" ::= Log.loadF "diskSz" "log"
+        "diskSz" ::= struct.loadF Log.S "diskSz" "log"
       ] in
       Log__writeHdr "newLog";;
-      "log" <- "newLog";;
+      struct.store Log.S "log" "newLog";;
       #true).
-Theorem Log__Append_t: ⊢ Log__Append : (refT Log.T -> slice.T disk.blockT -> boolT).
+Theorem Log__Append_t: ⊢ Log__Append : (struct.ptrT Log.S -> slice.T disk.blockT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Append_t : types.
 
@@ -91,10 +90,10 @@ Definition Log__Reset: val :=
   λ: "log",
     let: "newLog" := struct.mk Log.S [
       "sz" ::= #0;
-      "diskSz" ::= Log.loadF "diskSz" "log"
+      "diskSz" ::= struct.loadF Log.S "diskSz" "log"
     ] in
     Log__writeHdr "newLog";;
-    "log" <- "newLog".
-Theorem Log__Reset_t: ⊢ Log__Reset : (refT Log.T -> unitT).
+    struct.store Log.S "log" "newLog".
+Theorem Log__Reset_t: ⊢ Log__Reset : (struct.ptrT Log.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Reset_t : types.

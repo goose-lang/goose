@@ -151,7 +151,6 @@ func (d StructDecl) CoqDecl() string {
 	pp.Indent(2)
 	pp.AddLine("Context `{ext_ty: ext_types}.")
 	pp.AddLine("Definition get := struct.get S.")
-	pp.AddLine("Definition loadF := struct.loadF S.")
 	pp.Indent(-2)
 	pp.AddLine("End fields.")
 	pp.Indent(-2)
@@ -279,15 +278,17 @@ type StructFieldAccessExpr struct {
 	ThroughPointer bool
 }
 
+func StructDesc(name string) Expr {
+	return GallinaIdent(fmt.Sprintf("%s.S", name))
+}
+
 func (e StructFieldAccessExpr) Coq() string {
-	method := fmt.Sprintf("%s.get", e.Struct)
-	x := e.X
 	if e.ThroughPointer {
-		method = fmt.Sprintf("%s.loadF", e.Struct)
+		return NewCallExpr("struct.loadF",
+			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq()
 	}
-	return NewCallExpr(method,
-		GallinaString(e.Field),
-		x).Coq()
+	method := fmt.Sprintf("%s.get", e.Struct)
+	return NewCallExpr(method, GallinaString(e.Field), e.X).Coq()
 }
 
 type ReturnExpr struct {
@@ -357,7 +358,7 @@ func (sl StructLiteral) Coq() string {
 	if sl.Allocation {
 		method = "struct.new"
 	}
-	pp.Add("%s %s.S [", method, sl.StructName)
+	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq())
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
