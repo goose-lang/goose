@@ -442,10 +442,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 	}
 	if isIdent(f.X, "machine") {
 		switch f.Sel.Name {
-		case "UInt64Get":
-			return ctx.newCoqCall("UInt64Get", args)
-		case "UInt64Put":
-			return ctx.newCoqCall("UInt64Put", args)
+		case "UInt64Get", "UInt64Put", "UInt32Get", "UInt32Put":
+			return ctx.newCoqCall(f.Sel.Name, args)
 		case "RandomUint64":
 			return ctx.newCoqCall("Data.randomUint64", nil)
 		case "UInt64ToString":
