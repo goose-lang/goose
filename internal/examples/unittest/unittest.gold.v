@@ -259,7 +259,7 @@ Definition conditionalInLoop: val :=
 
 Definition clearMap: val :=
   λ: "m",
-    Data.mapClear "m".
+    MapClear "m".
 
 Definition IterateMapKeys: val :=
   λ: "m" "sum",

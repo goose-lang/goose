@@ -1128,7 +1128,7 @@ func (ctx Ctx) getMapClearIdiom(s *ast.RangeStmt) coq.Expr {
 		isIdent(callExpr.Args[1], key)) {
 		return nil
 	}
-	return coq.NewCallExpr("Data.mapClear", coq.IdentExpr(mapName))
+	return coq.NewCallExpr("MapClear", coq.IdentExpr(mapName))
 }
 
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
