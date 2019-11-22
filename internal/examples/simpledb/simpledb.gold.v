@@ -512,7 +512,7 @@ Definition Recover: val :=
   λ: <>,
     let: "tableName" := recoverManifest #() in
     let: "table" := RecoverTable "tableName" in
-    let: "tableRef" := struct.alloc (zero_val Table.T) in
+    let: "tableRef" := struct.new (zero_val Table.T) in
     struct.store Table.S "tableRef" "table";;
     let: "tableNameRef" := ref (zero_val stringT) in
     "tableNameRef" <- "tableName";;
