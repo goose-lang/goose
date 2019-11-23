@@ -212,6 +212,15 @@ func (t SliceType) Coq() string {
 	return fmt.Sprintf("slice.T %s", addParens(t.Value.Coq()))
 }
 
+type ArrayType struct {
+	Len uint64
+	Elt Type
+}
+
+func (t ArrayType) Coq() string {
+	return fmt.Sprintf("arrayT %s", t.Elt.Coq())
+}
+
 type Expr interface {
 	Coq() string
 }

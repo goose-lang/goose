@@ -233,9 +233,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 
 func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	if e.Len != nil {
-		// arrays are not supported, only slices
-		ctx.unsupported(e, "array types")
-		return nil
+		t := ctx.typeOf(e).(*types.Array)
+		return coq.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
 	}
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
@@ -547,6 +546,11 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "RWMutex") {
 			return coq.NewCallExpr("Data.newLock")
 		}
+	}
+	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
+		return coq.NewCallExpr("zero_array",
+			ctx.coqTypeOfType(ty, t.Elem()),
+			coq.IntLiteral{uint64(t.Len())})
 	}
 	e := coq.NewCallExpr("zero_val", ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
