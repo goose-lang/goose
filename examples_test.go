@@ -184,6 +184,10 @@ func (s *ExamplesSuite) TestAppendLog(c *C) {
 	s.testExample(c, "append_log", goose.Config{TypeCheck: true})
 }
 
+func (s *ExamplesSuite) TestRfc1813(c *C) {
+	s.testExample(c, "rfc1813", goose.Config{})
+}
+
 type errorExpectation struct {
 	Line  int
 	Error string
