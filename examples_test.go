@@ -185,7 +185,7 @@ func (s *ExamplesSuite) TestAppendLog(c *C) {
 }
 
 func (s *ExamplesSuite) TestRfc1813(c *C) {
-	s.testExample(c, "rfc1813", goose.Config{})
+	s.testExample(c, "rfc1813", goose.Config{TypeCheck: true})
 }
 
 type errorExpectation struct {

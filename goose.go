@@ -1522,7 +1522,8 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) coq.ConstDecl {
 	}
 	ident := spec.Names[0]
 	cd := coq.ConstDecl{
-		Name: ident.Name,
+		Name:     ident.Name,
+		AddTypes: ctx.Config.TypeCheck,
 	}
 	ctx.addDef(ident, identInfo{
 		IsPtrWrapped: false,

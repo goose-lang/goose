@@ -48,9 +48,10 @@ func (pp *buffer) Indent(spaces int) {
 	pp.indentLevel += spaces
 }
 
-func (pp *buffer) Block(prefix string, format string, args ...interface{}) {
+func (pp *buffer) Block(prefix string, format string, args ...interface{}) int {
 	pp.AddLine(prefix + indent(len(prefix), fmt.Sprintf(format, args...)))
 	pp.Indent(len(prefix))
+	return len(prefix)
 }
 
 func (pp buffer) Build() string {
@@ -83,8 +84,8 @@ func (pp *buffer) AddComment(c string) {
 	if c == "" {
 		return
 	}
-	pp.Block("(* ", "%s *)", c)
-	pp.Indent(-len("(* "))
+	indent := pp.Block("(* ", "%s *)", c)
+	pp.Indent(-indent)
 }
 
 func quote(s string) string {
@@ -564,8 +565,8 @@ func flowBranch(pp *buffer, prefix string, e Expr, suffix string) {
 	code := e.Coq() + suffix
 	if !strings.ContainsRune(code, '\n') {
 		// compact, single-line form
-		pp.Block(prefix+" ", "%s", code)
-		pp.Indent(-(len(prefix) + 1))
+		indent := pp.Block(prefix+" ", "%s", code)
+		pp.Indent(-indent)
 		return
 	}
 	// full multiline, nicely indented form
@@ -731,17 +732,24 @@ func (d CommentDecl) CoqDecl() string {
 }
 
 type ConstDecl struct {
-	Name    string
-	Type    Type
-	Val     Expr
-	Comment string
+	Name     string
+	Type     Type
+	Val      Expr
+	Comment  string
+	AddTypes bool
 }
 
 func (d ConstDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Block("Definition ", "%s : expr := %s.",
+	indent := pp.Block("Definition ", "%s : expr := %s.",
 		d.Name, d.Val.Coq())
+	pp.Indent(-indent)
+	if d.AddTypes {
+		pp.Add("Theorem %s_t Γ : Γ ⊢ %s : %s.",
+			d.Name, d.Name, addParens(d.Type.Coq()))
+		pp.AddLine("Proof. typecheck. Qed.")
+	}
 	return pp.Build()
 }
 
