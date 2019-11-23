@@ -562,16 +562,6 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	return coq.NewCallExpr("ref", e)
 }
 
-func nestedUnderlyingType(t types.Type) types.Type {
-	for {
-		if _, ok := t.(*types.Named); ok {
-			t = t.Underlying()
-		} else {
-			return t
-		}
-	}
-}
-
 type intTypeInfo struct {
 	isUint32  bool
 	isUint64  bool
@@ -579,7 +569,7 @@ type intTypeInfo struct {
 }
 
 func getIntegerType(t types.Type) (intTypeInfo, bool) {
-	basicTy, ok := nestedUnderlyingType(t).(*types.Basic)
+	basicTy, ok := t.Underlying().(*types.Basic)
 	if !ok {
 		return intTypeInfo{}, false
 	}
