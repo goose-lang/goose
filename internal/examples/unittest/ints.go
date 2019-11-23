@@ -8,3 +8,9 @@ func useInts(x uint64, y uint32) (uint64, uint32) {
 	y2 = y + 3
 	return z, y2
 }
+
+type u32 uint32
+
+type also_u32 u32
+
+const ConstWithAbbrevType also_u32 = 3

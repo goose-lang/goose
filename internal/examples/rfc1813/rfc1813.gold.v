@@ -48,79 +48,79 @@ Definition Count3: ty := Uint32.
 
 Definition Nfsstat3: ty := uint32T.
 
-Definition NFS3_OK : expr := #0.
+Definition NFS3_OK : expr := #(U32 0).
 
-Definition NFS3ERR_PERM : expr := #1.
+Definition NFS3ERR_PERM : expr := #(U32 1).
 
-Definition NFS3ERR_NOENT : expr := #2.
+Definition NFS3ERR_NOENT : expr := #(U32 2).
 
-Definition NFS3ERR_IO : expr := #5.
+Definition NFS3ERR_IO : expr := #(U32 5).
 
-Definition NFS3ERR_NXIO : expr := #6.
+Definition NFS3ERR_NXIO : expr := #(U32 6).
 
-Definition NFS3ERR_ACCES : expr := #13.
+Definition NFS3ERR_ACCES : expr := #(U32 13).
 
-Definition NFS3ERR_EXIST : expr := #17.
+Definition NFS3ERR_EXIST : expr := #(U32 17).
 
-Definition NFS3ERR_XDEV : expr := #18.
+Definition NFS3ERR_XDEV : expr := #(U32 18).
 
-Definition NFS3ERR_NODEV : expr := #19.
+Definition NFS3ERR_NODEV : expr := #(U32 19).
 
-Definition NFS3ERR_NOTDIR : expr := #20.
+Definition NFS3ERR_NOTDIR : expr := #(U32 20).
 
-Definition NFS3ERR_ISDIR : expr := #21.
+Definition NFS3ERR_ISDIR : expr := #(U32 21).
 
-Definition NFS3ERR_INVAL : expr := #22.
+Definition NFS3ERR_INVAL : expr := #(U32 22).
 
-Definition NFS3ERR_FBIG : expr := #27.
+Definition NFS3ERR_FBIG : expr := #(U32 27).
 
-Definition NFS3ERR_NOSPC : expr := #28.
+Definition NFS3ERR_NOSPC : expr := #(U32 28).
 
-Definition NFS3ERR_ROFS : expr := #30.
+Definition NFS3ERR_ROFS : expr := #(U32 30).
 
-Definition NFS3ERR_MLINK : expr := #31.
+Definition NFS3ERR_MLINK : expr := #(U32 31).
 
-Definition NFS3ERR_NAMETOOLONG : expr := #63.
+Definition NFS3ERR_NAMETOOLONG : expr := #(U32 63).
 
-Definition NFS3ERR_NOTEMPTY : expr := #66.
+Definition NFS3ERR_NOTEMPTY : expr := #(U32 66).
 
-Definition NFS3ERR_DQUOT : expr := #69.
+Definition NFS3ERR_DQUOT : expr := #(U32 69).
 
-Definition NFS3ERR_STALE : expr := #70.
+Definition NFS3ERR_STALE : expr := #(U32 70).
 
-Definition NFS3ERR_REMOTE : expr := #71.
+Definition NFS3ERR_REMOTE : expr := #(U32 71).
 
-Definition NFS3ERR_BADHANDLE : expr := #10001.
+Definition NFS3ERR_BADHANDLE : expr := #(U32 10001).
 
-Definition NFS3ERR_NOT_SYNC : expr := #10002.
+Definition NFS3ERR_NOT_SYNC : expr := #(U32 10002).
 
-Definition NFS3ERR_BAD_COOKIE : expr := #10003.
+Definition NFS3ERR_BAD_COOKIE : expr := #(U32 10003).
 
-Definition NFS3ERR_NOTSUPP : expr := #10004.
+Definition NFS3ERR_NOTSUPP : expr := #(U32 10004).
 
-Definition NFS3ERR_TOOSMALL : expr := #10005.
+Definition NFS3ERR_TOOSMALL : expr := #(U32 10005).
 
-Definition NFS3ERR_SERVERFAULT : expr := #10006.
+Definition NFS3ERR_SERVERFAULT : expr := #(U32 10006).
 
-Definition NFS3ERR_BADTYPE : expr := #10007.
+Definition NFS3ERR_BADTYPE : expr := #(U32 10007).
 
-Definition NFS3ERR_JUKEBOX : expr := #10008.
+Definition NFS3ERR_JUKEBOX : expr := #(U32 10008).
 
 Definition Ftype3: ty := uint32T.
 
-Definition NF3REG : expr := #1.
+Definition NF3REG : expr := #(U32 1).
 
-Definition NF3DIR : expr := #2.
+Definition NF3DIR : expr := #(U32 2).
 
-Definition NF3BLK : expr := #3.
+Definition NF3BLK : expr := #(U32 3).
 
-Definition NF3CHR : expr := #4.
+Definition NF3CHR : expr := #(U32 4).
 
-Definition NF3LNK : expr := #5.
+Definition NF3LNK : expr := #(U32 5).
 
-Definition NF3SOCK : expr := #6.
+Definition NF3SOCK : expr := #(U32 6).
 
-Definition NF3FIFO : expr := #7.
+Definition NF3FIFO : expr := #(U32 7).
 
 Module Specdata3.
   Definition S := struct.decl [
@@ -252,11 +252,11 @@ End Post_op_fh3.
 
 Definition Time_how: ty := uint32T.
 
-Definition DONT_CHANGE : expr := #0.
+Definition DONT_CHANGE : expr := #(U32 0).
 
-Definition SET_TO_SERVER_TIME : expr := #1.
+Definition SET_TO_SERVER_TIME : expr := #(U32 1).
 
-Definition SET_TO_CLIENT_TIME : expr := #2.
+Definition SET_TO_CLIENT_TIME : expr := #(U32 2).
 
 Module Set_mode3.
   Definition S := struct.decl [
@@ -740,11 +740,11 @@ End READ3res.
 
 Definition Stable_how: ty := uint32T.
 
-Definition UNSTABLE : expr := #0.
+Definition UNSTABLE : expr := #(U32 0).
 
-Definition DATA_SYNC : expr := #1.
+Definition DATA_SYNC : expr := #(U32 1).
 
-Definition FILE_SYNC : expr := #2.
+Definition FILE_SYNC : expr := #(U32 2).
 
 Module WRITE3args.
   Definition S := struct.decl [
@@ -805,11 +805,11 @@ End WRITE3res.
 
 Definition Createmode3: ty := uint32T.
 
-Definition UNCHECKED : expr := #0.
+Definition UNCHECKED : expr := #(U32 0).
 
-Definition GUARDED : expr := #1.
+Definition GUARDED : expr := #(U32 1).
 
-Definition EXCLUSIVE : expr := #2.
+Definition EXCLUSIVE : expr := #(U32 2).
 
 Module Createhow3.
   Definition S := struct.decl [
@@ -1700,25 +1700,25 @@ Definition Name3: ty := stringT.
 
 Definition Mountstat3: ty := uint32T.
 
-Definition MNT3_OK : expr := #0.
+Definition MNT3_OK : expr := #(U32 0).
 
-Definition MNT3ERR_PERM : expr := #1.
+Definition MNT3ERR_PERM : expr := #(U32 1).
 
-Definition MNT3ERR_NOENT : expr := #2.
+Definition MNT3ERR_NOENT : expr := #(U32 2).
 
-Definition MNT3ERR_IO : expr := #5.
+Definition MNT3ERR_IO : expr := #(U32 5).
 
-Definition MNT3ERR_ACCES : expr := #13.
+Definition MNT3ERR_ACCES : expr := #(U32 13).
 
-Definition MNT3ERR_NOTDIR : expr := #20.
+Definition MNT3ERR_NOTDIR : expr := #(U32 20).
 
-Definition MNT3ERR_INVAL : expr := #22.
+Definition MNT3ERR_INVAL : expr := #(U32 22).
 
-Definition MNT3ERR_NAMETOOLONG : expr := #63.
+Definition MNT3ERR_NAMETOOLONG : expr := #(U32 63).
 
-Definition MNT3ERR_NOTSUPP : expr := #10004.
+Definition MNT3ERR_NOTSUPP : expr := #(U32 10004).
 
-Definition MNT3ERR_SERVERFAULT : expr := #10006.
+Definition MNT3ERR_SERVERFAULT : expr := #(U32 10006).
 
 Definition MOUNT_PROGRAM : expr := #(U32 100005).
 
