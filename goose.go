@@ -303,13 +303,36 @@ func (ctx Ctx) field(f *ast.Field) coq.FieldDecl {
 func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
-		decls = append(decls, ctx.field(f))
-		if len(f.Names) == 1 {
-			ctx.addDef(f.Names[0], identInfo{
+		ty := ctx.coqType(f.Type)
+		for _, name := range f.Names {
+			decls = append(decls, coq.FieldDecl{
+				Name: name.Name,
+				Type: ty,
+			})
+			ctx.addDef(name, identInfo{
 				IsPtrWrapped: false,
 				IsMacro:      false,
 			})
 		}
+	}
+	return decls
+}
+
+func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
+	var decls []coq.FieldDecl
+	for _, f := range fs.List {
+		if len(f.Names) > 1 {
+			ctx.futureWork(f, "multiple fields for same type (split them up)")
+			return nil
+		}
+		if len(f.Names) == 0 {
+			ctx.unsupported(f, "unnamed (embedded) field")
+			return nil
+		}
+		decls = append(decls, coq.FieldDecl{
+			Name: f.Names[0].Name,
+			Type: ctx.coqType(f.Type),
+		})
 	}
 	return decls
 }
@@ -346,7 +369,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		}
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Fields = ctx.paramList(goTy.Fields)
+		ty.Fields = ctx.structFields(goTy.Fields)
 		return ty
 	default:
 		ctx.addDef(spec.Name, identInfo{

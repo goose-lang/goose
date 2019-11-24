@@ -294,6 +294,10 @@ Definition returnTwoWrapper: val :=
     let: ("a", "b") := returnTwo "data" in
     ("a", "b").
 
+Definition multipleVar: val :=
+  λ: "x" "y",
+    #().
+
 Definition PanicAtTheDisco: val :=
   λ: <>,
     Panic "disco".
