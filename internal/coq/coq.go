@@ -237,6 +237,16 @@ func (e GallinaIdent) Coq() string {
 
 var Skip Expr = GallinaIdent("Skip")
 
+type LoggingStmt struct {
+	GoCall string
+}
+
+func (s LoggingStmt) Coq() string {
+	var pp buffer
+	pp.AddComment(s.GoCall)
+	return pp.Build()
+}
+
 // IdentExpr is a go_lang-level variable
 //
 // An IdentExpr is quoted in Coq.
@@ -504,6 +514,10 @@ type BlockExpr struct {
 
 // AddTo adds a binding as a non-terminal line to a block
 func (b Binding) AddTo(pp *buffer) {
+	if e, ok := b.Expr.(LoggingStmt); ok {
+		pp.Add("%s", e.Coq())
+		return
+	}
 	if b.isAnonymous() {
 		pp.Add("%s;;", b.Expr.Coq())
 	} else if len(b.Names) == 1 {
@@ -522,7 +536,12 @@ func (be BlockExpr) Coq() string {
 	var pp buffer
 	for n, b := range be.Bindings {
 		if n == len(be.Bindings)-1 {
-			pp.AddLine(b.Expr.Coq())
+			if _, ok := b.Expr.(LoggingStmt); ok {
+				pp.AddLine(b.Expr.Coq())
+				pp.AddLine(UnitLiteral{}.Coq())
+			} else {
+				pp.AddLine(b.Expr.Coq())
+			}
 			continue
 		}
 		b.AddTo(&pp)

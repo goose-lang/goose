@@ -11,10 +11,12 @@
 package goose
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/importer"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"strconv"
@@ -148,6 +150,15 @@ func (ctx Ctx) TypeCheck(pkgName string, files []*ast.File) error {
 
 func (ctx Ctx) where(node ast.Node) string {
 	return ctx.fset.Position(node.Pos()).String()
+}
+
+func (ctx Ctx) printGo(node ast.Node) string {
+	var what bytes.Buffer
+	err := printer.Fprint(&what, ctx.fset, node)
+	if err != nil {
+		panic(err.Error())
+	}
+	return what.String()
 }
 
 func (ctx Ctx) typeOf(e ast.Expr) types.Type {
@@ -427,7 +438,9 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 
 }
 
-func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
+func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
+	call *ast.CallExpr) coq.Expr {
+	args := call.Args
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
 	}
@@ -456,14 +469,22 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
 			return coq.CallExpr{}
 		}
 	}
+	if isIdent(f.X, "log") {
+		switch f.Sel.Name {
+		case "Print", "Printf", "Println":
+			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
+		}
+	}
 	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
 	return coq.CallExpr{}
 }
 
-func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, args []ast.Expr) coq.Expr {
+func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
+	call *ast.CallExpr) coq.Expr {
+	args := call.Args
 	selectorType, ok := ctx.getType(f.X)
 	if !ok {
-		return ctx.packageMethod(f, args)
+		return ctx.packageMethod(f, call)
 	}
 	if isLockRef(selectorType) {
 		return ctx.lockMethod(f)
@@ -490,8 +511,9 @@ func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
 	return coq.NewCallExpr(method, args...)
 }
 
-func (ctx Ctx) methodExpr(f ast.Expr, args []ast.Expr) coq.Expr {
-	switch f := f.(type) {
+func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
+	args := call.Args
+	switch f := call.Fun.(type) {
 	case *ast.Ident:
 		if f.Name == "string" {
 			arg := args[0]
@@ -504,7 +526,7 @@ func (ctx Ctx) methodExpr(f ast.Expr, args []ast.Expr) coq.Expr {
 		}
 		return ctx.newCoqCall(f.Name, args)
 	case *ast.SelectorExpr:
-		return ctx.selectorMethod(f, args)
+		return ctx.selectorMethod(f, call)
 	case *ast.ArrayType:
 		// string -> []byte conversions are supported
 		if f.Len == nil && isIdent(f.Elt, "byte") {
@@ -629,7 +651,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		}
 		return coq.NewCallExpr("Panic", coq.GallinaString(msg))
 	}
-	return ctx.methodExpr(s.Fun, s.Args)
+	return ctx.methodExpr(s)
 }
 
 type structTypeInfo struct {
@@ -1552,6 +1574,7 @@ var okImports = map[string]bool{
 	"github.com/tchajed/goose/machine/filesys": true,
 	"github.com/tchajed/mailboat/globals":      true,
 	"sync":                                     true,
+	"log":                                      true,
 }
 
 func (ctx Ctx) checkImports(d []ast.Spec) {
