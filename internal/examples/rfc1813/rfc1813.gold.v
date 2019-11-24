@@ -1465,7 +1465,7 @@ Module Entry3.
     "Fileid" :: Fileid3;
     "Name" :: Filename3;
     "Cookie" :: Cookie3;
-    "Nextentry" :: struct.ptrT Entry3.S
+    "Nextentry" :: refT anyT
   ].
   Definition T: ty := struct.t S.
   Definition Ptr: ty := struct.ptrT S.
@@ -1551,7 +1551,7 @@ Module Entryplus3.
     "Cookie" :: Cookie3;
     "Name_attributes" :: Post_op_attr.T;
     "Name_handle" :: Post_op_fh3.T;
-    "Nextentry" :: struct.ptrT Entryplus3.S
+    "Nextentry" :: refT anyT
   ].
   Definition T: ty := struct.t S.
   Definition Ptr: ty := struct.ptrT S.
@@ -1978,7 +1978,7 @@ Module Mount3.
   Definition S := struct.decl [
     "Ml_hostname" :: Name3;
     "Ml_directory" :: Dirpath3;
-    "Ml_next" :: struct.ptrT Mount3.S
+    "Ml_next" :: refT anyT
   ].
   Definition T: ty := struct.t S.
   Definition Ptr: ty := struct.ptrT S.
@@ -2003,7 +2003,7 @@ End Mountopt3.
 Module Groups3.
   Definition S := struct.decl [
     "Gr_name" :: Name3;
-    "Gr_next" :: struct.ptrT Groups3.S
+    "Gr_next" :: refT anyT
   ].
   Definition T: ty := struct.t S.
   Definition Ptr: ty := struct.ptrT S.
@@ -2017,7 +2017,7 @@ Module Exports3.
   Definition S := struct.decl [
     "Ex_dir" :: Dirpath3;
     "Ex_groups" :: struct.ptrT Groups3.S;
-    "Ex_next" :: struct.ptrT Exports3.S
+    "Ex_next" :: refT anyT
   ].
   Definition T: ty := struct.t S.
   Definition Ptr: ty := struct.ptrT S.

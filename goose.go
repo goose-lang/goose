@@ -318,7 +318,8 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
-func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
+func (ctx Ctx) structFields(structName string,
+	fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
 		if len(f.Names) > 1 {
@@ -329,9 +330,14 @@ func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 			ctx.unsupported(f, "unnamed (embedded) field")
 			return nil
 		}
+		ty := ctx.coqType(f.Type)
+		info, ok := getStructInfo(ctx.typeOf(f.Type))
+		if ok && info.name == structName && info.throughPointer {
+			ty = coq.NewCallExpr("refT", coq.TypeIdent("anyT"))
+		}
 		decls = append(decls, coq.FieldDecl{
 			Name: f.Names[0].Name,
-			Type: ctx.coqType(f.Type),
+			Type: ty,
 		})
 	}
 	return decls
@@ -369,7 +375,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		}
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Fields = ctx.structFields(goTy.Fields)
+		ty.Fields = ctx.structFields(spec.Name.Name, goTy.Fields)
 		return ty
 	default:
 		ctx.addDef(spec.Name, identInfo{
