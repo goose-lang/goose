@@ -204,7 +204,7 @@ Definition bufFlush: val :=
   λ: "f",
     let: "buf" := !(bufFile.get "buf" "f") in
     (if: slice.len "buf" = #0
-    then "tt"
+    then #()
     else
       FS.append (bufFile.get "file" "f") "buf";;
       bufFile.get "buf" "f" <- slice.nil).
@@ -487,10 +487,10 @@ Definition recoverManifest: val :=
 Definition deleteOtherFile: val :=
   λ: "name" "tableName",
     (if: "name" = "tableName"
-    then "tt"
+    then #()
     else
       (if: "name" = #(str"manifest")
-      then "tt"
+      then #()
       else FS.delete #(str"db") "name")).
 
 Definition deleteOtherFiles: val :=
