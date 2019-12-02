@@ -1495,7 +1495,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
 	if len(es) == 0 {
 		// named returns are not supported, so this must return unit
-		return coq.ReturnExpr{coq.IdentExpr("tt")}
+		return coq.ReturnExpr{coq.UnitLiteral{}}
 	}
 	var exprs coq.TupleExpr
 	for _, r := range es {
