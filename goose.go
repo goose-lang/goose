@@ -1282,7 +1282,8 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 	var rhs coq.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
-		rhs = coq.NewCallExpr("zero_val", ctx.coqTypeOfType(s, ty))
+		rhs = coq.NewCallExpr("ref",
+			coq.NewCallExpr("zero_val", ctx.coqTypeOfType(s, ty)))
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
