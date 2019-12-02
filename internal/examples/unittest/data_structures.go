@@ -2,13 +2,14 @@ package unittest
 
 import (
 	"github.com/tchajed/goose/machine"
-	"github.com/tchajed/goose/machine/filesys"
 )
+
+func atomicCreateStub(dir string, fname string, data []byte) {}
 
 func useSlice() {
 	s := make([]byte, 1)
 	s1 := append(s, s...)
-	filesys.AtomicCreate("dir", "file", s1)
+	atomicCreateStub("dir", "file", s1)
 }
 
 func useSliceIndexing() uint64 {
