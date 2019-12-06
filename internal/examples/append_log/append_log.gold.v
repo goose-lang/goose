@@ -4,6 +4,12 @@ From Perennial.go_lang Require Import prelude.
 (* disk FFI *)
 From Perennial.go_lang Require Import ffi.disk_prelude.
 
+(* Append-only, sequential, crash-safe log.
+
+   The main interesting feature is that the log supports multi-block atomic
+   appends, which are implemented by atomically updating an on-disk header with
+   the number of valid blocks in the log. *)
+
 Module Log.
   Definition S := struct.decl [
     "sz" :: uint64T;

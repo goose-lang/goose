@@ -1,17 +1,14 @@
+// Append-only, sequential, crash-safe log.
+//
+// The main interesting feature is that the log supports multi-block atomic
+// appends, which are implemented by atomically updating an on-disk header with
+// the number of valid blocks in the log.
 package append_log
 
 import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 )
-
-/*
-	Append-only, sequential, crash-safe log.
-
-    The main interesting feature is that the log supports multi-block atomic
-    appends, which are implemented by atomically updating an on-disk header with
-    the number of valid blocks in the log.
-*/
 
 type Log struct {
 	sz     uint64
