@@ -1,7 +1,7 @@
 // Package goose implements conversion from Go source to Perennial definitions.
 //
 // The exposed interface allows converting individual files as well as whole
-// packages to a single Coq file with all the converted definitions, which
+// packages to a single Coq Ast with all the converted definitions, which
 // include user-defined structs in Go as Coq records and a Perennial procedure
 // for each Go function.
 //
@@ -211,7 +211,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	// ctx.coqType operates syntactically whereas this function uses type
 	// checker info. We can always write ctx.coqType in terms of this function,
 	// since the go/types package will give a types.Type expression for the
-	// "type" of an ast.Expr representing a type. Improving this function is
+	// "type" of an Ast.Expr representing a type. Improving this function is
 	// also useful because there are some situations where there is no
 	// syntactic type and we need to operate on the output of type inference
 	// anyway.
@@ -1305,7 +1305,7 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
 	if len(decl.Specs) > 1 {
 		ctx.unsupported(s, "multiple declarations in one var statement")
 	}
-	// guaranteed to be a *ast.ValueSpec due to decl.Tok
+	// guaranteed to be a *Ast.ValueSpec due to decl.Tok
 	//
 	// https://golang.org/pkg/go/ast/#GenDecl
 	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec))
@@ -1505,7 +1505,7 @@ func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
 	return coq.ReturnExpr{coq.NewTuple(exprs)}
 }
 
-// returnType converts an ast.FuncType's Results to a Coq return type
+// returnType converts an Ast.FuncType's Results to a Coq return type
 func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 	if results == nil {
 		return coq.TypeIdent("unitT")

@@ -4,6 +4,8 @@ From Perennial.go_lang Require Import prelude.
 (* disk FFI *)
 From Perennial.go_lang Require Import ffi.disk_prelude.
 
+(* logging2.go *)
+
 Definition LOGCOMMIT : expr := #0.
 Theorem LOGCOMMIT_t Γ : Γ ⊢ LOGCOMMIT : uint64T.
 Proof. typecheck. Qed.
@@ -201,6 +203,8 @@ Definition Log__Logger: val :=
 Theorem Log__Logger_t: ⊢ Log__Logger : (Log.T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Logger_t : types.
+
+(* txn.go *)
 
 Module Txn.
   Definition S := struct.decl [

@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -15,7 +16,7 @@ import (
 )
 
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
+func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if r, ok := r.(gooseError); ok {
@@ -26,10 +27,14 @@ func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
 		}
 	}()
 	for _, f := range fs {
-		if f.Doc != nil {
-			decls = append(decls, coq.NewComment(f.Doc.Text()))
+		if len(fs) > 1 {
+			decls = append(decls,
+				coq.NewComment(fmt.Sprintf("%s", f.Name())))
 		}
-		for _, d := range f.Decls {
+		if f.Ast.Doc != nil {
+			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))
+		}
+		for _, d := range f.Ast.Decls {
 			if d := ctx.maybeDecl(d); d != nil {
 				decls = append(decls, d)
 			}
@@ -38,28 +43,28 @@ func (ctx Ctx) Decls(fs ...*ast.File) (decls []coq.Decl, err error) {
 	return
 }
 
-type fileName struct {
-	name string
-	file *ast.File
+type NamedFile struct {
+	Path string
+	Ast  *ast.File
 }
 
-func sortedFiles(files map[string]*ast.File) []*ast.File {
-	var flatFiles []fileName
+func (f NamedFile) Name() string {
+	return path.Base(f.Path)
+}
+
+func sortedFiles(files map[string]*ast.File) []NamedFile {
+	var flatFiles []NamedFile
 	for n, f := range files {
-		flatFiles = append(flatFiles, fileName{name: n, file: f})
+		flatFiles = append(flatFiles, NamedFile{Path: n, Ast: f})
 	}
 	sort.Slice(flatFiles, func(i, j int) bool {
-		return flatFiles[i].name < flatFiles[j].name
+		return flatFiles[i].Path < flatFiles[j].Path
 	})
-	var sortedFiles []*ast.File
-	for _, f := range flatFiles {
-		sortedFiles = append(sortedFiles, f.file)
-	}
-	return sortedFiles
+	return flatFiles
 }
 
 // TranslatePackage translates an entire package in a directory to a single Coq
-// file with all the declarations in the package.
+// Ast with all the declarations in the package.
 //
 // If the source directory has multiple source files, these are processed in
 // alphabetical order; this must be a topological sort of the definitions or the
@@ -81,7 +86,7 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	}
 	if !s.IsDir() {
 		return coq.File{},
-			fmt.Errorf("%s is a file (expected a directory)", srcDir)
+			fmt.Errorf("%s is a Ast (expected a directory)", srcDir)
 	}
 	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
 	if err != nil {
@@ -95,14 +100,18 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	}
 
 	var pkgName string
-	var files []*ast.File
+	var files []NamedFile
 	for pName, p := range packages {
 		files = append(files, sortedFiles(p.Files)...)
 		pkgName = pName
 	}
+	var fileAsts []*ast.File
+	for _, f := range files {
+		fileAsts = append(fileAsts, f.Ast)
+	}
 
 	ctx := NewCtx(fset, config)
-	err = ctx.TypeCheck(pkgName, files)
+	err = ctx.TypeCheck(pkgName, fileAsts)
 	if err != nil {
 		return coq.File{},
 			errors.Wrap(err, "code does not type check")
