@@ -299,6 +299,15 @@ Definition conditionalInLoop: val :=
         "i" <- !"i" + #1;;
         Continue)).
 
+Definition ImplicitLoopContinue: val :=
+  λ: <>,
+    let: "i" := ref #0 in
+    (for: (#true); (Skip) :=
+      (if: !"i" < #4
+      then "i" <- #0
+      else #());;
+      Continue).
+
 (* map_clear.go *)
 
 Definition clearMap: val :=

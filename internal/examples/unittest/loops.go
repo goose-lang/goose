@@ -34,3 +34,12 @@ func conditionalInLoop() {
 		continue
 	}
 }
+
+func ImplicitLoopContinue() {
+	for i := uint64(0); ; {
+		if i < 4 {
+			i = 0
+			// note that continue here is not correctly supported
+		}
+	}
+}

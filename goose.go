@@ -1075,10 +1075,6 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	}
 	if !remaining {
 		if s.Else == nil {
-			if loopVar != nil {
-				ctx.unsupported(s, "implicit loop continue")
-				return coq.Binding{}
-			}
 			ife.Else = coq.ReturnExpr{coq.Tt}
 			return coq.NewAnon(ife)
 		}
@@ -1405,7 +1401,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.
 	})
 }
 
-func (ctx Ctx) spawnExpr(thread ast.Expr, loopVar *string) coq.SpawnExpr {
+func (ctx Ctx) spawnExpr(thread ast.Expr) coq.SpawnExpr {
 	f, ok := thread.(*ast.FuncLit)
 	if !ok {
 		ctx.futureWork(thread,
@@ -1463,7 +1459,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.branchStmt(s))
 	case *ast.ExprStmt:
 		if thread := getSpawn(s); thread != nil {
-			return coq.NewAnon(ctx.spawnExpr(thread, loopVar))
+			return coq.NewAnon(ctx.spawnExpr(thread))
 		}
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
