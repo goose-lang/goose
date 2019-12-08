@@ -851,6 +851,8 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		token.OR:  coq.OpOr,
 		token.SHL: coq.OpShl,
 		token.SHR: coq.OpShr,
+		token.QUO: coq.OpQuot,
+		token.REM: coq.OpRem,
 	}[e.Op]
 	if e.Op == token.ADD {
 		if isString(ctx.typeOf(e.X)) {
