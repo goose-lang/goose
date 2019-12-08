@@ -686,7 +686,9 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 			return coq.NewCallExpr("SliceAppend", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 		}
 		// append(s1, s2...)
-		return coq.NewCallExpr("Data.sliceAppendSlice", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+		return coq.NewCallExpr("SliceAppendSlice",
+			ctx.expr(s.Args[0]),
+			ctx.expr(s.Args[1]))
 	}
 	if isIdent(s.Fun, "uint64") {
 		return ctx.integerConversion(s, s.Args[0], 64)
