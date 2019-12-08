@@ -614,9 +614,20 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 }
 
 type intTypeInfo struct {
-	isUint32  bool
-	isUint64  bool
+	width     int
 	isUntyped bool
+}
+
+func (info intTypeInfo) isUint64() bool {
+	return info.width == 64 || info.isUntyped
+}
+
+func (info intTypeInfo) isUint32() bool {
+	return info.width == 32 || info.isUntyped
+}
+
+func (info intTypeInfo) isUint8() bool {
+	return info.width == 8 || info.isUntyped
 }
 
 func getIntegerType(t types.Type) (intTypeInfo, bool) {
@@ -628,14 +639,36 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 	// conversion from uint64 -> uint64 is possible if the conversion
 	// causes an untyped literal to become a uint64
 	case types.Int, types.Uint64:
-		return intTypeInfo{isUint64: true}, true
+		return intTypeInfo{width: 64}, true
 	case types.UntypedInt:
 		return intTypeInfo{isUntyped: true}, true
 	case types.Uint32:
-		return intTypeInfo{isUint32: true}, true
+		return intTypeInfo{width: 32}, true
+	case types.Uint8:
+		return intTypeInfo{width: 8}, true
 	default:
 		return intTypeInfo{}, false
 	}
+}
+
+// integerConversion generates an expression for converting x to an integer
+// of a specific width
+//
+// s is only used for error reporting
+func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
+	if info, ok := getIntegerType(ctx.typeOf(x)); ok {
+		if info.isUntyped {
+			ctx.todo(s, "conversion from untyped int to uint64")
+		}
+		if info.width == width {
+			return ctx.expr(x)
+		}
+		return coq.NewCallExpr(fmt.Sprintf("to_u%d", width),
+			ctx.expr(x))
+	}
+	ctx.unsupported(s, "casts from unsupported type %v to uint%d",
+		ctx.typeOf(x), width)
+	return nil
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
@@ -656,19 +689,13 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return coq.NewCallExpr("Data.sliceAppendSlice", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 	}
 	if isIdent(s.Fun, "uint64") {
-		x := s.Args[0]
-		if info, ok := getIntegerType(ctx.typeOf(x)); ok {
-			if info.isUint64 {
-				return ctx.expr(x)
-			} else if info.isUint32 {
-				return coq.NewCallExpr("to_u64", ctx.expr(x))
-			} else if info.isUntyped {
-				ctx.todo(s, "conversion from untyped int to uint64")
-			}
-		}
-		ctx.unsupported(s, "casts from unsupported type %v to uint64",
-			ctx.typeOf(x))
-		return nil
+		return ctx.integerConversion(s, s.Args[0], 64)
+	}
+	if isIdent(s.Fun, "uint32") {
+		return ctx.integerConversion(s, s.Args[0], 32)
+	}
+	if isIdent(s.Fun, "uint8") {
+		return ctx.integerConversion(s, s.Args[0], 8)
 	}
 	if isIdent(s.Fun, "panic") {
 		msg := "oops"
@@ -797,10 +824,12 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 				"int literals must be positive numbers")
 			return nil
 		}
-		if info.isUint32 {
-			return coq.Int32Literal{uint32(n)}
-		} else {
+		if info.isUint64() {
 			return coq.IntLiteral{n}
+		} else if info.isUint32() {
+			return coq.Int32Literal{uint32(n)}
+		} else if info.isUint8() {
+			return coq.ByteLiteral{uint8(n)}
 		}
 	}
 	ctx.unsupported(e, "literal with kind %s", e.Kind)
@@ -816,6 +845,10 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		token.MUL: coq.OpMul,
 		token.LEQ: coq.OpLessEq,
 		token.GEQ: coq.OpGreaterEq,
+		token.AND: coq.OpAnd,
+		token.OR:  coq.OpOr,
+		token.SHL: coq.OpShl,
+		token.SHR: coq.OpShr,
 	}[e.Op]
 	if e.Op == token.ADD {
 		if isString(ctx.typeOf(e.X)) {

@@ -431,6 +431,14 @@ func (l Int32Literal) Coq() string {
 	return fmt.Sprintf("#(U32 %d)", l.Value)
 }
 
+type ByteLiteral struct {
+	Value uint8
+}
+
+func (l ByteLiteral) Coq() string {
+	return fmt.Sprintf("#(U8 %v)", l.Value)
+}
+
 type StringLiteral struct {
 	Value string
 }
@@ -453,6 +461,10 @@ const (
 	OpGreaterEq
 	OpAppend
 	OpMul
+	OpAnd
+	OpOr
+	OpShl
+	OpShr
 )
 
 type BinaryExpr struct {
@@ -472,6 +484,10 @@ func (be BinaryExpr) Coq() string {
 		OpGreaterThan: ">",
 		OpLessEq:      "≤",
 		OpGreaterEq:   "≥",
+		OpAnd:         "&&",
+		OpOr:          "∥",
+		OpShl:         "≪",
+		OpShr:         "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
 		return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
