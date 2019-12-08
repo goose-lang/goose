@@ -43,3 +43,29 @@ func ImplicitLoopContinue() {
 		}
 	}
 }
+
+func nestedLoops() {
+	for i := uint64(0); ; {
+		for j := uint64(0); ; {
+			if true {
+				break
+			}
+			j = j + 1
+			continue
+		}
+		i = i + 1
+		continue
+	}
+}
+
+func nestedGoStyleLoops() {
+	for i := uint64(0); i < 10; i++ {
+		for j := uint64(0); j < i; j++ {
+			if true {
+				break
+			}
+			// TODO: this is necessary to make the break actually return
+			continue
+		}
+	}
+}

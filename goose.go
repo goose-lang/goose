@@ -1007,6 +1007,7 @@ func (c *cursor) Remainder() []ast.Stmt {
 }
 
 func endsWithReturn(b *ast.BlockStmt) bool {
+	// TODO: should also catch implicit continue
 	switch b.List[len(b.List)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
@@ -1473,10 +1474,8 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.IfStmt:
 		return ctx.ifStmt(s, c, loopVar)
 	case *ast.ForStmt:
-		if loopVar != nil {
-			ctx.unsupported(s, "nested loops")
-			return coq.Binding{}
-		}
+		// note that this might be a nested loop,
+		// in which case the loop var gets replaced by the inner loop.
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))

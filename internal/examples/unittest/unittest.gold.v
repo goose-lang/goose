@@ -308,6 +308,31 @@ Definition ImplicitLoopContinue: val :=
       else #());;
       Continue).
 
+Definition nestedLoops: val :=
+  λ: <>,
+    let: "i" := ref #0 in
+    (for: (#true); (Skip) :=
+      let: "j" := ref #0 in
+      (for: (#true); (Skip) :=
+        (if: #true
+        then Break
+        else
+          "j" <- !"j" + #1;;
+          Continue));;
+      "i" <- !"i" + #1;;
+      Continue).
+
+Definition nestedGoStyleLoops: val :=
+  λ: <>,
+    let: "i" := ref #0 in
+    (for: (!"i" < #10); ("i" <- !"i" + #1) :=
+      let: "j" := ref #0 in
+      (for: (!"j" < !"i"); ("j" <- !"j" + #1) :=
+        (if: #true
+        then Break
+        else Continue));;
+      Continue).
+
 (* map_clear.go *)
 
 Definition clearMap: val :=
