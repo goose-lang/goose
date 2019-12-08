@@ -465,6 +465,7 @@ const (
 	OpRem
 	OpAnd
 	OpOr
+	OpXor
 	OpShl
 	OpShr
 )
@@ -490,6 +491,7 @@ func (be BinaryExpr) Coq() string {
 		OpGreaterEq:   "≥",
 		OpAnd:         "&&",
 		OpOr:          "∥",
+		OpXor:         "^^",
 		OpShl:         "≪",
 		OpShr:         "≫",
 	}

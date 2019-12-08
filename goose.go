@@ -845,14 +845,15 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		token.SUB: coq.OpMinus,
 		token.EQL: coq.OpEquals,
 		token.MUL: coq.OpMul,
+		token.QUO: coq.OpQuot,
+		token.REM: coq.OpRem,
 		token.LEQ: coq.OpLessEq,
 		token.GEQ: coq.OpGreaterEq,
 		token.AND: coq.OpAnd,
 		token.OR:  coq.OpOr,
+		token.XOR: coq.OpXor,
 		token.SHL: coq.OpShl,
 		token.SHR: coq.OpShr,
-		token.QUO: coq.OpQuot,
-		token.REM: coq.OpRem,
 	}[e.Op]
 	if e.Op == token.ADD {
 		if isString(ctx.typeOf(e.X)) {
@@ -899,6 +900,9 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
+		return coq.NotExpr{ctx.expr(e.X)}
+	}
+	if e.Op == token.XOR {
 		return coq.NotExpr{ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
