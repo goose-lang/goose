@@ -27,7 +27,7 @@ Definition Log__writeHdr: val :=
   λ: "log",
     let: "hdr" := NewSlice byteT #4096 in
     UInt64Put "hdr" (Log.get "sz" "log");;
-    UInt64Put (SliceSkip "hdr" #8) (Log.get "sz" "log");;
+    UInt64Put (SliceSkip "hdr" #8) (Log.get "diskSz" "log");;
     disk.Write #0 "hdr".
 Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (Log.T -> unitT).
 Proof. typecheck. Qed.
@@ -51,6 +51,19 @@ Definition Init: val :=
 Theorem Init_t: ⊢ Init : (uint64T -> (Log.T * boolT)).
 Proof. typecheck. Qed.
 Hint Resolve Init_t : types.
+
+Definition Open: val :=
+  λ: <>,
+    let: "hdr" := disk.Read #0 in
+    let: "sz" := UInt64Get "hdr" in
+    let: "diskSz" := UInt64Get (SliceSkip "hdr" #8) in
+    struct.mk Log.S [
+      "sz" ::= "sz";
+      "diskSz" ::= "diskSz"
+    ].
+Theorem Open_t: ⊢ Open : (unitT -> Log.T).
+Proof. typecheck. Qed.
+Hint Resolve Open_t : types.
 
 Definition Log__Get: val :=
   λ: "log" "i",
