@@ -1273,6 +1273,7 @@ func (ctx Ctx) identBinder(id *ast.Ident) coq.Binder {
 }
 
 func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
+	var loopVar *string
 	key := getIdentOrNil(s.Key)
 	val := getIdentOrNil(s.Value)
 	if key != nil {
@@ -1280,6 +1281,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 			IsPtrWrapped: false,
 			IsMacro:      false,
 		})
+		loopVar = &key.Name
 	}
 	if val != nil {
 		ctx.addDef(val, identInfo{
@@ -1291,7 +1293,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 		Key:   ctx.identBinder(key),
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
-		Body:  ctx.blockStmt(s.Body, nil),
+		Body:  ctx.blockStmt(s.Body, loopVar),
 	}
 }
 
