@@ -661,6 +661,32 @@ func (e ForLoopExpr) Coq() string {
 	return pp.Build()
 }
 
+type Binder *IdentExpr
+
+func binderToCoq(b Binder) string {
+	if b == nil {
+		return "<>"
+	}
+	return (*b).Coq()
+}
+
+type SliceLoopExpr struct {
+	Key   Binder
+	Val   Binder
+	Slice Expr
+	Body  BlockExpr
+}
+
+func (e SliceLoopExpr) Coq() string {
+	var pp buffer
+	pp.Add("ForSlice %s %s %s",
+		binderToCoq(e.Key), binderToCoq(e.Val),
+		addParens(e.Slice.Coq()))
+	pp.Indent(2)
+	pp.Add("%s", addParens(e.Body.Coq()))
+	return pp.Build()
+}
+
 // MapIterExpr is a call to the map iteration helper.
 type MapIterExpr struct {
 	// name of key and value identifiers

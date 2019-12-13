@@ -1235,13 +1235,7 @@ func (ctx Ctx) getMapClearIdiom(s *ast.RangeStmt) coq.Expr {
 	return coq.NewCallExpr("MapClear", coq.IdentExpr(mapName))
 }
 
-func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
-	if _, ok := ctx.typeOf(s.X).(*types.Map); !ok {
-		ctx.unsupported(s,
-			"range over %v (only maps are supported)",
-			ctx.typeOf(s.X))
-		return nil
-	}
+func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) coq.Expr {
 	if expr := ctx.getMapClearIdiom(s); expr != nil {
 		return expr
 	}
@@ -1260,6 +1254,58 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
 		Body:       ctx.blockStmt(s.Body, nil),
+	}
+}
+
+func getIdentOrNil(e ast.Expr) *ast.Ident {
+	if id, ok := e.(*ast.Ident); ok {
+		return id
+	}
+	return nil
+}
+
+func (ctx Ctx) identBinder(id *ast.Ident) coq.Binder {
+	if id == nil {
+		return coq.Binder(nil)
+	}
+	e := coq.IdentExpr(id.Name)
+	return &e
+}
+
+func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
+	key := getIdentOrNil(s.Key)
+	val := getIdentOrNil(s.Value)
+	if key != nil {
+		ctx.addDef(key, identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      false,
+		})
+	}
+	if val != nil {
+		ctx.addDef(val, identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      false,
+		})
+	}
+	return coq.SliceLoopExpr{
+		Key:   ctx.identBinder(key),
+		Val:   ctx.identBinder(val),
+		Slice: ctx.expr(s.X),
+		Body:  ctx.blockStmt(s.Body, nil),
+	}
+}
+
+func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
+	switch ctx.typeOf(s.X).(type) {
+	case *types.Map:
+		return ctx.mapRangeStmt(s)
+	case *types.Slice:
+		return ctx.sliceRangeStmt(s)
+	default:
+		ctx.unsupported(s,
+			"range over %v (only maps and slices are supported)",
+			ctx.typeOf(s.X))
+		return nil
 	}
 }
 
