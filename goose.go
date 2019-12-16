@@ -848,6 +848,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		token.GTR:  coq.OpGreaterThan,
 		token.SUB:  coq.OpMinus,
 		token.EQL:  coq.OpEquals,
+		token.NEQ:  coq.OpNotEquals,
 		token.MUL:  coq.OpMul,
 		token.QUO:  coq.OpQuot,
 		token.REM:  coq.OpRem,

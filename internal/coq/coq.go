@@ -455,6 +455,7 @@ const (
 	OpPlus BinOp = iota
 	OpMinus
 	OpEquals
+	OpNotEquals
 	OpLessThan
 	OpGreaterThan
 	OpLessEq
@@ -481,6 +482,7 @@ func (be BinaryExpr) Coq() string {
 		OpPlus:        "+",
 		OpMinus:       "-",
 		OpEquals:      "=",
+		OpNotEquals:   "≠",
 		OpAppend:      "+",
 		OpMul:         "*",
 		OpQuot:        "`quot`",

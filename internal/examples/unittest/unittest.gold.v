@@ -378,6 +378,24 @@ Definition BitwiseOps: val :=
   λ: "x" "y",
     to_u64 "x" ∥ to_u64 (to_u32 "y") && #43.
 
+Definition Comparison: val :=
+  λ: "x" "y",
+    (if: "x" < "y"
+    then #true
+    else
+      (if: "x" = "y"
+      then #true
+      else
+        (if: "x" ≠ "y"
+        then #true
+        else
+          (if: "x" > "y"
+          then #true
+          else
+            (if: "x" + #1 > "y" - #2
+            then #true
+            else #false))))).
+
 (* panic.go *)
 
 Definition PanicAtTheDisco: val :=
