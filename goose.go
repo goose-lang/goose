@@ -404,11 +404,15 @@ func toInitialLower(s string) string {
 func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 	x := e.Args[0]
 	xTy := ctx.typeOf(x)
-	if _, ok := xTy.(*types.Slice); !ok {
+	switch xTy.(type) {
+	case *types.Slice:
+		return coq.NewCallExpr("slice.len", ctx.expr(x))
+	case *types.Map:
+		return coq.NewCallExpr("MapLen", ctx.expr(x))
+	default:
 		ctx.unsupported(e, "length of object of type %v", xTy)
 		return coq.CallExpr{}
 	}
-	return coq.NewCallExpr("slice.len", ctx.expr(x))
 }
 
 func isLockRef(t types.Type) bool {

@@ -333,19 +333,21 @@ Definition nestedGoStyleLoops: val :=
         else Continue));;
       Continue).
 
-(* map_clear.go *)
+(* maps.go *)
 
 Definition clearMap: val :=
   λ: "m",
     MapClear "m".
-
-(* map_keyiter.go *)
 
 Definition IterateMapKeys: val :=
   λ: "m" "sum",
     MapIter "m" (λ: "k" <>,
       let: "oldSum" := !"sum" in
       "sum" <- "oldSum" + "k").
+
+Definition MapSize: val :=
+  λ: "m",
+    MapLen "m".
 
 (* multiple.go *)
 
