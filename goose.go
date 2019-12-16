@@ -1021,6 +1021,9 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
 		return ctx.derefExpr(e.X)
+	case *ast.TypeAssertExpr:
+		// TODO: do something with the type
+		return ctx.expr(e.X)
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}
