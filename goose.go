@@ -840,20 +840,22 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 
 func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	op, ok := map[token.Token]coq.BinOp{
-		token.LSS: coq.OpLessThan,
-		token.GTR: coq.OpGreaterThan,
-		token.SUB: coq.OpMinus,
-		token.EQL: coq.OpEquals,
-		token.MUL: coq.OpMul,
-		token.QUO: coq.OpQuot,
-		token.REM: coq.OpRem,
-		token.LEQ: coq.OpLessEq,
-		token.GEQ: coq.OpGreaterEq,
-		token.AND: coq.OpAnd,
-		token.OR:  coq.OpOr,
-		token.XOR: coq.OpXor,
-		token.SHL: coq.OpShl,
-		token.SHR: coq.OpShr,
+		token.LSS:  coq.OpLessThan,
+		token.GTR:  coq.OpGreaterThan,
+		token.SUB:  coq.OpMinus,
+		token.EQL:  coq.OpEquals,
+		token.MUL:  coq.OpMul,
+		token.QUO:  coq.OpQuot,
+		token.REM:  coq.OpRem,
+		token.LEQ:  coq.OpLessEq,
+		token.GEQ:  coq.OpGreaterEq,
+		token.AND:  coq.OpAnd,
+		token.LAND: coq.OpAnd,
+		token.OR:   coq.OpOr,
+		token.LOR:  coq.OpOr,
+		token.XOR:  coq.OpXor,
+		token.SHL:  coq.OpShl,
+		token.SHR:  coq.OpShr,
 	}[e.Op]
 	if e.Op == token.ADD {
 		if isString(ctx.typeOf(e.X)) {

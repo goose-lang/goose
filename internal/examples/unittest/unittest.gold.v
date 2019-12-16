@@ -362,6 +362,20 @@ Definition multipleVar: val :=
   λ: "x" "y",
     #().
 
+(* operators.go *)
+
+Definition LogicalOperators: val :=
+  λ: "b1" "b2",
+    "b1" && "b2" ∥ "b1" && ~ #false.
+
+Definition ArithmeticShifts: val :=
+  λ: "x" "y",
+    to_u64 ("x" ≪ #3) + "y" ≪ to_u64 "x" + "y" ≪ #1.
+
+Definition BitwiseOps: val :=
+  λ: "x" "y",
+    to_u64 "x" ∥ to_u64 (to_u32 "y") && #43.
+
 (* panic.go *)
 
 Definition PanicAtTheDisco: val :=
