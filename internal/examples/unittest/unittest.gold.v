@@ -396,6 +396,14 @@ Definition Comparison: val :=
             then #true
             else #false))))).
 
+Definition AssignOps: val :=
+  λ: <>,
+    let: "x" := ref (zero_val uint64T) in
+    "x" <- !"x" + #3;;
+    "x" <- !"x" - #3;;
+    "x" <- !"x" + #1;;
+    "x" <- !"x" - #1.
+
 (* panic.go *)
 
 Definition PanicAtTheDisco: val :=

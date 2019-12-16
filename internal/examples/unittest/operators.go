@@ -30,3 +30,11 @@ func Comparison(x uint64, y uint64) bool {
 	}
 	return false
 }
+
+func AssignOps() {
+	var x uint64
+	x += 3
+	x -= 3
+	x++
+	x--
+}

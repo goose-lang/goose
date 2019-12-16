@@ -1412,12 +1412,12 @@ func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
 }
 
 func (ctx Ctx) assignFromTo(s ast.Node,
-	lhs ast.Expr, rhs ast.Expr) coq.Binding {
+	lhs ast.Expr, rhs coq.Expr) coq.Binding {
 	// assignments can mean various things
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if ctx.identInfo(lhs).IsPtrWrapped {
-			return pointerAssign(lhs, ctx.expr(rhs))
+			return pointerAssign(lhs, rhs)
 		}
 		// the support for making variables assignable is in flux, but currently
 		// the only way the assignment would be supported is if it was created
@@ -1427,14 +1427,14 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
 		case *types.Slice:
-			value := ctx.expr(rhs)
+			value := rhs
 			return coq.NewAnon(coq.NewCallExpr(
 				"SliceSet",
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
 		case *types.Map:
-			value := ctx.expr(rhs)
+			value := rhs
 			return coq.NewAnon(coq.NewCallExpr(
 				"MapInsert",
 				ctx.expr(lhs.X),
@@ -1449,11 +1449,11 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 			return coq.NewAnon(coq.NewCallExpr("struct.store",
 				coq.StructDesc(info.name),
 				ctx.expr(lhs.X),
-				ctx.expr(rhs)))
+				rhs))
 		}
 		return coq.NewAnon(coq.StoreStmt{
 			Dst: ctx.expr(lhs.X),
-			X:   ctx.expr(rhs),
+			X:   rhs,
 		})
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
@@ -1465,7 +1465,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 					coq.StructDesc(info.name),
 					coq.GallinaString(fieldName),
 					ctx.expr(lhs.X),
-					ctx.expr(rhs)))
+					rhs))
 			}
 		}
 		ctx.unsupported(s,
@@ -1480,25 +1480,42 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
 	}
-	if s.Tok != token.ASSIGN {
-		ctx.unsupported(s, "%v assignment", s.Tok)
-	}
 	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
 		ctx.unsupported(s, "multiple assignment")
 	}
-	return ctx.assignFromTo(s, s.Lhs[0], s.Rhs[0])
+	lhs := s.Lhs[0]
+	rhs := ctx.expr(s.Rhs[0])
+	assignOps := map[token.Token]coq.BinOp{
+		token.ADD_ASSIGN: coq.OpPlus,
+		token.SUB_ASSIGN: coq.OpMinus,
+	}
+	if op, ok := assignOps[s.Tok]; ok {
+		rhs = coq.BinaryExpr{
+			X:  ctx.expr(lhs),
+			Op: op,
+			Y:  rhs,
+		}
+	} else if s.Tok != token.ASSIGN {
+		ctx.unsupported(s, "%v assignment", s.Tok)
+	}
+	return ctx.assignFromTo(s, lhs, rhs)
 }
 
-func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.Binding {
-	if loopVar == nil || !isIdent(stmt.X, *loopVar) {
-		ctx.todo(stmt, "cannot inc/dec non-loop var")
+func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, loopVar *string) coq.Binding {
+	ident := getIdentOrNil(stmt.X)
+	if ident == nil {
+		ctx.todo(stmt, "cannot inc/dec non-var")
 		return coq.Binding{}
+	}
+	if !ctx.identInfo(ident).IsPtrWrapped {
+		// should also be able to support variables that are of pointer type
+		ctx.todo(stmt, "can only inc/dec pointer-wrapped variables")
 	}
 	op := coq.OpPlus
 	if stmt.Tok == token.DEC {
 		op = coq.OpMinus
 	}
-	return pointerAssign(stmt.X.(*ast.Ident), coq.BinaryExpr{
+	return pointerAssign(ident, coq.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
 		Y:  coq.IntLiteral{1},
@@ -1571,7 +1588,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.DeclStmt:
 		return ctx.varDeclStmt(s)
 	case *ast.IncDecStmt:
-		return ctx.incDecStmt(s, c, loopVar)
+		return ctx.incDecStmt(s, loopVar)
 	case *ast.BlockStmt:
 		return coq.NewAnon(ctx.blockStmt(s, loopVar))
 	case *ast.IfStmt:
