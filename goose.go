@@ -1081,6 +1081,9 @@ func (c *cursor) Remainder() []ast.Stmt {
 }
 
 func endsWithReturn(b *ast.BlockStmt) bool {
+	if len(b.List) == 0 {
+		return false
+	}
 	// TODO: should also catch implicit continue
 	switch b.List[len(b.List)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
