@@ -610,6 +610,10 @@ Definition stringAppend: val :=
   λ: "s" "x",
     #(str"prefix ") + "s" + #(str" ") + uint64_to_string "x".
 
+Definition stringLength: val :=
+  λ: "s",
+    strLen "s".
+
 (* struct_method.go *)
 
 Module C.
