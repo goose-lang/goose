@@ -1650,12 +1650,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	return fd
 }
 
-func (ctx Ctx) constDecl(d *ast.GenDecl) coq.ConstDecl {
-	spec := d.Specs[0].(*ast.ValueSpec)
-	if len(d.Specs) > 1 || len(spec.Names) > 1 {
-		ctx.unsupported(d, "multiple const declarations")
-		return coq.ConstDecl{}
-	}
+func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 	ident := spec.Names[0]
 	cd := coq.ConstDecl{
 		Name:     ident.Name,
@@ -1675,6 +1670,14 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) coq.ConstDecl {
 	}
 	cd.Val = ctx.expr(spec.Values[0])
 	return cd
+}
+
+func (ctx Ctx) constDecl(d *ast.GenDecl) []coq.Decl {
+	var specs []coq.Decl
+	for _, spec := range d.Specs {
+		specs = append(specs, ctx.constSpec(spec.(*ast.ValueSpec)))
+	}
+	return specs
 }
 
 func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
@@ -1714,11 +1717,11 @@ func (ctx Ctx) checkImports(d []ast.Spec) {
 	}
 }
 
-func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
+func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 		fd := ctx.funcDecl(d)
-		return fd
+		return []coq.Decl{fd}
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:
@@ -1738,7 +1741,7 @@ func (ctx Ctx) maybeDecl(d ast.Decl) coq.Decl {
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
 			ty := ctx.typeDecl(d.Doc, spec)
-			return ty
+			return []coq.Decl{ty}
 		default:
 			ctx.nope(d, "unknown token type in decl")
 		}

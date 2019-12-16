@@ -35,9 +35,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, err error) {
 			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))
 		}
 		for _, d := range f.Ast.Decls {
-			if d := ctx.maybeDecl(d); d != nil {
-				decls = append(decls, d)
-			}
+			decls = append(decls, ctx.maybeDecls(d)...)
 		}
 	}
 	return
