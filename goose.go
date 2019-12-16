@@ -264,6 +264,10 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 	return coq.PtrType{ctx.coqType(e.X)}
 }
 
+func isEmptyInterface(e *ast.InterfaceType) bool {
+	return len(e.Methods.List) == 0
+}
+
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -279,6 +283,12 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.arrayType(e)
 	case *ast.StarExpr:
 		return ctx.ptrType(e)
+	case *ast.InterfaceType:
+		if isEmptyInterface(e) {
+			return coq.TypeIdent("anyT")
+		} else {
+			ctx.unsupported(e, "non-empty interface")
+		}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
