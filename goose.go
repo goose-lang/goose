@@ -642,7 +642,7 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 	switch basicTy.Kind() {
 	// conversion from uint64 -> uint64 is possible if the conversion
 	// causes an untyped literal to become a uint64
-	case types.Int, types.Uint64:
+	case types.Uint, types.Int, types.Uint64:
 		return intTypeInfo{width: 64}, true
 	case types.UntypedInt:
 		return intTypeInfo{isUntyped: true}, true
