@@ -561,7 +561,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		if f.Name == "string" {
 			arg := args[0]
 			if !isByteSlice(ctx.typeOf(arg)) {
-				ctx.unsupported(arg,
+				ctx.unsupported(call,
 					"conversion from type %v to string", ctx.typeOf(arg))
 				return coq.CallExpr{}
 			}
@@ -599,8 +599,18 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		}
 		elt := ctx.coqType(typeArg.Elt)
 		return coq.NewCallExpr("NewSlice", elt, ctx.expr(args[1]))
+	}
+	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
+	case *types.Slice:
+		return coq.NewCallExpr("NewSlice",
+			ctx.coqTypeOfType(args[0], ty.Elem()),
+			ctx.expr(args[1]))
+	case *types.Map:
+		return coq.NewCallExpr("NewMap",
+			ctx.coqTypeOfType(args[0], ty.Elem()))
 	default:
-		ctx.nope(typeArg, "make() of %s, not a map or array", typeArg)
+		ctx.unsupported(args[0],
+			"make of should be slice or map, got %v", ty)
 	}
 	return coq.CallExpr{}
 }

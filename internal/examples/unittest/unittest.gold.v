@@ -522,6 +522,8 @@ Definition ReplicatedDiskRecover: val :=
 
 (* slices.go *)
 
+Definition SliceAlias: ty := slice.T boolT.
+
 Definition sliceOps: val :=
   λ: <>,
     let: "x" := NewSlice uint64T #10 in
@@ -558,6 +560,10 @@ End sliceOfThings.
 Definition sliceOfThings__getThingRef: val :=
   λ: "ts" "i",
     SliceRef (sliceOfThings.get "things" "ts") "i".
+
+Definition makeAlias: val :=
+  λ: <>,
+    NewSlice boolT #10.
 
 (* spawn.go *)
 
