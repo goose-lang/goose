@@ -1411,19 +1411,10 @@ func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
 	return coq.NewAnon(coq.StoreStmt{Dst: coq.IdentExpr(dst.Name), X: x})
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
-	if s.Tok == token.DEFINE {
-		return ctx.defineStmt(s)
-	}
-	if s.Tok != token.ASSIGN {
-		ctx.unsupported(s, "%v assignment", s.Tok)
-	}
-	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
-		ctx.unsupported(s, "multiple assignment")
-	}
-	rhs := s.Rhs[0]
+func (ctx Ctx) assignFromTo(s ast.Node,
+	lhs ast.Expr, rhs ast.Expr) coq.Binding {
 	// assignments can mean various things
-	switch lhs := s.Lhs[0].(type) {
+	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if ctx.identInfo(lhs).IsPtrWrapped {
 			return pointerAssign(lhs, ctx.expr(rhs))
@@ -1436,14 +1427,14 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy.(type) {
 		case *types.Slice:
-			value := ctx.expr(s.Rhs[0])
+			value := ctx.expr(rhs)
 			return coq.NewAnon(coq.NewCallExpr(
 				"SliceSet",
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
 		case *types.Map:
-			value := ctx.expr(s.Rhs[0])
+			value := ctx.expr(rhs)
 			return coq.NewAnon(coq.NewCallExpr(
 				"MapInsert",
 				ctx.expr(lhs.X),
@@ -1458,11 +1449,11 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 			return coq.NewAnon(coq.NewCallExpr("struct.store",
 				coq.StructDesc(info.name),
 				ctx.expr(lhs.X),
-				ctx.expr(s.Rhs[0])))
+				ctx.expr(rhs)))
 		}
 		return coq.NewAnon(coq.StoreStmt{
 			Dst: ctx.expr(lhs.X),
-			X:   ctx.expr(s.Rhs[0]),
+			X:   ctx.expr(rhs),
 		})
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
@@ -1483,6 +1474,19 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 		ctx.unsupported(s, "assigning to complex expression")
 	}
 	return coq.Binding{}
+}
+
+func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
+	if s.Tok == token.DEFINE {
+		return ctx.defineStmt(s)
+	}
+	if s.Tok != token.ASSIGN {
+		ctx.unsupported(s, "%v assignment", s.Tok)
+	}
+	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
+		ctx.unsupported(s, "multiple assignment")
+	}
+	return ctx.assignFromTo(s, s.Lhs[0], s.Rhs[0])
 }
 
 func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, c *cursor, loopVar *string) coq.Binding {
