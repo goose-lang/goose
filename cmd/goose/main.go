@@ -27,6 +27,10 @@ func main() {
 	flag.StringVar(&outFile, "out", "-",
 		"file to output to (use '-' for stdout)")
 
+	var ignoreErrors bool
+	flag.BoolVar(&ignoreErrors, "ignore-errors", false,
+		"output partial translation even if there are errors")
+
 	flag.Parse()
 	if flag.NArg() != 1 {
 		flag.Usage()
@@ -38,7 +42,9 @@ func main() {
 	f, err := config.TranslatePackage(srcDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, red(err.Error()))
-		os.Exit(1)
+		if !ignoreErrors {
+			os.Exit(1)
+		}
 	}
 	if outFile == "-" {
 		f.Write(os.Stdout)
@@ -51,5 +57,8 @@ func main() {
 		}
 		defer out.Close()
 		f.Write(out)
+	}
+	if err != nil {
+		os.Exit(1)
 	}
 }

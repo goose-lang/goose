@@ -239,12 +239,12 @@ func translateErrorFile(c *C, filePath string) *errorTestResult {
 		return nil
 	}
 
-	_, err = ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
-	if err == nil {
+	_, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
+	if len(errs) == 0 {
 		c.Errorf("expected error while translating %s", filePath)
 		return nil
 	}
-	cerr := err.(*goose.ConversionError)
+	cerr := errs[0].(*goose.ConversionError)
 
 	expectedErr := getExpectedError(fset, f.Comments)
 	if expectedErr == nil {

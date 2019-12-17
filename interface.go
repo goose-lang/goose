@@ -15,8 +15,9 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-// Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, err error) {
+// declsOrError translates one top-level declaration,
+// catching Goose translation errors and returning them as a regular Go error
+func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if r, ok := r.(gooseError); ok {
@@ -26,6 +27,11 @@ func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, err error) {
 			}
 		}
 	}()
+	return ctx.maybeDecls(stmt), nil
+}
+
+// Decls converts an entire package (possibly multiple files) to a list of decls
+func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, errs []error) {
 	for _, f := range fs {
 		if len(fs) > 1 {
 			decls = append(decls,
@@ -35,10 +41,25 @@ func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, err error) {
 			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))
 		}
 		for _, d := range f.Ast.Decls {
-			decls = append(decls, ctx.maybeDecls(d)...)
+			newDecls, err := ctx.declsOrError(d)
+			decls = append(decls, newDecls...)
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 	return
+}
+
+type MultipleErrors []error
+
+func (es MultipleErrors) Error() string {
+	var errs []string
+	for _, e := range es {
+		errs = append(errs, e.Error())
+	}
+	errs = append(errs, fmt.Sprintf("%d errors", len(es)))
+	return strings.Join(errs, "\n\n")
 }
 
 type NamedFile struct {
@@ -115,9 +136,10 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 			errors.Wrap(err, "code does not type check")
 	}
 
-	decls, err := ctx.Decls(files...)
-	if err != nil {
-		return coq.File{}, errors.Wrap(err, "conversion failed")
+	decls, errs := ctx.Decls(files...)
+	err = nil
+	if len(errs) != 0 {
+		err = errors.Wrap(MultipleErrors(errs), "conversion failed")
 	}
-	return coq.File{GoPackage: pkgName, Decls: decls}, nil
+	return coq.File{GoPackage: pkgName, Decls: decls}, err
 }
