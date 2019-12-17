@@ -820,8 +820,8 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 			lit.AddField(ident, ctx.expr(el.Value))
 			foundFields[ident] = true
 		default:
-			// shouldn't be possible given type checking above
-			ctx.nope(el, "literal component in struct")
+			ctx.unsupported(e,
+				"un-keyed struct literal field %v", ctx.printGo(el))
 		}
 	}
 	for _, f := range structTypeFields(structType) {
