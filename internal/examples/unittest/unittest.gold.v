@@ -71,6 +71,8 @@ Definition conditionalAssign: val :=
 
 (* conversions.go *)
 
+Definition stringWrapper: ty := stringT.
+
 Definition typedLiteral: val :=
   λ: <>,
     #3.
@@ -92,6 +94,10 @@ Definition stringToByteSlice: val :=
 Definition byteSliceToString: val :=
   λ: "p",
     let: "s" := Data.bytesToString "p" in
+    "s".
+
+Definition stringWrapperToString: val :=
+  λ: "s",
     "s".
 
 (* data_structures.go *)
