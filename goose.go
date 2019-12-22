@@ -935,6 +935,16 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 	return coq.GallinaIdent("slice.nil")
 }
 
+func (ctx Ctx) isPointerInModel(e ast.Expr) bool {
+	if _, ok := ctx.typeOf(e).Underlying().(*types.Pointer); ok {
+		return true
+	}
+	if ident, ok := e.(*ast.Ident); ok {
+		return ctx.identInfo(ident).IsPtrWrapped
+	}
+	return false
+}
+
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{ctx.expr(e.X)}
@@ -948,6 +958,35 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 			if _, ok := ctx.typeOf(x.X).(*types.Slice); ok {
 				return coq.NewCallExpr("SliceRef",
 					ctx.expr(x.X), ctx.expr(x.Index))
+			}
+		}
+		if xSel, ok := e.X.(*ast.SelectorExpr); ok {
+			// e is &s.b
+			if sTy, ok := getStructInfo(ctx.typeOf(xSel.X)); ok {
+				var x coq.Expr
+				// the easy case, where the struct is already a pointer
+				if sTy.throughPointer {
+					x = ctx.expr(xSel.X)
+				} else {
+					ident, ok := getIdent(xSel.X)
+					if ok {
+						x = coq.IdentExpr(ident)
+					} else {
+						// To handle this, we should have more general support
+						// for translating an expression as a literal pointer.
+						//
+						// It might be needed to handle s.f1.f2 where s is a
+						// var; the correct translation first translates s.f1 as
+						// a pointer, then handles the f2 offset.
+						ctx.futureWork(e,
+							"address of field in a non-identifier struct value")
+					}
+				}
+				fieldName := xSel.Sel.Name
+				return coq.NewCallExpr("struct.fieldRef",
+					coq.StructDesc(sTy.name),
+					coq.IdentExpr(fieldName),
+					x)
 			}
 		}
 		if _, ok := ctx.typeOf(e.X).Underlying().(*types.Struct); ok {

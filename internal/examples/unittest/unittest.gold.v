@@ -751,6 +751,15 @@ Definition S__negateC: val :=
   λ: "s",
     struct.storeF S.S "c" "s" (~ (struct.loadF S.S "c" "s")).
 
+Definition S__refC: val :=
+  λ: "s",
+    struct.fieldRef S.S "c" "s".
+
+Definition localSRef: val :=
+  λ: <>,
+    let: "s" := ref (zero_val S.T) in
+    struct.fieldRef S.S "b" "s".
+
 (* synchronization.go *)
 
 (* DoSomeLocking uses the entire lock API *)

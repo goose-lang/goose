@@ -38,3 +38,15 @@ func (s *S) writeB(two TwoInts) {
 func (s *S) negateC() {
 	s.c = !s.c
 }
+
+func (s *S) refC() *bool {
+	return &s.c
+}
+
+func localSRef() *TwoInts {
+	// this is all modeled correctly because if local variables escape Go
+	// allocates them on the heap; we model stack variables linearly but can
+	// optionally switch to a heavier-weight but more flexible heap-based model
+	var s S
+	return &s.b
+}
