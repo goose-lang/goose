@@ -960,45 +960,17 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
-		if xSel, ok := e.X.(*ast.SelectorExpr); ok {
-			// e is &s.b
-			if info, ok := getStructInfo(ctx.typeOf(xSel.X)); ok {
-				var x coq.Expr
-				// the easy case, where the struct is already a pointer
-				if info.throughPointer {
-					x = ctx.expr(xSel.X)
-				} else {
-					ident, ok := getIdent(xSel.X)
-					if ok {
-						x = coq.IdentExpr(ident)
-					} else {
-						// To handle this, we should have more general support
-						// for translating an expression as a literal pointer.
-						//
-						// It might be needed to handle s.f1.f2 where s is a
-						// var; the correct translation first translates s.f1 as
-						// a pointer, then handles the f2 offset.
-						ctx.futureWork(e,
-							"address of field in a non-identifier struct value")
-					}
-				}
-				fieldName := xSel.Sel.Name
-				return coq.NewCallExpr("struct.fieldRef",
-					coq.StructDesc(info.name),
-					coq.GallinaString(fieldName),
-					x)
-			}
-		}
 		if _, ok := ctx.typeOf(e.X).Underlying().(*types.Struct); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
-			if !ok {
-				ctx.unsupported(e,
-					"'&' on a struct can only be for literals")
+			if ok {
+				// e is &s{...} (a struct literal)
+				sl := ctx.structLiteral(structLit)
+				sl.Allocation = true
+				return sl
 			}
-			sl := ctx.structLiteral(structLit)
-			sl.Allocation = true
-			return sl
 		}
+		// e is something else
+		return ctx.refExpr(e.X)
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
@@ -1512,7 +1484,7 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		return coq.IdentExpr(s.Name)
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(s.X)
-		info, ok := getStructInfo(ty.Underlying())
+		info, ok := getStructInfo(ty)
 		if !ok {
 			ctx.unsupported(s,
 				"reference to selector from non-struct type %v", ty)
