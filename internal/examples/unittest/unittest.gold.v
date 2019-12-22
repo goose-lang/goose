@@ -760,6 +760,13 @@ Definition localSRef: val :=
     let: "s" := ref (zero_val S.T) in
     struct.fieldRef S.S "b" "s".
 
+Definition setField: val :=
+  λ: <>,
+    let: "s" := ref (zero_val S.T) in
+    struct.storeF S.S "a" "s" #0;;
+    struct.storeF S.S "c" "s" #true;;
+    !"s".
+
 (* synchronization.go *)
 
 (* DoSomeLocking uses the entire lock API *)

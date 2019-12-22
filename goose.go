@@ -1577,19 +1577,17 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		})
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
-		if ty, ok := ty.Underlying().(*types.Pointer); ok {
-			info, ok := getStructInfo(ty.Elem())
-			if ok {
-				fieldName := lhs.Sel.Name
-				return coq.NewAnon(coq.NewCallExpr("struct.storeF",
-					coq.StructDesc(info.name),
-					coq.GallinaString(fieldName),
-					ctx.expr(lhs.X),
-					rhs))
-			}
+		info, ok := getStructInfo(ty)
+		if ok {
+			fieldName := lhs.Sel.Name
+			return coq.NewAnon(coq.NewCallExpr("struct.storeF",
+				coq.StructDesc(info.name),
+				coq.GallinaString(fieldName),
+				ctx.refExpr(lhs.X),
+				rhs))
 		}
 		ctx.unsupported(s,
-			"assigning to field of non-struct pointer type %v", ty)
+			"assigning to field of non-struct type %v", ty)
 	default:
 		ctx.unsupported(s, "assigning to complex expression")
 	}

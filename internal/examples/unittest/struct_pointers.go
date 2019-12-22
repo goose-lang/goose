@@ -50,3 +50,10 @@ func localSRef() *TwoInts {
 	var s S
 	return &s.b
 }
+
+func setField() S {
+	var s S
+	s.a = 0
+	s.c = true
+	return s
+}
