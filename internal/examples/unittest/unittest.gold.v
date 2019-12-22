@@ -568,6 +568,10 @@ Definition sliceOps: val :=
     let: "v4" := SliceRef "x" #2 in
     "v1" + SliceGet "v2" #0 + SliceGet "v3" #1 + !"v4".
 
+Definition makeSingletonSlice: val :=
+  λ: "x",
+    SliceSingleton "x".
+
 Module thing.
   Definition S := struct.decl [
     "x" :: uint64T

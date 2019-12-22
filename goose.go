@@ -749,6 +749,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 type structTypeInfo struct {
 	name           string
 	throughPointer bool
+	structType     *types.Struct
 }
 
 func getStructInfo(t types.Type) (structTypeInfo, bool) {
@@ -758,14 +759,23 @@ func getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		if _, ok := t.Underlying().(*types.Struct); ok {
+		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
 				name:           t.Obj().Name(),
 				throughPointer: throughPointer,
+				structType:     structType,
 			}, true
 		}
 	}
 	return structTypeInfo{}, false
+}
+
+func (info structTypeInfo) fields() []string {
+	var fields []string
+	for i := 0; i < info.structType.NumFields(); i++ {
+		fields = append(fields, info.structType.Field(i).Name())
+	}
+	return fields
 }
 
 func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
@@ -797,24 +807,28 @@ func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.Stru
 	}
 }
 
-func structTypeFields(ty *types.Struct) []string {
-	var fields []string
-	for i := 0; i < ty.NumFields(); i++ {
-		fields = append(fields, ty.Field(i).Name())
+func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
+	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
+		if len(e.Elts) == 0 {
+			return coq.NewCallExpr("nil")
+		}
+		if len(e.Elts) == 1 {
+			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})
+		}
+		ctx.unsupported(e, "struct literal with multiple elements")
+		return nil
 	}
-	return fields
+	info, ok := getStructInfo(ctx.typeOf(e))
+	if ok {
+		return ctx.structLiteral(info, e)
+	}
+	ctx.unsupported(e, "composite literal of type %v", ctx.typeOf(e))
+	return nil
 }
 
-func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
-	structType, ok := ctx.typeOf(e).Underlying().(*types.Struct)
-	if !ok {
-		ctx.unsupported(e, "non-struct literal")
-	}
-	structName, ok := getIdent(e.Type)
-	if !ok {
-		ctx.nope(e.Type, "non-struct literal after type check")
-	}
-	lit := coq.NewStructLiteral(structName)
+func (ctx Ctx) structLiteral(info structTypeInfo,
+	e *ast.CompositeLit) coq.StructLiteral {
+	lit := coq.NewStructLiteral(info.name)
 	foundFields := make(map[string]bool)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
@@ -831,7 +845,7 @@ func (ctx Ctx) structLiteral(e *ast.CompositeLit) coq.StructLiteral {
 				"un-keyed struct literal field %v", ctx.printGo(el))
 		}
 	}
-	for _, f := range structTypeFields(structType) {
+	for _, f := range info.fields() {
 		if !foundFields[f] {
 			ctx.unsupported(e, "incomplete struct literal")
 		}
@@ -960,11 +974,11 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
-		if _, ok := ctx.typeOf(e.X).Underlying().(*types.Struct); ok {
+		if info, ok := getStructInfo(ctx.typeOf(e.X)); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
 			if ok {
 				// e is &s{...} (a struct literal)
-				sl := ctx.structLiteral(structLit)
+				sl := ctx.structLiteral(info, structLit)
 				sl.Allocation = true
 				return sl
 			}
@@ -1047,7 +1061,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.SelectorExpr:
 		return ctx.selectExpr(e)
 	case *ast.CompositeLit:
-		return ctx.structLiteral(e)
+		return ctx.compositeLiteral(e)
 	case *ast.BasicLit:
 		return ctx.basicLiteral(e)
 	case *ast.BinaryExpr:

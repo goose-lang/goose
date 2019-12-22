@@ -11,6 +11,10 @@ func sliceOps() uint64 {
 	return v1 + v2[0] + v3[1] + *v4
 }
 
+func makeSingletonSlice(x uint64) []uint64 {
+	return []uint64{x}
+}
+
 type thing struct {
 	x uint64
 }
