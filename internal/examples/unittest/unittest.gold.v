@@ -40,6 +40,35 @@ Definition ConstWithArith : expr := #4 + #3 * TypedInt.
 
 Definition TypedInt32 : expr := #(U32 3).
 
+(* control_flow.go *)
+
+Definition conditionalReturn: val :=
+  λ: "x",
+    (if: "x"
+    then #0
+    else #1).
+
+Definition alwaysReturn: val :=
+  λ: "x",
+    (if: "x"
+    then #0
+    else #1).
+
+Definition earlyReturn: val :=
+  λ: "x",
+    (if: "x"
+    then #()
+    else #()).
+
+Definition conditionalAssign: val :=
+  λ: "x",
+    let: "y" := ref (zero_val uint64T) in
+    (if: "x"
+    then "y" <- #1
+    else "y" <- #2);;
+    "y" <- !"y" + #1;;
+    !"y".
+
 (* conversions.go *)
 
 Definition typedLiteral: val :=

@@ -1080,12 +1080,24 @@ func (c *cursor) Remainder() []ast.Stmt {
 	return s
 }
 
-func endsWithReturn(b *ast.BlockStmt) bool {
-	if len(b.List) == 0 {
+func endsWithReturn(s ast.Stmt) bool {
+	if s == nil {
+		return false
+	}
+	switch s := s.(type) {
+	case *ast.BlockStmt:
+		return stmtsEndWithReturn(s.List)
+	default:
+		return stmtsEndWithReturn([]ast.Stmt{s})
+	}
+}
+
+func stmtsEndWithReturn(ss []ast.Stmt) bool {
+	if len(ss) == 0 {
 		return false
 	}
 	// TODO: should also catch implicit continue
-	switch b.List[len(b.List)-1].(type) {
+	switch ss[len(ss)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
 	}
@@ -1151,7 +1163,13 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 		ife.Else = retUnit
 		return coq.NewAnon(ife)
 	}
-	if !remaining {
+	elseEndsWithReturn := endsWithReturn(s.Else)
+	// the if expression is last in the surrounding block,
+	// so returns in it become returns from the overall function
+	// OR
+	// neither branch terminates the outer function,
+	// the if expression is just a conditional in the middle
+	if !remaining || (!bodyEndsWithReturn && !elseEndsWithReturn) {
 		if s.Else == nil {
 			ife.Else = coq.ReturnExpr{coq.Tt}
 			return coq.NewAnon(ife)
