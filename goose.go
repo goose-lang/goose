@@ -815,7 +815,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 		if len(e.Elts) == 1 {
 			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})
 		}
-		ctx.unsupported(e, "struct literal with multiple elements")
+		ctx.unsupported(e, "slice literal with multiple elements")
 		return nil
 	}
 	info, ok := getStructInfo(ctx.typeOf(e))
