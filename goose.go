@@ -962,10 +962,10 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		}
 		if xSel, ok := e.X.(*ast.SelectorExpr); ok {
 			// e is &s.b
-			if sTy, ok := getStructInfo(ctx.typeOf(xSel.X)); ok {
+			if info, ok := getStructInfo(ctx.typeOf(xSel.X)); ok {
 				var x coq.Expr
 				// the easy case, where the struct is already a pointer
-				if sTy.throughPointer {
+				if info.throughPointer {
 					x = ctx.expr(xSel.X)
 				} else {
 					ident, ok := getIdent(xSel.X)
@@ -984,8 +984,8 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 				}
 				fieldName := xSel.Sel.Name
 				return coq.NewCallExpr("struct.fieldRef",
-					coq.StructDesc(sTy.name),
-					coq.IdentExpr(fieldName),
+					coq.StructDesc(info.name),
+					coq.GallinaString(fieldName),
 					x)
 			}
 		}
@@ -1497,6 +1497,36 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
 	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec))
 }
 
+// refExpr translates an expression which is a pointer in Go to a GooseLang
+// expr for the pointer itself (whereas ordinarily it would be implicitly loaded)
+//
+// TODO: integrate this into the reference-of, store, and load code
+//   note that we will no longer special-case when the reference is to a
+//   basic value and will use generic type-based support in Coq,
+//   hence on the Coq side we'll always have to reduce type-based loads and
+//   stores when they end up loading single-word values.
+func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
+	switch s := s.(type) {
+	case *ast.Ident:
+		// this is the intended translation even if s is pointer-wrapped
+		return coq.IdentExpr(s.Name)
+	case *ast.SelectorExpr:
+		ty := ctx.typeOf(s.X)
+		info, ok := getStructInfo(ty.Underlying())
+		if !ok {
+			ctx.unsupported(s,
+				"reference to selector from non-struct type %v", ty)
+		}
+		fieldName := s.Sel.Name
+		return coq.NewCallExpr("struct.fieldRef", coq.StructDesc(info.name),
+			coq.GallinaString(fieldName), ctx.refExpr(s.X))
+	// TODO: should move support for slice indexing here as well
+	default:
+		ctx.futureWork(s, "reference to other types of expressions")
+		return nil
+	}
+}
+
 func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
 	return coq.NewAnon(coq.StoreStmt{Dst: coq.IdentExpr(dst.Name), X: x})
 }
@@ -1547,7 +1577,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		})
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
-		if ty, ok := ty.(*types.Pointer); ok {
+		if ty, ok := ty.Underlying().(*types.Pointer); ok {
 			info, ok := getStructInfo(ty.Elem())
 			if ok {
 				fieldName := lhs.Sel.Name
