@@ -430,10 +430,21 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 
 func isLockRef(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
-		if elTy, ok := t.Elem().(*types.Named); ok {
-			name := elTy.Obj()
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
 			return name.Pkg().Name() == "sync" &&
 				name.Name() == "RWMutex"
+		}
+	}
+	return false
+}
+
+func isCondVar(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
+			return name.Pkg().Name() == "sync" &&
+				name.Name() == "Cond"
 		}
 	}
 	return false
@@ -481,9 +492,23 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 		return coq.NewCallExpr("Data.lockAcquire", args...)
 	}
 	return coq.NewCallExpr("Data.lockRelease", args...)
-
 }
 
+func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
+	l := ctx.expr(f.X)
+	switch f.Sel.Name {
+	case "Signal":
+		return coq.NewCallExpr("Data.condSignal", l)
+	case "Broadcast":
+		return coq.NewCallExpr("Data.condBroadcast", l)
+	case "Wait":
+		return coq.NewCallExpr("Data.condWait", l)
+	default:
+		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
+		return coq.CallExpr{}
+	}
+
+}
 func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	call *ast.CallExpr) coq.Expr {
 	args := call.Args
@@ -521,6 +546,12 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
+	if isIdent(f.X, "sync") {
+		switch f.Sel.Name {
+		case "NewCond":
+			return ctx.newCoqCall("Data.newCondVar", args)
+		}
+	}
 	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
 	return coq.CallExpr{}
 }
@@ -535,8 +566,8 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	if isLockRef(selectorType) {
 		return ctx.lockMethod(f)
 	}
-	if t, ok := selectorType.(*types.Pointer); ok {
-		selectorType = t.Elem()
+	if isCondVar(selectorType) {
+		return ctx.condVarMethod(f)
 	}
 	structInfo, ok := getStructInfo(selectorType)
 	if ok {
