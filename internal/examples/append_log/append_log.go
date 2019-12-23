@@ -10,6 +10,44 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 )
 
+// TODO: use this instead of encoding manually
+type Enc struct {
+	b   disk.Block
+	off *uint64
+}
+
+func NewEnc() Enc {
+	return Enc{
+		b:   make(disk.Block, disk.BlockSize),
+		off: new(uint64),
+	}
+}
+
+func (enc Enc) PutInt(x uint64) {
+	off := *enc.off
+	machine.UInt64Put(enc.b[off:], x)
+	*enc.off += 8
+}
+
+func (enc Enc) Finish() disk.Block {
+	return enc.b
+}
+
+type Dec struct {
+	b   disk.Block
+	off *uint64
+}
+
+func NewDec(b disk.Block) Dec {
+	return Dec{b: b, off: new(uint64)}
+}
+
+func (dec Dec) GetInt() uint64 {
+	off := *dec.off
+	*dec.off += 8
+	return machine.UInt64Get(dec.b[off:])
+}
+
 type Log struct {
 	sz     uint64
 	diskSz uint64
