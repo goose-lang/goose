@@ -52,3 +52,36 @@ func TestGoUseStructMethodsOnPointer(t *testing.T) {
 	assert.Equal(t, uint64(2), s.GetA()) // value method on pointer
 	assert.Equal(t, uint64(1), s.a)
 }
+
+type IntPair struct {
+	b uint64
+	a uint64
+}
+
+type withNext func(next func() uint64) interface{}
+
+func initializeWith(body withNext) interface{} {
+	index := uint64(0)
+	next := func() uint64 {
+		index++
+		return index
+	}
+	return body(next)
+}
+
+func TestStructInitializedInProgramOrder(t *testing.T) {
+	s1 := initializeWith(func(next func() uint64) interface{} {
+		return IntPair{
+			a: next(),
+			b: next(),
+		}
+	})
+	assert.Equal(t, IntPair{a: 1, b: 2}, s1)
+	s2 := initializeWith(func(next func() uint64) interface{} {
+		return IntPair{
+			b: next(),
+			a: next(),
+		}
+	})
+	assert.Equal(t, IntPair{b: 1, a: 2}, s2)
+}
