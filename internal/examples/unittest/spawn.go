@@ -10,15 +10,15 @@ import (
 func Skip() {}
 
 func simpleSpawn() {
-	l := new(sync.RWMutex)
+	l := new(sync.Mutex)
 	v := new(uint64)
 	machine.Spawn(func() {
-		l.RLock()
+		l.Lock()
 		x := *v
 		if x > 0 {
 			Skip()
 		}
-		l.RUnlock()
+		l.Unlock()
 	})
 	l.Lock()
 	*v = 1

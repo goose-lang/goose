@@ -632,14 +632,14 @@ Definition simpleSpawn: val :=
   λ: <>,
     let: "l" := Data.newLock #() in
     let: "v" := ref (zero_val uint64T) in
-    Fork (Data.lockAcquire Reader "l";;
+    Fork (Data.lockAcquire Writer "l";;
           let: "x" := !"v" in
           (if: "x" > #0
           then
             Skip #();;
             #()
           else #());;
-          Data.lockRelease Reader "l");;
+          Data.lockRelease Writer "l");;
     Data.lockAcquire Writer "l";;
     "v" <- #1;;
     Data.lockRelease Writer "l".
@@ -794,11 +794,7 @@ Definition setField: val :=
 Definition DoSomeLocking: val :=
   λ: "l",
     Data.lockAcquire Writer "l";;
-    Data.lockRelease Writer "l";;
-    Data.lockAcquire Reader "l";;
-    Data.lockAcquire Reader "l";;
-    Data.lockRelease Reader "l";;
-    Data.lockRelease Reader "l".
+    Data.lockRelease Writer "l".
 
 Definition makeLock: val :=
   λ: <>,

@@ -3,13 +3,13 @@ package unittest
 import "sync"
 
 func useLocks() {
-	m := new(sync.RWMutex)
+	m := new(sync.Mutex)
 	m.Lock()
 	m.Unlock()
 }
 
 func useCondVar() {
-	m := new(sync.RWMutex)
+	m := new(sync.Mutex)
 	c := sync.NewCond(m)
 	m.Lock()
 	c.Signal()

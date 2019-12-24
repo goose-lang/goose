@@ -251,9 +251,9 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
-	// check for *sync.RWMutex
+	// check for *sync.Mutex
 	if e, ok := e.X.(*ast.SelectorExpr); ok {
-		if isIdent(e.X, "sync") && isIdent(e.Sel, "RWMutex") {
+		if isIdent(e.X, "sync") && isIdent(e.Sel, "Mutex") {
 			return coq.TypeIdent("lockRefT")
 		}
 	}
@@ -433,7 +433,7 @@ func isLockRef(t types.Type) bool {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
 			return name.Pkg().Name() == "sync" &&
-				name.Name() == "RWMutex"
+				name.Name() == "Mutex"
 		}
 	}
 	return false
@@ -467,31 +467,18 @@ func isString(t types.Type) bool {
 }
 
 func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
-	var args []coq.Expr
-	var acquire, writer bool
+	arg := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Lock":
-		acquire, writer = true, true
-	case "RLock":
-		acquire, writer = true, false
+		return coq.NewCallExpr("Data.lockAcquire",
+			coq.GallinaIdent("Writer"), arg)
 	case "Unlock":
-		acquire, writer = false, true
-	case "RUnlock":
-		acquire, writer = false, false
+		return coq.NewCallExpr("Data.lockRelease",
+			coq.GallinaIdent("Writer"), arg)
 	default:
-		ctx.unsupported(f, "method %s of sync.RWMutex", f.Sel.Name)
+		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
 		return coq.CallExpr{}
 	}
-	if writer {
-		args = append(args, coq.GallinaIdent("Writer"))
-	} else {
-		args = append(args, coq.GallinaIdent("Reader"))
-	}
-	args = append(args, ctx.expr(f.X))
-	if acquire {
-		return coq.NewCallExpr("Data.lockAcquire", args...)
-	}
-	return coq.NewCallExpr("Data.lockRelease", args...)
 }
 
 func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
@@ -659,7 +646,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 // newExpr parses a call to new() into an appropriate allocation
 func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
-		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "RWMutex") {
+		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
 			return coq.NewCallExpr("Data.newLock")
 		}
 	}

@@ -13,8 +13,8 @@ const LOGMAXBLK = uint64(510)
 const LOGEND = LOGMAXBLK + LOGSTART
 
 type Log struct {
-	logLock   *sync.RWMutex // protects on disk log
-	memLock   *sync.RWMutex // protects in-memory state
+	logLock   *sync.Mutex // protects on disk log
+	memLock   *sync.Mutex // protects in-memory state
 	logSz     uint64
 	memLog    *[]disk.Block // in-memory log
 	memLen    *uint64       // length of in-memory log
@@ -30,8 +30,8 @@ func (log Log) writeHdr(len uint64) {
 
 func Init(logSz uint64) Log {
 	log := Log{
-		logLock:   new(sync.RWMutex),
-		memLock:   new(sync.RWMutex),
+		logLock:   new(sync.Mutex),
+		memLock:   new(sync.Mutex),
 		logSz:     logSz,
 		memLog:    new([]disk.Block),
 		memLen:    new(uint64),

@@ -345,26 +345,26 @@ Definition NewDb: val :=
    Reflects any completed in-memory writes. *)
 Definition Read: val :=
   λ: "db" "k",
-    Data.lockAcquire Reader (Database.get "bufferL" "db");;
+    Data.lockAcquire Writer (Database.get "bufferL" "db");;
     let: "buf" := !(Database.get "wbuffer" "db") in
     let: ("v", "ok") := MapGet "buf" "k" in
     (if: "ok"
     then
-      Data.lockRelease Reader (Database.get "bufferL" "db");;
+      Data.lockRelease Writer (Database.get "bufferL" "db");;
       ("v", #true)
     else
       let: "rbuf" := !(Database.get "rbuffer" "db") in
       let: ("v2", "ok") := MapGet "rbuf" "k" in
       (if: "ok"
       then
-        Data.lockRelease Reader (Database.get "bufferL" "db");;
+        Data.lockRelease Writer (Database.get "bufferL" "db");;
         ("v2", #true)
       else
-        Data.lockAcquire Reader (Database.get "tableL" "db");;
+        Data.lockAcquire Writer (Database.get "tableL" "db");;
         let: "tbl" := struct.load Table.S (Database.get "table" "db") in
         let: ("v3", "ok") := tableRead "tbl" "k" in
-        Data.lockRelease Reader (Database.get "tableL" "db");;
-        Data.lockRelease Reader (Database.get "bufferL" "db");;
+        Data.lockRelease Writer (Database.get "tableL" "db");;
+        Data.lockRelease Writer (Database.get "bufferL" "db");;
         ("v3", "ok"))).
 
 (* Write sets a key to a new value.
@@ -460,12 +460,10 @@ Definition Compact: val :=
     Database.get "wbuffer" "db" <- "emptyWbuffer";;
     Database.get "rbuffer" "db" <- "buf";;
     Data.lockRelease Writer (Database.get "bufferL" "db");;
-    Data.lockAcquire Reader (Database.get "tableL" "db");;
+    Data.lockAcquire Writer (Database.get "tableL" "db");;
     let: "oldTableName" := !(Database.get "tableName" "db") in
     let: ("oldTable", "t") := constructNewTable "db" "buf" in
     let: "newTable" := freshTable "oldTableName" in
-    Data.lockRelease Reader (Database.get "tableL" "db");;
-    Data.lockAcquire Writer (Database.get "tableL" "db");;
     struct.store Table.S (Database.get "table" "db") "t";;
     Database.get "tableName" "db" <- "newTable";;
     let: "manifestData" := Data.stringToBytes "newTable" in
