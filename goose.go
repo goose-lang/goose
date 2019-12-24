@@ -467,14 +467,12 @@ func isString(t types.Type) bool {
 }
 
 func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
-	arg := ctx.expr(f.X)
+	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Lock":
-		return coq.NewCallExpr("Data.lockAcquire",
-			coq.GallinaIdent("Writer"), arg)
+		return coq.NewCallExpr("lock.acquire", l)
 	case "Unlock":
-		return coq.NewCallExpr("Data.lockRelease",
-			coq.GallinaIdent("Writer"), arg)
+		return coq.NewCallExpr("lock.release", l)
 	default:
 		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
 		return coq.CallExpr{}
@@ -485,11 +483,11 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Signal":
-		return coq.NewCallExpr("Data.condSignal", l)
+		return coq.NewCallExpr("lock.condSignal", l)
 	case "Broadcast":
-		return coq.NewCallExpr("Data.condBroadcast", l)
+		return coq.NewCallExpr("lock.condBroadcast", l)
 	case "Wait":
-		return coq.NewCallExpr("Data.condWait", l)
+		return coq.NewCallExpr("lock.condWait", l)
 	default:
 		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
 		return coq.CallExpr{}
@@ -536,7 +534,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	if isIdent(f.X, "sync") {
 		switch f.Sel.Name {
 		case "NewCond":
-			return ctx.newCoqCall("Data.newCondVar", args)
+			return ctx.newCoqCall("lock.newCond", args)
 		}
 	}
 	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
@@ -647,7 +645,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
-			return coq.NewCallExpr("Data.newLock")
+			return coq.NewCallExpr("lock.new")
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
