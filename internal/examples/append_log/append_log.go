@@ -97,7 +97,7 @@ func writeAll(bks []disk.Block, off uint64) {
 
 func (log *Log) Append(bks []disk.Block) bool {
 	sz := log.sz
-	if 1+sz+uint64(len(bks)) >= log.diskSz {
+	if uint64(len(bks)) >= log.diskSz-1-sz {
 		return false
 	}
 	writeAll(bks, 1+sz)
