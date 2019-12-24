@@ -53,11 +53,15 @@ type Log struct {
 	diskSz uint64
 }
 
+func (log Log) mkHdr() disk.Block {
+	enc := NewEnc()
+	enc.PutInt(log.sz)
+	enc.PutInt(log.diskSz)
+	return enc.Finish()
+}
+
 func (log Log) writeHdr() {
-	hdr := make([]byte, 4096)
-	machine.UInt64Put(hdr, log.sz)
-	machine.UInt64Put(hdr[8:], log.diskSz)
-	disk.Write(0, hdr)
+	disk.Write(0, log.mkHdr())
 }
 
 func Init(diskSz uint64) (Log, bool) {
@@ -71,8 +75,9 @@ func Init(diskSz uint64) (Log, bool) {
 
 func Open() Log {
 	hdr := disk.Read(0)
-	sz := machine.UInt64Get(hdr)
-	diskSz := machine.UInt64Get(hdr[8:])
+	dec := NewDec(hdr)
+	sz := dec.GetInt()
+	diskSz := dec.GetInt()
 	return Log{sz: sz, diskSz: diskSz}
 }
 
