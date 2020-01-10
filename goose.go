@@ -238,6 +238,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
+	case *types.Slice:
+		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	}
 	return coq.TypeIdent("<type>")
 }
