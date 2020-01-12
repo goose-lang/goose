@@ -50,7 +50,9 @@ func NewMemDisk(numBlocks uint64) MemDisk {
 func (d MemDisk) Read(a uint64) Block {
 	d.l.RLock()
 	defer d.l.RUnlock()
-	return d.blocks[a]
+	blk := make([]byte, BlockSize)
+	copy(blk, d.blocks[a])
+	return blk
 }
 
 func (d MemDisk) Write(a uint64, v Block) {
@@ -59,7 +61,9 @@ func (d MemDisk) Write(a uint64, v Block) {
 	}
 	d.l.Lock()
 	defer d.l.Unlock()
-	d.blocks[a] = v
+	blk := make([]byte, BlockSize)
+	copy(blk, v)
+	d.blocks[a] = blk
 }
 
 func (d MemDisk) Size() uint64 {
