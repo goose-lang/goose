@@ -19,8 +19,10 @@ var _ = Suite(&DiskSuite{})
 
 var diskPath = "/tmp/test-disk"
 
+const diskSize uint64 = 100
+
 func (suite *DiskSuite) SetUpTest(c *C) {
-	d, err := NewFileDisk(diskPath, 100)
+	d, err := NewFileDisk(diskPath, diskSize)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +68,7 @@ func (suite *DiskSuite) TestCrash(c *C) {
 	Barrier()
 
 	suite.D.Close()
-	d, err := OpenFileDisk(diskPath)
+	d, err := NewFileDisk(diskPath, diskSize)
 	if err != nil {
 		panic(err)
 	}

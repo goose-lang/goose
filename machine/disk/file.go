@@ -13,27 +13,20 @@ type FileDisk struct {
 var _ Disk = FileDisk{}
 
 func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return FileDisk{}, err
 	}
-	err = f.Truncate(int64(numBlocks * BlockSize))
+	fi, err := f.Stat()
 	if err != nil {
 		return FileDisk{}, err
 	}
-	return FileDisk{f, numBlocks}, nil
-}
-
-func OpenFileDisk(path string) (FileDisk, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return FileDisk{}, err
+	if uint64(fi.Size()) != numBlocks {
+		err = f.Truncate(int64(numBlocks * BlockSize))
+		if err != nil {
+			return FileDisk{}, err
+		}
 	}
-	finfo, err := f.Stat()
-	if err != nil {
-		return FileDisk{}, err
-	}
-	numBlocks := uint64(finfo.Size()) / BlockSize
 	return FileDisk{f, numBlocks}, nil
 }
 
