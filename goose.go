@@ -258,6 +258,9 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 		if isIdent(e.X, "sync") && isIdent(e.Sel, "Mutex") {
 			return coq.TypeIdent("lockRefT")
 		}
+		if isIdent(e.X, "sync") && isIdent(e.Sel, "Cond") {
+			return coq.TypeIdent("condvarRefT")
+		}
 	}
 	info, ok := getStructInfo(ctx.typeOf(e.X))
 	if ok {
