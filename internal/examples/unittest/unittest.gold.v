@@ -299,6 +299,18 @@ Definition useCondVar: val :=
     lock.condWait "c";;
     lock.release "m".
 
+Module hasCondVar.
+  Definition S := struct.decl [
+    "cond" :: condvarRefT
+  ].
+  Definition T: ty := struct.t S.
+  Definition Ptr: ty := struct.ptrT S.
+  Section fields.
+    Context `{ext_ty: ext_types}.
+    Definition get := struct.get S.
+  End fields.
+End hasCondVar.
+
 (* log_debugging.go *)
 
 Definition ToBeDebugged: val :=

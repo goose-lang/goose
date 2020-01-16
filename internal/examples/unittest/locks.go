@@ -17,3 +17,8 @@ func useCondVar() {
 	c.Wait()
 	m.Unlock()
 }
+
+type hasCondVar struct {
+	// sync.Cond on its own is not supported
+	cond *sync.Cond
+}
