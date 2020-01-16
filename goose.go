@@ -202,7 +202,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
 		return "disk.blockT"
 	}
 	if isIdent(e.X, "sync") &&
-		isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex") {
+		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
 		ctx.unsupported(e, "%s without pointer indirection", ctx.printGo(e))
 	}
 	ctx.unsupported(e, "unknown package type %s", e)
