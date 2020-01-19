@@ -12,19 +12,27 @@ import (
 func Test(t *testing.T) { TestingT(t) }
 
 type DiskSuite struct {
-	D FileDisk
+	mem bool
+	D   Disk
 }
 
-var _ = Suite(&DiskSuite{})
+var _ = Suite(&DiskSuite{mem: false})
+var _ = Suite(&DiskSuite{mem: true})
 
 var diskPath = "/tmp/test-disk"
 
 const diskSize uint64 = 100
 
 func (suite *DiskSuite) SetUpTest(c *C) {
-	d, err := NewFileDisk(diskPath, diskSize)
-	if err != nil {
-		panic(err)
+	var d Disk
+	if suite.mem {
+		d = NewMemDisk(diskSize)
+	} else {
+		var err error
+		d, err = NewFileDisk(diskPath, diskSize)
+		if err != nil {
+			panic(err)
+		}
 	}
 	suite.D = d
 	Init(d)
@@ -64,17 +72,31 @@ func (suite *DiskSuite) TestBarrier(c *C) {
 }
 
 func (suite *DiskSuite) TestCrash(c *C) {
+	if suite.mem {
+		// this test doesn't make sense on an in-memory disk
+		return
+	}
+
 	Write(2, block1)
 	Barrier()
 
 	suite.D.Close()
-	d, err := NewFileDisk(diskPath, diskSize)
-	if err != nil {
-		panic(err)
-	}
-	suite.D = d
-	Init(suite.D)
+	suite.SetUpTest(c)
 
 	c.Check(Read(2), DeepEquals, block1)
 	c.Check(Read(3), DeepEquals, block0)
+}
+
+func (suite *DiskSuite) TestModifyReadBlock(c *C) {
+	Write(0, block0)
+	b := Read(0)
+	b[0] = 1
+	c.Check(Read(0)[0], DeepEquals, byte(0))
+}
+
+func (suite *DiskSuite) TestModifyWriteBlock(c *C) {
+	b := make([]byte, 4096)
+	Write(0, b)
+	b[0] = 1
+	c.Check(Read(0)[0], DeepEquals, byte(0))
 }

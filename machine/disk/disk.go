@@ -30,6 +30,9 @@ type Disk interface {
 	// When it returns, all outstanding writes are guaranteed to be durably on
 	// disk
 	Barrier()
+
+	// Close releases any resources used by the disk and makes it unusable.
+	Close()
 }
 
 type MemDisk struct {
@@ -72,6 +75,8 @@ func (d MemDisk) Size() uint64 {
 }
 
 func (d MemDisk) Barrier() {}
+
+func (d MemDisk) Close() {}
 
 var implicitDisk Disk
 
