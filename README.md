@@ -83,3 +83,23 @@ A big disadvantage of extraction is performance. The source code is several step
 Another approach is to use a deeply-embedded language that closely represents an efficient imperative language, such as C. Then one can write code directly in this language (eg, Cogent), produce it as part of proof-producing synthesis (eg, Fiat Cryptography), import it from normal source code (eg, `clightgen` for VST). Regardless of how the code in the language is produced, this approach requires a model of the syntax and semantics of the language at a fairly low-level, including modeled function calls, variable bindings, and local stacks, not to mention concurrency and side effects.
 
 Directly modeling a low-level, imperative language (and especially writing in it) gives a great deal of control, which is good for performance. This approach is also well-suited to end-to-end verification: at first, one can pretty-print the imperative language and use any compiler, but eventually one can shift to a verified compiler and push the assumptions down the software stack.
+
+## Developing goose
+
+The bulk of goose is implemented in `goose.go` (which translates Go) and
+`internal/coq/coq.go` (which has structs to represent Coq and GooseLang code,
+and code to convert these to strings).
+
+Goose has integration tests that translate example code and compare against a
+"gold" file in the repo. Changes to these gold files are hand-audited when
+they are initially created, and then the test ensures that previously-working
+code continues to translate correctly. To update the gold files after
+modifying the tests or fixing goose, run `go test -update-gold` (and manually
+review the diff before committing).
+
+The tests include `internal/examples/unittest`, a collection of small
+examples intended for wide coverage, as well as some real programs in other
+directories within `internal/examples`.
+
+The Coq output is separately tested by building it within the [Perennial
+](github.com/mit-pdos/perennial) source tree.
