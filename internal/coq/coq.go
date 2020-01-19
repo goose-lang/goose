@@ -498,7 +498,11 @@ func (be BinaryExpr) Coq() string {
 		OpShr:         "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
-		return fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
+		s := fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
+		if be.Op == OpEquals {
+			s = addParens(s)
+		}
+		return s
 	}
 
 	panic(fmt.Sprintf("unknown binop %d", be.Op))

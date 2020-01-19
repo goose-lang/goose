@@ -434,6 +434,10 @@ Definition LogicalOperators: val :=
   λ: "b1" "b2",
     "b1" && "b2" ∥ "b1" && ~ #false.
 
+Definition LogicalAndEqualityOperators: val :=
+  λ: "b1" "x",
+    ("x" = #3) && ("b1" = #true).
+
 Definition ArithmeticShifts: val :=
   λ: "x" "y",
     to_u64 ("x" ≪ #3) + "y" ≪ to_u64 "x" + "y" ≪ #1.
@@ -447,7 +451,7 @@ Definition Comparison: val :=
     (if: "x" < "y"
     then #true
     else
-      (if: "x" = "y"
+      (if: ("x" = "y")
       then #true
       else
         (if: "x" ≠ "y"

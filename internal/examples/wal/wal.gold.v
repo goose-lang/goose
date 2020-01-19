@@ -89,7 +89,7 @@ Definition Log__BeginTxn: val :=
   λ: "l",
     Log__lock "l";;
     let: "length" := !(Log.get "length" "l") in
-    (if: "length" = #0
+    (if: ("length" = #0)
     then
       Log__unlock "l";;
       #true

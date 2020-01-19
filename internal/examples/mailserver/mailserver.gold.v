@@ -78,7 +78,7 @@ Definition Pickup: val :=
     "messages" <- "initMessages";;
     let: "i" := ref #0 in
     (for: (#true); (Skip) :=
-      (if: !"i" = slice.len "names"
+      (if: (!"i" = slice.len "names")
       then Break
       else
         let: "name" := SliceGet "names" !"i" in
@@ -180,7 +180,7 @@ Definition open: val :=
     "locks" <- "initLocks";;
     let: "i" := ref #0 in
     (for: (#true); (Skip) :=
-      (if: !"i" = NumUsers
+      (if: (!"i" = NumUsers)
       then Break
       else
         let: "oldLocks" := !"locks" in
@@ -201,7 +201,7 @@ Definition Recover: val :=
     let: "spooled" := FS.list SpoolDir in
     let: "i" := ref #0 in
     (for: (#true); (Skip) :=
-      (if: !"i" = slice.len "spooled"
+      (if: (!"i" = slice.len "spooled")
       then Break
       else
         let: "name" := SliceGet "spooled" !"i" in

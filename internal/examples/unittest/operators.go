@@ -4,6 +4,10 @@ func LogicalOperators(b1 bool, b2 bool) bool {
 	return b1 && (b2 || b1) && !false
 }
 
+func LogicalAndEqualityOperators(b1 bool, x uint64) bool {
+	return x == 3 && b1 == true
+}
+
 func ArithmeticShifts(x uint32, y uint64) uint64 {
 	return uint64(x<<3) + (y << uint64(x)) + (y << 1)
 }

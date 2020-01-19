@@ -242,7 +242,7 @@ Definition Txn__Write: val :=
     else #());;
     (if: ~ "ok"
     then
-      (if: "addr" = LOGMAXBLK
+      (if: ("addr" = LOGMAXBLK)
       then "ret" <- #false
       else MapInsert (Txn.get "blks" "txn") "addr" !"blk");;
       #()
