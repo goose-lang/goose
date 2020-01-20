@@ -826,3 +826,8 @@ Definition Timestamp: ty := uint64T.
 Definition UseTypeAbbrev: ty := u64.
 
 Definition UseNamedType: ty := Timestamp.
+
+Definition convertToAlias: val :=
+  λ: <>,
+    let: "x" := #2 in
+    "x".
