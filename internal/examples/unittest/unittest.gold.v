@@ -712,7 +712,7 @@ Definition stringLength: val :=
 
 (* struct_method.go *)
 
-Module C.
+Module Point.
   Definition S := struct.decl [
     "x" :: uint64T;
     "y" :: uint64T
@@ -723,30 +723,30 @@ Module C.
     Context `{ext_ty: ext_types}.
     Definition get := struct.get S.
   End fields.
-End C.
+End Point.
 
-Definition C__Add: val :=
+Definition Point__Add: val :=
   λ: "c" "z",
-    C.get "x" "c" + C.get "y" "c" + "z".
+    Point.get "x" "c" + Point.get "y" "c" + "z".
 
-Definition C__GetField: val :=
+Definition Point__GetField: val :=
   λ: "c",
-    let: "x" := C.get "x" "c" in
-    let: "y" := C.get "y" "c" in
+    let: "x" := Point.get "x" "c" in
+    let: "y" := Point.get "y" "c" in
     "x" + "y".
 
 Definition UseAdd: val :=
   λ: <>,
-    let: "c" := struct.mk C.S [
+    let: "c" := struct.mk Point.S [
       "x" ::= #2;
       "y" ::= #3
     ] in
-    let: "r" := C__Add "c" #4 in
+    let: "r" := Point__Add "c" #4 in
     "r".
 
 Definition UseAddWithLiteral: val :=
   λ: <>,
-    let: "r" := C__Add (struct.mk C.S [
+    let: "r" := Point__Add (struct.mk Point.S [
       "x" ::= #2;
       "y" ::= #3
     ]) #4 in
