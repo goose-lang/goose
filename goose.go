@@ -598,10 +598,11 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 			}
 			return ctx.newCoqCall("Data.bytesToString", args)
 		}
-		// TODO: can we recognize type conversions here? They should not be
-		//  emitted as Coq calls,
-		//  only the underlying expression needs to be translated.
-		//  Alternately, we need to make sure a type alias is a callable definition.
+		// discovered this API via
+		// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
+		if ctx.info.Types[f].IsType() {
+			return ctx.expr(args[0])
+		}
 		return ctx.newCoqCall(f.Name, args)
 	case *ast.SelectorExpr:
 		return ctx.selectorMethod(f, call)
