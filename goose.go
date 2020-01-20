@@ -598,6 +598,8 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 			}
 			return ctx.newCoqCall("Data.bytesToString", args)
 		}
+		// discovered this API via
+		// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
 		if ctx.info.Types[f].IsType() {
 			return ctx.expr(args[0])
 		}
