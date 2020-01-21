@@ -1,6 +1,6 @@
 # goose: Go to Coq conversion
 
-[![Build Status](https://travis-ci.org/tchajed/goose.svg?branch=master)](https://travis-ci.org/tchajed/goose)
+[![Build Status](https://travis-ci.org/tchajed/goose.svg?branch=deep)](https://travis-ci.org/tchajed/goose)
 [![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
 
 Goose imports code written in Go into [Perennial](https://github.com/mit-pdos/perennial), a Coq framework for verification of concurrent storage systems. The Go code is a complete Go program, which we can import, run, and benchmark. The Perennial program has a precise semantics in Coq describing its behavior, and we can use Perennial to prove that the code meets its specification.
