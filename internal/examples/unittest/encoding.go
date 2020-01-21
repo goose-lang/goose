@@ -38,18 +38,26 @@ func (d *Dec) UInt32() uint32 {
 	return machine.UInt32Get(d.consume(4))
 }
 
-func EncDec32(x uint32) bool {
+func roundtripEncDec32(x uint32) uint32 {
 	r := make([]byte, 4)
 	e := &Enc{p: r}
 	d := &Dec{p: r}
 	e.UInt32(x)
-	return x == d.UInt32()
+	return d.UInt32()
 }
 
-func EncDec64(x uint64) bool {
+func EncDec32(x uint32) bool {
+	return roundtripEncDec32(x) == x
+}
+
+func roundtripEncDec64(x uint64) uint64 {
 	r := make([]byte, 8)
 	e := &Enc{p: r}
 	d := &Dec{p: r}
 	e.UInt64(x)
-	return x == d.UInt64()
+	return d.UInt64()
+}
+
+func EncDec64(x uint64) bool {
+	return roundtripEncDec64(x) == x
 }

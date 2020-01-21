@@ -225,7 +225,7 @@ Definition Dec__UInt32: val :=
   λ: "d",
     UInt32Get (Dec__consume "d" #4).
 
-Definition EncDec32: val :=
+Definition roundtripEncDec32: val :=
   λ: "x",
     let: "r" := NewSlice byteT #4 in
     let: "e" := struct.new Enc.S [
@@ -235,9 +235,13 @@ Definition EncDec32: val :=
       "p" ::= "r"
     ] in
     Enc__UInt32 "e" "x";;
-    ("x" = Dec__UInt32 "d").
+    Dec__UInt32 "d".
 
-Definition EncDec64: val :=
+Definition EncDec32: val :=
+  λ: "x",
+    (roundtripEncDec32 "x" = "x").
+
+Definition roundtripEncDec64: val :=
   λ: "x",
     let: "r" := NewSlice byteT #8 in
     let: "e" := struct.new Enc.S [
@@ -247,7 +251,11 @@ Definition EncDec64: val :=
       "p" ::= "r"
     ] in
     Enc__UInt64 "e" "x";;
-    ("x" = Dec__UInt64 "d").
+    Dec__UInt64 "d".
+
+Definition EncDec64: val :=
+  λ: "x",
+    (roundtripEncDec64 "x" = "x").
 
 (* ints.go *)
 

@@ -20,7 +20,7 @@ func (suite *TestSuite) TestEncDec32(c *C) {
 		1<<20 | 1<<18 | 1<<10 | 1<<0,
 		1<<32 - 1,
 	} {
-		c.Check(EncDec32(x), Equals, true)
+		c.Check(EncDec32(x), Equals, true, Commentf("x: %v"), x)
 	}
 }
 
@@ -30,6 +30,6 @@ func (suite *TestSuite) TestEncDec64(c *C) {
 		1<<63 | 1<<47 | 1<<20 | 1<<18 | 1<<10 | 1<<0,
 		1<<64 - 1,
 	} {
-		c.Check(EncDec64(x), Equals, true)
+		c.Check(EncDec64(x), Equals, true, Commentf("x: %v"), x)
 	}
 }
