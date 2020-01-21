@@ -11,7 +11,7 @@ From Perennial.go_lang Require Import ffi.disk_prelude.
    the number of valid blocks in the log. *)
 
 Module Enc.
-  (* TODO: use this instead of encoding manually *)
+  (* Enc is a stateful encoder for a single disk block. *)
   Definition S := struct.decl [
     "b" :: disk.blockT;
     "off" :: refT uint64T
@@ -51,6 +51,8 @@ Proof. typecheck. Qed.
 Hint Resolve Enc__Finish_t : types.
 
 Module Dec.
+  (* Dec is a stateful decoder that returns values encoded
+     sequentially in a single disk block. *)
   Definition S := struct.decl [
     "b" :: disk.blockT;
     "off" :: refT uint64T

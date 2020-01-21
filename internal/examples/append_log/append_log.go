@@ -10,7 +10,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 )
 
-// TODO: use this instead of encoding manually
+// Enc is a stateful encoder for a single disk block.
 type Enc struct {
 	b   disk.Block
 	off *uint64
@@ -33,6 +33,8 @@ func (enc Enc) Finish() disk.Block {
 	return enc.b
 }
 
+// Dec is a stateful decoder that returns values encoded
+// sequentially in a single disk block.
 type Dec struct {
 	b   disk.Block
 	off *uint64
