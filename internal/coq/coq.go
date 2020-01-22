@@ -89,9 +89,6 @@ func (pp *buffer) AddComment(c string) {
 }
 
 func quote(s string) string {
-	if s == "_" {
-		return "<>"
-	}
 	return `"` + s + `"`
 }
 
@@ -121,20 +118,14 @@ type StructDecl struct {
 
 // CoqDecl implements the Decl interface
 //
-// For StructDecl this consists of several commands to wrap the record
-// definition in a module, which nicely namespaces the record's field accessors.
-// The pattern is slightly verbose, but not more so than prefixing fields with
-// the record name anyway.
-//
-// Since records are auto-generated, they can also include boilerplate. For
-// example, we currently define an instance for HasGoZero to give the Go zero
-// value by emitting the right boilerplate (rather than Ltac/typeclass magic for
-// example). We could do the same to implement `Settable`.
+// A struct declaration simply consists of the struct descriptor
+// (wrapped in a module in case we eventually want to add more things related
+// to the struct).
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
+	pp.AddComment(d.Comment)
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
-	pp.AddComment(d.Comment)
 	pp.AddLine("Definition S := struct.decl [")
 	pp.Indent(2)
 	for i, fd := range d.Fields {
@@ -146,14 +137,6 @@ func (d StructDecl) CoqDecl() string {
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
-	pp.AddLine("Definition T: ty := struct.t S.")
-	pp.AddLine("Definition Ptr: ty := struct.ptrT S.")
-	pp.AddLine("Section fields.")
-	pp.Indent(2)
-	pp.AddLine("Context `{ext_ty: ext_types}.")
-	pp.AddLine("Definition get := struct.get S.")
-	pp.Indent(-2)
-	pp.AddLine("End fields.")
 	pp.Indent(-2)
 	pp.Add("End %s.", d.Name)
 	return pp.Build()
@@ -194,7 +177,7 @@ func (t TypeIdent) Coq() string {
 type StructName string
 
 func (t StructName) Coq() string {
-	return string(t) + ".T"
+	return NewCallExpr("struct.t", StructDesc(string(t))).Coq()
 }
 
 type MapType struct {
@@ -307,8 +290,8 @@ func (e StructFieldAccessExpr) Coq() string {
 		return NewCallExpr("struct.loadF",
 			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq()
 	}
-	method := fmt.Sprintf("%s.get", e.Struct)
-	return NewCallExpr(method, GallinaString(e.Field), e.X).Coq()
+	return NewCallExpr("struct.get", StructDesc(e.Struct),
+		GallinaString(e.Field), e.X).Coq()
 }
 
 type ReturnExpr struct {

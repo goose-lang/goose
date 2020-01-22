@@ -211,24 +211,12 @@ Module Specdata3.
     "Specdata1" :: Uint32;
     "Specdata2" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Specdata3.
 
 Module Nfs_fh3.
   Definition S := struct.decl [
     "Data" :: slice.T byteT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Nfs_fh3.
 
 Module Nfstime3.
@@ -236,12 +224,6 @@ Module Nfstime3.
     "Seconds" :: Uint32;
     "Nseconds" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Nfstime3.
 
 Module Fattr3.
@@ -253,85 +235,49 @@ Module Fattr3.
     "Gid" :: Gid3;
     "Size" :: Size3;
     "Used" :: Size3;
-    "Rdev" :: Specdata3.T;
+    "Rdev" :: struct.t Specdata3.S;
     "Fsid" :: Uint64;
     "Fileid" :: Fileid3;
-    "Atime" :: Nfstime3.T;
-    "Mtime" :: Nfstime3.T;
-    "Ctime" :: Nfstime3.T
+    "Atime" :: struct.t Nfstime3.S;
+    "Mtime" :: struct.t Nfstime3.S;
+    "Ctime" :: struct.t Nfstime3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Fattr3.
 
 Module Post_op_attr.
   Definition S := struct.decl [
     "Attributes_follow" :: boolT;
-    "Attributes" :: Fattr3.T
+    "Attributes" :: struct.t Fattr3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Post_op_attr.
 
 Module Wcc_attr.
   Definition S := struct.decl [
     "Size" :: Size3;
-    "Mtime" :: Nfstime3.T;
-    "Ctime" :: Nfstime3.T
+    "Mtime" :: struct.t Nfstime3.S;
+    "Ctime" :: struct.t Nfstime3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Wcc_attr.
 
 Module Pre_op_attr.
   Definition S := struct.decl [
     "Attributes_follow" :: boolT;
-    "Attributes" :: Wcc_attr.T
+    "Attributes" :: struct.t Wcc_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Pre_op_attr.
 
 Module Wcc_data.
   Definition S := struct.decl [
-    "Before" :: Pre_op_attr.T;
-    "After" :: Post_op_attr.T
+    "Before" :: struct.t Pre_op_attr.S;
+    "After" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Wcc_data.
 
 Module Post_op_fh3.
   Definition S := struct.decl [
     "Handle_follows" :: boolT;
-    "Handle" :: Nfs_fh3.T
+    "Handle" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Post_op_fh3.
 
 Definition Time_how: ty := uint32T.
@@ -353,12 +299,6 @@ Module Set_mode3.
     "Set_it" :: boolT;
     "Mode" :: Mode3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_mode3.
 
 Module Set_uid3.
@@ -366,12 +306,6 @@ Module Set_uid3.
     "Set_it" :: boolT;
     "Uid" :: Uid3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_uid3.
 
 Module Set_gid3.
@@ -379,12 +313,6 @@ Module Set_gid3.
     "Set_it" :: boolT;
     "Gid" :: Gid3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_gid3.
 
 Module Set_size3.
@@ -392,68 +320,38 @@ Module Set_size3.
     "Set_it" :: boolT;
     "Size" :: Size3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_size3.
 
 Module Set_atime.
   Definition S := struct.decl [
     "Set_it" :: Time_how;
-    "Atime" :: Nfstime3.T
+    "Atime" :: struct.t Nfstime3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_atime.
 
 Module Set_mtime.
   Definition S := struct.decl [
     "Set_it" :: Time_how;
-    "Mtime" :: Nfstime3.T
+    "Mtime" :: struct.t Nfstime3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Set_mtime.
 
 Module Sattr3.
   Definition S := struct.decl [
-    "Mode" :: Set_mode3.T;
-    "Uid" :: Set_uid3.T;
-    "Gid" :: Set_gid3.T;
-    "Size" :: Set_size3.T;
-    "Atime" :: Set_atime.T;
-    "Mtime" :: Set_mtime.T
+    "Mode" :: struct.t Set_mode3.S;
+    "Uid" :: struct.t Set_uid3.S;
+    "Gid" :: struct.t Set_gid3.S;
+    "Size" :: struct.t Set_size3.S;
+    "Atime" :: struct.t Set_atime.S;
+    "Mtime" :: struct.t Set_mtime.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Sattr3.
 
 Module Diropargs3.
   Definition S := struct.decl [
-    "Dir" :: Nfs_fh3.T;
+    "Dir" :: struct.t Nfs_fh3.S;
     "Name" :: Filename3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Diropargs3.
 
 Definition NFS_PROGRAM : expr := #(U32 100003).
@@ -554,156 +452,84 @@ Proof. typecheck. Qed.
 
 Module GETATTR3args.
   Definition S := struct.decl [
-    "Object" :: Nfs_fh3.T
+    "Object" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End GETATTR3args.
 
 Module GETATTR3resok.
   Definition S := struct.decl [
-    "Obj_attributes" :: Fattr3.T
+    "Obj_attributes" :: struct.t Fattr3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End GETATTR3resok.
 
 Module GETATTR3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: GETATTR3resok.T
+    "Resok" :: struct.t GETATTR3resok.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End GETATTR3res.
 
 Module Sattrguard3.
   Definition S := struct.decl [
     "Check" :: boolT;
-    "Obj_ctime" :: Nfstime3.T
+    "Obj_ctime" :: struct.t Nfstime3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Sattrguard3.
 
 Module SETATTR3args.
   Definition S := struct.decl [
-    "Object" :: Nfs_fh3.T;
-    "New_attributes" :: Sattr3.T;
-    "Guard" :: Sattrguard3.T
+    "Object" :: struct.t Nfs_fh3.S;
+    "New_attributes" :: struct.t Sattr3.S;
+    "Guard" :: struct.t Sattrguard3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SETATTR3args.
 
 Module SETATTR3resok.
   Definition S := struct.decl [
-    "Obj_wcc" :: Wcc_data.T
+    "Obj_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SETATTR3resok.
 
 Module SETATTR3resfail.
   Definition S := struct.decl [
-    "Obj_wcc" :: Wcc_data.T
+    "Obj_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SETATTR3resfail.
 
 Module SETATTR3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: SETATTR3resok.T;
-    "Resfail" :: SETATTR3resfail.T
+    "Resok" :: struct.t SETATTR3resok.S;
+    "Resfail" :: struct.t SETATTR3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SETATTR3res.
 
 Module LOOKUP3args.
   Definition S := struct.decl [
-    "What" :: Diropargs3.T
+    "What" :: struct.t Diropargs3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LOOKUP3args.
 
 Module LOOKUP3resok.
   Definition S := struct.decl [
-    "Object" :: Nfs_fh3.T;
-    "Obj_attributes" :: Post_op_attr.T;
-    "Dir_attributes" :: Post_op_attr.T
+    "Object" :: struct.t Nfs_fh3.S;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
+    "Dir_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LOOKUP3resok.
 
 Module LOOKUP3resfail.
   Definition S := struct.decl [
-    "Dir_attributes" :: Post_op_attr.T
+    "Dir_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LOOKUP3resfail.
 
 Module LOOKUP3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: LOOKUP3resok.T;
-    "Resfail" :: LOOKUP3resfail.T
+    "Resok" :: struct.t LOOKUP3resok.S;
+    "Resfail" :: struct.t LOOKUP3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LOOKUP3res.
 
 Definition ACCESS3_READ : expr := #(U32 1).
@@ -732,160 +558,88 @@ Proof. typecheck. Qed.
 
 Module ACCESS3args.
   Definition S := struct.decl [
-    "Object" :: Nfs_fh3.T;
+    "Object" :: struct.t Nfs_fh3.S;
     "Access" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End ACCESS3args.
 
 Module ACCESS3resok.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
     "Access" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End ACCESS3resok.
 
 Module ACCESS3resfail.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T
+    "Obj_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End ACCESS3resfail.
 
 Module ACCESS3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: ACCESS3resok.T;
-    "Resfail" :: ACCESS3resfail.T
+    "Resok" :: struct.t ACCESS3resok.S;
+    "Resfail" :: struct.t ACCESS3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End ACCESS3res.
 
 Module READLINK3args.
   Definition S := struct.decl [
-    "Symlink" :: Nfs_fh3.T
+    "Symlink" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READLINK3args.
 
 Module READLINK3resok.
   Definition S := struct.decl [
-    "Symlink_attributes" :: Post_op_attr.T;
+    "Symlink_attributes" :: struct.t Post_op_attr.S;
     "Data" :: Nfspath3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READLINK3resok.
 
 Module READLINK3resfail.
   Definition S := struct.decl [
-    "Symlink_attributes" :: Post_op_attr.T
+    "Symlink_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READLINK3resfail.
 
 Module READLINK3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: READLINK3resok.T;
-    "Resfail" :: READLINK3resfail.T
+    "Resok" :: struct.t READLINK3resok.S;
+    "Resfail" :: struct.t READLINK3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READLINK3res.
 
 Module READ3args.
   Definition S := struct.decl [
-    "File" :: Nfs_fh3.T;
+    "File" :: struct.t Nfs_fh3.S;
     "Offset" :: Offset3;
     "Count" :: Count3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READ3args.
 
 Module READ3resok.
   Definition S := struct.decl [
-    "File_attributes" :: Post_op_attr.T;
+    "File_attributes" :: struct.t Post_op_attr.S;
     "Count" :: Count3;
     "Eof" :: boolT;
     "Data" :: slice.T byteT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READ3resok.
 
 Module READ3resfail.
   Definition S := struct.decl [
-    "File_attributes" :: Post_op_attr.T
+    "File_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READ3resfail.
 
 Module READ3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: READ3resok.T;
-    "Resfail" :: READ3resfail.T
+    "Resok" :: struct.t READ3resok.S;
+    "Resfail" :: struct.t READ3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READ3res.
 
 Definition Stable_how: ty := uint32T.
@@ -904,59 +658,35 @@ Proof. typecheck. Qed.
 
 Module WRITE3args.
   Definition S := struct.decl [
-    "File" :: Nfs_fh3.T;
+    "File" :: struct.t Nfs_fh3.S;
     "Offset" :: Offset3;
     "Count" :: Count3;
     "Stable" :: Stable_how;
     "Data" :: slice.T byteT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End WRITE3args.
 
 Module WRITE3resok.
   Definition S := struct.decl [
-    "File_wcc" :: Wcc_data.T;
+    "File_wcc" :: struct.t Wcc_data.S;
     "Count" :: Count3;
     "Committed" :: Stable_how;
     "Verf" :: Writeverf3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End WRITE3resok.
 
 Module WRITE3resfail.
   Definition S := struct.decl [
-    "File_wcc" :: Wcc_data.T
+    "File_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End WRITE3resfail.
 
 Module WRITE3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: WRITE3resok.T;
-    "Resfail" :: WRITE3resfail.T
+    "Resok" :: struct.t WRITE3resok.S;
+    "Resfail" :: struct.t WRITE3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End WRITE3res.
 
 Definition Createmode3: ty := uint32T.
@@ -976,488 +706,266 @@ Proof. typecheck. Qed.
 Module Createhow3.
   Definition S := struct.decl [
     "Mode" :: Createmode3;
-    "Obj_attributes" :: Sattr3.T;
+    "Obj_attributes" :: struct.t Sattr3.S;
     "Verf" :: Createverf3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Createhow3.
 
 Module CREATE3args.
   Definition S := struct.decl [
-    "Where" :: Diropargs3.T;
-    "How" :: Createhow3.T
+    "Where" :: struct.t Diropargs3.S;
+    "How" :: struct.t Createhow3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End CREATE3args.
 
 Module CREATE3resok.
   Definition S := struct.decl [
-    "Obj" :: Post_op_fh3.T;
-    "Obj_attributes" :: Post_op_attr.T;
-    "Dir_wcc" :: Wcc_data.T
+    "Obj" :: struct.t Post_op_fh3.S;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End CREATE3resok.
 
 Module CREATE3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End CREATE3resfail.
 
 Module CREATE3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: CREATE3resok.T;
-    "Resfail" :: CREATE3resfail.T
+    "Resok" :: struct.t CREATE3resok.S;
+    "Resfail" :: struct.t CREATE3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End CREATE3res.
 
 Module MKDIR3args.
   Definition S := struct.decl [
-    "Where" :: Diropargs3.T;
-    "Attributes" :: Sattr3.T
+    "Where" :: struct.t Diropargs3.S;
+    "Attributes" :: struct.t Sattr3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKDIR3args.
 
 Module MKDIR3resok.
   Definition S := struct.decl [
-    "Obj" :: Post_op_fh3.T;
-    "Obj_attributes" :: Post_op_attr.T;
-    "Dir_wcc" :: Wcc_data.T
+    "Obj" :: struct.t Post_op_fh3.S;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKDIR3resok.
 
 Module MKDIR3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKDIR3resfail.
 
 Module MKDIR3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: MKDIR3resok.T;
-    "Resfail" :: MKDIR3resfail.T
+    "Resok" :: struct.t MKDIR3resok.S;
+    "Resfail" :: struct.t MKDIR3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKDIR3res.
 
 Module Symlinkdata3.
   Definition S := struct.decl [
-    "Symlink_attributes" :: Sattr3.T;
+    "Symlink_attributes" :: struct.t Sattr3.S;
     "Symlink_data" :: Nfspath3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Symlinkdata3.
 
 Module SYMLINK3args.
   Definition S := struct.decl [
-    "Where" :: Diropargs3.T;
-    "Symlink" :: Symlinkdata3.T
+    "Where" :: struct.t Diropargs3.S;
+    "Symlink" :: struct.t Symlinkdata3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SYMLINK3args.
 
 Module SYMLINK3resok.
   Definition S := struct.decl [
-    "Obj" :: Post_op_fh3.T;
-    "Obj_attributes" :: Post_op_attr.T;
-    "Dir_wcc" :: Wcc_data.T
+    "Obj" :: struct.t Post_op_fh3.S;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SYMLINK3resok.
 
 Module SYMLINK3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SYMLINK3resfail.
 
 Module SYMLINK3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: SYMLINK3resok.T;
-    "Resfail" :: SYMLINK3resfail.T
+    "Resok" :: struct.t SYMLINK3resok.S;
+    "Resfail" :: struct.t SYMLINK3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End SYMLINK3res.
 
 Module Devicedata3.
   Definition S := struct.decl [
-    "Dev_attributes" :: Sattr3.T;
-    "Spec" :: Specdata3.T
+    "Dev_attributes" :: struct.t Sattr3.S;
+    "Spec" :: struct.t Specdata3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Devicedata3.
 
 Module Mknoddata3.
   Definition S := struct.decl [
     "Ftype" :: Ftype3;
-    "Device" :: Devicedata3.T;
-    "Pipe_attributes" :: Sattr3.T
+    "Device" :: struct.t Devicedata3.S;
+    "Pipe_attributes" :: struct.t Sattr3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Mknoddata3.
 
 Module MKNOD3args.
   Definition S := struct.decl [
-    "Where" :: Diropargs3.T;
-    "What" :: Mknoddata3.T
+    "Where" :: struct.t Diropargs3.S;
+    "What" :: struct.t Mknoddata3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKNOD3args.
 
 Module MKNOD3resok.
   Definition S := struct.decl [
-    "Obj" :: Post_op_fh3.T;
-    "Obj_attributes" :: Post_op_attr.T;
-    "Dir_wcc" :: Wcc_data.T
+    "Obj" :: struct.t Post_op_fh3.S;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKNOD3resok.
 
 Module MKNOD3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKNOD3resfail.
 
 Module MKNOD3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: MKNOD3resok.T;
-    "Resfail" :: MKNOD3resfail.T
+    "Resok" :: struct.t MKNOD3resok.S;
+    "Resfail" :: struct.t MKNOD3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End MKNOD3res.
 
 Module REMOVE3args.
   Definition S := struct.decl [
-    "Object" :: Diropargs3.T
+    "Object" :: struct.t Diropargs3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End REMOVE3args.
 
 Module REMOVE3resok.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End REMOVE3resok.
 
 Module REMOVE3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End REMOVE3resfail.
 
 Module REMOVE3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: REMOVE3resok.T;
-    "Resfail" :: REMOVE3resfail.T
+    "Resok" :: struct.t REMOVE3resok.S;
+    "Resfail" :: struct.t REMOVE3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End REMOVE3res.
 
 Module RMDIR3args.
   Definition S := struct.decl [
-    "Object" :: Diropargs3.T
+    "Object" :: struct.t Diropargs3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RMDIR3args.
 
 Module RMDIR3resok.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RMDIR3resok.
 
 Module RMDIR3resfail.
   Definition S := struct.decl [
-    "Dir_wcc" :: Wcc_data.T
+    "Dir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RMDIR3resfail.
 
 Module RMDIR3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: RMDIR3resok.T;
-    "Resfail" :: RMDIR3resfail.T
+    "Resok" :: struct.t RMDIR3resok.S;
+    "Resfail" :: struct.t RMDIR3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RMDIR3res.
 
 Module RENAME3args.
   Definition S := struct.decl [
-    "From" :: Diropargs3.T;
-    "To" :: Diropargs3.T
+    "From" :: struct.t Diropargs3.S;
+    "To" :: struct.t Diropargs3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RENAME3args.
 
 Module RENAME3resok.
   Definition S := struct.decl [
-    "Fromdir_wcc" :: Wcc_data.T;
-    "Todir_wcc" :: Wcc_data.T
+    "Fromdir_wcc" :: struct.t Wcc_data.S;
+    "Todir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RENAME3resok.
 
 Module RENAME3resfail.
   Definition S := struct.decl [
-    "Fromdir_wcc" :: Wcc_data.T;
-    "Todir_wcc" :: Wcc_data.T
+    "Fromdir_wcc" :: struct.t Wcc_data.S;
+    "Todir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RENAME3resfail.
 
 Module RENAME3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: RENAME3resok.T;
-    "Resfail" :: RENAME3resfail.T
+    "Resok" :: struct.t RENAME3resok.S;
+    "Resfail" :: struct.t RENAME3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End RENAME3res.
 
 Module LINK3args.
   Definition S := struct.decl [
-    "File" :: Nfs_fh3.T;
-    "Link" :: Diropargs3.T
+    "File" :: struct.t Nfs_fh3.S;
+    "Link" :: struct.t Diropargs3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LINK3args.
 
 Module LINK3resok.
   Definition S := struct.decl [
-    "File_attributes" :: Post_op_attr.T;
-    "Linkdir_wcc" :: Wcc_data.T
+    "File_attributes" :: struct.t Post_op_attr.S;
+    "Linkdir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LINK3resok.
 
 Module LINK3resfail.
   Definition S := struct.decl [
-    "File_attributes" :: Post_op_attr.T;
-    "Linkdir_wcc" :: Wcc_data.T
+    "File_attributes" :: struct.t Post_op_attr.S;
+    "Linkdir_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LINK3resfail.
 
 Module LINK3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: LINK3resok.T;
-    "Resfail" :: LINK3resfail.T
+    "Resok" :: struct.t LINK3resok.S;
+    "Resfail" :: struct.t LINK3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End LINK3res.
 
 Module READDIR3args.
   Definition S := struct.decl [
-    "Dir" :: Nfs_fh3.T;
+    "Dir" :: struct.t Nfs_fh3.S;
     "Cookie" :: Cookie3;
     "Cookieverf" :: Cookieverf3;
     "Count" :: Count3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIR3args.
 
 Module Entry3.
@@ -1467,12 +975,6 @@ Module Entry3.
     "Cookie" :: Cookie3;
     "Nextentry" :: refT anyT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Entry3.
 
 Module Dirlist3.
@@ -1480,68 +982,38 @@ Module Dirlist3.
     "Entries" :: struct.ptrT Entry3.S;
     "Eof" :: boolT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Dirlist3.
 
 Module READDIR3resok.
   Definition S := struct.decl [
-    "Dir_attributes" :: Post_op_attr.T;
+    "Dir_attributes" :: struct.t Post_op_attr.S;
     "Cookieverf" :: Cookieverf3;
-    "Reply" :: Dirlist3.T
+    "Reply" :: struct.t Dirlist3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIR3resok.
 
 Module READDIR3resfail.
   Definition S := struct.decl [
-    "Dir_attributes" :: Post_op_attr.T
+    "Dir_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIR3resfail.
 
 Module READDIR3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: READDIR3resok.T;
-    "Resfail" :: READDIR3resfail.T
+    "Resok" :: struct.t READDIR3resok.S;
+    "Resfail" :: struct.t READDIR3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIR3res.
 
 Module READDIRPLUS3args.
   Definition S := struct.decl [
-    "Dir" :: Nfs_fh3.T;
+    "Dir" :: struct.t Nfs_fh3.S;
     "Cookie" :: Cookie3;
     "Cookieverf" :: Cookieverf3;
     "Dircount" :: Count3;
     "Maxcount" :: Count3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIRPLUS3args.
 
 Module Entryplus3.
@@ -1549,16 +1021,10 @@ Module Entryplus3.
     "Fileid" :: Fileid3;
     "Name" :: Filename3;
     "Cookie" :: Cookie3;
-    "Name_attributes" :: Post_op_attr.T;
-    "Name_handle" :: Post_op_fh3.T;
+    "Name_attributes" :: struct.t Post_op_attr.S;
+    "Name_handle" :: struct.t Post_op_fh3.S;
     "Nextentry" :: refT anyT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Entryplus3.
 
 Module Dirlistplus3.
@@ -1566,69 +1032,39 @@ Module Dirlistplus3.
     "Entries" :: struct.ptrT Entryplus3.S;
     "Eof" :: boolT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Dirlistplus3.
 
 Module READDIRPLUS3resok.
   Definition S := struct.decl [
-    "Dir_attributes" :: Post_op_attr.T;
+    "Dir_attributes" :: struct.t Post_op_attr.S;
     "Cookieverf" :: Cookieverf3;
-    "Reply" :: Dirlistplus3.T
+    "Reply" :: struct.t Dirlistplus3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIRPLUS3resok.
 
 Module READDIRPLUS3resfail.
   Definition S := struct.decl [
-    "Dir_attributes" :: Post_op_attr.T
+    "Dir_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIRPLUS3resfail.
 
 Module READDIRPLUS3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: READDIRPLUS3resok.T;
-    "Resfail" :: READDIRPLUS3resfail.T
+    "Resok" :: struct.t READDIRPLUS3resok.S;
+    "Resfail" :: struct.t READDIRPLUS3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End READDIRPLUS3res.
 
 Module FSSTAT3args.
   Definition S := struct.decl [
-    "Fsroot" :: Nfs_fh3.T
+    "Fsroot" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSSTAT3args.
 
 Module FSSTAT3resok.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
     "Tbytes" :: Size3;
     "Fbytes" :: Size3;
     "Abytes" :: Size3;
@@ -1637,38 +1073,20 @@ Module FSSTAT3resok.
     "Afiles" :: Size3;
     "Invarsec" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSSTAT3resok.
 
 Module FSSTAT3resfail.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T
+    "Obj_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSSTAT3resfail.
 
 Module FSSTAT3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: FSSTAT3resok.T;
-    "Resfail" :: FSSTAT3resfail.T
+    "Resok" :: struct.t FSSTAT3resok.S;
+    "Resfail" :: struct.t FSSTAT3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSSTAT3res.
 
 Definition FSF3_LINK : expr := #(U32 1).
@@ -1689,19 +1107,13 @@ Proof. typecheck. Qed.
 
 Module FSINFO3args.
   Definition S := struct.decl [
-    "Fsroot" :: Nfs_fh3.T
+    "Fsroot" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSINFO3args.
 
 Module FSINFO3resok.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
     "Rtmax" :: Uint32;
     "Rtpref" :: Uint32;
     "Rtmult" :: Uint32;
@@ -1710,58 +1122,34 @@ Module FSINFO3resok.
     "Wtmult" :: Uint32;
     "Dtpref" :: Uint32;
     "Maxfilesize" :: Size3;
-    "Time_delta" :: Nfstime3.T;
+    "Time_delta" :: struct.t Nfstime3.S;
     "Properties" :: Uint32
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSINFO3resok.
 
 Module FSINFO3resfail.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T
+    "Obj_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSINFO3resfail.
 
 Module FSINFO3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: FSINFO3resok.T;
-    "Resfail" :: FSINFO3resfail.T
+    "Resok" :: struct.t FSINFO3resok.S;
+    "Resfail" :: struct.t FSINFO3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End FSINFO3res.
 
 Module PATHCONF3args.
   Definition S := struct.decl [
-    "Object" :: Nfs_fh3.T
+    "Object" :: struct.t Nfs_fh3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End PATHCONF3args.
 
 Module PATHCONF3resok.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T;
+    "Obj_attributes" :: struct.t Post_op_attr.S;
     "Linkmax" :: Uint32;
     "Name_max" :: Uint32;
     "No_trunc" :: boolT;
@@ -1769,91 +1157,49 @@ Module PATHCONF3resok.
     "Case_insensitive" :: boolT;
     "Case_preserving" :: boolT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End PATHCONF3resok.
 
 Module PATHCONF3resfail.
   Definition S := struct.decl [
-    "Obj_attributes" :: Post_op_attr.T
+    "Obj_attributes" :: struct.t Post_op_attr.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End PATHCONF3resfail.
 
 Module PATHCONF3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: PATHCONF3resok.T;
-    "Resfail" :: PATHCONF3resfail.T
+    "Resok" :: struct.t PATHCONF3resok.S;
+    "Resfail" :: struct.t PATHCONF3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End PATHCONF3res.
 
 Module COMMIT3args.
   Definition S := struct.decl [
-    "File" :: Nfs_fh3.T;
+    "File" :: struct.t Nfs_fh3.S;
     "Offset" :: Offset3;
     "Count" :: Count3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End COMMIT3args.
 
 Module COMMIT3resok.
   Definition S := struct.decl [
-    "File_wcc" :: Wcc_data.T;
+    "File_wcc" :: struct.t Wcc_data.S;
     "Verf" :: Writeverf3
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End COMMIT3resok.
 
 Module COMMIT3resfail.
   Definition S := struct.decl [
-    "File_wcc" :: Wcc_data.T
+    "File_wcc" :: struct.t Wcc_data.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End COMMIT3resfail.
 
 Module COMMIT3res.
   Definition S := struct.decl [
     "Status" :: Nfsstat3;
-    "Resok" :: COMMIT3resok.T;
-    "Resfail" :: COMMIT3resfail.T
+    "Resok" :: struct.t COMMIT3resok.S;
+    "Resfail" :: struct.t COMMIT3resfail.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End COMMIT3res.
 
 Definition MNTPATHLEN3 : expr := #(U32 1024).
@@ -1953,25 +1299,13 @@ Module Mountres3_ok.
     "Fhandle" :: Fhandle3;
     "Auth_flavors" :: slice.T uint32T
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Mountres3_ok.
 
 Module Mountres3.
   Definition S := struct.decl [
     "Fhs_status" :: Mountstat3;
-    "Mountinfo" :: Mountres3_ok.T
+    "Mountinfo" :: struct.t Mountres3_ok.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Mountres3.
 
 Module Mount3.
@@ -1980,24 +1314,12 @@ Module Mount3.
     "Ml_directory" :: Dirpath3;
     "Ml_next" :: refT anyT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Mount3.
 
 Module Mountopt3.
   Definition S := struct.decl [
     "P" :: struct.ptrT Mount3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Mountopt3.
 
 Module Groups3.
@@ -2005,12 +1327,6 @@ Module Groups3.
     "Gr_name" :: Name3;
     "Gr_next" :: refT anyT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Groups3.
 
 Module Exports3.
@@ -2019,22 +1335,10 @@ Module Exports3.
     "Ex_groups" :: struct.ptrT Groups3.S;
     "Ex_next" :: refT anyT
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Exports3.
 
 Module Exportsopt3.
   Definition S := struct.decl [
     "P" :: struct.ptrT Exports3.S
   ].
-  Definition T: ty := struct.t S.
-  Definition Ptr: ty := struct.ptrT S.
-  Section fields.
-    Context `{ext_ty: ext_types}.
-    Definition get := struct.get S.
-  End fields.
 End Exportsopt3.
