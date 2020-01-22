@@ -100,3 +100,12 @@ func (suite *DiskSuite) TestModifyWriteBlock(c *C) {
 	b[0] = 1
 	c.Check(Read(0)[0], DeepEquals, byte(0))
 }
+
+func (suite *DiskSuite) TestReadOob(c *C) {
+	c.Assert(func() { Read(diskSize) }, PanicMatches, ".*out-of-bounds read.*")
+}
+
+func (suite *DiskSuite) TestWriteOob(c *C) {
+	c.Assert(func() { Write(diskSize, block0) }, PanicMatches,
+		".*out-of-bounds write.*")
+}

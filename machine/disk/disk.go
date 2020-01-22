@@ -53,6 +53,9 @@ func NewMemDisk(numBlocks uint64) MemDisk {
 func (d MemDisk) Read(a uint64) Block {
 	d.l.RLock()
 	defer d.l.RUnlock()
+	if a >= uint64(len(d.blocks)) {
+		panic(fmt.Errorf("out-of-bounds read at %v", a))
+	}
 	blk := make([]byte, BlockSize)
 	copy(blk, d.blocks[a])
 	return blk
@@ -64,6 +67,9 @@ func (d MemDisk) Write(a uint64, v Block) {
 	}
 	d.l.Lock()
 	defer d.l.Unlock()
+	if a >= uint64(len(d.blocks)) {
+		panic(fmt.Errorf("out-of-bounds write at %v", a))
+	}
 	blk := make([]byte, BlockSize)
 	copy(blk, v)
 	d.blocks[a] = blk

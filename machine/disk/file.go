@@ -33,7 +33,7 @@ func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
 func (d FileDisk) Read(a uint64) Block {
 	buf := make([]byte, BlockSize)
 	if a >= d.numBlocks {
-		panic("out-of-bounds read")
+		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
 	_, err := d.f.ReadAt(buf, int64(a*BlockSize))
 	if err != nil {
@@ -46,8 +46,8 @@ func (d FileDisk) Write(a uint64, v Block) {
 	if uint64(len(v)) != BlockSize {
 		panic(fmt.Errorf("v is not block sized (%d bytes)", len(v)))
 	}
-	if a > d.numBlocks {
-		panic("out-of-bounds read")
+	if a >= d.numBlocks {
+		panic(fmt.Errorf("out-of-bounds write at %v", a))
 	}
 	_, err := d.f.WriteAt(v, int64(a*BlockSize))
 	if err != nil {
