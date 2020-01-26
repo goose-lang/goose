@@ -74,37 +74,38 @@ func CheckFalse(b *BoolTest) bool {
 	return b.f
 }
 
-func testShortcircuitOperators() bool {
+func testShortcircuitAndTF() bool {
 	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
-	var z uint64
-	z = 0
 
 	if CheckTrue(&b) && CheckFalse(&b) {
 		return false
 	}
-	if (b.tc != 1) || (b.fc != 1) {
-		return false
-	}
+	return (b.tc == 1 && b.fc == 1)
+}
+
+func testShortcircuitAndFT() bool {
+	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
 
 	if CheckFalse(&b) && CheckTrue(&b) {
 		return false
 	}
-	if (b.tc != 1) || (b.fc != 2) {
-		return false
-	}
+	return (b.tc == 0) && (b.fc == 1)
+}
 
+func testShortcircuitOrTF() bool {
+	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
 	if CheckTrue(&b) || CheckFalse(&b) {
-		z += 1
+		return (b.tc == 1 && b.fc == 0)
 	}
-	if (b.tc != 2) || (b.fc != 2) {
-		return false
-	}
+	return false
+}
 
+func testShortcircuitOrFT() bool {
+	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
 	if CheckFalse(&b) || CheckTrue(&b) {
-		z += 1
+		return (b.tc == 1 && b.fc == 1)
 	}
-
-	return (z == 2 && b.tc == 3 && b.fc == 3)
+	return false
 }
 
 

@@ -54,10 +54,6 @@ func (suite *TestSuite) TestReverseAssignOps64(c *C) {
 	}
 }
 
-func (suite *TestSuite) TestShortcircuitOperators(c *C) {
-	c.Check(testShortcircuitOperators(), Equals, true)
-}
-
 func (suite *TestSuite) TestAdd64Equals(c *C) {
 	tests := []struct{
 		x uint64
@@ -87,6 +83,22 @@ func (suite *TestSuite) TestMinus64Equals(c *C) {
 	for _, t := range tests {
 		c.Check(testMinus64Equals(t.x, t.y, t.z), Equals, true, Commentf("x: %v, y: %v, expected result: %v", t.x, t.y, t.z))
 	}
+}
+
+func (suite *TestSuite) TestShortcircuitAndTF(c *C) {
+	c.Check(testShortcircuitAndTF(), Equals, true)
+}
+
+func (suite *TestSuite) TestShortcircuitAndFT(c *C) {
+	c.Check(testShortcircuitAndFT(), Equals, true)
+}
+
+func (suite *TestSuite) TestShortcircuitOrTF(c *C) {
+	c.Check(testShortcircuitOrTF(), Equals, true)
+}
+
+func (suite *TestSuite) TestShortcircuitOrFT(c *C) {
+	c.Check(testShortcircuitOrFT(), Equals, true)
 }
 
 func (suite *TestSuite) TestOverwriteArray(c *C) {
