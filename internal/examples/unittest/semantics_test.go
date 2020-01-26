@@ -55,31 +55,30 @@ func (suite *TestSuite) TestReverseAssignOps64(c *C) {
 }
 
 func (suite *TestSuite) TestAdd64Equals(c *C) {
-	tests := []struct{
+	tests := []struct {
 		x uint64
 		y uint64
 		z uint64
-	} {
+	}{
 		{1, 1, 2},
-			{1 << 64 - 1, 1, 0},
-			{2, 8, 10},
-
-		}
+		{1<<64 - 1, 1, 0},
+		{2, 8, 10},
+	}
 	for _, t := range tests {
 		c.Check(testAdd64Equals(t.x, t.y, t.z), Equals, true, Commentf("x: %v, y: %v, expected result: %v", t.x, t.y, t.z))
 	}
 }
 
 func (suite *TestSuite) TestMinus64Equals(c *C) {
-	tests := []struct{
+	tests := []struct {
 		x uint64
 		y uint64
 		z uint64
-	} {
+	}{
 		{2, 1, 1},
-			{1 << 64 - 1, 1 << 63, 1 << 63 - 1},
-			{2, 8, 1 << 64 - 6},
-		}
+		{1<<64 - 1, 1 << 63, 1<<63 - 1},
+		{2, 8, 1<<64 - 6},
+	}
 	for _, t := range tests {
 		c.Check(testMinus64Equals(t.x, t.y, t.z), Equals, true, Commentf("x: %v, y: %v, expected result: %v", t.x, t.y, t.z))
 	}

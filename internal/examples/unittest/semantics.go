@@ -27,7 +27,6 @@ func testEncDec64(x uint64) bool {
 	return roundtripEncDec64(x) == x
 }
 
-
 // test that y defaults to 0 and subtraction always reverses addition
 func reverseAssignOps64(x uint64) uint64 {
 	var y uint64
@@ -55,11 +54,10 @@ func testReverseAssignOps32(x uint32) bool {
 	return reverseAssignOps32(x) == 0
 }
 
-
 // test shortcircuiting behaviors for logical operators
 type BoolTest struct {
-	t bool
-	f bool
+	t  bool
+	f  bool
 	tc uint64
 	fc uint64
 }
@@ -108,20 +106,18 @@ func testShortcircuitOrFT() bool {
 	return false
 }
 
-
 // test integer overflow and underflow
 func testAdd64Equals(x uint64, y uint64, z uint64) bool {
-	return x + y == z
+	return x+y == z
 }
 
 func testMinus64Equals(x uint64, y uint64, z uint64) bool {
-	return x - y == z
+	return x-y == z
 }
-
 
 // test side-effects on array writes from multiple accessors
 type ArrayEditor struct {
-	s []uint64
+	s        []uint64
 	next_val uint64
 }
 
@@ -147,7 +143,7 @@ func testOverwriteArray() bool {
 	ae1.Advance(arr, 5) // 5 never written to array
 
 	// make sure all values were overwritten properly
-	if (arr[0] + arr[1] + arr[2] + arr[3] >= 100) {
+	if arr[0]+arr[1]+arr[2]+arr[3] >= 100 {
 		return false
 	}
 	return arr[3] == 4 && arr[0] == 4
@@ -181,7 +177,7 @@ func testFunctionOrdering() bool {
 	ae1 := ArrayEditor{s: arr[0:], next_val: 1}
 	ae2 := ArrayEditor{s: arr[0:], next_val: 101}
 
-	if (ae1.AdvanceReturn(2) + ae2.AdvanceReturn(102) != 102) {
+	if ae1.AdvanceReturn(2)+ae2.AdvanceReturn(102) != 102 {
 		return false
 	}
 	// ae2.AdvanceReturn should be called second.
@@ -212,5 +208,5 @@ func testFunctionOrdering() bool {
 	if arr[4] != 105 {
 		return false
 	}
-	return (p.x + q.x == 109)
+	return (p.x+q.x == 109)
 }
