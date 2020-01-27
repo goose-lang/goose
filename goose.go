@@ -220,11 +220,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	// syntactic type and we need to operate on the output of type inference
 	// anyway.
 	switch t := t.(type) {
-	case *types.Named:
-		if _, ok := t.Underlying().(*types.Struct); ok {
-			return coq.StructName(t.Obj().Name())
-		}
-		return coq.TypeIdent(t.Obj().Name())
 	case *types.Struct:
 		return coq.StructName(t.String())
 	case *types.Basic:
@@ -242,10 +237,39 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
+	case *types.Pointer:
+		if isLockRef(t) {
+			return coq.TypeIdent("lockRefT")
+		}
+		return coq.PtrType{ctx.coqTypeOfType(n, t.Elem())}
+	case *types.Named:
+		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
+			return coq.TypeIdent("fileT")
+		}
+		if _, ok := t.Underlying().(*types.Struct); ok {
+			return coq.StructName(t.Obj().Name())
+		}
+		return coq.TypeIdent(t.Obj().Name())
 	case *types.Slice:
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
+	case *types.Map:
+		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
 	}
-	return coq.TypeIdent("<type>")
+	panic(fmt.Errorf("unhandled type %v", t))
+}
+
+func sliceElem(t types.Type) types.Type {
+	if t, ok := t.(*types.Slice); ok {
+		return t.Elem()
+	}
+	panic(fmt.Errorf("expected slice type, got %v", t))
+}
+
+func ptrElem(t types.Type) types.Type {
+	if t, ok := t.(*types.Pointer); ok {
+		return t.Elem()
+	}
+	panic(fmt.Errorf("expected pointer type, got %v", t))
 }
 
 func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
@@ -742,11 +766,16 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return ctx.lenExpr(s)
 	}
 	if isIdent(s.Fun, "append") {
+		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
 		if s.Ellipsis == token.NoPos {
-			return coq.NewCallExpr("SliceAppend", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+			return coq.NewCallExpr("SliceAppend",
+				ctx.coqTypeOfType(s, elemTy),
+				ctx.expr(s.Args[0]),
+				ctx.expr(s.Args[1]))
 		}
 		// append(s1, s2...)
 		return coq.NewCallExpr("SliceAppendSlice",
+			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
 			ctx.expr(s.Args[1]))
 	}
@@ -955,6 +984,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
 		return coq.NewCallExpr("SliceSkip",
+			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low))
 	}
 	if e.Low == nil && e.High != nil {
@@ -963,6 +993,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	if e.Low != nil && e.High != nil {
 		return coq.NewCallExpr("SliceSubslice",
+			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low), ctx.expr(e.High))
 	}
 	if e.Low == nil && e.High == nil {
@@ -1023,8 +1054,7 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	}
 	e := coq.IdentExpr(s.Name)
 	if info.IsPtrWrapped {
-		// TODO: check if this should be a struct load
-		return coq.DerefExpr{e}
+		return coq.DerefExpr{X: e, Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
 	}
 	return e
 }
@@ -1054,12 +1084,13 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 
 func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
 	xTy := ctx.typeOf(e.X)
-	switch xTy.(type) {
+	switch xTy := xTy.(type) {
 	case *types.Map:
 		return coq.NewCallExpr("MapGet",
 			ctx.expr(e.X), ctx.expr(e.Index))
 	case *types.Slice:
 		return coq.NewCallExpr("SliceGet",
+			ctx.coqTypeOfType(e, xTy.Elem()),
 			ctx.expr(e.X), ctx.expr(e.Index))
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
@@ -1073,7 +1104,10 @@ func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
 			coq.StructDesc(info.name),
 			ctx.expr(e))
 	}
-	return coq.DerefExpr{ctx.expr(e)}
+	return coq.DerefExpr{
+		X:  ctx.expr(e),
+		Ty: ctx.coqTypeOfType(e, ptrElem(ctx.typeOf(e))),
+	}
 }
 
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
@@ -1405,6 +1439,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 		Key:   ctx.identBinder(key),
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
+		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
 		Body:  ctx.blockStmt(s.Body, loopVar),
 	}
 }
@@ -1539,8 +1574,13 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 	}
 }
 
-func pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
-	return coq.NewAnon(coq.StoreStmt{Dst: coq.IdentExpr(dst.Name), X: x})
+func (ctx Ctx) pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
+	ty := ctx.typeOf(dst)
+	return coq.NewAnon(coq.StoreStmt{
+		Dst: coq.IdentExpr(dst.Name),
+		X:   x,
+		Ty:  ctx.coqTypeOfType(dst, ty),
+	})
 }
 
 func (ctx Ctx) assignFromTo(s ast.Node,
@@ -1549,7 +1589,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if ctx.identInfo(lhs).IsPtrWrapped {
-			return pointerAssign(lhs, rhs)
+			return ctx.pointerAssign(lhs, rhs)
 		}
 		// the support for making variables assignable is in flux, but currently
 		// the only way the assignment would be supported is if it was created
@@ -1557,11 +1597,12 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		ctx.unsupported(s, "variable %s is not assignable", lhs.Name)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
-		switch targetTy.(type) {
+		switch targetTy := targetTy.(type) {
 		case *types.Slice:
 			value := rhs
 			return coq.NewAnon(coq.NewCallExpr(
 				"SliceSet",
+				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
@@ -1585,6 +1626,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		}
 		return coq.NewAnon(coq.StoreStmt{
 			Dst: ctx.expr(lhs.X),
+			Ty:  ctx.coqTypeOfType(lhs, ctx.typeOf(lhs.X)),
 			X:   rhs,
 		})
 	case *ast.SelectorExpr:
@@ -1645,7 +1687,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, loopVar *string) coq.Binding {
 	if stmt.Tok == token.DEC {
 		op = coq.OpMinus
 	}
-	return pointerAssign(ident, coq.BinaryExpr{
+	return ctx.pointerAssign(ident, coq.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
 		Y:  coq.IntLiteral{1},

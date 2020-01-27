@@ -73,11 +73,11 @@ Definition Log__readBlocks: val :=
   λ: "log" "len",
     let: "blks" := ref (NewSlice disk.blockT #0) in
     let: "i" := ref #0 in
-    (for: (!"i" < "len"); ("i" <- !"i" + #1) :=
-      let: "blk" := disk.Read (LOGSTART + !"i") in
-      "blks" <- SliceAppend !"blks" "blk";;
+    (for: (![uint64T] "i" < "len"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+      let: "blk" := disk.Read (LOGSTART + ![uint64T] "i") in
+      "blks" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "blk";;
       Continue);;
-    !"blks".
+    ![slice.T (slice.T byteT)] "blks".
 Theorem Log__readBlocks_t: ⊢ Log__readBlocks : (struct.t Log.S -> uint64T -> slice.T disk.blockT).
 Proof. typecheck. Qed.
 Hint Resolve Log__readBlocks_t : types.
@@ -97,8 +97,8 @@ Definition Log__memWrite: val :=
   λ: "log" "l",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    (for: (!"i" < "n"); ("i" <- !"i" + #1) :=
-      struct.get Log.S "memLog" "log" <- SliceAppend (!(struct.get Log.S "memLog" "log")) (SliceGet "l" !"i");;
+    (for: (![uint64T] "i" < "n"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+      struct.get Log.S "memLog" "log" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
       Continue).
 Theorem Log__memWrite_t: ⊢ Log__memWrite : (struct.t Log.S -> slice.T disk.blockT -> unitT).
 Proof. typecheck. Qed.
@@ -107,15 +107,15 @@ Hint Resolve Log__memWrite_t : types.
 Definition Log__memAppend: val :=
   λ: "log" "l",
     lock.acquire (struct.get Log.S "memLock" "log");;
-    (if: !(struct.get Log.S "memLen" "log") + slice.len "l" ≥ struct.get Log.S "logSz" "log"
+    (if: ![uint64T] (struct.get Log.S "memLen" "log") + slice.len "l" ≥ struct.get Log.S "logSz" "log"
     then
       lock.release (struct.get Log.S "memLock" "log");;
       (#false, #0)
     else
-      let: "txn" := !(struct.get Log.S "memTxnNxt" "log") in
-      let: "n" := !(struct.get Log.S "memLen" "log") + slice.len "l" in
-      struct.get Log.S "memLen" "log" <- "n";;
-      struct.get Log.S "memTxnNxt" "log" <- !(struct.get Log.S "memTxnNxt" "log") + #1;;
+      let: "txn" := ![uint64T] (struct.get Log.S "memTxnNxt" "log") in
+      let: "n" := ![uint64T] (struct.get Log.S "memLen" "log") + slice.len "l" in
+      struct.get Log.S "memLen" "log" <-[refT uint64T] "n";;
+      struct.get Log.S "memTxnNxt" "log" <-[refT uint64T] ![uint64T] (struct.get Log.S "memTxnNxt" "log") + #1;;
       lock.release (struct.get Log.S "memLock" "log");;
       (#true, "txn")).
 Theorem Log__memAppend_t: ⊢ Log__memAppend : (struct.t Log.S -> slice.T disk.blockT -> (boolT * uint64T)).
@@ -126,7 +126,7 @@ Hint Resolve Log__memAppend_t : types.
 Definition Log__readLogTxnNxt: val :=
   λ: "log",
     lock.acquire (struct.get Log.S "memLock" "log");;
-    let: "n" := !(struct.get Log.S "logTxnNxt" "log") in
+    let: "n" := ![uint64T] (struct.get Log.S "logTxnNxt" "log") in
     lock.release (struct.get Log.S "memLock" "log");;
     "n".
 Theorem Log__readLogTxnNxt_t: ⊢ Log__readLogTxnNxt : (struct.t Log.S -> uint64T).
@@ -162,9 +162,9 @@ Definition Log__writeBlocks: val :=
   λ: "log" "l" "pos",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    (for: (!"i" < "n"); ("i" <- !"i" + #1) :=
-      let: "bk" := SliceGet "l" !"i" in
-      disk.Write ("pos" + !"i") "bk";;
+    (for: (![uint64T] "i" < "n"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+      let: "bk" := SliceGet (slice.T byteT) "l" (![uint64T] "i") in
+      disk.Write ("pos" + ![uint64T] "i") "bk";;
       Continue).
 Theorem Log__writeBlocks_t: ⊢ Log__writeBlocks : (struct.t Log.S -> slice.T disk.blockT -> uint64T -> unitT).
 Proof. typecheck. Qed.
@@ -175,14 +175,14 @@ Definition Log__diskAppend: val :=
     lock.acquire (struct.get Log.S "logLock" "log");;
     let: "disklen" := Log__readHdr "log" in
     lock.acquire (struct.get Log.S "memLock" "log");;
-    let: "memlen" := !(struct.get Log.S "memLen" "log") in
-    let: "allblks" := !(struct.get Log.S "memLog" "log") in
-    let: "blks" := SliceSkip "allblks" "disklen" in
-    let: "memnxt" := !(struct.get Log.S "memTxnNxt" "log") in
+    let: "memlen" := ![uint64T] (struct.get Log.S "memLen" "log") in
+    let: "allblks" := ![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log") in
+    let: "blks" := SliceSkip (slice.T byteT) "allblks" "disklen" in
+    let: "memnxt" := ![uint64T] (struct.get Log.S "memTxnNxt" "log") in
     lock.release (struct.get Log.S "memLock" "log");;
     Log__writeBlocks "log" "blks" "disklen";;
     Log__writeHdr "log" "memlen";;
-    struct.get Log.S "logTxnNxt" "log" <- "memnxt";;
+    struct.get Log.S "logTxnNxt" "log" <-[refT uint64T] "memnxt";;
     lock.release (struct.get Log.S "logLock" "log").
 Theorem Log__diskAppend_t: ⊢ Log__diskAppend : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
@@ -225,17 +225,17 @@ Definition Txn__Write: val :=
     let: (<>, "ok") := MapGet (struct.get Txn.S "blks" "txn") "addr" in
     (if: "ok"
     then
-      MapInsert (struct.get Txn.S "blks" "txn") "addr" !"blk";;
+      MapInsert (struct.get Txn.S "blks" "txn") "addr" (![slice.T byteT] "blk");;
       #()
     else #());;
     (if: ~ "ok"
     then
       (if: ("addr" = LOGMAXBLK)
-      then "ret" <- #false
-      else MapInsert (struct.get Txn.S "blks" "txn") "addr" !"blk");;
+      then "ret" <-[boolT] #false
+      else MapInsert (struct.get Txn.S "blks" "txn") "addr" (![slice.T byteT] "blk"));;
       #()
     else #());;
-    !"ret".
+    ![boolT] "ret".
 Theorem Txn__Write_t: ⊢ Txn__Write : (struct.t Txn.S -> uint64T -> refT disk.blockT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve Txn__Write_t : types.
@@ -254,8 +254,8 @@ Definition Txn__Commit: val :=
   λ: "txn",
     let: "blks" := ref (zero_val (slice.T disk.blockT)) in
     MapIter (struct.get Txn.S "blks" "txn") (λ: <> "v",
-      "blks" <- SliceAppend !"blks" "v");;
-    let: "ok" := Log__Append (struct.load Log.S (struct.get Txn.S "log" "txn")) !"blks" in
+      "blks" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "v");;
+    let: "ok" := Log__Append (struct.load Log.S (struct.get Txn.S "log" "txn")) (![slice.T (slice.T byteT)] "blks") in
     "ok".
 Theorem Txn__Commit_t: ⊢ Txn__Commit : (struct.t Txn.S -> boolT).
 Proof. typecheck. Qed.

@@ -561,11 +561,12 @@ func (be BlockExpr) Coq() string {
 }
 
 type DerefExpr struct {
-	X Expr
+	X  Expr
+	Ty Expr
 }
 
 func (e DerefExpr) Coq() string {
-	return "!" + addParens(e.X.Coq())
+	return fmt.Sprintf("![%s] %s", e.Ty.Coq(), addParens(e.X.Coq()))
 }
 
 type RefExpr struct {
@@ -578,11 +579,12 @@ func (e RefExpr) Coq() string {
 
 type StoreStmt struct {
 	Dst Expr
+	Ty  Expr
 	X   Expr
 }
 
 func (e StoreStmt) Coq() string {
-	return fmt.Sprintf("%s <- %s", e.Dst.Coq(), e.X.Coq())
+	return fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(), e.Ty.Coq(), e.X.Coq())
 }
 
 type IfExpr struct {
@@ -662,13 +664,15 @@ func binderToCoq(b Binder) string {
 type SliceLoopExpr struct {
 	Key   Binder
 	Val   Binder
+	Ty    Expr
 	Slice Expr
 	Body  BlockExpr
 }
 
 func (e SliceLoopExpr) Coq() string {
 	var pp buffer
-	pp.Add("ForSlice %s %s %s",
+	pp.Add("ForSlice %v %s %s %s",
+		addParens(e.Ty.Coq()),
 		binderToCoq(e.Key), binderToCoq(e.Val),
 		addParens(e.Slice.Coq()))
 	pp.Indent(2)

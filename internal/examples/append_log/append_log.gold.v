@@ -30,9 +30,9 @@ Hint Resolve NewEnc_t : types.
 
 Definition Enc__PutInt: val :=
   λ: "enc" "x",
-    let: "off" := !(struct.get Enc.S "off" "enc") in
-    UInt64Put (SliceSkip (struct.get Enc.S "b" "enc") "off") "x";;
-    struct.get Enc.S "off" "enc" <- !(struct.get Enc.S "off" "enc") + #8.
+    let: "off" := ![uint64T] (struct.get Enc.S "off" "enc") in
+    UInt64Put (SliceSkip byteT (struct.get Enc.S "b" "enc") "off") "x";;
+    struct.get Enc.S "off" "enc" <-[refT uint64T] ![uint64T] (struct.get Enc.S "off" "enc") + #8.
 Theorem Enc__PutInt_t: ⊢ Enc__PutInt : (struct.t Enc.S -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Enc__PutInt_t : types.
@@ -65,9 +65,9 @@ Hint Resolve NewDec_t : types.
 
 Definition Dec__GetInt: val :=
   λ: "dec",
-    let: "off" := !(struct.get Dec.S "off" "dec") in
-    struct.get Dec.S "off" "dec" <- !(struct.get Dec.S "off" "dec") + #8;;
-    UInt64Get (SliceSkip (struct.get Dec.S "b" "dec") "off").
+    let: "off" := ![uint64T] (struct.get Dec.S "off" "dec") in
+    struct.get Dec.S "off" "dec" <-[refT uint64T] ![uint64T] (struct.get Dec.S "off" "dec") + #8;;
+    UInt64Get (SliceSkip byteT (struct.get Dec.S "b" "dec") "off").
 Theorem Dec__GetInt_t: ⊢ Dec__GetInt : (struct.t Dec.S -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve Dec__GetInt_t : types.
@@ -141,7 +141,7 @@ Hint Resolve Log__Get_t : types.
 
 Definition writeAll: val :=
   λ: "bks" "off",
-    ForSlice "i" "bk" "bks"
+    ForSlice (slice.T byteT) "i" "bk" "bks"
       (disk.Write ("off" + "i") "bk").
 Theorem writeAll_t: ⊢ writeAll : (slice.T disk.blockT -> uint64T -> unitT).
 Proof. typecheck. Qed.

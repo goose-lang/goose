@@ -51,7 +51,7 @@ Definition New: val :=
     let: "header" := intToBlock #0 in
     disk.Write #0 "header";;
     let: "lengthPtr" := ref (zero_val uint64T) in
-    "lengthPtr" <- #0;;
+    "lengthPtr" <-[refT uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
       "cache" ::= "cache";
@@ -82,7 +82,7 @@ Hint Resolve Log__unlock_t : types.
 Definition Log__BeginTxn: val :=
   λ: "l",
     Log__lock "l";;
-    let: "length" := !(struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     (if: ("length" = #0)
     then
       Log__unlock "l";;
@@ -125,7 +125,7 @@ Hint Resolve Log__Size_t : types.
 Definition Log__Write: val :=
   λ: "l" "a" "v",
     Log__lock "l";;
-    let: "length" := !(struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     (if: "length" ≥ MaxTxnWrites
     then
       Panic ("transaction is at capacity");;
@@ -136,7 +136,7 @@ Definition Log__Write: val :=
     disk.Write "nextAddr" "aBlock";;
     disk.Write ("nextAddr" + #1) "v";;
     MapInsert (struct.get Log.S "cache" "l") "a" "v";;
-    struct.get Log.S "length" "l" <- "length" + #1;;
+    struct.get Log.S "length" "l" <-[refT uint64T] "length" + #1;;
     Log__unlock "l".
 Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log.S -> uint64T -> disk.blockT -> unitT).
 Proof. typecheck. Qed.
@@ -146,7 +146,7 @@ Hint Resolve Log__Write_t : types.
 Definition Log__Commit: val :=
   λ: "l",
     Log__lock "l";;
-    let: "length" := !(struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     Log__unlock "l";;
     let: "header" := intToBlock "length" in
     disk.Write #0 "header".
@@ -170,11 +170,11 @@ Definition applyLog: val :=
   λ: "length",
     let: "i" := ref #0 in
     (for: (#true); (Skip) :=
-      (if: !"i" < "length"
+      (if: ![uint64T] "i" < "length"
       then
-        let: ("a", "v") := getLogEntry !"i" in
+        let: ("a", "v") := getLogEntry (![uint64T] "i") in
         disk.Write (logLength + "a") "v";;
-        "i" <- !"i" + #1;;
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
         Continue
       else Break)).
 Theorem applyLog_t: ⊢ applyLog : (uint64T -> unitT).
@@ -195,10 +195,10 @@ Hint Resolve clearLog_t : types.
 Definition Log__Apply: val :=
   λ: "l",
     Log__lock "l";;
-    let: "length" := !(struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     applyLog "length";;
     clearLog #();;
-    struct.get Log.S "length" "l" <- #0;;
+    struct.get Log.S "length" "l" <-[refT uint64T] #0;;
     Log__unlock "l".
 Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
@@ -213,7 +213,7 @@ Definition Open: val :=
     clearLog #();;
     let: "cache" := NewMap disk.blockT in
     let: "lengthPtr" := ref (zero_val uint64T) in
-    "lengthPtr" <- #0;;
+    "lengthPtr" <-[refT uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
       "cache" ::= "cache";
