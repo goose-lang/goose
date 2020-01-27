@@ -90,6 +90,10 @@ Definition byteSliceToString: val :=
     let: "s" := Data.bytesToString "p" in
     "s".
 
+Definition stringToStringWrapper: val :=
+  λ: "s",
+    "s".
+
 Definition stringWrapperToString: val :=
   λ: "s",
     "s".

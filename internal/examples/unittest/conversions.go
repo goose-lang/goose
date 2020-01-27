@@ -28,13 +28,9 @@ func byteSliceToString(p []byte) string {
 	return s
 }
 
-// TODO: this results in a call to the type alias,
-//  which doesn't make sense in Coq
-/*
 func stringToStringWrapper(s string) stringWrapper {
 	return stringWrapper(s)
 }
-*/
 
 func stringWrapperToString(s stringWrapper) string {
 	return string(s)
