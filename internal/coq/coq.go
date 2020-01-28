@@ -851,10 +851,10 @@ func StructMethod(structName string, methodName string) string {
 // TODO: note that the second two lines should be customized depending on the
 //  target interface.
 const importHeader string = `
-From Perennial.go_lang Require Import prelude.
+From Perennial.goose_lang Require Import prelude.
 
 (* disk FFI *)
-From Perennial.go_lang Require Import ffi.disk_prelude.
+From Perennial.goose_lang Require Import ffi.disk_prelude.
 `
 
 // File represents a complete Coq file (a sequence of declarations).
