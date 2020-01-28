@@ -168,10 +168,6 @@ func (s *ExamplesSuite) TestSimpleDb(c *C) {
 	s.testExample(c, "simpledb", goose.Config{})
 }
 
-func (s *ExamplesSuite) TestMailServer(c *C) {
-	s.testExample(c, "mailserver", goose.Config{})
-}
-
 func (s *ExamplesSuite) TestWal(c *C) {
 	s.testExample(c, "wal", goose.Config{TypeCheck: true})
 }

@@ -536,15 +536,6 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	if isIdent(f.X, "disk") {
 		return ctx.newCoqCall("disk."+f.Sel.Name, args)
 	}
-	if isIdent(f.X, "globals") {
-		switch f.Sel.Name {
-		case "SetX", "GetX":
-			return ctx.newCoqCall("Globals."+toInitialLower(f.Sel.Name), args)
-		default:
-			ctx.futureWork(f, "unhandled call to globals.%s", f.Sel.Name)
-			return coq.CallExpr{}
-		}
-	}
 	if isIdent(f.X, "machine") {
 		switch f.Sel.Name {
 		case "UInt64Get", "UInt64Put", "UInt32Get", "UInt32Put":
@@ -1892,9 +1883,8 @@ var okImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
 	"github.com/tchajed/goose/machine/disk":    true,
 	"github.com/tchajed/goose/machine/filesys": true,
-	"github.com/tchajed/mailboat/globals":      true,
-	"sync":                                     true,
-	"log":                                      true,
+	"sync": true,
+	"log":  true,
 }
 
 func (ctx Ctx) checkImports(d []ast.Spec) {
