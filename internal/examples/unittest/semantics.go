@@ -73,35 +73,35 @@ func CheckFalse(b *BoolTest) bool {
 }
 
 func testShortcircuitAndTF() bool {
-	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
+	b := &BoolTest{t: true, f: false, tc: 0, fc: 0}
 
-	if CheckTrue(&b) && CheckFalse(&b) {
+	if CheckTrue(b) && CheckFalse(b) {
 		return false
 	}
-	return (b.tc == 1 && b.fc == 1)
+	return b.tc == 1 && b.fc == 1
 }
 
 func testShortcircuitAndFT() bool {
-	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
+	b := &BoolTest{t: true, f: false, tc: 0, fc: 0}
 
-	if CheckFalse(&b) && CheckTrue(&b) {
+	if CheckFalse(b) && CheckTrue(b) {
 		return false
 	}
-	return (b.tc == 0) && (b.fc == 1)
+	return b.tc == 0 && b.fc == 1
 }
 
 func testShortcircuitOrTF() bool {
-	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
-	if CheckTrue(&b) || CheckFalse(&b) {
-		return (b.tc == 1 && b.fc == 0)
+	b := &BoolTest{t: true, f: false, tc: 0, fc: 0}
+	if CheckTrue(b) || CheckFalse(b) {
+		return b.tc == 1 && b.fc == 0
 	}
 	return false
 }
 
 func testShortcircuitOrFT() bool {
-	b := BoolTest{t: true, f: false, tc: 0, fc: 0}
-	if CheckFalse(&b) || CheckTrue(&b) {
-		return (b.tc == 1 && b.fc == 1)
+	b := &BoolTest{t: true, f: false, tc: 0, fc: 0}
+	if CheckFalse(b) || CheckTrue(b) {
+		return b.tc == 1 && b.fc == 1
 	}
 	return false
 }
@@ -129,7 +129,7 @@ func (ae *ArrayEditor) Advance(arr []uint64, next uint64) {
 }
 
 func testOverwriteArray() bool {
-	var arr []uint64 = make([]uint64, 4)
+	var arr = make([]uint64, 4)
 
 	ae1 := ArrayEditor{s: arr[0:], next_val: 1}
 	ae2 := ArrayEditor{s: arr[1:], next_val: 102}
@@ -172,7 +172,7 @@ type Pair struct {
 }
 
 func testFunctionOrdering() bool {
-	var arr []uint64 = make([]uint64, 5)
+	var arr = make([]uint64, 5)
 
 	ae1 := ArrayEditor{s: arr[0:], next_val: 1}
 	ae2 := ArrayEditor{s: arr[0:], next_val: 101}
@@ -208,5 +208,5 @@ func testFunctionOrdering() bool {
 	if arr[4] != 105 {
 		return false
 	}
-	return (p.x+q.x == 109)
+	return p.x+q.x == 109
 }
