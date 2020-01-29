@@ -69,3 +69,11 @@ func nestedGoStyleLoops() {
 		}
 	}
 }
+
+func sumSlice(xs []uint64) uint64 {
+	var sum uint64
+	for _, x := range xs {
+		sum += x
+	}
+	return sum
+}

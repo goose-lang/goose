@@ -671,7 +671,7 @@ func binderToCoq(b Binder) string {
 	if b == nil {
 		return "<>"
 	}
-	return (*b).Coq()
+	return binder(string(*b))
 }
 
 type SliceLoopExpr struct {

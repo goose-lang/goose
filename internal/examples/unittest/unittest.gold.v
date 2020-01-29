@@ -371,6 +371,13 @@ Definition nestedGoStyleLoops: val :=
         else Continue));;
       Continue).
 
+Definition sumSlice: val :=
+  λ: "xs",
+    let: "sum" := ref (zero_val uint64T) in
+    ForSlice uint64T <> "x" "xs"
+      ("sum" <-[uint64T] ![uint64T] "sum" + "x");;
+    ![uint64T] "sum".
+
 (* maps.go *)
 
 Definition clearMap: val :=
