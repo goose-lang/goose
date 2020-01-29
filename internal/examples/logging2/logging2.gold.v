@@ -73,7 +73,7 @@ Definition Log__readBlocks: val :=
   λ: "log" "len",
     let: "blks" := ref (NewSlice disk.blockT #0) in
     let: "i" := ref #0 in
-    (for: (![uint64T] "i" < "len"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+    (for: (λ: <>, ![uint64T] "i" < "len"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "blk" := disk.Read (LOGSTART + ![uint64T] "i") in
       "blks" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "blk";;
       Continue);;
@@ -97,7 +97,7 @@ Definition Log__memWrite: val :=
   λ: "log" "l",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    (for: (![uint64T] "i" < "n"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+    (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       struct.get Log.S "memLog" "log" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
       Continue).
 Theorem Log__memWrite_t: ⊢ Log__memWrite : (struct.t Log.S -> slice.T disk.blockT -> unitT).
@@ -136,7 +136,7 @@ Hint Resolve Log__readLogTxnNxt_t : types.
 Definition Log__diskAppendWait: val :=
   λ: "log" "txn",
     Skip;;
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "logtxn" := Log__readLogTxnNxt "log" in
       (if: "txn" < "logtxn"
       then Break
@@ -162,7 +162,7 @@ Definition Log__writeBlocks: val :=
   λ: "log" "l" "pos",
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
-    (for: (![uint64T] "i" < "n"); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+    (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "bk" := SliceGet (slice.T byteT) "l" (![uint64T] "i") in
       disk.Write ("pos" + ![uint64T] "i") "bk";;
       Continue).
@@ -191,7 +191,7 @@ Hint Resolve Log__diskAppend_t : types.
 Definition Log__Logger: val :=
   λ: "log",
     Skip;;
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       Log__diskAppend "log";;
       Continue).
 Theorem Log__Logger_t: ⊢ Log__Logger : (struct.t Log.S -> unitT).

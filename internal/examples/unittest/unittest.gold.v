@@ -310,7 +310,7 @@ Definition standardForLoop: val :=
   λ: "s",
     let: "sumPtr" := ref (zero_val uint64T) in
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < slice.len "s"
       then
         let: "sum" := ![uint64T] "sumPtr" in
@@ -325,7 +325,7 @@ Definition standardForLoop: val :=
 Definition conditionalInLoop: val :=
   λ: <>,
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < #3
       then
         DoSomething (#(str"i is small"));;
@@ -340,7 +340,7 @@ Definition conditionalInLoop: val :=
 Definition ImplicitLoopContinue: val :=
   λ: <>,
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < #4
       then "i" <-[uint64T] #0
       else #());;
@@ -349,9 +349,9 @@ Definition ImplicitLoopContinue: val :=
 Definition nestedLoops: val :=
   λ: <>,
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "j" := ref #0 in
-      (for: (#true); (Skip) :=
+      (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
         (if: #true
         then Break
         else
@@ -363,9 +363,9 @@ Definition nestedLoops: val :=
 Definition nestedGoStyleLoops: val :=
   λ: <>,
     let: "i" := ref #0 in
-    (for: (![uint64T] "i" < #10); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "j" := ref #0 in
-      (for: (![uint64T] "j" < ![uint64T] "i"); ("j" <-[uint64T] ![uint64T] "j" + #1) :=
+      (for: (λ: <>, ![uint64T] "j" < ![uint64T] "i"); (λ: <>, "j" <-[uint64T] ![uint64T] "j" + #1) := λ: <>,
         (if: #true
         then Break
         else Continue));;
@@ -544,7 +544,7 @@ Definition ReplicatedDiskWrite: val :=
 Definition ReplicatedDiskRecover: val :=
   λ: <>,
     let: "a" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "a" > DiskSize
       then Break
       else
@@ -868,12 +868,12 @@ Definition threadCode: val :=
 Definition loopSpawn: val :=
   λ: <>,
     let: "i" := ref #0 in
-    (for: (![uint64T] "i" < #10); ("i" <-[uint64T] ![uint64T] "i" + #1) :=
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "i" := ![uint64T] "i" in
       Fork (threadCode "i");;
       Continue);;
     let: "dummy" := ref #true in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       "dummy" <-[boolT] ~ (![boolT] "dummy");;
       Continue).
 

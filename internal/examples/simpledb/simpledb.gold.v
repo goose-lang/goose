@@ -100,7 +100,7 @@ Definition readTableIndex: val :=
       "offset" ::= #0;
       "next" ::= slice.nil
     ]) in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: ("e", "l") := DecodeEntry (struct.get lazyFileBuf.S "next" (![struct.t lazyFileBuf.S] "buf")) in
       (if: "l" > #0
       then
@@ -366,7 +366,7 @@ Definition tablePutOldTable: val :=
       "offset" ::= #0;
       "next" ::= slice.nil
     ]) in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: ("e", "l") := DecodeEntry (struct.get lazyFileBuf.S "next" (![struct.t lazyFileBuf.S] "buf")) in
       (if: "l" > #0
       then
@@ -460,7 +460,7 @@ Definition deleteOtherFiles: val :=
     let: "files" := FS.list #(str"db") in
     let: "nfiles" := slice.len "files" in
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: (![uint64T] "i" = "nfiles")
       then Break
       else
