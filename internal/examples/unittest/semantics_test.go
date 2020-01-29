@@ -107,3 +107,16 @@ func (suite *TestSuite) TestOverwriteArray(c *C) {
 func (suite *TestSuite) TestFunctionOrdering(c *C) {
 	c.Check(testFunctionOrdering(), Equals, true, Commentf("failed"))
 }
+
+func (suite *TestSuite) TestStandardForLoop(c *C) {
+	tests := []struct {
+		x []uint64
+		y uint64
+	}{
+		{[]uint64{1, 1, 1}, 3},
+		{[]uint64{0, 1, 2}, 3},
+	}
+	for _, t := range tests {
+		c.Check(testStandardForLoop(t.x, t.y), Equals, true, Commentf("x: %v, y: %v, expected result: %v", t.x, t.y))
+	}
+}

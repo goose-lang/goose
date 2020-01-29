@@ -796,6 +796,11 @@ Definition testFunctionOrdering: val :=
                 then #false
                 else (struct.get Pair.S "x" "p" + struct.get Pair.S "x" "q" = #109)))))))).
 
+(* test for loop *)
+Definition testStandardForLoop: val :=
+  λ: "x" "y",
+    (standardForLoop "x" = "y").
+
 (* slices.go *)
 
 Definition SliceAlias: ty := slice.T boolT.

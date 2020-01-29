@@ -210,3 +210,8 @@ func testFunctionOrdering() bool {
 	}
 	return p.x+q.x == 109
 }
+
+// test for loop
+func testStandardForLoop(x []uint64, y uint64) bool {
+	return standardForLoop(x) == y
+}
