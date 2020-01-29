@@ -6,49 +6,9 @@
 package append_log
 
 import (
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
+	"github.com/tchajed/marshal"
 )
-
-// Enc is a stateful encoder for a single disk block.
-type Enc struct {
-	b   disk.Block
-	off *uint64
-}
-
-func NewEnc() Enc {
-	return Enc{
-		b:   make(disk.Block, disk.BlockSize),
-		off: new(uint64),
-	}
-}
-
-func (enc Enc) PutInt(x uint64) {
-	off := *enc.off
-	machine.UInt64Put(enc.b[off:], x)
-	*enc.off += 8
-}
-
-func (enc Enc) Finish() disk.Block {
-	return enc.b
-}
-
-// Dec is a stateful decoder that returns values encoded
-// sequentially in a single disk block.
-type Dec struct {
-	b   disk.Block
-	off *uint64
-}
-
-func NewDec(b disk.Block) Dec {
-	return Dec{b: b, off: new(uint64)}
-}
-
-func (dec Dec) GetInt() uint64 {
-	off := *dec.off
-	*dec.off += 8
-	return machine.UInt64Get(dec.b[off:])
-}
 
 type Log struct {
 	sz     uint64
@@ -56,7 +16,7 @@ type Log struct {
 }
 
 func (log Log) mkHdr() disk.Block {
-	enc := NewEnc()
+	enc := marshal.NewEnc()
 	enc.PutInt(log.sz)
 	enc.PutInt(log.diskSz)
 	return enc.Finish()
@@ -77,7 +37,7 @@ func Init(diskSz uint64) (Log, bool) {
 
 func Open() Log {
 	hdr := disk.Read(0)
-	dec := NewDec(hdr)
+	dec := marshal.NewDec(hdr)
 	sz := dec.GetInt()
 	diskSz := dec.GetInt()
 	return Log{sz: sz, diskSz: diskSz}

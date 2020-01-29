@@ -3,6 +3,8 @@ package coq
 import (
 	"fmt"
 	"io"
+	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -856,6 +858,31 @@ From Perennial.goose_lang Require Import prelude.
 (* disk FFI *)
 From Perennial.goose_lang Require Import ffi.disk_prelude.
 `
+
+type ImportDecl struct {
+	Path string
+}
+
+func pathToCoqPath(p string) string {
+	p = strings.ReplaceAll(p, ".", "_")
+	p = strings.ReplaceAll(p, "-", "_")
+	return p
+}
+
+// ImportToPath converts a Go import path to a Coq path
+func ImportToPath(importPath string) string {
+	coqPath := pathToCoqPath(importPath)
+	p := path.Dir(coqPath)
+	filename := path.Base(coqPath) + ".v"
+	return filepath.Join(p, filename)
+}
+
+func (decl ImportDecl) CoqDecl() string {
+	coqPath := pathToCoqPath(decl.Path)
+	coqImportPath := strings.ReplaceAll(path.Dir(coqPath), "/", ".")
+	name := path.Base(decl.Path)
+	return fmt.Sprintf("From Goose.%s Require Import %s.", coqImportPath, name)
+}
 
 // File represents a complete Coq file (a sequence of declarations).
 type File struct {

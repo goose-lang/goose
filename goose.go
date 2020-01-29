@@ -555,14 +555,19 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
+	if isIdent(f.X, "fmt") {
+		switch f.Sel.Name {
+		case "Println", "Printf":
+			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
+		}
+	}
 	if isIdent(f.X, "sync") {
 		switch f.Sel.Name {
 		case "NewCond":
 			return ctx.newCoqCall("lock.newCond", args)
 		}
 	}
-	ctx.unsupported(f, "cannot call methods selected from %s", f.X)
-	return coq.CallExpr{}
+	return ctx.newCoqCall(fmt.Sprintf("%s.%s", f.X, f.Sel), args)
 }
 
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
@@ -1879,25 +1884,28 @@ func stringLitValue(lit *ast.BasicLit) string {
 	return s
 }
 
-var okImports = map[string]bool{
+var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
 	"github.com/tchajed/goose/machine/disk":    true,
 	"github.com/tchajed/goose/machine/filesys": true,
 	"sync": true,
 	"log":  true,
+	"fmt":  true,
 }
 
-func (ctx Ctx) checkImports(d []ast.Spec) {
+func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
+	var decls []coq.Decl
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
-		importPath := stringLitValue(s.Path)
-		if !okImports[importPath] {
-			ctx.unsupported(s, "non-whitelisted import")
-		}
 		if s.Name != nil {
 			ctx.unsupported(s, "renaming imports")
 		}
+		importPath := stringLitValue(s.Path)
+		if !builtinImports[importPath] {
+			decls = append(decls, coq.ImportDecl{importPath})
+		}
 	}
+	return decls
 }
 
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
@@ -1908,8 +1916,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:
-			ctx.checkImports(d.Specs)
-			return nil
+			return ctx.imports(d.Specs)
 		case token.CONST:
 			return ctx.constDecl(d)
 		case token.VAR:
