@@ -58,30 +58,33 @@ type IntPair struct {
 	a uint64
 }
 
-type withNext func(next func() uint64) interface{}
-
-func initializeWith(body withNext) interface{} {
+func mkNext() func() uint64 {
 	index := uint64(0)
 	next := func() uint64 {
 		index++
 		return index
 	}
-	return body(next)
+	return next
+}
+
+func TestNextHelper(t *testing.T) {
+	next := mkNext()
+	assert.Equal(t, 0, next())
+	assert.Equal(t, 1, next())
+	assert.Equal(t, 2, next())
 }
 
 func TestStructInitializedInProgramOrder(t *testing.T) {
-	s1 := initializeWith(func(next func() uint64) interface{} {
-		return IntPair{
-			a: next(),
-			b: next(),
-		}
-	})
+	next := mkNext()
+	s1 := IntPair{
+		a: next(),
+		b: next(),
+	}
 	assert.Equal(t, IntPair{a: 1, b: 2}, s1)
-	s2 := initializeWith(func(next func() uint64) interface{} {
-		return IntPair{
-			b: next(),
-			a: next(),
-		}
-	})
+	next = mkNext()
+	s2 := IntPair{
+		b: next(),
+		a: next(),
+	}
 	assert.Equal(t, IntPair{b: 1, a: 2}, s2)
 }
