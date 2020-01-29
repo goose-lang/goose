@@ -1,4 +1,4 @@
-package goose
+package goose_test
 
 /*
 Tests to demonstrate Go's behavior on various subtle examples.
@@ -87,4 +87,27 @@ func TestStructInitializedInProgramOrder(t *testing.T) {
 		a: next(),
 	}
 	assert.Equal(t, IntPair{b: 1, a: 2}, s2)
+}
+
+// each defined type (types.Named) creates a distinct type at runtime,
+// detectable via interface type casts or type switches
+type type1 uint64
+type type2 uint64
+
+func TestInterfaceTypeIdentity(t *testing.T) {
+	assert := assert.New(t)
+	var isUint64 interface{} = uint64(3)
+	var isType1 interface{} = type1(3)
+	var ok bool
+	_, ok = isUint64.(uint64)
+	assert.Equal(true, ok, "uint64->uint64 check")
+	_, ok = isUint64.(type1)
+	assert.Equal(false, ok, "uint64 should not be type1")
+
+	_, ok = isType1.(type1)
+	assert.Equal(true, ok, "isType1->isType1 check")
+	_, ok = isType1.(uint64)
+	assert.Equal(false, ok, "type1 should not be uint64")
+	_, ok = isType1.(type2)
+	assert.Equal(false, ok, "type1 should not be type2")
 }
