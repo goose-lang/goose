@@ -220,6 +220,17 @@ func (e GallinaIdent) Coq() string {
 	return string(e)
 }
 
+// A Go qualified identifier, which is translated to a Gallina qualified
+// identifier.
+type PackageIdent struct {
+	Package string
+	Ident   string
+}
+
+func (e PackageIdent) Coq() string {
+	return fmt.Sprintf("%s.%s", e.Package, e.Ident)
+}
+
 var Skip Expr = GallinaIdent("Skip")
 
 type LoggingStmt struct {

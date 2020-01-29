@@ -194,19 +194,22 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 	return coq.MapType{}
 }
 
-func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.TypeIdent {
+func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return "fileT"
+		return coq.TypeIdent("fileT")
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return "disk.blockT"
+		return coq.TypeIdent("disk.blockT")
 	}
 	if isIdent(e.X, "sync") &&
 		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
 		ctx.unsupported(e, "%s without pointer indirection", ctx.printGo(e))
 	}
-	ctx.unsupported(e, "unknown package type %s", e)
-	return "<selector expr>"
+	pkg := e.X.(*ast.Ident)
+	return coq.PackageIdent{
+		Package: pkg.Name,
+		Ident:   e.Sel.Name,
+	}
 }
 
 func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
@@ -567,7 +570,10 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("lock.newCond", args)
 		}
 	}
-	return ctx.newCoqCall(fmt.Sprintf("%s.%s", f.X, f.Sel), args)
+	pkg := f.X.(*ast.Ident)
+	return ctx.newCoqCall(
+		coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(),
+		args)
 }
 
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
@@ -838,8 +844,12 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 		if isIdent(e.X, "disk") {
 			return coq.GallinaIdent("disk." + e.Sel.Name)
 		}
-		ctx.unsupported(e, "package select")
-		return nil
+		if pkg, ok := getIdent(e.X); ok {
+			return coq.PackageIdent{
+				Package: pkg,
+				Ident:   e.Sel.Name,
+			}
+		}
 	}
 	structInfo, ok := getStructInfo(selectorType)
 	if ok {
