@@ -69,9 +69,9 @@ func mkNext() func() uint64 {
 
 func TestNextHelper(t *testing.T) {
 	next := mkNext()
-	assert.Equal(t, 0, next())
-	assert.Equal(t, 1, next())
-	assert.Equal(t, 2, next())
+	assert.Equal(t, uint64(1), next())
+	assert.Equal(t, uint64(2), next())
+	assert.Equal(t, uint64(3), next())
 }
 
 func TestStructInitializedInProgramOrder(t *testing.T) {
