@@ -659,7 +659,7 @@ type ForLoopExpr struct {
 func (e ForLoopExpr) Coq() string {
 	var pp buffer
 	e.Init.AddTo(&pp)
-	pp.Add("(for: (%s); (%s) :=", e.Cond.Coq(), e.Post.Coq())
+	pp.Add("(for: (λ: <>, %s); (λ: <>, %s) := λ: <>,", e.Cond.Coq(), e.Post.Coq())
 	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq())
 	return pp.Build()

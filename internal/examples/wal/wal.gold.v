@@ -169,7 +169,7 @@ Hint Resolve getLogEntry_t : types.
 Definition applyLog: val :=
   λ: "length",
     let: "i" := ref #0 in
-    (for: (#true); (Skip) :=
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < "length"
       then
         let: ("a", "v") := getLogEntry (![uint64T] "i") in
