@@ -39,6 +39,8 @@ github.com/tchajed/mailboat v0.2.0 h1:RhSuuqrmYf+h9tk64yZf5CuuoQ/2Ux8vnnNgt5WqM4
 github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
 github.com/tchajed/marshal v0.0.0-20200129003754-2dda2befe302 h1:soe0n33cenkJpRca/9rANqEGD+LivHQqqgqctS+ew/w=
 github.com/tchajed/marshal v0.0.0-20200129003754-2dda2befe302/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
+github.com/tchajed/marshal v0.0.0-20200130015755-b4d5899f9204 h1:9Hjuo9YL7JncUOTubmPIkhdTiQUeXDsZp35HRGHK//s=
+github.com/tchajed/marshal v0.0.0-20200130015755-b4d5899f9204/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20191008105621-543471e840be h1:QAcqgptGM8IQBC9K/RC4o+O9YmqEm0diQn9QmZw/0mU=
 golang.org/x/sys v0.0.0-20191008105621-543471e840be/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
