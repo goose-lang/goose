@@ -13,6 +13,6 @@ func testCopyDifferentLengths() bool {
 	x[3] = 1
 	x[12] = 2
 	y := make([]byte, 10)
-	n := copy(y, x)
+	n := uint64(copy(y, x))
 	return n == 10 && y[3] == 1
 }
