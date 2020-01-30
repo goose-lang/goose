@@ -16,7 +16,7 @@ type Log struct {
 }
 
 func (log Log) mkHdr() disk.Block {
-	enc := marshal.NewEnc()
+	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(log.sz)
 	enc.PutInt(log.diskSz)
 	return enc.Finish()
