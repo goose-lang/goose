@@ -757,6 +757,13 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
 	return nil
 }
 
+func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
+	e := sliceElem(ctx.typeOf(dst))
+	return coq.NewCallExpr("SliceCopy",
+		ctx.coqTypeOfType(n, e),
+		ctx.expr(dst), ctx.expr(src))
+}
+
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
@@ -780,6 +787,9 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
 			ctx.expr(s.Args[1]))
+	}
+	if isIdent(s.Fun, "copy") {
+		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	}
 	if isIdent(s.Fun, "uint64") {
 		return ctx.integerConversion(s, s.Args[0], 64)
