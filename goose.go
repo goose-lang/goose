@@ -184,11 +184,10 @@ func isIdent(e ast.Expr, ident string) bool {
 }
 
 func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
-	switch k := e.Key.(type) {
-	case *ast.Ident:
-		if k.Name == "uint64" {
-			return coq.MapType{ctx.coqType(e.Value)}
-		}
+	ty := ctx.typeOf(e).Underlying().(*types.Map)
+	info, ok := getIntegerType(ty.Key())
+	if ok && info.isUint64() {
+		return coq.MapType{ctx.coqType(e.Value)}
 	}
 	ctx.unsupported(e, "maps must be from uint64 (not %v)", e.Key)
 	return coq.MapType{}
@@ -1099,7 +1098,7 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 }
 
 func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
-	xTy := ctx.typeOf(e.X)
+	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy := xTy.(type) {
 	case *types.Map:
 		return coq.NewCallExpr("MapGet",
