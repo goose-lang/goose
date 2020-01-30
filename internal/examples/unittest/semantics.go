@@ -211,7 +211,11 @@ func testFunctionOrdering() bool {
 	return p.x+q.x == 109
 }
 
-// test for loop
-func testStandardForLoop(x []uint64, y uint64) bool {
-	return standardForLoop(x) == y
+func testStandardForLoop() bool {
+	var arr = make([]uint64, 4)
+	arr[0] += 1
+	arr[1] += 3
+	arr[2] += 5
+	arr[3] += 7
+	return standardForLoop(arr) == 16
 }

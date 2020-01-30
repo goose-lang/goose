@@ -796,10 +796,14 @@ Definition testFunctionOrdering: val :=
                 then #false
                 else (struct.get Pair.S "x" "p" + struct.get Pair.S "x" "q" = #109)))))))).
 
-(* test for loop *)
 Definition testStandardForLoop: val :=
-  λ: "x" "y",
-    (standardForLoop "x" = "y").
+  λ: <>,
+    let: "arr" := ref (NewSlice uint64T #4) in
+    SliceSet uint64T (![slice.T uint64T] "arr") #0 (SliceGet uint64T (![slice.T uint64T] "arr") #0 + #1);;
+    SliceSet uint64T (![slice.T uint64T] "arr") #1 (SliceGet uint64T (![slice.T uint64T] "arr") #1 + #3);;
+    SliceSet uint64T (![slice.T uint64T] "arr") #2 (SliceGet uint64T (![slice.T uint64T] "arr") #2 + #5);;
+    SliceSet uint64T (![slice.T uint64T] "arr") #3 (SliceGet uint64T (![slice.T uint64T] "arr") #3 + #7);;
+    (standardForLoop (![slice.T uint64T] "arr") = #16).
 
 (* slices.go *)
 
