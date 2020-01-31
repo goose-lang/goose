@@ -24,7 +24,7 @@ func testEncDec32() bool {
 	v2 := roundtripEncDec32(1<<18) == 1<<18
 	v3 := roundtripEncDec32(1<<10) == 1<<10
 	v4 := roundtripEncDec32(1<<0) == 1<<0
-	v5 := roundtripEncDec32(1<<32 - 1) == 1<<32 - 1
+	v5 := roundtripEncDec32(1<<32-1) == 1<<32-1
 	return v0 && v1 && v2 && v3 && v4 && v5
 }
 
@@ -51,9 +51,10 @@ func testEncDec64() bool {
 	v4 := roundtripEncDec64(1<<18) == 1<<18
 	v5 := roundtripEncDec64(1<<10) == 1<<10
 	v6 := roundtripEncDec64(1<<0) == 1<<0
-	v7 := roundtripEncDec64(1<<64 - 1) == 1<<64 - 1
+	v7 := roundtripEncDec64(1<<64-1) == 1<<64-1
 	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7
 }
+
 // test that y defaults to 0 and subtraction always reverses addition
 func reverseAssignOps64(x uint64) uint64 {
 	var y uint64
@@ -75,7 +76,7 @@ func testReverseAssignOps64() bool {
 	v7 := roundtripEncDec64(1<<18) == 1<<18
 	v8 := roundtripEncDec64(1<<10) == 1<<10
 	v9 := roundtripEncDec64(1<<0) == 1<<0
-	v10 := roundtripEncDec64(1<<64 - 1) == 1<<64 - 1
+	v10 := roundtripEncDec64(1<<64-1) == 1<<64-1
 	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7 && v8 && v9 && v10
 }
 
@@ -97,7 +98,7 @@ func testReverseAssignOps32() bool {
 	v5 := roundtripEncDec32(1<<18) == 1<<18
 	v6 := roundtripEncDec32(1<<10) == 1<<10
 	v7 := roundtripEncDec32(1<<0) == 1<<0
-	v8 := roundtripEncDec32(1<<32 - 1) == 1<<32 - 1
+	v8 := roundtripEncDec32(1<<32-1) == 1<<32-1
 	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7 && v8
 }
 
@@ -159,7 +160,7 @@ func add64Equals(x uint64, y uint64, z uint64) bool {
 }
 func testAdd64Equals() bool {
 	x := add64Equals(2, 3, 5)
-	y := add64Equals(1<<64 - 1, 1, 0)
+	y := add64Equals(1<<64-1, 1, 0)
 	return x && y
 }
 
@@ -168,8 +169,8 @@ func minus64Equals(x uint64, y uint64, z uint64) bool {
 }
 func testMinus64Equals() bool {
 	x := minus64Equals(2, 1, 1)
-	y := minus64Equals(1<<64 - 1, 1 << 63, 1<<63 - 1)
-	z := minus64Equals(2, 8, 1<<64 - 6)
+	y := minus64Equals(1<<64-1, 1<<63, 1<<63-1)
+	z := minus64Equals(2, 8, 1<<64-6)
 	return x && y && z
 }
 
