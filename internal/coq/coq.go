@@ -5,6 +5,7 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -898,10 +899,16 @@ func (decl ImportDecl) CoqDecl() string {
 type ImportDecls []ImportDecl
 
 func (decls ImportDecls) CoqDecl() string {
+	seen := make(map[string]bool)
 	var ss []string
 	for _, decl := range decls {
-		ss = append(ss, decl.CoqDecl())
+		coqdecl := decl.CoqDecl()
+		if !seen[coqdecl] {
+			ss = append(ss, coqdecl)
+			seen[coqdecl] = true
+		}
 	}
+	sort.Strings(ss)
 	return strings.Join(ss, "\n")
 }
 
