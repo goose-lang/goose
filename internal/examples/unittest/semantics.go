@@ -219,3 +219,14 @@ func testStandardForLoop() bool {
 	arr[3] += 7
 	return standardForLoop(arr) == 16
 }
+
+func testConditionalAssign() bool {
+	return (conditionalAssign(true) == 2 && conditionalAssign(false) == 3)
+}
+
+func testConversions() bool {
+	s := "four"
+	b := stringToByteSlice(s)
+	x := literalCast()
+	return (x == uint64(len(b)) && byteSliceToString(b) == s)
+}

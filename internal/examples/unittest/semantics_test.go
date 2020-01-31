@@ -111,3 +111,11 @@ func (suite *TestSuite) TestFunctionOrdering(c *C) {
 func (suite *TestSuite) TestStandardForLoop(c *C) {
 	c.Check(testStandardForLoop(), Equals, true, Commentf("failed"))
 }
+
+func (suite *TestSuite) TestConditionalAssign(c *C) {
+	c.Check(testConditionalAssign(), Equals, true, Commentf("failed"))
+}
+
+func (suite *TestSuite) TestConversions(c *C) {
+	c.Check(testConversions(), Equals, true, Commentf("failed"))
+}
