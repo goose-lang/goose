@@ -832,6 +832,17 @@ Definition testStandardForLoop: val :=
     SliceSet uint64T (![slice.T uint64T] "arr") #3 (SliceGet uint64T (![slice.T uint64T] "arr") #3 + #7);;
     (standardForLoop (![slice.T uint64T] "arr") = #16).
 
+Definition testConditionalAssign: val :=
+  λ: <>,
+    (conditionalAssign #true = #2) && (conditionalAssign #false = #3).
+
+Definition testConversions: val :=
+  λ: <>,
+    let: "s" := #(str"four") in
+    let: "b" := stringToByteSlice "s" in
+    let: "x" := literalCast #() in
+    ("x" = slice.len "b") && (byteSliceToString "b" = "s").
+
 (* slices.go *)
 
 Definition SliceAlias: ty := slice.T boolT.
