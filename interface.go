@@ -30,8 +30,21 @@ func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []coq.Decl, err error) {
 	return ctx.maybeDecls(stmt), nil
 }
 
+func filterImports(decls []coq.Decl) (nonImports []coq.Decl, imports coq.ImportDecls) {
+	for _, d := range decls {
+		switch d := d.(type) {
+		case coq.ImportDecl:
+			imports = append(imports, d)
+		default:
+			nonImports = append(nonImports, d)
+		}
+	}
+	return
+}
+
 // Decls converts an entire package (possibly multiple files) to a list of decls
 func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, errs []error) {
+	var imports coq.ImportDecls
 	for _, f := range fs {
 		if len(fs) > 1 {
 			decls = append(decls,
@@ -42,11 +55,16 @@ func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, errs []error) {
 		}
 		for _, d := range f.Ast.Decls {
 			newDecls, err := ctx.declsOrError(d)
-			decls = append(decls, newDecls...)
 			if err != nil {
 				errs = append(errs, err)
 			}
+			newDecls, newImports := filterImports(newDecls)
+			decls = append(decls, newDecls...)
+			imports = append(imports, newImports...)
 		}
+	}
+	if len(imports) > 0 {
+		decls = append([]coq.Decl{imports}, decls...)
 	}
 	return
 }
@@ -90,7 +108,7 @@ func sortedFiles(files map[string]*ast.File) []NamedFile {
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
+func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, error) {
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {
 		if strings.HasSuffix(info.Name(), "_test.go") {
@@ -123,6 +141,9 @@ func (config Config) TranslatePackage(srcDir string) (coq.File, error) {
 	for pName, p := range packages {
 		files = append(files, sortedFiles(p.Files)...)
 		pkgName = pName
+	}
+	if pkgPath != "" {
+		pkgName = pkgPath
 	}
 	var fileAsts []*ast.File
 	for _, f := range files {

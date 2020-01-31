@@ -45,24 +45,24 @@ func main() {
 	srcDir := flag.Arg(0)
 
 	red := color.New(color.FgRed).SprintFunc()
-	f, err := config.TranslatePackage(srcDir)
+	f, err := config.TranslatePackage(packagePath, srcDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, red(err.Error()))
 		if !ignoreErrors {
 			os.Exit(1)
 		}
 	}
-	if packagePath != "" {
-		outFile = path.Join(outFile, coq.ImportToPath(packagePath))
-		outDir := path.Dir(outFile)
-		_, err := os.Stat(outDir)
-		if os.IsNotExist(err) {
-			os.MkdirAll(outDir, 0744)
-		}
-	}
 	if outFile == "-" {
 		f.Write(os.Stdout)
 	} else {
+		if packagePath != "" {
+			outFile = path.Join(outFile, coq.ImportToPath(packagePath))
+			outDir := path.Dir(outFile)
+			_, err := os.Stat(outDir)
+			if os.IsNotExist(err) {
+				os.MkdirAll(outDir, 0744)
+			}
+		}
 		out, err := os.Create(outFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
