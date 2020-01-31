@@ -1748,22 +1748,12 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.Expr {
 	return nil
 }
 
-// getSpawn returns a non-nil spawned thread if the expression is a call to
-// machine.Spawn()
-func getSpawn(e *ast.ExprStmt) ast.Expr {
-	callExpr, ok := e.X.(*ast.CallExpr)
-	if !ok {
-		return nil
+// getSpawn returns a non-nil spawned thread if the expression is a go call
+func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
+	if len(e.Call.Args) > 0 {
+		ctx.unsupported(e, "go statement with parameters")
 	}
-	method, ok := callExpr.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return nil
-	}
-	if isIdent(method.X, "machine") &&
-		isIdent(method.Sel, "Spawn") {
-		return callExpr.Args[0]
-	}
-	return nil
+	return ctx.spawnExpr(e.Call.Fun)
 }
 
 func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
@@ -1783,10 +1773,9 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 			ctx.unsupported(s, "branching outside of a loop")
 		}
 		return coq.NewAnon(ctx.branchStmt(s))
+	case *ast.GoStmt:
+		return coq.NewAnon(ctx.goStmt(s))
 	case *ast.ExprStmt:
-		if thread := getSpawn(s); thread != nil {
-			return coq.NewAnon(ctx.spawnExpr(thread))
-		}
 		return coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		return ctx.assignStmt(s, c, loopVar)
@@ -1804,9 +1793,6 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
-	case *ast.GoStmt:
-		ctx.unsupported(s, "threads must be spawned with machine.Spawn")
-		return coq.Binding{}
 	default:
 		ctx.unsupported(s, "statement")
 	}
