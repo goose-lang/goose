@@ -5,6 +5,7 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -865,8 +866,6 @@ func StructMethod(structName string, methodName string) string {
 //  target interface.
 const importHeader string = `
 From Perennial.goose_lang Require Import prelude.
-
-(* disk FFI *)
 From Perennial.goose_lang Require Import ffi.disk_prelude.
 `
 
@@ -892,7 +891,25 @@ func (decl ImportDecl) CoqDecl() string {
 	coqPath := pathToCoqPath(decl.Path)
 	coqImportPath := strings.ReplaceAll(path.Dir(coqPath), "/", ".")
 	name := path.Base(decl.Path)
-	return fmt.Sprintf("From Goose.%s Require Import %s.", coqImportPath, name)
+	return fmt.Sprintf("From Goose Require %s.%s.", coqImportPath, name)
+}
+
+// ImportDecls groups imports into one declaration so they can be printed
+// without intervening blank spaces.
+type ImportDecls []ImportDecl
+
+func (decls ImportDecls) CoqDecl() string {
+	seen := make(map[string]bool)
+	var ss []string
+	for _, decl := range decls {
+		coqdecl := decl.CoqDecl()
+		if !seen[coqdecl] {
+			ss = append(ss, coqdecl)
+			seen[coqdecl] = true
+		}
+	}
+	sort.Strings(ss)
+	return strings.Join(ss, "\n")
 }
 
 // File represents a complete Coq file (a sequence of declarations).

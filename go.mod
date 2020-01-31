@@ -6,7 +6,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.4.0
-	github.com/tchajed/marshal v0.0.0-20200130015755-b4d5899f9204
+	github.com/tchajed/marshal v0.0.0-20200130141346-80b1d7e78423
 	golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
 )

@@ -324,6 +324,11 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		} else {
 			ctx.unsupported(e, "non-empty interface")
 		}
+	case *ast.Ellipsis:
+		// NOTE: ellipsis types are not fully supported
+		// we emit the right type here but Goose doesn't know how to call a method
+		// which takes variadic parameters (it'll pass them as separate arguments)
+		return coq.SliceType{ctx.coqType(e.Elt)}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
@@ -917,7 +922,7 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 	}
 	for _, f := range info.fields() {
 		if !foundFields[f] {
-			ctx.unsupported(e, "incomplete struct literal")
+			ctx.unsupported(e, "incomplete struct literal (missing %v)", f)
 		}
 	}
 	return lit

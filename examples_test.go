@@ -127,7 +127,7 @@ func (s *ExamplesSuite) testExample(c *C, name string, conf goose.Config) {
 	}
 	// c.Logf("testing example %s/", t.Path)
 
-	f, terr := conf.TranslatePackage(t.path)
+	f, terr := conf.TranslatePackage("", t.path)
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
 		c.Fatalf("%s translation failed", t.name)
