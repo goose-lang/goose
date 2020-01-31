@@ -20,9 +20,9 @@ End Log.
 Definition Log__mkHdr: val :=
   λ: "log",
     let: "enc" := marshal.NewEnc disk.BlockSize in
-    Enc__PutInt "enc" (struct.get Log.S "sz" "log");;
-    Enc__PutInt "enc" (struct.get Log.S "diskSz" "log");;
-    Enc__Finish "enc".
+    marshal.Enc__PutInt "enc" (struct.get Log.S "sz" "log");;
+    marshal.Enc__PutInt "enc" (struct.get Log.S "diskSz" "log");;
+    marshal.Enc__Finish "enc".
 Theorem Log__mkHdr_t: ⊢ Log__mkHdr : (struct.t Log.S -> disk.blockT).
 Proof. typecheck. Qed.
 Hint Resolve Log__mkHdr_t : types.
@@ -57,8 +57,8 @@ Definition Open: val :=
   λ: <>,
     let: "hdr" := disk.Read #0 in
     let: "dec" := marshal.NewDec "hdr" in
-    let: "sz" := Dec__GetInt "dec" in
-    let: "diskSz" := Dec__GetInt "dec" in
+    let: "sz" := marshal.Dec__GetInt "dec" in
+    let: "diskSz" := marshal.Dec__GetInt "dec" in
     struct.mk Log.S [
       "sz" ::= "sz";
       "diskSz" ::= "diskSz"

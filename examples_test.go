@@ -220,7 +220,8 @@ func getExpectedError(fset *token.FileSet,
 
 func translateErrorFile(c *C, filePath string) *errorTestResult {
 	fset := token.NewFileSet()
-	ctx := goose.NewCtx(fset, goose.Config{})
+	pkgName := "example"
+	ctx := goose.NewCtx(pkgName, fset, goose.Config{})
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -228,7 +229,7 @@ func translateErrorFile(c *C, filePath string) *errorTestResult {
 		return nil
 	}
 
-	err = ctx.TypeCheck("example", []*ast.File{f})
+	err = ctx.TypeCheck(pkgName, []*ast.File{f})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.Errorf("test code for %s does not type check", filePath)

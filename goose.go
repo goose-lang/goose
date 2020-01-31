@@ -108,9 +108,10 @@ func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	idents identCtx
-	info   *types.Info
-	fset   *token.FileSet
+	idents  identCtx
+	info    *types.Info
+	fset    *token.FileSet
+	pkgPath string
 	errorReporter
 	Config
 }
@@ -122,7 +123,7 @@ type Config struct {
 }
 
 // NewCtx initializes a context
-func NewCtx(fset *token.FileSet, config Config) Ctx {
+func NewCtx(pkgPath string, fset *token.FileSet, config Config) Ctx {
 	info := &types.Info{
 		Defs:   make(map[*ast.Ident]types.Object),
 		Uses:   make(map[*ast.Ident]types.Object),
@@ -133,6 +134,7 @@ func NewCtx(fset *token.FileSet, config Config) Ctx {
 		idents:        newIdentCtx(),
 		info:          info,
 		fset:          fset,
+		pkgPath:       pkgPath,
 		errorReporter: newErrorReporter(fset),
 		Config:        config,
 	}
@@ -292,7 +294,7 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 			return coq.TypeIdent("condvarRefT")
 		}
 	}
-	info, ok := getStructInfo(ctx.typeOf(e.X))
+	info, ok := ctx.getStructInfo(ctx.typeOf(e.X))
 	if ok {
 		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(info.name))
 	}
@@ -381,7 +383,7 @@ func (ctx Ctx) structFields(structName string,
 			return nil
 		}
 		ty := ctx.coqType(f.Type)
-		info, ok := getStructInfo(ctx.typeOf(f.Type))
+		info, ok := ctx.getStructInfo(ctx.typeOf(f.Type))
 		if ok && info.name == structName && info.throughPointer {
 			ty = coq.NewCallExpr("refT", coq.TypeIdent("anyT"))
 		}
@@ -593,7 +595,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	if isCondVar(selectorType) {
 		return ctx.condVarMethod(f)
 	}
-	structInfo, ok := getStructInfo(selectorType)
+	structInfo, ok := ctx.getStructInfo(selectorType)
 	if ok {
 		callArgs := append([]ast.Expr{f.X}, args...)
 		return ctx.newCoqCall(
@@ -697,7 +699,7 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	// check for new(T) where T is a struct, but not a pointer to a struct
 	// (new(*T) should be translated to ref (zero_val (ptrT ...)) as usual,
 	// a pointer to a nil pointer)
-	if info, ok := getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
+	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
 		return coq.NewCallExpr("struct.alloc", coq.StructDesc(info.name), e)
 	}
 	return coq.NewCallExpr("ref", e)
@@ -795,6 +797,12 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	if isIdent(s.Fun, "copy") {
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	}
+	if isIdent(s.Fun, "delete") {
+		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
+			ctx.unsupported(s, "delete on non-map")
+		}
+		return coq.NewCallExpr("MapDelete", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+	}
 	if isIdent(s.Fun, "uint64") {
 		return ctx.integerConversion(s, s.Args[0], 64)
 	}
@@ -823,16 +831,21 @@ type structTypeInfo struct {
 	structType     *types.Struct
 }
 
-func getStructInfo(t types.Type) (structTypeInfo, bool) {
+func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 	throughPointer := false
 	if pt, ok := t.(*types.Pointer); ok {
 		throughPointer = true
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
+		name := t.Obj().Name()
+		// qualify struct name if needed
+		if ctx.pkgPath != t.Obj().Pkg().Path() {
+			name = fmt.Sprintf("%s.%s", t.Obj().Pkg().Name(), name)
+		}
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
-				name:           t.Obj().Name(),
+				name:           name,
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true
@@ -865,7 +878,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 			}
 		}
 	}
-	structInfo, ok := getStructInfo(selectorType)
+	structInfo, ok := ctx.getStructInfo(selectorType)
 	if ok {
 		return ctx.structSelector(structInfo, e)
 	}
@@ -893,7 +906,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 		ctx.unsupported(e, "slice literal with multiple elements")
 		return nil
 	}
-	info, ok := getStructInfo(ctx.typeOf(e))
+	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok {
 		return ctx.structLiteral(info, e)
 	}
@@ -1051,7 +1064,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
-		if info, ok := getStructInfo(ctx.typeOf(e.X)); ok {
+		if info, ok := ctx.getStructInfo(ctx.typeOf(e.X)); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
 			if ok {
 				// e is &s{...} (a struct literal)
@@ -1118,7 +1131,7 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
 }
 
 func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
-	info, ok := getStructInfo(ctx.typeOf(e))
+	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok && info.throughPointer {
 		return coq.NewCallExpr("struct.load",
 			coq.StructDesc(info.name),
@@ -1579,7 +1592,7 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		return coq.IdentExpr(s.Name)
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(s.X)
-		info, ok := getStructInfo(ty)
+		info, ok := ctx.getStructInfo(ty)
 		if !ok {
 			ctx.unsupported(s,
 				"reference to selector from non-struct type %v", ty)
@@ -1637,7 +1650,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
-		info, ok := getStructInfo(ctx.typeOf(lhs.X))
+		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
 			return coq.NewAnon(coq.NewCallExpr("struct.store",
 				coq.StructDesc(info.name),
@@ -1651,7 +1664,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		})
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
-		info, ok := getStructInfo(ty)
+		info, ok := ctx.getStructInfo(ty)
 		if ok {
 			fieldName := lhs.Sel.Name
 			return coq.NewAnon(coq.NewCallExpr("struct.storeF",
@@ -1850,7 +1863,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 			recvType = pT.Elem()
 		}
 
-		structInfo, ok := getStructInfo(recvType)
+		structInfo, ok := ctx.getStructInfo(recvType)
 		if !ok {
 			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
 		}

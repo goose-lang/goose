@@ -150,7 +150,7 @@ func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, 
 		fileAsts = append(fileAsts, f.Ast)
 	}
 
-	ctx := NewCtx(fset, config)
+	ctx := NewCtx(pkgName, fset, config)
 	err = ctx.TypeCheck(pkgName, fileAsts)
 	if err != nil {
 		return coq.File{},
