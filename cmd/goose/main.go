@@ -60,7 +60,7 @@ func main() {
 			outDir := path.Dir(outFile)
 			_, err := os.Stat(outDir)
 			if os.IsNotExist(err) {
-				os.MkdirAll(outDir, 0744)
+				os.MkdirAll(outDir, 0777)
 			}
 		}
 		out, err := os.Create(outFile)
