@@ -616,9 +616,20 @@ func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
 
 func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	args := call.Args
-	switch f := call.Fun.(type) {
-	case *ast.Ident:
-		if f.Name == "string" {
+	// discovered this API via
+	// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
+	if ctx.info.Types[call.Fun].IsType() {
+		// string -> []byte conversions are handled specially
+		if f, ok := call.Fun.(*ast.ArrayType); ok {
+			if f.Len == nil && isIdent(f.Elt, "byte") {
+				arg := args[0]
+				if isString(ctx.typeOf(arg)) {
+					return ctx.newCoqCall("Data.stringToBytes", args)
+				}
+			}
+		}
+		// []byte -> string are handled specially
+		if f, ok := call.Fun.(*ast.Ident); ok && f.Name == "string" {
 			arg := args[0]
 			if isString(ctx.typeOf(arg).Underlying()) {
 				return ctx.expr(args[0])
@@ -630,28 +641,17 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 			}
 			return ctx.newCoqCall("Data.bytesToString", args)
 		}
-		// discovered this API via
-		// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
-		if ctx.info.Types[f].IsType() {
-			return ctx.expr(args[0])
-		}
+		// a different type conversion, which is a noop in GooseLang (which is
+		// untyped)
+		return ctx.expr(args[0])
+	}
+	switch f := call.Fun.(type) {
+	case *ast.Ident:
 		return ctx.newCoqCall(f.Name, args)
 	case *ast.SelectorExpr:
 		return ctx.selectorMethod(f, call)
-	case *ast.ArrayType:
-		// string -> []byte conversions are supported
-		if f.Len == nil && isIdent(f.Elt, "byte") {
-			arg := args[0]
-			if !isString(ctx.typeOf(arg)) {
-				ctx.unsupported(arg,
-					"conversion from type %v to []byte", ctx.typeOf(arg))
-				return coq.CallExpr{}
-			}
-			return ctx.newCoqCall("Data.stringToBytes", args)
-		}
-	default:
-		ctx.unsupported(f, "call on this expression")
 	}
+	ctx.unsupported(call, "call to unexpected function")
 	return coq.CallExpr{}
 }
 
