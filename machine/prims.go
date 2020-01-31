@@ -21,6 +21,11 @@ func UInt64Get(p []byte) uint64 {
 	return binary.LittleEndian.Uint64(p)
 }
 
+// 32-bit version
+func UInt32Get(p []byte) uint32 {
+	return binary.LittleEndian.Uint32(p)
+}
+
 // UInt64Put stores n to the first 8 bytes of p
 //
 // Requires p to be at least 8 bytes long.
@@ -29,6 +34,11 @@ func UInt64Get(p []byte) uint64 {
 // inverse of UInt64Get.
 func UInt64Put(p []byte, n uint64) {
 	binary.LittleEndian.PutUint64(p, n)
+}
+
+// 32-bit version
+func UInt32Put(p []byte, n uint32) {
+	binary.LittleEndian.PutUint32(p, n)
 }
 
 // RandomUint64 returns a random uint64 using the global seed.

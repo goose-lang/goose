@@ -34,3 +34,46 @@ func conditionalInLoop() {
 		continue
 	}
 }
+
+func ImplicitLoopContinue() {
+	for i := uint64(0); ; {
+		if i < 4 {
+			i = 0
+			// note that continue here is not correctly supported
+		}
+	}
+}
+
+func nestedLoops() {
+	for i := uint64(0); ; {
+		for j := uint64(0); ; {
+			if true {
+				break
+			}
+			j = j + 1
+			continue
+		}
+		i = i + 1
+		continue
+	}
+}
+
+func nestedGoStyleLoops() {
+	for i := uint64(0); i < 10; i++ {
+		for j := uint64(0); j < i; j++ {
+			if true {
+				break
+			}
+			// TODO: this is necessary to make the break actually return
+			continue
+		}
+	}
+}
+
+func sumSlice(xs []uint64) uint64 {
+	var sum uint64
+	for _, x := range xs {
+		sum += x
+	}
+	return sum
+}

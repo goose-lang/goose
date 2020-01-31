@@ -87,10 +87,10 @@ type ConversionError struct {
 	Message string
 	// the snippet in the source program responsible for the error
 	GoCode string
-	// (for internal debugging) file:lineno for the goose code that threw the
+	// (for internal debugging) Ast:lineno for the goose code that threw the
 	// error
 	GooseCaller string
-	// file:lineno for the source program where GoCode appears
+	// Ast:lineno for the source program where GoCode appears
 	GoSrcFile string
 	// (for systematic tests)
 	Pos, End token.Pos

@@ -13,34 +13,27 @@ type FileDisk struct {
 var _ Disk = FileDisk{}
 
 func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return FileDisk{}, err
 	}
-	err = f.Truncate(int64(numBlocks * BlockSize))
+	fi, err := f.Stat()
 	if err != nil {
 		return FileDisk{}, err
 	}
-	return FileDisk{f, numBlocks}, nil
-}
-
-func OpenFileDisk(path string) (FileDisk, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return FileDisk{}, err
+	if uint64(fi.Size()) != numBlocks {
+		err = f.Truncate(int64(numBlocks * BlockSize))
+		if err != nil {
+			return FileDisk{}, err
+		}
 	}
-	finfo, err := f.Stat()
-	if err != nil {
-		return FileDisk{}, err
-	}
-	numBlocks := uint64(finfo.Size()) / BlockSize
 	return FileDisk{f, numBlocks}, nil
 }
 
 func (d FileDisk) Read(a uint64) Block {
 	buf := make([]byte, BlockSize)
 	if a >= d.numBlocks {
-		panic("out-of-bounds read")
+		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
 	_, err := d.f.ReadAt(buf, int64(a*BlockSize))
 	if err != nil {
@@ -53,8 +46,8 @@ func (d FileDisk) Write(a uint64, v Block) {
 	if uint64(len(v)) != BlockSize {
 		panic(fmt.Errorf("v is not block sized (%d bytes)", len(v)))
 	}
-	if a > d.numBlocks {
-		panic("out-of-bounds read")
+	if a >= d.numBlocks {
+		panic(fmt.Errorf("out-of-bounds write at %v", a))
 	}
 	_, err := d.f.WriteAt(v, int64(a*BlockSize))
 	if err != nil {

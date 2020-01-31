@@ -237,14 +237,14 @@ func tablePut(w tableWriter, k uint64, v []byte) {
 type Database struct {
 	wbuffer *map[uint64][]byte
 	rbuffer *map[uint64][]byte
-	bufferL *sync.RWMutex
+	bufferL *sync.Mutex
 	table   *Table
 	// the manifest
 	tableName *string
 	// protects both table and tableName
-	tableL *sync.RWMutex
+	tableL *sync.Mutex
 	// protects constructing shadow tables
-	compactionL *sync.RWMutex
+	compactionL *sync.Mutex
 }
 
 func makeValueBuffer() *map[uint64][]byte {
@@ -258,15 +258,15 @@ func makeValueBuffer() *map[uint64][]byte {
 func NewDb() Database {
 	wbuf := makeValueBuffer()
 	rbuf := makeValueBuffer()
-	bufferL := new(sync.RWMutex)
+	bufferL := new(sync.Mutex)
 	tableName := "table.0"
 	tableNameRef := new(string)
 	*tableNameRef = tableName
 	table := CreateTable(tableName)
 	tableRef := new(Table)
 	*tableRef = table
-	tableL := new(sync.RWMutex)
-	compactionL := new(sync.RWMutex)
+	tableL := new(sync.Mutex)
+	compactionL := new(sync.Mutex)
 	return Database{
 		wbuffer:     wbuf,
 		rbuffer:     rbuf,
@@ -285,27 +285,29 @@ func NewDb() Database {
 //
 // Reflects any completed in-memory writes.
 func Read(db Database, k uint64) ([]byte, bool) {
-	db.bufferL.RLock()
+	// NOTE: these should be read-only locks,
+	//  but we've dropped support for them in goose
+	db.bufferL.Lock()
 	// first try write buffer
 	buf := *db.wbuffer
 	v, ok := buf[k]
 	if ok {
-		db.bufferL.RUnlock()
+		db.bufferL.Unlock()
 		return v, true
 	}
 	// ...then try read buffer
 	rbuf := *db.rbuffer
 	v2, ok := rbuf[k]
 	if ok {
-		db.bufferL.RUnlock()
+		db.bufferL.Unlock()
 		return v2, true
 	}
 	// ...and finally go to the table
-	db.tableL.RLock()
+	db.tableL.Lock()
 	tbl := *db.table
 	v3, ok := tableRead(tbl, k)
-	db.tableL.RUnlock()
-	db.bufferL.RUnlock()
+	db.tableL.Unlock()
+	db.bufferL.Unlock()
 	return v3, ok
 }
 
@@ -416,14 +418,16 @@ func Compact(db Database) {
 	// compactionL also implicitly acquires a read-lock on the tableL, since it
 	// guarantees only the compaction itself could be messing with the table,
 	// which it won't do till later in this function
-	db.tableL.RLock()
+	//
+	// NOTE: this doesn't come up now that we've dropped sync.RWMutex support
+	db.tableL.Lock()
 	oldTableName := *db.tableName
 	oldTable, t := constructNewTable(db, buf)
 	newTable := freshTable(oldTableName)
-	db.tableL.RUnlock()
+	// db.tableL.RUnlock()
 
 	// next, install it (persistently and in-memory)
-	db.tableL.Lock()
+	// db.tableL.Lock()
 	*db.table = t
 	*db.tableName = newTable
 	manifestData := []byte(newTable)
@@ -488,9 +492,9 @@ func Recover() Database {
 
 	wbuffer := makeValueBuffer()
 	rbuffer := makeValueBuffer()
-	bufferL := new(sync.RWMutex)
-	tableL := new(sync.RWMutex)
-	compactionL := new(sync.RWMutex)
+	bufferL := new(sync.Mutex)
+	tableL := new(sync.Mutex)
+	compactionL := new(sync.Mutex)
 
 	return Database{
 		wbuffer:     wbuffer,

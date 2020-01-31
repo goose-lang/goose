@@ -31,6 +31,25 @@ func (s *PrimSuite) TestUInt64GetPut(c *C) {
 	}
 }
 
+func (s *PrimSuite) TestUInt32GetPut(c *C) {
+	tests := []uint32{
+		0, 1, ^uint32(1),
+		13 << 15,
+		13 << 5,
+		0xfc<<15 | 0xb<<10 | 0xa<<5 | 0x1,
+	}
+	for _, tt := range tests {
+		p := make([]byte, 4)
+		UInt32Put(p, tt)
+		c.Check(UInt32Get(p), Equals, tt)
+	}
+	for _, tt := range tests {
+		p := make([]byte, 10)
+		UInt32Put(p, tt)
+		c.Check(UInt32Get(p), Equals, tt, Commentf("with larger buffer"))
+	}
+}
+
 func (s *PrimSuite) TestUInt64ToString(c *C) {
 	tests := []struct {
 		Num uint64

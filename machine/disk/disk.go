@@ -30,6 +30,9 @@ type Disk interface {
 	// When it returns, all outstanding writes are guaranteed to be durably on
 	// disk
 	Barrier()
+
+	// Close releases any resources used by the disk and makes it unusable.
+	Close()
 }
 
 type MemDisk struct {
@@ -50,7 +53,12 @@ func NewMemDisk(numBlocks uint64) MemDisk {
 func (d MemDisk) Read(a uint64) Block {
 	d.l.RLock()
 	defer d.l.RUnlock()
-	return d.blocks[a]
+	if a >= uint64(len(d.blocks)) {
+		panic(fmt.Errorf("out-of-bounds read at %v", a))
+	}
+	blk := make([]byte, BlockSize)
+	copy(blk, d.blocks[a])
+	return blk
 }
 
 func (d MemDisk) Write(a uint64, v Block) {
@@ -59,7 +67,12 @@ func (d MemDisk) Write(a uint64, v Block) {
 	}
 	d.l.Lock()
 	defer d.l.Unlock()
-	d.blocks[a] = v
+	if a >= uint64(len(d.blocks)) {
+		panic(fmt.Errorf("out-of-bounds write at %v", a))
+	}
+	blk := make([]byte, BlockSize)
+	copy(blk, v)
+	d.blocks[a] = blk
 }
 
 func (d MemDisk) Size() uint64 {
@@ -68,6 +81,8 @@ func (d MemDisk) Size() uint64 {
 }
 
 func (d MemDisk) Barrier() {}
+
+func (d MemDisk) Close() {}
 
 var implicitDisk Disk
 

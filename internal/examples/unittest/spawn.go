@@ -10,15 +10,15 @@ import (
 func Skip() {}
 
 func simpleSpawn() {
-	l := new(sync.RWMutex)
+	l := new(sync.Mutex)
 	v := new(uint64)
 	machine.Spawn(func() {
-		l.RLock()
+		l.Lock()
 		x := *v
 		if x > 0 {
 			Skip()
 		}
-		l.RUnlock()
+		l.Unlock()
 	})
 	l.Lock()
 	*v = 1
@@ -28,16 +28,11 @@ func simpleSpawn() {
 func threadCode(tid uint64) {}
 
 func loopSpawn() {
-	for i := uint64(0); ; {
+	for i := uint64(0); i < 10; i++ {
 		i := i
-		if i > 10 {
-			break
-		}
 		machine.Spawn(func() {
 			threadCode(i)
 		})
-		i = i + 1
-		continue
 	}
 	for dummy := true; ; {
 		// do some work to avoid a self-assignment

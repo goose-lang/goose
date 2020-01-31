@@ -15,7 +15,7 @@ const logLength = 1 + 2*MaxTxnWrites
 
 type Log struct {
 	// protects cache and length
-	l     *sync.RWMutex
+	l     *sync.Mutex
 	cache map[uint64]disk.Block
 	// length of current transaction, in blocks
 	length *uint64
@@ -43,7 +43,7 @@ func New() Log {
 	disk.Write(0, header)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
-	l := new(sync.RWMutex)
+	l := new(sync.Mutex)
 	return Log{cache: cache, length: lengthPtr, l: l}
 }
 
@@ -167,6 +167,6 @@ func Open() Log {
 	cache := make(map[uint64]disk.Block)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
-	l := new(sync.RWMutex)
+	l := new(sync.Mutex)
 	return Log{cache: cache, length: lengthPtr, l: l}
 }
