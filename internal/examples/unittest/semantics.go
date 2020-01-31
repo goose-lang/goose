@@ -11,8 +11,21 @@ func roundtripEncDec32(x uint32) uint32 {
 	return d.UInt32()
 }
 
-func testEncDec32(x uint32) bool {
-	return roundtripEncDec32(x) == x
+func testEncDec32Simple() bool {
+	v0 := roundtripEncDec32(0) == 0
+	v1 := roundtripEncDec32(1) == 1
+	v2 := roundtripEncDec32(1231234) == 1231234
+	return v0 && v1 && v2
+}
+
+func testEncDec32() bool {
+	v0 := roundtripEncDec32(0xCCBB00AA) == 0xCCBB00AA
+	v1 := roundtripEncDec32(1<<20) == 1<<20
+	v2 := roundtripEncDec32(1<<18) == 1<<18
+	v3 := roundtripEncDec32(1<<10) == 1<<10
+	v4 := roundtripEncDec32(1<<0) == 1<<0
+	v5 := roundtripEncDec32(1<<32 - 1) == 1<<32 - 1
+	return v0 && v1 && v2 && v3 && v4 && v5
 }
 
 func roundtripEncDec64(x uint64) uint64 {
@@ -23,10 +36,24 @@ func roundtripEncDec64(x uint64) uint64 {
 	return d.UInt64()
 }
 
-func testEncDec64(x uint64) bool {
-	return roundtripEncDec64(x) == x
+func testEncDec64Simple() bool {
+	v0 := roundtripEncDec64(0) == 0
+	v1 := roundtripEncDec64(1) == 1
+	v2 := roundtripEncDec64(1231234) == 1231234
+	return v0 && v1 && v2
 }
 
+func testEncDec64() bool {
+	v0 := roundtripEncDec64(0xDD00CC00BB00AA) == 0xDD00CC00BB00AA
+	v1 := roundtripEncDec64(1<<63) == 1<<63
+	v2 := roundtripEncDec64(1<<47) == 1<<47
+	v3 := roundtripEncDec64(1<<20) == 1<<20
+	v4 := roundtripEncDec64(1<<18) == 1<<18
+	v5 := roundtripEncDec64(1<<10) == 1<<10
+	v6 := roundtripEncDec64(1<<0) == 1<<0
+	v7 := roundtripEncDec64(1<<64 - 1) == 1<<64 - 1
+	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7
+}
 // test that y defaults to 0 and subtraction always reverses addition
 func reverseAssignOps64(x uint64) uint64 {
 	var y uint64
@@ -37,8 +64,19 @@ func reverseAssignOps64(x uint64) uint64 {
 	return y
 }
 
-func testReverseAssignOps64(x uint64) bool {
-	return reverseAssignOps64(x) == 0
+func testReverseAssignOps64() bool {
+	v0 := roundtripEncDec64(0) == 0
+	v1 := roundtripEncDec64(1) == 1
+	v2 := roundtripEncDec64(1231234) == 1231234
+	v3 := roundtripEncDec64(0xDD00CC00BB00AA) == 0xDD00CC00BB00AA
+	v4 := roundtripEncDec64(1<<63) == 1<<63
+	v5 := roundtripEncDec64(1<<47) == 1<<47
+	v6 := roundtripEncDec64(1<<20) == 1<<20
+	v7 := roundtripEncDec64(1<<18) == 1<<18
+	v8 := roundtripEncDec64(1<<10) == 1<<10
+	v9 := roundtripEncDec64(1<<0) == 1<<0
+	v10 := roundtripEncDec64(1<<64 - 1) == 1<<64 - 1
+	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7 && v8 && v9 && v10
 }
 
 func reverseAssignOps32(x uint32) uint32 {
@@ -50,8 +88,17 @@ func reverseAssignOps32(x uint32) uint32 {
 	return y
 }
 
-func testReverseAssignOps32(x uint32) bool {
-	return reverseAssignOps32(x) == 0
+func testReverseAssignOps32() bool {
+	v0 := roundtripEncDec32(0) == 0
+	v1 := roundtripEncDec32(1) == 1
+	v2 := roundtripEncDec32(1231234) == 1231234
+	v3 := roundtripEncDec32(0xCCBB00AA) == 0xCCBB00AA
+	v4 := roundtripEncDec32(1<<20) == 1<<20
+	v5 := roundtripEncDec32(1<<18) == 1<<18
+	v6 := roundtripEncDec32(1<<10) == 1<<10
+	v7 := roundtripEncDec32(1<<0) == 1<<0
+	v8 := roundtripEncDec32(1<<32 - 1) == 1<<32 - 1
+	return v0 && v1 && v2 && v3 && v4 && v5 && v6 && v7 && v8
 }
 
 // test shortcircuiting behaviors for logical operators
@@ -107,12 +154,23 @@ func testShortcircuitOrFT() bool {
 }
 
 // test integer overflow and underflow
-func testAdd64Equals(x uint64, y uint64, z uint64) bool {
+func add64Equals(x uint64, y uint64, z uint64) bool {
 	return x+y == z
 }
+func testAdd64Equals() bool {
+	x := add64Equals(2, 3, 5)
+	y := add64Equals(1<<64 - 1, 1, 0)
+	return x && y
+}
 
-func testMinus64Equals(x uint64, y uint64, z uint64) bool {
+func minus64Equals(x uint64, y uint64, z uint64) bool {
 	return x-y == z
+}
+func testMinus64Equals() bool {
+	x := minus64Equals(2, 1, 1)
+	y := minus64Equals(1<<64 - 1, 1 << 63, 1<<63 - 1)
+	z := minus64Equals(2, 8, 1<<64 - 6)
+	return x && y && z
 }
 
 // test side-effects on array writes from multiple accessors
