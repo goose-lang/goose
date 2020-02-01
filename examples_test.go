@@ -26,20 +26,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/tchajed/goose"
-
-	. "gopkg.in/check.v1"
 )
 
 var updateGold = flag.Bool("update-gold",
 	false,
 	"update *.gold.v files in internal/examples/ with current output")
-
-func Test(t *testing.T) { TestingT(t) }
-
-type ExamplesSuite struct{}
-
-var _ = Suite(&ExamplesSuite{})
 
 type test struct {
 	name string
@@ -120,17 +113,18 @@ func (t positiveTest) DeleteActual() {
 	_ = os.Remove(t.ActualFile())
 }
 
-func (s *ExamplesSuite) testExample(c *C, name string, conf goose.Config) {
+func testExample(testingT *testing.T, name string, conf goose.Config) {
+	assert := assert.New(testingT)
 	t := positiveTest{newTest("internal/examples", name)}
 	if !t.isDir() {
-		c.Fatalf("%s is not a test directory", t.path)
+		assert.FailNowf("%s is now a test directory", t.path)
 	}
 	// c.Logf("testing example %s/", t.Path)
 
 	f, terr := conf.TranslatePackage("", t.path)
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
-		c.Fatalf("%s translation failed", t.name)
+		assert.FailNowf("%s translation failed", t.name)
 	}
 
 	var b bytes.Buffer
@@ -149,10 +143,10 @@ func (s *ExamplesSuite) testExample(c *C, name string, conf goose.Config) {
 
 	expected := t.Gold()
 	if expected == "" {
-		c.Errorf("could not load gold output %s", t.GoldFile())
+		assert.FailNowf("could not load gold output %s", t.GoldFile())
 	}
 	if actual != expected {
-		c.Errorf("actual Coq output != gold output; see %s", t.ActualFile())
+		assert.FailNowf("actual Coq output != gold output; see %s", t.ActualFile())
 		t.PutActual(actual)
 		return
 	}
@@ -160,28 +154,28 @@ func (s *ExamplesSuite) testExample(c *C, name string, conf goose.Config) {
 	t.DeleteActual()
 }
 
-func (s *ExamplesSuite) TestUnitTests(c *C) {
-	s.testExample(c, "unittest", goose.Config{})
+func TestUnitTests(t *testing.T) {
+	testExample(t, "unittest", goose.Config{})
 }
 
-func (s *ExamplesSuite) TestSimpleDb(c *C) {
-	s.testExample(c, "simpledb", goose.Config{})
+func TestSimpleDb(t *testing.T) {
+	testExample(t, "simpledb", goose.Config{})
 }
 
-func (s *ExamplesSuite) TestWal(c *C) {
-	s.testExample(c, "wal", goose.Config{TypeCheck: true})
+func TestWal(t *testing.T) {
+	testExample(t, "wal", goose.Config{TypeCheck: true})
 }
 
-func (s *ExamplesSuite) TestLogging2(c *C) {
-	s.testExample(c, "logging2", goose.Config{TypeCheck: true})
+func TestLogging2(t *testing.T) {
+	testExample(t, "logging2", goose.Config{TypeCheck: true})
 }
 
-func (s *ExamplesSuite) TestAppendLog(c *C) {
-	s.testExample(c, "append_log", goose.Config{TypeCheck: true})
+func TestAppendLog(t *testing.T) {
+	testExample(t, "append_log", goose.Config{TypeCheck: true})
 }
 
-func (s *ExamplesSuite) TestRfc1813(c *C) {
-	s.testExample(c, "rfc1813", goose.Config{TypeCheck: true})
+func TestRfc1813(t *testing.T) {
+	testExample(t, "rfc1813", goose.Config{TypeCheck: true})
 }
 
 type errorExpectation struct {
@@ -218,34 +212,34 @@ func getExpectedError(fset *token.FileSet,
 	return nil
 }
 
-func translateErrorFile(c *C, filePath string) *errorTestResult {
+func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestResult {
 	fset := token.NewFileSet()
 	pkgName := "example"
 	ctx := goose.NewCtx(pkgName, fset, goose.Config{})
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		c.Errorf("test code for %s does not parse", filePath)
+		assert.FailNowf("test code for %s does not parse", filePath)
 		return nil
 	}
 
 	err = ctx.TypeCheck(pkgName, []*ast.File{f})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		c.Errorf("test code for %s does not type check", filePath)
+		assert.FailNowf("test code for %s does not type check", filePath)
 		return nil
 	}
 
 	_, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
 	if len(errs) == 0 {
-		c.Errorf("expected error while translating %s", filePath)
+		assert.FailNowf("expected error while translating %s", filePath)
 		return nil
 	}
 	cerr := errs[0].(*goose.ConversionError)
 
 	expectedErr := getExpectedError(fset, f.Comments)
 	if expectedErr == nil {
-		c.Errorf("test code for %s does not have an error expectation",
+		assert.FailNowf("test code for %s does not have an error expectation",
 			filePath)
 		return nil
 	}
@@ -257,25 +251,28 @@ func translateErrorFile(c *C, filePath string) *errorTestResult {
 	}
 }
 
-func (s *ExamplesSuite) TestNegativeExamples(c *C) {
+func TestNegativeExamples(testingT *testing.T) {
+	assert := assert.New(testingT)
 	tests := loadTests("./testdata")
 	for _, t := range tests {
 		if t.isDir() {
 			continue
 		}
-		c.Logf("testing negative example %s", t.name)
-		tt := translateErrorFile(c, t.path)
+		if testing.Verbose() {
+			fmt.Printf("testing negative example %s\n", t.name)
+		}
+		tt := translateErrorFile(assert, t.path)
 		if tt == nil {
 			// this Ast has already failed
 			continue
 		}
-		c.Check(tt.Err.Category, Matches, `(unsupported|future)`)
+		assert.Regexp(`(unsupported|future)`, tt.Err.Category)
 		if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
-			c.Errorf(`%s: error message "%s" does not contain "%s"`,
+			assert.FailNowf(`%s: error message "%s" does not contain "%s"`,
 				t.name, tt.Err.Message, tt.Expected.Error)
 		}
 		if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
-			c.Errorf("%s: error is incorrectly attributed to %s",
+			assert.FailNowf("%s: error is incorrectly attributed to %s",
 				t.name, tt.Err.GoSrcFile)
 		}
 	}
