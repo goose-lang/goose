@@ -1,2 +1,1 @@
-# Ignore IntelliJ project
-/.idea/
+/cmd/test_gen/test_gen

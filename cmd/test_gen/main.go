@@ -99,7 +99,7 @@ func main() {
 			m := re.FindStringSubmatch(line)
 
 			if len(m) != 0 {
-				fmt.Fprintf(out, "Example %s_ok := %s #() ~~> #true.\n", m[1], m[1])
+				fmt.Fprintf(out, "Example %s_ok : %s #() ~~> #true := t.\n", m[1], m[1])
 			}
 		}
 	} else if t == "go" {
