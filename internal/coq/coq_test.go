@@ -3,16 +3,11 @@ package coq
 import (
 	"testing"
 
-	. "gopkg.in/check.v1"
+	"github.com/stretchr/testify/assert"
 )
 
-func Test(t *testing.T) { TestingT(t) }
-
-type CoqSuite struct{}
-
-var _ = Suite(&CoqSuite{})
-
-func (s *CoqSuite) TestPp(c *C) {
+func TestPp(t *testing.T) {
+	assert := assert.New(t)
 	var pp buffer
 	pp.Indent(2)
 	pp.Add("%s", "")
@@ -22,12 +17,12 @@ func (s *CoqSuite) TestPp(c *C) {
 	pp.AddComment("a multiline\ncomment")
 	pp.Indent(-2)
 	pp.AddLine("final line")
-	c.Check(pp.Build(), Equals, `
+	assert.Equal(`
   foo
   bar
   call(big
        arg)
   (* a multiline
      comment *)
-final line`)
+final line`, pp.Build())
 }
