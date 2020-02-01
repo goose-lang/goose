@@ -6,24 +6,28 @@ import (
 	"testing"
 	"time"
 
-	. "gopkg.in/check.v1"
+	"github.com/stretchr/testify/suite"
 )
 
-func Test(t *testing.T) { TestingT(t) }
-
 type DiskSuite struct {
+	suite.Suite
 	mem bool
 	D   Disk
 }
 
-var _ = Suite(&DiskSuite{mem: false})
-var _ = Suite(&DiskSuite{mem: true})
+func TestMemDisk(t *testing.T) {
+	suite.Run(t, &DiskSuite{mem: true})
+}
+
+func TestFileDisk(t *testing.T) {
+	suite.Run(t, &DiskSuite{mem: false})
+}
 
 var diskPath = "/tmp/test-disk"
 
 const diskSize uint64 = 100
 
-func (suite *DiskSuite) SetUpTest(c *C) {
+func (suite *DiskSuite) SetupTest() {
 	var d Disk
 	if suite.mem {
 		d = NewMemDisk(diskSize)
@@ -38,9 +42,11 @@ func (suite *DiskSuite) SetUpTest(c *C) {
 	Init(d)
 }
 
-func (suite *DiskSuite) TearDownTest(c *C) {
+func (suite *DiskSuite) TearDownTest() {
 	suite.D.Close()
-	_ = os.Remove(diskPath)
+	if !suite.mem {
+		os.Remove(diskPath)
+	}
 }
 
 var block0 Block = make([]byte, BlockSize)
@@ -53,25 +59,25 @@ func init() {
 	diskPath += fmt.Sprintf(".%d", time.Now().UnixNano()/1000%1000)
 }
 
-func (suite *DiskSuite) TestReadWrite(c *C) {
+func (suite *DiskSuite) TestReadWrite() {
 	Write(3, block1)
 	Write(4, block2)
-	c.Check(Read(2), DeepEquals, block0)
-	c.Check(Read(3), DeepEquals, block1)
-	c.Check(Read(4), DeepEquals, block2)
+	suite.Equal(block0, Read(2))
+	suite.Equal(block1, Read(3))
+	suite.Equal(block2, Read(4))
 }
 
-func (suite *DiskSuite) TestSize(c *C) {
-	c.Check(Size(), Equals, uint64(100))
+func (suite *DiskSuite) TestSize() {
+	suite.Equal(uint64(100), Size())
 }
 
-func (suite *DiskSuite) TestBarrier(c *C) {
+func (suite *DiskSuite) TestBarrier() {
 	Write(99, block1)
 	Barrier()
-	c.Check(Read(99), DeepEquals, block1)
+	suite.Equal(block1, Read(99))
 }
 
-func (suite *DiskSuite) TestCrash(c *C) {
+func (suite *DiskSuite) TestCrash() {
 	if suite.mem {
 		// this test doesn't make sense on an in-memory disk
 		return
@@ -81,31 +87,31 @@ func (suite *DiskSuite) TestCrash(c *C) {
 	Barrier()
 
 	suite.D.Close()
-	suite.SetUpTest(c)
+	// re-initialize to do recovery
+	suite.SetupTest()
 
-	c.Check(Read(2), DeepEquals, block1)
-	c.Check(Read(3), DeepEquals, block0)
+	suite.Equal(block1, Read(2))
+	suite.Equal(block0, Read(3))
 }
 
-func (suite *DiskSuite) TestModifyReadBlock(c *C) {
+func (suite *DiskSuite) TestModifyReadBlock() {
 	Write(0, block0)
 	b := Read(0)
 	b[0] = 1
-	c.Check(Read(0)[0], DeepEquals, byte(0))
+	suite.Equal(byte(0), Read(0)[0], "Write should not retain blocks")
 }
 
-func (suite *DiskSuite) TestModifyWriteBlock(c *C) {
+func (suite *DiskSuite) TestModifyWriteBlock() {
 	b := make([]byte, 4096)
 	Write(0, b)
 	b[0] = 1
-	c.Check(Read(0)[0], DeepEquals, byte(0))
+	suite.Equal(byte(0), Read(0)[0], "Write should not retain blocks")
 }
 
-func (suite *DiskSuite) TestReadOob(c *C) {
-	c.Assert(func() { Read(diskSize) }, PanicMatches, ".*out-of-bounds read.*")
+func (suite *DiskSuite) TestReadOob() {
+	suite.Panics(func() { Read(diskSize) }, "out-of-bounds read")
 }
 
-func (suite *DiskSuite) TestWriteOob(c *C) {
-	c.Assert(func() { Write(diskSize, block0) }, PanicMatches,
-		".*out-of-bounds write.*")
+func (suite *DiskSuite) TestWriteOob() {
+	suite.Panics(func() { Write(diskSize, block0) }, "out-of-bounds write")
 }
