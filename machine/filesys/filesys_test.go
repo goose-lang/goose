@@ -1,5 +1,3 @@
-// need to put this in a separate package to dot import gocheck;
-// List identifier conflicts
 package filesys_test
 
 import (
@@ -9,29 +7,48 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/filesys"
 )
-import . "gopkg.in/check.v1"
 
-func Test(t *testing.T) { TestingT(t) }
-
-// FilesysSuite implements the actual filesystem test suite.
-//
-// It is not used as a gocheck suite but embedded in both MemFilesysSuite and
-// DirFilesysSuite (we can't do this directly because gocheck uses the suite
-// type as its name, so there would be no way to distinguish between the mem
-// and dir suites)
+// FilesysSuite implements a filesystem test suite generic over fs.
 type FilesysSuite struct {
-	fs filesys.Filesys
+	suite.Suite
+	dir string
+	fs  filesys.Filesys
 }
 
-func (s FilesysSuite) setupDirs() {
+func (s *FilesysSuite) SetupTest() {
+	if s.dir == ":memory:" {
+		s.fs = filesys.NewMemFs()
+	} else {
+		var err error
+		s.dir, err = ioutil.TempDir("", "test.dir")
+		if err != nil {
+			panic(err)
+		}
+		s.fs = filesys.NewDirFs(s.dir)
+	}
+	s.setupDirs()
+}
+
+func (s *FilesysSuite) TearDownTest() {
+	if s.dir != ":memory:" {
+		s.fs.(filesys.DirFs).CloseFs()
+		err := os.RemoveAll(s.dir)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (s *FilesysSuite) setupDirs() {
 	s.fs.Mkdir("dir")
 	s.fs.Mkdir("dir1")
 	s.fs.Mkdir("dir2")
 }
 
-func (s FilesysSuite) CreateNew(fname string) filesys.File {
+func (s *FilesysSuite) CreateNew(fname string) filesys.File {
 	f, ok := s.fs.Create("dir", fname)
 	if !ok {
 		panic(fmt.Errorf("destination file %s/%s exists", "dir", fname))
@@ -39,7 +56,7 @@ func (s FilesysSuite) CreateNew(fname string) filesys.File {
 	return f
 }
 
-func (s FilesysSuite) TestCreateReadExact(c *C) {
+func (s *FilesysSuite) TestCreateReadExact() {
 	written := []byte("some data")
 	f := s.CreateNew("test.bin")
 	s.fs.Append(f, written)
@@ -47,11 +64,11 @@ func (s FilesysSuite) TestCreateReadExact(c *C) {
 
 	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, 0, uint64(len(written)))
-	c.Check(data, DeepEquals, written)
+	s.Equal(written, data)
 }
 
 // readAllIn only works for files < 4096 bytes
-func (s FilesysSuite) readAllIn(dir, fname string) []byte {
+func (s *FilesysSuite) readAllIn(dir, fname string) []byte {
 	f := s.fs.Open(dir, fname)
 	data := s.fs.ReadAt(f, 0, 4096)
 	s.fs.Close(f)
@@ -59,31 +76,31 @@ func (s FilesysSuite) readAllIn(dir, fname string) []byte {
 }
 
 // readAllIn only works for files < 4096 bytes
-func (s FilesysSuite) readAll(fname string) []byte {
+func (s *FilesysSuite) readAll(fname string) []byte {
 	return s.readAllIn("dir", fname)
 }
 
-func (s FilesysSuite) TestCreateReadExtra(c *C) {
+func (s *FilesysSuite) TestCreateReadExtra() {
 	written := []byte("some data")
 	f := s.CreateNew("test.bin")
 	s.fs.Append(f, written)
 	s.fs.Close(f)
 
 	data := s.readAll("test.bin")
-	c.Check(data, DeepEquals, written)
+	s.Equal(written, data)
 }
 
-func (s FilesysSuite) TestReadAtOob(c *C) {
+func (s *FilesysSuite) TestReadAtOob() {
 	f := s.CreateNew("test.bin")
 	s.fs.Append(f, []byte("some data"))
 	s.fs.Close(f)
 
 	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, 1000, 10)
-	c.Check(data, HasLen, 0)
+	s.Empty(data)
 }
 
-func (s FilesysSuite) TestReadAtOffset(c *C) {
+func (s *FilesysSuite) TestReadAtOffset() {
 	written := []byte("some longer data")
 	f := s.CreateNew("test.bin")
 	s.fs.Append(f, written)
@@ -91,7 +108,7 @@ func (s FilesysSuite) TestReadAtOffset(c *C) {
 
 	f2 := s.fs.Open("dir", "test.bin")
 	data := s.fs.ReadAt(f2, uint64(len("some ")), uint64(len("longer")))
-	c.Check(data, DeepEquals, []byte("longer"))
+	s.Equal([]byte("longer"), data)
 }
 
 // for checking directory listings in canonical order
@@ -102,55 +119,55 @@ func sorted(s []string) []string {
 	return s
 }
 
-func (s FilesysSuite) TestList(c *C) {
-	c.Check(s.fs.List("dir"), HasLen, 0)
+func (s *FilesysSuite) TestList() {
+	s.Empty(s.fs.List("dir"))
 	s.fs.Close(s.CreateNew("f1"))
 	s.fs.Close(s.CreateNew("f2"))
-	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f1", "f2"})
+	s.Equal([]string{"f1", "f2"}, sorted(s.fs.List("dir")))
 }
 
-func (s FilesysSuite) TestListLargeDir(c *C) {
-	c.Check(s.fs.List("dir"), HasLen, 0)
+func (s *FilesysSuite) TestListLargeDir() {
+	s.Empty(s.fs.List("dir"))
 	var expected []string
 	for i := 0; i < 1000; i++ {
 		fname := fmt.Sprintf("file%d", i)
 		s.fs.Close(s.CreateNew(fname))
 		expected = append(expected, fname)
 	}
-	c.Check(sorted(s.fs.List("dir")), DeepEquals, sorted(expected))
+	s.Equal(sorted(expected), sorted(s.fs.List("dir")))
 }
 
-func (s FilesysSuite) TestDelete(c *C) {
+func (s *FilesysSuite) TestDelete() {
 	s.fs.Close(s.CreateNew("f1"))
 	s.fs.Close(s.CreateNew("f2"))
-	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f1", "f2"})
+	s.Equal([]string{"f1", "f2"}, sorted(s.fs.List("dir")))
 	s.fs.Delete("dir", "f1")
-	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"f2"})
+	s.Equal([]string{"f2"}, sorted(s.fs.List("dir")))
 }
 
-func (s FilesysSuite) TestAtomicCreate(c *C) {
+func (s *FilesysSuite) TestAtomicCreate() {
 	contents := []byte("hello world")
 	s.fs.AtomicCreate("dir", "testfile", contents)
 	f := s.fs.Open("dir", "testfile")
 	data := s.fs.ReadAt(f, 0, uint64(len(contents)))
-	c.Check(data, DeepEquals, contents)
+	s.Equal(contents, data)
 }
 
-func (s FilesysSuite) TestLink(c *C) {
+func (s *FilesysSuite) TestLink() {
 	contents := []byte("hello world")
 	s.fs.AtomicCreate("dir", "file1", contents)
 	ok := s.fs.Link("dir", "file1", "dir", "file2")
-	c.Assert(ok, Equals, true)
+	s.Assert().Equal(true, ok)
 	ok = s.fs.Link("dir", "file2", "dir", "file1")
-	c.Check(ok, Equals, false)
-	c.Check(s.readAll("file1"), DeepEquals, contents)
-	c.Check(s.readAll("file2"), DeepEquals, contents)
+	s.Equal(false, ok)
+	s.Equal(contents, s.readAll("file1"))
+	s.Equal(contents, s.readAll("file2"))
 	s.fs.Delete("dir", "file1")
-	c.Check(s.readAll("file2"), DeepEquals, contents)
-	c.Check(sorted(s.fs.List("dir")), DeepEquals, []string{"file2"})
+	s.Equal(contents, s.readAll("file2"))
+	s.Equal([]string{"file2"}, sorted(s.fs.List("dir")))
 }
 
-func (s FilesysSuite) TestReadIndependentDirs(c *C) {
+func (s *FilesysSuite) TestReadIndependentDirs() {
 	written1 := []byte("some data")
 	f, _ := s.fs.Create("dir1", "test.bin")
 	s.fs.Append(f, written1)
@@ -162,43 +179,15 @@ func (s FilesysSuite) TestReadIndependentDirs(c *C) {
 	s.fs.Close(f)
 
 	data1 := s.readAllIn("dir1", "test.bin")
-	c.Check(data1, DeepEquals, written1)
+	s.Equal(written1, data1)
 	data2 := s.readAllIn("dir2", "test.bin")
-	c.Check(data2, DeepEquals, written2)
+	s.Equal(written2, data2)
 }
 
-type MemFilesysSuite struct {
-	FilesysSuite
+func TestMemFilesys(t *testing.T) {
+	suite.Run(t, &FilesysSuite{dir: ":memory:"})
 }
 
-var _ = Suite(&MemFilesysSuite{})
-
-func (s *MemFilesysSuite) SetUpTest(c *C) {
-	s.FilesysSuite = FilesysSuite{fs: filesys.NewMemFs()}
-	s.FilesysSuite.setupDirs()
-}
-
-type DirFilesysSuite struct {
-	dir string
-	FilesysSuite
-}
-
-var _ = Suite(&DirFilesysSuite{})
-
-func (s *DirFilesysSuite) SetUpTest(c *C) {
-	var err error
-	s.dir, err = ioutil.TempDir("", "test.dir")
-	if err != nil {
-		panic(err)
-	}
-	s.FilesysSuite = FilesysSuite{fs: filesys.NewDirFs(s.dir)}
-	s.FilesysSuite.setupDirs()
-}
-
-func (s *DirFilesysSuite) TearDownTest(c *C) {
-	s.fs.(filesys.DirFs).CloseFs()
-	err := os.RemoveAll(s.dir)
-	if err != nil {
-		panic(err)
-	}
+func TestDirFilesys(t *testing.T) {
+	suite.Run(t, &FilesysSuite{})
 }
