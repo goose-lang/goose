@@ -3,16 +3,11 @@ package machine
 import (
 	"testing"
 
-	. "gopkg.in/check.v1"
+	"github.com/stretchr/testify/assert"
 )
 
-func Test(t *testing.T) { TestingT(t) }
-
-type PrimSuite struct{}
-
-var _ = Suite(&PrimSuite{})
-
-func (s *PrimSuite) TestUInt64GetPut(c *C) {
+func TestUInt64GetPut(t *testing.T) {
+	assert := assert.New(t)
 	tests := []uint64{
 		0, 1, ^uint64(1),
 		13 << 30,
@@ -22,16 +17,17 @@ func (s *PrimSuite) TestUInt64GetPut(c *C) {
 	for _, tt := range tests {
 		p := make([]byte, 8)
 		UInt64Put(p, tt)
-		c.Check(UInt64Get(p), Equals, tt)
+		assert.Equal(tt, UInt64Get(p))
 	}
 	for _, tt := range tests {
 		p := make([]byte, 10)
 		UInt64Put(p, tt)
-		c.Check(UInt64Get(p), Equals, tt, Commentf("with larger buffer"))
+		assert.Equal(tt, UInt64Get(p), "with larger buffer")
 	}
 }
 
-func (s *PrimSuite) TestUInt32GetPut(c *C) {
+func TestUInt32GetPut(t *testing.T) {
+	assert := assert.New(t)
 	tests := []uint32{
 		0, 1, ^uint32(1),
 		13 << 15,
@@ -41,16 +37,17 @@ func (s *PrimSuite) TestUInt32GetPut(c *C) {
 	for _, tt := range tests {
 		p := make([]byte, 4)
 		UInt32Put(p, tt)
-		c.Check(UInt32Get(p), Equals, tt)
+		assert.Equal(tt, UInt32Get(p))
 	}
 	for _, tt := range tests {
 		p := make([]byte, 10)
 		UInt32Put(p, tt)
-		c.Check(UInt32Get(p), Equals, tt, Commentf("with larger buffer"))
+		assert.Equal(tt, UInt32Get(p), "with larger buffer")
 	}
 }
 
-func (s *PrimSuite) TestUInt64ToString(c *C) {
+func TestUInt64ToString(t *testing.T) {
+	assert := assert.New(t)
 	tests := []struct {
 		Num uint64
 		Str string
@@ -60,11 +57,11 @@ func (s *PrimSuite) TestUInt64ToString(c *C) {
 		{1024, "1024"},
 	}
 	for _, tt := range tests {
-		c.Check(UInt64ToString(tt.Num), Equals, tt.Str)
+		assert.Equal(tt.Str, UInt64ToString(tt.Num))
 	}
 }
 
-func (s *PrimSuite) TestRandomDoesNotPanic(c *C) {
+func TestRandomDoesNotPanic(t *testing.T) {
 	// not much we can test here
 	RandomUint64()
 	RandomUint64()
