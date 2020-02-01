@@ -252,28 +252,27 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 }
 
 func TestNegativeExamples(testingT *testing.T) {
-	assert := assert.New(testingT)
 	tests := loadTests("./testdata")
 	for _, t := range tests {
 		if t.isDir() {
 			continue
 		}
-		if testing.Verbose() {
-			fmt.Printf("testing negative example %s\n", t.name)
-		}
-		tt := translateErrorFile(assert, t.path)
-		if tt == nil {
-			// this Ast has already failed
-			continue
-		}
-		assert.Regexp(`(unsupported|future)`, tt.Err.Category)
-		if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
-			assert.FailNowf(`%s: error message "%s" does not contain "%s"`,
-				t.name, tt.Err.Message, tt.Expected.Error)
-		}
-		if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
-			assert.FailNowf("%s: error is incorrectly attributed to %s",
-				t.name, tt.Err.GoSrcFile)
-		}
+		testingT.Run(t.name, func(testingT *testing.T) {
+			assert := assert.New(testingT)
+			tt := translateErrorFile(assert, t.path)
+			if tt == nil {
+				// this Ast has already failed
+				return
+			}
+			assert.Regexp(`(unsupported|future)`, tt.Err.Category)
+			if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
+				assert.FailNowf(`%s: error message "%s" does not contain "%s"`,
+					t.name, tt.Err.Message, tt.Expected.Error)
+			}
+			if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
+				assert.FailNowf("%s: error is incorrectly attributed to %s",
+					t.name, tt.Err.GoSrcFile)
+			}
+		})
 	}
 }
