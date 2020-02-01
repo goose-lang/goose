@@ -190,8 +190,8 @@ func (ae *ArrayEditor) Advance(arr []uint64, next uint64) {
 func testOverwriteArray() bool {
 	var arr = make([]uint64, 4)
 
-	ae1 := ArrayEditor{s: arr[0:], next_val: 1}
-	ae2 := ArrayEditor{s: arr[1:], next_val: 102}
+	ae1 := &ArrayEditor{s: arr[0:], next_val: 1}
+	ae2 := &ArrayEditor{s: arr[1:], next_val: 102}
 	ae2.Advance(arr, 103)
 	ae2.Advance(arr, 104)
 	ae2.Advance(arr, 105) // 105 never gets written to array
