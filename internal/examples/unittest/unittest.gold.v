@@ -800,11 +800,11 @@ Definition ArrayEditor__Advance: val :=
 Definition testOverwriteArray: val :=
   λ: <>,
     let: "arr" := ref (NewSlice uint64T #4) in
-    let: "ae1" := struct.mk ArrayEditor.S [
+    let: "ae1" := struct.new ArrayEditor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #1
     ] in
-    let: "ae2" := struct.mk ArrayEditor.S [
+    let: "ae2" := struct.new ArrayEditor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #1;
       "next_val" ::= #102
     ] in
