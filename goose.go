@@ -582,6 +582,17 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		args)
 }
 
+func isDisk(t types.Type) bool {
+	if t, ok := t.(*types.Named); ok {
+		obj := t.Obj()
+		if obj.Pkg().Path() == "github.com/tchajed/goose/machine/disk" &&
+			obj.Name() == "Disk" {
+			return true
+		}
+	}
+	return false
+}
+
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	call *ast.CallExpr) coq.Expr {
 	args := call.Args
@@ -594,6 +605,11 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	}
 	if isCondVar(selectorType) {
 		return ctx.condVarMethod(f)
+	}
+	if isDisk(selectorType) {
+		method := fmt.Sprintf("disk.%s", f.Sel)
+		// skip disk argument (f.X) and just pass the method arguments
+		return ctx.newCoqCall(method, call.Args)
 	}
 	structInfo, ok := ctx.getStructInfo(selectorType)
 	if ok {
