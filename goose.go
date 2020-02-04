@@ -1640,10 +1640,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		if ctx.identInfo(lhs).IsPtrWrapped {
 			return ctx.pointerAssign(lhs, rhs)
 		}
-		// the support for making variables assignable is in flux, but currently
-		// the only way the assignment would be supported is if it was created
-		// in a loop initializer
-		ctx.unsupported(s, "variable %s is not assignable", lhs.Name)
+		ctx.unsupported(s, "variable %s is not assignable\n\t(declare it with 'var' to pointer-wrap in GooseLang and support re-assignment)", lhs.Name)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy := targetTy.(type) {
