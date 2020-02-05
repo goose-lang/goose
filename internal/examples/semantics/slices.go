@@ -1,4 +1,4 @@
-package semantic_test
+package semantics
 
 // helpers
 type ArrayEditor struct {

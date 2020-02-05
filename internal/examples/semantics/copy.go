@@ -1,4 +1,4 @@
-package semantic_test
+package semantics
 
 func testCopySimple() bool {
 	x := make([]byte, 10)

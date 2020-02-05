@@ -1,4 +1,4 @@
-package semantic_test
+package semantics
 
 import "github.com/tchajed/goose/machine"
 
