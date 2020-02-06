@@ -417,7 +417,7 @@ Definition MapWrapper: ty := mapT boolT.
 
 Definition MapTypeAliases: val :=
   λ: "m1" "m2",
-    MapInsert "m1" #4 (MapGet "m2" #0).
+    MapInsert "m1" #4 (Fst (MapGet "m2" #0)).
 
 (* multiple.go *)
 
