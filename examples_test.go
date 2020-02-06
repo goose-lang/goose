@@ -180,7 +180,7 @@ func TestRfc1813(t *testing.T) {
 
 func TestSemantics(t *testing.T) {
 	testExample(t, "semantics", goose.Config{TypeCheck: true})
-}	
+}
 
 type errorExpectation struct {
 	Line  int

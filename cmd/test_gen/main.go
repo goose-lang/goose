@@ -97,7 +97,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	if t == "coq" {
 		fmt.Fprintf(out, coqHeader)
 
@@ -125,22 +125,22 @@ func main() {
 				}
 			}
 		}
-		
+
 	} else if t == "go" {
 		fmt.Fprintf(out, goHeader)
 
 		for _, file := range files {
-			
+
 			// skip emacs back-up files
 			if strings.HasSuffix(file.Name(), "~") {
 				continue
 			}
-			
+
 			f, err := os.Open(srcDir + file.Name())
 			if err != nil {
 				panic(err)
 			}
-			
+
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
 				line := scanner.Text()

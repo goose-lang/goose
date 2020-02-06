@@ -2,11 +2,11 @@
 package semantics
 
 import (
-	"testing"
 	"github.com/stretchr/testify/suite"
+	"testing"
 )
 
-type GoTestSuite struct{
+type GoTestSuite struct {
 	suite.Suite
 }
 
@@ -83,5 +83,5 @@ func (suite *GoTestSuite) TestOverwriteArray() {
 }
 
 func TestSuite(t *testing.T) {
-    suite.Run(t, new(GoTestSuite))
+	suite.Run(t, new(GoTestSuite))
 }

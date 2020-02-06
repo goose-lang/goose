@@ -182,18 +182,26 @@ Hint Resolve testEncDec64_t : types.
 
 (* function_ordering.go *)
 
+(* helpers *)
+Module Editor.
+  Definition S := struct.decl [
+    "s" :: slice.T uint64T;
+    "next_val" :: uint64T
+  ].
+End Editor.
+
 (* advances the array editor, and returns the value it wrote, storing
    "next" in next_val *)
-Definition ArrayEditor__AdvanceReturn: val :=
-  λ: "ae" "next",
-    let: "tmp" := ref (struct.loadF ArrayEditor.S "next_val" "ae") in
-    SliceSet uint64T (struct.loadF ArrayEditor.S "s" "ae") #0 (![uint64T] "tmp");;
-    struct.storeF ArrayEditor.S "next_val" "ae" "next";;
-    struct.storeF ArrayEditor.S "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor.S "s" "ae") #1);;
+Definition Editor__AdvanceReturn: val :=
+  λ: "e" "next",
+    let: "tmp" := ref (struct.loadF Editor.S "next_val" "e") in
+    SliceSet uint64T (struct.loadF Editor.S "s" "e") #0 (![uint64T] "tmp");;
+    struct.storeF Editor.S "next_val" "e" "next";;
+    struct.storeF Editor.S "s" "e" (SliceSkip uint64T (struct.loadF Editor.S "s" "e") #1);;
     ![uint64T] "tmp".
-Theorem ArrayEditor__AdvanceReturn_t: ⊢ ArrayEditor__AdvanceReturn : (struct.ptrT ArrayEditor.S -> uint64T -> uint64T).
+Theorem Editor__AdvanceReturn_t: ⊢ Editor__AdvanceReturn : (struct.ptrT Editor.S -> uint64T -> uint64T).
 Proof. typecheck. Qed.
-Hint Resolve ArrayEditor__AdvanceReturn_t : types.
+Hint Resolve Editor__AdvanceReturn_t : types.
 
 (* we call this function with side-effectful function calls as arguments,
    its implementation is unimportant *)
@@ -215,21 +223,21 @@ End Pair.
 Definition testFunctionOrdering: val :=
   λ: <>,
     let: "arr" := ref (NewSlice uint64T #5) in
-    let: "ae1" := struct.mk ArrayEditor.S [
+    let: "e1" := struct.mk Editor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #1
     ] in
-    let: "ae2" := struct.mk ArrayEditor.S [
+    let: "e2" := struct.mk Editor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #101
     ] in
-    (if: ArrayEditor__AdvanceReturn "ae1" #2 + ArrayEditor__AdvanceReturn "ae2" #102 ≠ #102
+    (if: Editor__AdvanceReturn "e1" #2 + Editor__AdvanceReturn "e2" #102 ≠ #102
     then #false
     else
       (if: SliceGet uint64T (![slice.T uint64T] "arr") #0 ≠ #101
       then #false
       else
-        (if: addFour64 (ArrayEditor__AdvanceReturn "ae1" #3) (ArrayEditor__AdvanceReturn "ae2" #103) (ArrayEditor__AdvanceReturn "ae2" #104) (ArrayEditor__AdvanceReturn "ae1" #4) ≠ #210
+        (if: addFour64 (Editor__AdvanceReturn "e1" #3) (Editor__AdvanceReturn "e2" #103) (Editor__AdvanceReturn "e2" #104) (Editor__AdvanceReturn "e1" #4) ≠ #210
         then #false
         else
           (if: SliceGet uint64T (![slice.T uint64T] "arr") #1 ≠ #102
@@ -239,15 +247,15 @@ Definition testFunctionOrdering: val :=
             then #false
             else
               let: "p" := struct.mk Pair.S [
-                "x" ::= ArrayEditor__AdvanceReturn "ae1" #5;
-                "y" ::= ArrayEditor__AdvanceReturn "ae2" #105
+                "x" ::= Editor__AdvanceReturn "e1" #5;
+                "y" ::= Editor__AdvanceReturn "e2" #105
               ] in
               (if: SliceGet uint64T (![slice.T uint64T] "arr") #3 ≠ #104
               then #false
               else
                 let: "q" := struct.mk Pair.S [
-                  "y" ::= ArrayEditor__AdvanceReturn "ae1" #6;
-                  "x" ::= ArrayEditor__AdvanceReturn "ae2" #106
+                  "y" ::= Editor__AdvanceReturn "e1" #6;
+                  "x" ::= Editor__AdvanceReturn "e2" #106
                 ] in
                 (if: SliceGet uint64T (![slice.T uint64T] "arr") #4 ≠ #105
                 then #false
