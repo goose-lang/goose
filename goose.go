@@ -1131,12 +1131,15 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 	return ctx.variable(e)
 }
 
-func (ctx Ctx) indexExpr(e *ast.IndexExpr) coq.CallExpr {
+func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) coq.CallExpr {
 	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy := xTy.(type) {
 	case *types.Map:
-		return coq.NewCallExpr("MapGet",
-			ctx.expr(e.X), ctx.expr(e.Index))
+		e := coq.NewCallExpr("MapGet", ctx.expr(e.X), ctx.expr(e.Index))
+		if !isSpecial {
+			e = coq.NewCallExpr("Fst", e)
+		}
+		return e
 	case *types.Slice:
 		return coq.NewCallExpr("SliceGet",
 			ctx.coqTypeOfType(e, xTy.Elem()),
@@ -1160,6 +1163,10 @@ func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
 }
 
 func (ctx Ctx) expr(e ast.Expr) coq.Expr {
+	return ctx.exprSpecial(e, false)
+}
+
+func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
 		return ctx.callExpr(e)
@@ -1178,7 +1185,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	case *ast.SliceExpr:
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
-		return ctx.indexExpr(e)
+		return ctx.indexExpr(e, isSpecial)
 	case *ast.UnaryExpr:
 		return ctx.unaryExpr(e)
 	case *ast.ParenExpr:
@@ -1548,7 +1555,7 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
 		return coq.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 	} else {
-		return coq.Binding{Names: names, Expr: ctx.expr(rhs)}
+		return coq.Binding{Names: names, Expr: ctx.exprSpecial(rhs, len(idents) == 2)}
 	}
 }
 
