@@ -2,4 +2,4 @@ package example
 
 // sneaky import
 
-import _ "net/http/pprof" // ERROR renaming
+import _ "sync/atomic" // ERROR renaming
