@@ -1,8 +1,6 @@
 dist: bionic
 language: go
 os: linux
-env:
-  GO111MODULE=on
 jobs:
   include:
     - go: "1.13.x"
@@ -10,6 +8,11 @@ jobs:
       osx_image: "xcode10.1"
       os: osx
     - go: "1.12.x"
+      env:
+        # on 1.12 this is needed to enable module support when the project is
+        # checked out underneath $GOPATH/src (which Travis does); see
+        # https://github.com/golang/go/issues/31857.
+        GO111MODULE=on
 install:
   - go get -t ./...
 script:
