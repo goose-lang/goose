@@ -41,7 +41,7 @@ func roundtripEncDec64(x uint64) uint64 {
 
 // tests
 func testEncDec32Simple() bool {
-	ok := true
+	var ok = true
 	ok = ok && (roundtripEncDec32(0) == 0)
 	ok = ok && (roundtripEncDec32(1) == 1)
 	ok = ok && (roundtripEncDec32(1231234) == 1231234)
@@ -49,7 +49,7 @@ func testEncDec32Simple() bool {
 }
 
 func testEncDec32() bool {
-	ok := true
+	var ok = true
 	ok = ok && (roundtripEncDec32(0xCCBB00AA) == 0xCCBB00AA)
 	ok = ok && (roundtripEncDec32(1<<20) == 1<<20)
 	ok = ok && (roundtripEncDec32(1<<18) == 1<<18)
@@ -60,7 +60,7 @@ func testEncDec32() bool {
 }
 
 func testEncDec64Simple() bool {
-	ok := true
+	var ok = true
 	ok = ok && (roundtripEncDec64(0) == 0)
 	ok = ok && (roundtripEncDec64(1) == 1)
 	ok = ok && (roundtripEncDec64(1231234) == 1231234)
@@ -68,7 +68,7 @@ func testEncDec64Simple() bool {
 }
 
 func testEncDec64() bool {
-	ok := true
+	var ok = true
 	ok = ok && (roundtripEncDec64(0xDD00CC00BB00AA) == 0xDD00CC00BB00AA)
 	ok = ok && (roundtripEncDec64(1<<63) == 1<<63)
 	ok = ok && (roundtripEncDec64(1<<47) == 1<<47)

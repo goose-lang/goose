@@ -29,7 +29,7 @@ func sub64Equals(x uint64, y uint64, z uint64) bool {
 
 // tests
 func testReverseAssignOps64() bool {
-	ok := true
+	var ok = true
 	ok = ok && (reverseAssignOps64(0) == 0)
 	ok = ok && (reverseAssignOps64(1) == 0)
 	ok = ok && (reverseAssignOps64(1231234) == 0)
@@ -45,7 +45,7 @@ func testReverseAssignOps64() bool {
 }
 
 func testReverseAssignOps32() bool {
-	ok := true
+	var ok = true
 	ok = ok && (reverseAssignOps32(0) == 0)
 	ok = ok && (reverseAssignOps32(1) == 0)
 	ok = ok && (reverseAssignOps32(1231234) == 0)
@@ -59,14 +59,14 @@ func testReverseAssignOps32() bool {
 }
 
 func testAdd64Equals() bool {
-	ok := true
+	var ok = true
 	ok = ok && add64Equals(2, 3, 5)
 	ok = ok && add64Equals(1<<64-1, 1, 0)
 	return ok
 }
 
 func testSub64Equals() bool {
-	ok := true
+	var ok = true
 	ok = ok && sub64Equals(2, 1, 1)
 	ok = ok && sub64Equals(1<<64-1, 1<<63, 1<<63-1)
 	ok = ok && sub64Equals(2, 8, 1<<64-6)
