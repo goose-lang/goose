@@ -2,6 +2,72 @@
 From Perennial.goose_lang Require Import prelude.
 From Perennial.goose_lang Require Import ffi.disk_prelude.
 
+(* comparisons.go *)
+
+Definition testCompareGT: val :=
+  λ: <>,
+    let: "x" := ref #5 in
+    let: "y" := ref (#(U32 5)) in
+    let: "ok" := ref #true in
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" > #4;;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" > #5);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" > #6);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" > #(U32 4);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" > #(U32 5));;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" > #(U32 6));;
+    ![boolT] "ok".
+Theorem testCompareGT_t: ⊢ testCompareGT : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareGT_t : types.
+
+Definition testCompareGE: val :=
+  λ: <>,
+    let: "x" := ref #5 in
+    let: "y" := ref (#(U32 5)) in
+    let: "ok" := ref #true in
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≥ #4;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≥ #5;;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" ≥ #6);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≥ #(U32 4);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≥ #(U32 5);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" ≥ #(U32 6));;
+    ![boolT] "ok".
+Theorem testCompareGE_t: ⊢ testCompareGE : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareGE_t : types.
+
+Definition testCompareLT: val :=
+  λ: <>,
+    let: "x" := ref #5 in
+    let: "y" := ref (#(U32 5)) in
+    let: "ok" := ref #true in
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < #6;;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" < #5);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" < #4);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" < #(U32 6);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" < #(U32 5));;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" < #(U32 4));;
+    ![boolT] "ok".
+Theorem testCompareLT_t: ⊢ testCompareLT : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareLT_t : types.
+
+Definition testCompareLE: val :=
+  λ: <>,
+    let: "x" := ref #5 in
+    let: "y" := ref (#(U32 5)) in
+    let: "ok" := ref #true in
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < #6;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≤ #5;;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" ≤ #4);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≤ #(U32 6);;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≤ #(U32 5);;
+    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" ≤ #(U32 4));;
+    ![boolT] "ok".
+Theorem testCompareLE_t: ⊢ testCompareLE : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareLE_t : types.
+
 (* conversions.go *)
 
 Definition literalCast: val :=

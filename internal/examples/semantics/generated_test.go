@@ -2,12 +2,28 @@
 package semantics
 
 import (
-	"github.com/stretchr/testify/suite"
 	"testing"
+	"github.com/stretchr/testify/suite"
 )
 
-type GoTestSuite struct {
+type GoTestSuite struct{
 	suite.Suite
+}
+
+func (suite *GoTestSuite) TestCompareGT() {
+	suite.Equal(true, testCompareGT())
+}
+
+func (suite *GoTestSuite) TestCompareGE() {
+	suite.Equal(true, testCompareGE())
+}
+
+func (suite *GoTestSuite) TestCompareLT() {
+	suite.Equal(true, testCompareLT())
+}
+
+func (suite *GoTestSuite) TestCompareLE() {
+	suite.Equal(true, testCompareLE())
 }
 
 func (suite *GoTestSuite) TestEncDec32Simple() {
@@ -83,5 +99,5 @@ func (suite *GoTestSuite) TestOverwriteArray() {
 }
 
 func TestSuite(t *testing.T) {
-	suite.Run(t, new(GoTestSuite))
+    suite.Run(t, new(GoTestSuite))
 }
