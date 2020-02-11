@@ -37,7 +37,7 @@ func testCompareGE() bool {
 	ok = ok && (y >= 5)
 	ok = ok && (y >= x)
 
-	if (y > 5) {
+	if y > 5 {
 		return false
 	}
 
@@ -64,7 +64,7 @@ func testCompareLE() bool {
 	ok = ok && (y <= 5)
 	ok = ok && (x <= y)
 
-	if (y < 5) {
+	if y < 5 {
 		return false
 	}
 

@@ -4,17 +4,29 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 
 (* comparisons.go *)
 
+Definition testCompareAll: val :=
+  λ: <>,
+    let: "ok" := ref #true in
+    let: "nok" := ref #false in
+    "ok" <-[boolT] ![boolT] "ok" && #1 < #2;;
+    "nok" <-[boolT] ![boolT] "ok" && #2 < #1;;
+    "ok" <-[boolT] ![boolT] "ok" && #1 ≤ #2;;
+    "ok" <-[boolT] ![boolT] "ok" && #2 ≤ #2;;
+    "nok" <-[boolT] ![boolT] "ok" && #2 ≤ #1;;
+    (if: ![boolT] "nok"
+    then #false
+    else ![boolT] "ok").
+Theorem testCompareAll_t: ⊢ testCompareAll : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareAll_t : types.
+
 Definition testCompareGT: val :=
   λ: <>,
-    let: "x" := ref #5 in
-    let: "y" := ref (#(U32 5)) in
+    let: "x" := ref #4 in
+    let: "y" := ref #5 in
     let: "ok" := ref #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" > #4;;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" > #5);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" > #6);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" > #(U32 4);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" > #(U32 5));;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" > #(U32 6));;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" > #4;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" > ![uint64T] "x";;
     ![boolT] "ok".
 Theorem testCompareGT_t: ⊢ testCompareGT : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -22,31 +34,26 @@ Hint Resolve testCompareGT_t : types.
 
 Definition testCompareGE: val :=
   λ: <>,
-    let: "x" := ref #5 in
-    let: "y" := ref (#(U32 5)) in
+    let: "x" := ref #4 in
+    let: "y" := ref #5 in
     let: "ok" := ref #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≥ #4;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≥ #5;;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" ≥ #6);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≥ #(U32 4);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≥ #(U32 5);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" ≥ #(U32 6));;
-    ![boolT] "ok".
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ #4;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ #5;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ ![uint64T] "x";;
+    (if: ![uint64T] "y" > #5
+    then #false
+    else ![boolT] "ok").
 Theorem testCompareGE_t: ⊢ testCompareGE : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testCompareGE_t : types.
 
 Definition testCompareLT: val :=
   λ: <>,
-    let: "x" := ref #5 in
-    let: "y" := ref (#(U32 5)) in
+    let: "x" := ref #4 in
+    let: "y" := ref #5 in
     let: "ok" := ref #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < #6;;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" < #5);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" < #4);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" < #(U32 6);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" < #(U32 5));;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" < #(U32 4));;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" < #6;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < ![uint64T] "y";;
     ![boolT] "ok".
 Theorem testCompareLT_t: ⊢ testCompareLT : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -54,16 +61,15 @@ Hint Resolve testCompareLT_t : types.
 
 Definition testCompareLE: val :=
   λ: <>,
-    let: "x" := ref #5 in
-    let: "y" := ref (#(U32 5)) in
+    let: "x" := ref #4 in
+    let: "y" := ref #5 in
     let: "ok" := ref #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < #6;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≤ #5;;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint64T] "x" ≤ #4);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≤ #(U32 6);;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint32T] "y" ≤ #(U32 5);;
-    "ok" <-[boolT] ![boolT] "ok" && ~ (![uint32T] "y" ≤ #(U32 4));;
-    ![boolT] "ok".
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≤ #6;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≤ #5;;
+    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≤ ![uint64T] "y";;
+    (if: ![uint64T] "y" < #5
+    then #false
+    else ![boolT] "ok").
 Theorem testCompareLE_t: ⊢ testCompareLE : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testCompareLE_t : types.
@@ -365,6 +371,56 @@ Theorem testStandardForLoop_t: ⊢ testStandardForLoop : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStandardForLoop_t : types.
 
+(* maps.go *)
+
+Definition IterateMapKeys: val :=
+  λ: "m",
+    let: "sum" := ref (zero_val uint64T) in
+    MapIter "m" (λ: "k" <>,
+      "sum" <-[uint64T] ![uint64T] "sum" + "k");;
+    ![uint64T] "sum".
+Theorem IterateMapKeys_t: ⊢ IterateMapKeys : (mapT uint64T -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve IterateMapKeys_t : types.
+
+Definition IterateMapValues: val :=
+  λ: "m",
+    let: "sum" := ref (zero_val uint64T) in
+    MapIter "m" (λ: <> "v",
+      "sum" <-[uint64T] ![uint64T] "sum" + "v");;
+    ![uint64T] "sum".
+Theorem IterateMapValues_t: ⊢ IterateMapValues : (mapT uint64T -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve IterateMapValues_t : types.
+
+Definition testIterateMap: val :=
+  λ: <>,
+    let: "ok" := ref #true in
+    let: "m" := NewMap uint64T in
+    MapInsert "m" #0 #1;;
+    MapInsert "m" #1 #2;;
+    MapInsert "m" #3 #4;;
+    "ok" <-[boolT] ![boolT] "ok" && (IterateMapKeys "m" = #4);;
+    "ok" <-[boolT] ![boolT] "ok" && (IterateMapValues "m" = #7);;
+    ![boolT] "ok".
+Theorem testIterateMap_t: ⊢ testIterateMap : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testIterateMap_t : types.
+
+Definition testMapSize: val :=
+  λ: <>,
+    let: "ok" := ref #true in
+    let: "m" := NewMap uint64T in
+    "ok" <-[boolT] ![boolT] "ok" && (MapLen "m" = #0);;
+    MapInsert "m" #0 #1;;
+    MapInsert "m" #1 #2;;
+    MapInsert "m" #3 #4;;
+    "ok" <-[boolT] ![boolT] "ok" && (MapLen "m" = #3);;
+    ![boolT] "ok".
+Theorem testMapSize_t: ⊢ testMapSize : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testMapSize_t : types.
+
 (* operations.go *)
 
 (* helpers *)
@@ -598,3 +654,42 @@ Definition testOverwriteArray: val :=
 Theorem testOverwriteArray_t: ⊢ testOverwriteArray : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testOverwriteArray_t : types.
+
+(* strings.go *)
+
+Definition stringAppend: val :=
+  λ: "s" "x",
+    "s" + uint64_to_string "x".
+Theorem stringAppend_t: ⊢ stringAppend : (stringT -> uint64T -> stringT).
+Proof. typecheck. Qed.
+Hint Resolve stringAppend_t : types.
+
+Definition stringLength: val :=
+  λ: "s",
+    strLen "s".
+Theorem stringLength_t: ⊢ stringLength : (stringT -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve stringLength_t : types.
+
+Definition testStringAppend: val :=
+  λ: <>,
+    let: "ok" := ref #true in
+    let: "s" := ref #(str"123") in
+    let: "y" := ref (stringAppend (![stringT] "s") #45) in
+    ![boolT] "ok" && (![stringT] "y" = #(str"12345")).
+Theorem testStringAppend_t: ⊢ testStringAppend : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStringAppend_t : types.
+
+Definition testStringLength: val :=
+  λ: <>,
+    let: "ok" := ref #true in
+    let: "s" := ref #(str"") in
+    "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #0);;
+    "s" <-[stringT] stringAppend (![stringT] "s") #1;;
+    "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #1);;
+    "s" <-[stringT] stringAppend (![stringT] "s") #23;;
+    ![boolT] "ok" && (strLen (![stringT] "s") = #3).
+Theorem testStringLength_t: ⊢ testStringLength : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStringLength_t : types.
