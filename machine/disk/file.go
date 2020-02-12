@@ -12,7 +12,7 @@ type FileDisk struct {
 }
 
 func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
-	fd, err := openDirect(path, unix.O_RDWR|unix.O_CREAT, 0666)
+	fd, err := unix.Open(path, unix.O_RDWR|unix.O_CREAT, 0666)
 	if err != nil {
 		return FileDisk{}, err
 	}
