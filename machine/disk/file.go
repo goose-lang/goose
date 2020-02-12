@@ -2,40 +2,42 @@ package disk
 
 import (
 	"fmt"
-	"os"
+
+	"golang.org/x/sys/unix"
 )
 
 type FileDisk struct {
-	f         *os.File
+	fd        int
 	numBlocks uint64
 }
 
-var _ Disk = FileDisk{}
-
 func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	fd, err := openDirect(path, unix.O_RDWR|unix.O_CREAT, 0666)
 	if err != nil {
 		return FileDisk{}, err
 	}
-	fi, err := f.Stat()
+	var stat unix.Stat_t
+	err = unix.Fstat(fd, &stat)
 	if err != nil {
 		return FileDisk{}, err
 	}
-	if uint64(fi.Size()) != numBlocks {
-		err = f.Truncate(int64(numBlocks * BlockSize))
+	if uint64(stat.Size) != numBlocks {
+		err = unix.Ftruncate(fd, int64(numBlocks*BlockSize))
 		if err != nil {
 			return FileDisk{}, err
 		}
 	}
-	return FileDisk{f, numBlocks}, nil
+	return FileDisk{fd, numBlocks}, nil
 }
+
+var _ Disk = FileDisk{}
 
 func (d FileDisk) Read(a uint64) Block {
 	buf := make([]byte, BlockSize)
 	if a >= d.numBlocks {
 		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
-	_, err := d.f.ReadAt(buf, int64(a*BlockSize))
+	_, err := unix.Pread(d.fd, buf, int64(a*BlockSize))
 	if err != nil {
 		panic("read failed: " + err.Error())
 	}
@@ -49,7 +51,7 @@ func (d FileDisk) Write(a uint64, v Block) {
 	if a >= d.numBlocks {
 		panic(fmt.Errorf("out-of-bounds write at %v", a))
 	}
-	_, err := d.f.WriteAt(v, int64(a*BlockSize))
+	_, err := unix.Pread(d.fd, v, int64(a*BlockSize))
 	if err != nil {
 		panic("write failed: " + err.Error())
 	}
@@ -60,14 +62,14 @@ func (d FileDisk) Size() uint64 {
 }
 
 func (d FileDisk) Barrier() {
-	err := d.f.Sync()
+	err := unix.Fsync(d.fd)
 	if err != nil {
 		panic("file sync failed: " + err.Error())
 	}
 }
 
 func (d FileDisk) Close() {
-	err := d.f.Close()
+	err := unix.Close(d.fd)
 	if err != nil {
 		panic(err)
 	}
