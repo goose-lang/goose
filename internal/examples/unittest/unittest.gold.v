@@ -19,6 +19,16 @@ Definition doSubtleThings: val :=
   λ: <>,
     #().
 
+(* condvar.go *)
+
+Definition condvarWrapping: val :=
+  λ: <>,
+    let: "mu" := ref (zero_val lockRefT) in
+    "mu" <-[lockRefT] lock.new #();;
+    let: "cond1" := lock.newCond (![lockRefT] "mu") in
+    "mu" <-[lockRefT] lock.new #();;
+    lock.condWait "cond1".
+
 (* const.go *)
 
 Definition GlobalConstant : expr := #(str"foo").
