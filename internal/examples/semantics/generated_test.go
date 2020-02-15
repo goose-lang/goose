@@ -106,6 +106,10 @@ func (suite *GoTestSuite) TestStandardForLoop() {
 	suite.Equal(true, testStandardForLoop())
 }
 
+func (suite *GoTestSuite) TestForLoopWait() {
+	suite.Equal(true, testForLoopWait())
+}
+
 func (suite *GoTestSuite) TestStringAppend() {
 	suite.Equal(true, testStringAppend())
 }

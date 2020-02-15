@@ -20,6 +20,22 @@ func standardForLoop(s []uint64) uint64 {
 	return sum
 }
 
+// based off diskAppendWait loop pattern in logging2
+type LoopStruct struct {
+	loopNext *uint64
+}
+
+func (ls LoopStruct) forLoopWait(i uint64) {
+	for {
+		nxt := ls.loopNext
+		if i < *nxt {
+			break
+		}
+		*ls.loopNext = *ls.loopNext + 1
+		continue
+	}
+}
+
 // tests
 func testStandardForLoop() bool {
 	var arr = make([]uint64, 4)
@@ -28,4 +44,14 @@ func testStandardForLoop() bool {
 	arr[2] += 5
 	arr[3] += 7
 	return standardForLoop(arr) == 16
+}
+
+func testForLoopWait() bool {
+	ls := LoopStruct{
+		loopNext: new(uint64),
+	}
+
+	ls.forLoopWait(3)
+	return (*ls.loopNext == 4)
+
 }
