@@ -2,6 +2,8 @@
 From Perennial.goose_lang Require Import prelude.
 From Perennial.goose_lang Require Import ffi.disk_prelude.
 
+From Goose Require github_com.tchajed.marshal.
+
 (* comments.go *)
 
 (* This struct is very important.
@@ -500,6 +502,19 @@ Definition AssignOps: val :=
     "x" <-[uint64T] ![uint64T] "x" - #3;;
     "x" <-[uint64T] ![uint64T] "x" + #1;;
     "x" <-[uint64T] ![uint64T] "x" - #1.
+
+(* package.go *)
+
+Module wrapExternalStruct.
+  Definition S := struct.decl [
+    "e" :: struct.t marshal.Enc.S;
+    "d" :: struct.t marshal.Dec.S
+  ].
+End wrapExternalStruct.
+
+Definition wrapExternalStruct__moveUint64: val :=
+  λ: "w",
+    marshal.Enc__PutInt (struct.get wrapExternalStruct.S "e" "w") (marshal.Dec__GetInt (struct.get wrapExternalStruct.S "d" "w")).
 
 (* panic.go *)
 
