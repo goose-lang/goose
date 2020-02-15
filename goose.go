@@ -206,11 +206,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
 		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
 		ctx.unsupported(e, "%s without pointer indirection", ctx.printGo(e))
 	}
-	pkg := e.X.(*ast.Ident)
-	return coq.PackageIdent{
-		Package: pkg.Name,
-		Ident:   e.Sel.Name,
-	}
+	return ctx.coqTypeOfType(e, ctx.typeOf(e))
 }
 
 func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
@@ -225,7 +221,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	// anyway.
 	switch t := t.(type) {
 	case *types.Struct:
-		return coq.StructName(t.String())
+		ctx.unsupported(n, "type for anonymous struct")
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":
@@ -250,8 +246,11 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
 			return coq.TypeIdent("fileT")
 		}
-		if _, ok := t.Underlying().(*types.Struct); ok {
-			return coq.StructName(t.Obj().Name())
+		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
+			return coq.TypeIdent("disk.Disk")
+		}
+		if info, ok := ctx.getStructInfo(t); ok {
+			return coq.StructName(info.name)
 		}
 		return coq.TypeIdent(t.Obj().Name())
 	case *types.Slice:
