@@ -94,22 +94,22 @@ Hint Resolve stringToByteSlice_t : types.
 
 Definition byteSliceToString: val :=
   λ: "p",
-    let: "s" := Data.bytesToString "p" in
-    "s".
+    Data.bytesToString "p".
 Theorem byteSliceToString_t: ⊢ byteSliceToString : (slice.T byteT -> stringT).
 Proof. typecheck. Qed.
 Hint Resolve byteSliceToString_t : types.
 
 (* tests *)
-Definition testConversions: val :=
+Definition testByteSliceToString: val :=
   λ: <>,
-    let: "s" := #(str"four") in
-    let: "b" := stringToByteSlice "s" in
-    let: "x" := literalCast #() in
-    ("x" = slice.len "b") && (byteSliceToString "b" = "s").
-Theorem testConversions_t: ⊢ testConversions : (unitT -> boolT).
+    let: "x" := NewSlice byteT #3 in
+    SliceSet byteT "x" #0 (#(U8 65));;
+    SliceSet byteT "x" #1 (#(U8 66));;
+    SliceSet byteT "x" #2 (#(U8 67));;
+    (byteSliceToString "x" = #(str"ABC")).
+Theorem testByteSliceToString_t: ⊢ testByteSliceToString : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testConversions_t : types.
+Hint Resolve testByteSliceToString_t : types.
 
 (* copy.go *)
 
