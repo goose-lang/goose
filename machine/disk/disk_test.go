@@ -49,9 +49,17 @@ func (suite *DiskSuite) TearDownTest() {
 	}
 }
 
-var block0 Block = make([]byte, BlockSize)
-var block1 Block = make([]byte, BlockSize)
-var block2 Block = make([]byte, BlockSize)
+func mkBlock(x byte) Block {
+	b := make([]byte, BlockSize)
+	for i := 0; i < 10; i++ {
+		b[i] = x
+	}
+	return b
+}
+
+var block0 = mkBlock(0)
+var block1 = mkBlock(1)
+var block2 = mkBlock(2)
 
 func init() {
 	block1[0] = 1
@@ -65,6 +73,14 @@ func (suite *DiskSuite) TestReadWrite() {
 	suite.Equal(block0, Read(2))
 	suite.Equal(block1, Read(3))
 	suite.Equal(block2, Read(4))
+}
+
+func (suite *DiskSuite) TestReadWriteCopy() {
+	Write(3, mkBlock(1))
+	Write(4, mkBlock(2))
+	suite.Equal(mkBlock(0), Read(2))
+	suite.Equal(mkBlock(1), Read(3))
+	suite.Equal(mkBlock(2), Read(4))
 }
 
 func (suite *DiskSuite) TestSize() {
@@ -106,6 +122,13 @@ func (suite *DiskSuite) TestModifyWriteBlock() {
 	Write(0, b)
 	b[0] = 1
 	suite.Equal(byte(0), Read(0)[0], "Write should not retain blocks")
+}
+
+func (suite *DiskSuite) TestWriteReadOnly() {
+	b := mkBlock(1)
+	suite.Equal(byte(1), b[0])
+	Write(0, b)
+	suite.Equal(byte(1), b[0], "Write should not modify input")
 }
 
 func (suite *DiskSuite) TestReadOob() {
