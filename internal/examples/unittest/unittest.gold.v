@@ -186,6 +186,19 @@ Definition getRandom: val :=
     let: "r" := Data.randomUint64 #() in
     "r".
 
+(* disk.go *)
+
+Module diskWrapper.
+  Definition S := struct.decl [
+    "d" :: disk.Disk
+  ].
+End diskWrapper.
+
+Definition diskArgument: val :=
+  λ: "d",
+    let: "b" := disk.Read #0 in
+    disk.Write #1 "b".
+
 (* empty_functions.go *)
 
 Definition empty: val :=
