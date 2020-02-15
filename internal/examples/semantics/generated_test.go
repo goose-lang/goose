@@ -66,8 +66,8 @@ func (suite *GoTestSuite) TestCopyDifferentLengths() {
 	suite.Equal(true, testCopyDifferentLengths())
 }
 
-func (suite *GoTestSuite) TestConversions() {
-	suite.Equal(true, testConversions())
+func (suite *GoTestSuite) TestByteSliceToString() {
+	suite.Equal(true, testByteSliceToString())
 }
 
 func (suite *GoTestSuite) TestShortcircuitAndTF() {

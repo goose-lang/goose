@@ -16,14 +16,14 @@ func stringToByteSlice(s string) []byte {
 
 func byteSliceToString(p []byte) string {
 	// must be lifted, impure operation
-	s := string(p)
-	return s
+	return string(p)
 }
 
 // tests
-func testConversions() bool {
-	s := "four"
-	b := stringToByteSlice(s)
-	x := literalCast()
-	return (x == uint64(len(b)) && byteSliceToString(b) == s)
+func testByteSliceToString() bool {
+	x := make([]byte, 3)
+	x[0] = 65
+	x[1] = 66
+	x[2] = 67
+	return byteSliceToString(x) == "ABC"
 }
