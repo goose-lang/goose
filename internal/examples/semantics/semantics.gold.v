@@ -5,7 +5,7 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 (* comparisons.go *)
 
 Definition testCompareAll: val :=
-  λ: <>,
+  rec: "testCompareAll" <> :=
     let: "ok" := ref #true in
     let: "nok" := ref #false in
     "ok" <-[boolT] ![boolT] "ok" && #1 < #2;;
@@ -21,7 +21,7 @@ Proof. typecheck. Qed.
 Hint Resolve testCompareAll_t : types.
 
 Definition testCompareGT: val :=
-  λ: <>,
+  rec: "testCompareGT" <> :=
     let: "x" := ref #4 in
     let: "y" := ref #5 in
     let: "ok" := ref #true in
@@ -33,7 +33,7 @@ Proof. typecheck. Qed.
 Hint Resolve testCompareGT_t : types.
 
 Definition testCompareGE: val :=
-  λ: <>,
+  rec: "testCompareGE" <> :=
     let: "x" := ref #4 in
     let: "y" := ref #5 in
     let: "ok" := ref #true in
@@ -48,7 +48,7 @@ Proof. typecheck. Qed.
 Hint Resolve testCompareGE_t : types.
 
 Definition testCompareLT: val :=
-  λ: <>,
+  rec: "testCompareLT" <> :=
     let: "x" := ref #4 in
     let: "y" := ref #5 in
     let: "ok" := ref #true in
@@ -60,7 +60,7 @@ Proof. typecheck. Qed.
 Hint Resolve testCompareLT_t : types.
 
 Definition testCompareLE: val :=
-  λ: <>,
+  rec: "testCompareLE" <> :=
     let: "x" := ref #4 in
     let: "y" := ref #5 in
     let: "ok" := ref #true in
@@ -77,7 +77,7 @@ Hint Resolve testCompareLE_t : types.
 (* conversions.go *)
 
 Definition literalCast: val :=
-  λ: <>,
+  rec: "literalCast" <> :=
     let: "x" := #2 in
     "x" + #2.
 Theorem literalCast_t: ⊢ literalCast : (unitT -> uint64T).
@@ -85,7 +85,7 @@ Proof. typecheck. Qed.
 Hint Resolve literalCast_t : types.
 
 Definition stringToByteSlice: val :=
-  λ: "s",
+  rec: "stringToByteSlice" "s" :=
     let: "p" := Data.stringToBytes "s" in
     "p".
 Theorem stringToByteSlice_t: ⊢ stringToByteSlice : (stringT -> slice.T byteT).
@@ -93,7 +93,7 @@ Proof. typecheck. Qed.
 Hint Resolve stringToByteSlice_t : types.
 
 Definition byteSliceToString: val :=
-  λ: "p",
+  rec: "byteSliceToString" "p" :=
     Data.bytesToString "p".
 Theorem byteSliceToString_t: ⊢ byteSliceToString : (slice.T byteT -> stringT).
 Proof. typecheck. Qed.
@@ -101,7 +101,7 @@ Hint Resolve byteSliceToString_t : types.
 
 (* tests *)
 Definition testByteSliceToString: val :=
-  λ: <>,
+  rec: "testByteSliceToString" <> :=
     let: "x" := NewSlice byteT #3 in
     SliceSet byteT "x" #0 (#(U8 65));;
     SliceSet byteT "x" #1 (#(U8 66));;
@@ -114,7 +114,7 @@ Hint Resolve testByteSliceToString_t : types.
 (* copy.go *)
 
 Definition testCopySimple: val :=
-  λ: <>,
+  rec: "testCopySimple" <> :=
     let: "x" := NewSlice byteT #10 in
     SliceSet byteT "x" #3 (#(U8 1));;
     let: "y" := NewSlice byteT #10 in
@@ -125,7 +125,7 @@ Proof. typecheck. Qed.
 Hint Resolve testCopySimple_t : types.
 
 Definition testCopyDifferentLengths: val :=
-  λ: <>,
+  rec: "testCopyDifferentLengths" <> :=
     let: "x" := NewSlice byteT #15 in
     SliceSet byteT "x" #3 (#(U8 1));;
     SliceSet byteT "x" #12 (#(U8 2));;
@@ -146,7 +146,7 @@ Module Enc.
 End Enc.
 
 Definition Enc__consume: val :=
-  λ: "e" "n",
+  rec: "Enc__consume" "e" "n" :=
     let: "b" := SliceTake (struct.loadF Enc.S "p" "e") "n" in
     struct.storeF Enc.S "p" "e" (SliceSkip byteT (struct.loadF Enc.S "p" "e") "n");;
     "b".
@@ -161,7 +161,7 @@ Module Dec.
 End Dec.
 
 Definition Dec__consume: val :=
-  λ: "d" "n",
+  rec: "Dec__consume" "d" "n" :=
     let: "b" := SliceTake (struct.loadF Dec.S "p" "d") "n" in
     struct.storeF Dec.S "p" "d" (SliceSkip byteT (struct.loadF Dec.S "p" "d") "n");;
     "b".
@@ -170,7 +170,7 @@ Proof. typecheck. Qed.
 Hint Resolve Dec__consume_t : types.
 
 Definition roundtripEncDec32: val :=
-  λ: "x",
+  rec: "roundtripEncDec32" "x" :=
     let: "r" := NewSlice byteT #4 in
     let: "e" := struct.new Enc.S [
       "p" ::= "r"
@@ -185,7 +185,7 @@ Proof. typecheck. Qed.
 Hint Resolve roundtripEncDec32_t : types.
 
 Definition roundtripEncDec64: val :=
-  λ: "x",
+  rec: "roundtripEncDec64" "x" :=
     let: "r" := NewSlice byteT #8 in
     let: "e" := struct.new Enc.S [
       "p" ::= "r"
@@ -201,7 +201,7 @@ Hint Resolve roundtripEncDec64_t : types.
 
 (* tests *)
 Definition testEncDec32Simple: val :=
-  λ: <>,
+  rec: "testEncDec32Simple" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 0)) = #(U32 0));;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 1)) = #(U32 1));;
@@ -212,7 +212,7 @@ Proof. typecheck. Qed.
 Hint Resolve testEncDec32Simple_t : types.
 
 Definition testEncDec32: val :=
-  λ: <>,
+  rec: "testEncDec32" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 3434807466)) = #(U32 3434807466));;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #20) = #1 ≪ #20);;
@@ -226,7 +226,7 @@ Proof. typecheck. Qed.
 Hint Resolve testEncDec32_t : types.
 
 Definition testEncDec64Simple: val :=
-  λ: <>,
+  rec: "testEncDec64Simple" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #0 = #0);;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #1 = #1);;
@@ -237,7 +237,7 @@ Proof. typecheck. Qed.
 Hint Resolve testEncDec64Simple_t : types.
 
 Definition testEncDec64: val :=
-  λ: <>,
+  rec: "testEncDec64" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #62206846038638762 = #62206846038638762);;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #63) = #1 ≪ #63);;
@@ -265,7 +265,7 @@ End Editor.
 (* advances the array editor, and returns the value it wrote, storing
    "next" in next_val *)
 Definition Editor__AdvanceReturn: val :=
-  λ: "e" "next",
+  rec: "Editor__AdvanceReturn" "e" "next" :=
     let: "tmp" := ref (struct.loadF Editor.S "next_val" "e") in
     SliceSet uint64T (struct.loadF Editor.S "s" "e") #0 (![uint64T] "tmp");;
     struct.storeF Editor.S "next_val" "e" "next";;
@@ -278,7 +278,7 @@ Hint Resolve Editor__AdvanceReturn_t : types.
 (* we call this function with side-effectful function calls as arguments,
    its implementation is unimportant *)
 Definition addFour64: val :=
-  λ: "a" "b" "c" "d",
+  rec: "addFour64" "a" "b" "c" "d" :=
     "a" + "b" + "c" + "d".
 Theorem addFour64_t: ⊢ addFour64 : (uint64T -> uint64T -> uint64T -> uint64T -> uint64T).
 Proof. typecheck. Qed.
@@ -293,7 +293,7 @@ End Pair.
 
 (* tests *)
 Definition testFunctionOrdering: val :=
-  λ: <>,
+  rec: "testFunctionOrdering" <> :=
     let: "arr" := ref (NewSlice uint64T #5) in
     let: "e1" := struct.mk Editor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
@@ -340,7 +340,7 @@ Hint Resolve testFunctionOrdering_t : types.
 
 (* helpers *)
 Definition standardForLoop: val :=
-  λ: "s",
+  rec: "standardForLoop" "s" :=
     let: "sumPtr" := ref (zero_val uint64T) in
     let: "i" := ref #0 in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
@@ -360,7 +360,7 @@ Hint Resolve standardForLoop_t : types.
 
 (* tests *)
 Definition testStandardForLoop: val :=
-  λ: <>,
+  rec: "testStandardForLoop" <> :=
     let: "arr" := ref (NewSlice uint64T #4) in
     SliceSet uint64T (![slice.T uint64T] "arr") #0 (SliceGet uint64T (![slice.T uint64T] "arr") #0 + #1);;
     SliceSet uint64T (![slice.T uint64T] "arr") #1 (SliceGet uint64T (![slice.T uint64T] "arr") #1 + #3);;
@@ -374,7 +374,7 @@ Hint Resolve testStandardForLoop_t : types.
 (* maps.go *)
 
 Definition IterateMapKeys: val :=
-  λ: "m",
+  rec: "IterateMapKeys" "m" :=
     let: "sum" := ref (zero_val uint64T) in
     MapIter "m" (λ: "k" <>,
       "sum" <-[uint64T] ![uint64T] "sum" + "k");;
@@ -384,7 +384,7 @@ Proof. typecheck. Qed.
 Hint Resolve IterateMapKeys_t : types.
 
 Definition IterateMapValues: val :=
-  λ: "m",
+  rec: "IterateMapValues" "m" :=
     let: "sum" := ref (zero_val uint64T) in
     MapIter "m" (λ: <> "v",
       "sum" <-[uint64T] ![uint64T] "sum" + "v");;
@@ -394,7 +394,7 @@ Proof. typecheck. Qed.
 Hint Resolve IterateMapValues_t : types.
 
 Definition testIterateMap: val :=
-  λ: <>,
+  rec: "testIterateMap" <> :=
     let: "ok" := ref #true in
     let: "m" := NewMap uint64T in
     MapInsert "m" #0 #1;;
@@ -408,7 +408,7 @@ Proof. typecheck. Qed.
 Hint Resolve testIterateMap_t : types.
 
 Definition testMapSize: val :=
-  λ: <>,
+  rec: "testMapSize" <> :=
     let: "ok" := ref #true in
     let: "m" := NewMap uint64T in
     "ok" <-[boolT] ![boolT] "ok" && (MapLen "m" = #0);;
@@ -425,7 +425,7 @@ Hint Resolve testMapSize_t : types.
 
 (* helpers *)
 Definition reverseAssignOps64: val :=
-  λ: "x",
+  rec: "reverseAssignOps64" "x" :=
     let: "y" := ref (zero_val uint64T) in
     "y" <-[uint64T] ![uint64T] "y" + "x";;
     "y" <-[uint64T] ![uint64T] "y" - "x";;
@@ -437,7 +437,7 @@ Proof. typecheck. Qed.
 Hint Resolve reverseAssignOps64_t : types.
 
 Definition reverseAssignOps32: val :=
-  λ: "x",
+  rec: "reverseAssignOps32" "x" :=
     let: "y" := ref (zero_val uint32T) in
     "y" <-[uint32T] ![uint32T] "y" + "x";;
     "y" <-[uint32T] ![uint32T] "y" - "x";;
@@ -449,14 +449,14 @@ Proof. typecheck. Qed.
 Hint Resolve reverseAssignOps32_t : types.
 
 Definition add64Equals: val :=
-  λ: "x" "y" "z",
+  rec: "add64Equals" "x" "y" "z" :=
     ("x" + "y" = "z").
 Theorem add64Equals_t: ⊢ add64Equals : (uint64T -> uint64T -> uint64T -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve add64Equals_t : types.
 
 Definition sub64Equals: val :=
-  λ: "x" "y" "z",
+  rec: "sub64Equals" "x" "y" "z" :=
     ("x" - "y" = "z").
 Theorem sub64Equals_t: ⊢ sub64Equals : (uint64T -> uint64T -> uint64T -> boolT).
 Proof. typecheck. Qed.
@@ -464,7 +464,7 @@ Hint Resolve sub64Equals_t : types.
 
 (* tests *)
 Definition testReverseAssignOps64: val :=
-  λ: <>,
+  rec: "testReverseAssignOps64" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #0 = #0);;
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #1 = #0);;
@@ -483,7 +483,7 @@ Proof. typecheck. Qed.
 Hint Resolve testReverseAssignOps64_t : types.
 
 Definition testReverseAssignOps32: val :=
-  λ: <>,
+  rec: "testReverseAssignOps32" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 0)) = #(U32 0));;
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 1)) = #(U32 0));;
@@ -500,7 +500,7 @@ Proof. typecheck. Qed.
 Hint Resolve testReverseAssignOps32_t : types.
 
 Definition testAdd64Equals: val :=
-  λ: <>,
+  rec: "testAdd64Equals" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && add64Equals #2 #3 #5;;
     "ok" <-[boolT] ![boolT] "ok" && add64Equals (#1 ≪ #64 - #1) #1 #0;;
@@ -510,7 +510,7 @@ Proof. typecheck. Qed.
 Hint Resolve testAdd64Equals_t : types.
 
 Definition testSub64Equals: val :=
-  λ: <>,
+  rec: "testSub64Equals" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && sub64Equals #2 #1 #1;;
     "ok" <-[boolT] ![boolT] "ok" && sub64Equals (#1 ≪ #64 - #1) (#1 ≪ #63) (#1 ≪ #63 - #1);;
@@ -533,7 +533,7 @@ Module BoolTest.
 End BoolTest.
 
 Definition CheckTrue: val :=
-  λ: "b",
+  rec: "CheckTrue" "b" :=
     struct.storeF BoolTest.S "tc" "b" (struct.loadF BoolTest.S "tc" "b" + #1);;
     struct.loadF BoolTest.S "t" "b".
 Theorem CheckTrue_t: ⊢ CheckTrue : (struct.ptrT BoolTest.S -> boolT).
@@ -541,7 +541,7 @@ Proof. typecheck. Qed.
 Hint Resolve CheckTrue_t : types.
 
 Definition CheckFalse: val :=
-  λ: "b",
+  rec: "CheckFalse" "b" :=
     struct.storeF BoolTest.S "fc" "b" (struct.loadF BoolTest.S "fc" "b" + #1);;
     struct.loadF BoolTest.S "f" "b".
 Theorem CheckFalse_t: ⊢ CheckFalse : (struct.ptrT BoolTest.S -> boolT).
@@ -550,7 +550,7 @@ Hint Resolve CheckFalse_t : types.
 
 (* tests *)
 Definition testShortcircuitAndTF: val :=
-  λ: <>,
+  rec: "testShortcircuitAndTF" <> :=
     let: "b" := struct.new BoolTest.S [
       "t" ::= #true;
       "f" ::= #false;
@@ -565,7 +565,7 @@ Proof. typecheck. Qed.
 Hint Resolve testShortcircuitAndTF_t : types.
 
 Definition testShortcircuitAndFT: val :=
-  λ: <>,
+  rec: "testShortcircuitAndFT" <> :=
     let: "b" := struct.new BoolTest.S [
       "t" ::= #true;
       "f" ::= #false;
@@ -580,7 +580,7 @@ Proof. typecheck. Qed.
 Hint Resolve testShortcircuitAndFT_t : types.
 
 Definition testShortcircuitOrTF: val :=
-  λ: <>,
+  rec: "testShortcircuitOrTF" <> :=
     let: "b" := struct.new BoolTest.S [
       "t" ::= #true;
       "f" ::= #false;
@@ -595,7 +595,7 @@ Proof. typecheck. Qed.
 Hint Resolve testShortcircuitOrTF_t : types.
 
 Definition testShortcircuitOrFT: val :=
-  λ: <>,
+  rec: "testShortcircuitOrFT" <> :=
     let: "b" := struct.new BoolTest.S [
       "t" ::= #true;
       "f" ::= #false;
@@ -620,7 +620,7 @@ Module ArrayEditor.
 End ArrayEditor.
 
 Definition ArrayEditor__Advance: val :=
-  λ: "ae" "arr" "next",
+  rec: "ArrayEditor__Advance" "ae" "arr" "next" :=
     SliceSet uint64T "arr" #0 (SliceGet uint64T "arr" #0 + #1);;
     SliceSet uint64T (struct.loadF ArrayEditor.S "s" "ae") #0 (struct.loadF ArrayEditor.S "next_val" "ae");;
     struct.storeF ArrayEditor.S "next_val" "ae" "next";;
@@ -631,7 +631,7 @@ Hint Resolve ArrayEditor__Advance_t : types.
 
 (* tests *)
 Definition testOverwriteArray: val :=
-  λ: <>,
+  rec: "testOverwriteArray" <> :=
     let: "arr" := ref (NewSlice uint64T #4) in
     let: "ae1" := struct.new ArrayEditor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
@@ -658,21 +658,21 @@ Hint Resolve testOverwriteArray_t : types.
 (* strings.go *)
 
 Definition stringAppend: val :=
-  λ: "s" "x",
+  rec: "stringAppend" "s" "x" :=
     "s" + uint64_to_string "x".
 Theorem stringAppend_t: ⊢ stringAppend : (stringT -> uint64T -> stringT).
 Proof. typecheck. Qed.
 Hint Resolve stringAppend_t : types.
 
 Definition stringLength: val :=
-  λ: "s",
+  rec: "stringLength" "s" :=
     strLen "s".
 Theorem stringLength_t: ⊢ stringLength : (stringT -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve stringLength_t : types.
 
 Definition testStringAppend: val :=
-  λ: <>,
+  rec: "testStringAppend" <> :=
     let: "ok" := ref #true in
     let: "s" := ref #(str"123") in
     let: "y" := ref (stringAppend (![stringT] "s") #45) in
@@ -682,7 +682,7 @@ Proof. typecheck. Qed.
 Hint Resolve testStringAppend_t : types.
 
 Definition testStringLength: val :=
-  λ: <>,
+  rec: "testStringLength" <> :=
     let: "ok" := ref #true in
     let: "s" := ref #(str"") in
     "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #0);;

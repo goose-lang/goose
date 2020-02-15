@@ -20,7 +20,7 @@ Module Log.
 End Log.
 
 Definition intToBlock: val :=
-  λ: "a",
+  rec: "intToBlock" "a" :=
     let: "b" := NewSlice byteT disk.BlockSize in
     UInt64Put "b" "a";;
     "b".
@@ -29,7 +29,7 @@ Proof. typecheck. Qed.
 Hint Resolve intToBlock_t : types.
 
 Definition blockToInt: val :=
-  λ: "v",
+  rec: "blockToInt" "v" :=
     let: "a" := UInt64Get "v" in
     "a".
 Theorem blockToInt_t: ⊢ blockToInt : (disk.blockT -> uint64T).
@@ -38,7 +38,7 @@ Hint Resolve blockToInt_t : types.
 
 (* New initializes a fresh log *)
 Definition New: val :=
-  λ: <>,
+  rec: "New" <> :=
     let: "diskSize" := disk.Size #() in
     (if: "diskSize" ≤ logLength
     then
@@ -61,14 +61,14 @@ Proof. typecheck. Qed.
 Hint Resolve New_t : types.
 
 Definition Log__lock: val :=
-  λ: "l",
+  rec: "Log__lock" "l" :=
     lock.acquire (struct.get Log.S "l" "l").
 Theorem Log__lock_t: ⊢ Log__lock : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__lock_t : types.
 
 Definition Log__unlock: val :=
-  λ: "l",
+  rec: "Log__unlock" "l" :=
     lock.release (struct.get Log.S "l" "l").
 Theorem Log__unlock_t: ⊢ Log__unlock : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
@@ -78,7 +78,7 @@ Hint Resolve Log__unlock_t : types.
 
    Returns true if the allocation succeeded. *)
 Definition Log__BeginTxn: val :=
-  λ: "l",
+  rec: "Log__BeginTxn" "l" :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     (if: ("length" = #0)
@@ -96,7 +96,7 @@ Hint Resolve Log__BeginTxn_t : types.
 
    Reads must go through the log to return committed but un-applied writes. *)
 Definition Log__Read: val :=
-  λ: "l" "a",
+  rec: "Log__Read" "l" "a" :=
     Log__lock "l";;
     let: ("v", "ok") := MapGet (struct.get Log.S "cache" "l") "a" in
     (if: "ok"
@@ -112,7 +112,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Read_t : types.
 
 Definition Log__Size: val :=
-  λ: "l",
+  rec: "Log__Size" "l" :=
     let: "sz" := disk.Size #() in
     "sz" - logLength.
 Theorem Log__Size_t: ⊢ Log__Size : (struct.t Log.S -> uint64T).
@@ -121,7 +121,7 @@ Hint Resolve Log__Size_t : types.
 
 (* Write to the disk through the log. *)
 Definition Log__Write: val :=
-  λ: "l" "a" "v",
+  rec: "Log__Write" "l" "a" "v" :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     (if: "length" ≥ MaxTxnWrites
@@ -142,7 +142,7 @@ Hint Resolve Log__Write_t : types.
 
 (* Commit the current transaction. *)
 Definition Log__Commit: val :=
-  λ: "l",
+  rec: "Log__Commit" "l" :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     Log__unlock "l";;
@@ -153,7 +153,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Commit_t : types.
 
 Definition getLogEntry: val :=
-  λ: "logOffset",
+  rec: "getLogEntry" "logOffset" :=
     let: "diskAddr" := #1 + #2 * "logOffset" in
     let: "aBlock" := disk.Read "diskAddr" in
     let: "a" := blockToInt "aBlock" in
@@ -165,7 +165,7 @@ Hint Resolve getLogEntry_t : types.
 
 (* applyLog assumes we are running sequentially *)
 Definition applyLog: val :=
-  λ: "length",
+  rec: "applyLog" "length" :=
     let: "i" := ref #0 in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < "length"
@@ -180,7 +180,7 @@ Proof. typecheck. Qed.
 Hint Resolve applyLog_t : types.
 
 Definition clearLog: val :=
-  λ: <>,
+  rec: "clearLog" <> :=
     let: "header" := intToBlock #0 in
     disk.Write #0 "header".
 Theorem clearLog_t: ⊢ clearLog : (unitT -> unitT).
@@ -191,7 +191,7 @@ Hint Resolve clearLog_t : types.
 
    Frees all the space in the log. *)
 Definition Log__Apply: val :=
-  λ: "l",
+  rec: "Log__Apply" "l" :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     applyLog "length";;
@@ -204,7 +204,7 @@ Hint Resolve Log__Apply_t : types.
 
 (* Open recovers the log following a crash or shutdown *)
 Definition Open: val :=
-  λ: <>,
+  rec: "Open" <> :=
     let: "header" := disk.Read #0 in
     let: "length" := blockToInt "header" in
     applyLog "length";;

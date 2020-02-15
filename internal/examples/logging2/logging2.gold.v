@@ -33,7 +33,7 @@ Module Log.
 End Log.
 
 Definition Log__writeHdr: val :=
-  λ: "log" "len",
+  rec: "Log__writeHdr" "log" "len" :=
     let: "hdr" := NewSlice byteT #4096 in
     UInt64Put "hdr" "len";;
     disk.Write LOGCOMMIT "hdr".
@@ -42,7 +42,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__writeHdr_t : types.
 
 Definition Init: val :=
-  λ: "logSz",
+  rec: "Init" "logSz" :=
     let: "log" := struct.mk Log.S [
       "logLock" ::= lock.new #();
       "memLock" ::= lock.new #();
@@ -59,7 +59,7 @@ Proof. typecheck. Qed.
 Hint Resolve Init_t : types.
 
 Definition Log__readHdr: val :=
-  λ: "log",
+  rec: "Log__readHdr" "log" :=
     let: "hdr" := disk.Read LOGCOMMIT in
     let: "disklen" := UInt64Get "hdr" in
     "disklen".
@@ -68,7 +68,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__readHdr_t : types.
 
 Definition Log__readBlocks: val :=
-  λ: "log" "len",
+  rec: "Log__readBlocks" "log" "len" :=
     let: "blks" := ref (NewSlice disk.blockT #0) in
     let: "i" := ref #0 in
     (for: (λ: <>, ![uint64T] "i" < "len"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
@@ -81,7 +81,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__readBlocks_t : types.
 
 Definition Log__Read: val :=
-  λ: "log",
+  rec: "Log__Read" "log" :=
     lock.acquire (struct.get Log.S "logLock" "log");;
     let: "disklen" := Log__readHdr "log" in
     let: "blks" := Log__readBlocks "log" "disklen" in
@@ -92,7 +92,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Read_t : types.
 
 Definition Log__memWrite: val :=
-  λ: "log" "l",
+  rec: "Log__memWrite" "log" "l" :=
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
@@ -103,7 +103,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__memWrite_t : types.
 
 Definition Log__memAppend: val :=
-  λ: "log" "l",
+  rec: "Log__memAppend" "log" "l" :=
     lock.acquire (struct.get Log.S "memLock" "log");;
     (if: ![uint64T] (struct.get Log.S "memLen" "log") + slice.len "l" ≥ struct.get Log.S "logSz" "log"
     then
@@ -122,7 +122,7 @@ Hint Resolve Log__memAppend_t : types.
 
 (* XXX just an atomic read? *)
 Definition Log__readLogTxnNxt: val :=
-  λ: "log",
+  rec: "Log__readLogTxnNxt" "log" :=
     lock.acquire (struct.get Log.S "memLock" "log");;
     let: "n" := ![uint64T] (struct.get Log.S "logTxnNxt" "log") in
     lock.release (struct.get Log.S "memLock" "log");;
@@ -132,7 +132,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__readLogTxnNxt_t : types.
 
 Definition Log__diskAppendWait: val :=
-  λ: "log" "txn",
+  rec: "Log__diskAppendWait" "log" "txn" :=
     Skip;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "logtxn" := Log__readLogTxnNxt "log" in
@@ -144,7 +144,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__diskAppendWait_t : types.
 
 Definition Log__Append: val :=
-  λ: "log" "l",
+  rec: "Log__Append" "log" "l" :=
     let: ("ok", "txn") := Log__memAppend "log" "l" in
     (if: "ok"
     then
@@ -157,7 +157,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Append_t : types.
 
 Definition Log__writeBlocks: val :=
-  λ: "log" "l" "pos",
+  rec: "Log__writeBlocks" "log" "l" "pos" :=
     let: "n" := slice.len "l" in
     let: "i" := ref #0 in
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
@@ -169,7 +169,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__writeBlocks_t : types.
 
 Definition Log__diskAppend: val :=
-  λ: "log",
+  rec: "Log__diskAppend" "log" :=
     lock.acquire (struct.get Log.S "logLock" "log");;
     let: "disklen" := Log__readHdr "log" in
     lock.acquire (struct.get Log.S "memLock" "log");;
@@ -187,7 +187,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__diskAppend_t : types.
 
 Definition Log__Logger: val :=
-  λ: "log",
+  rec: "Log__Logger" "log" :=
     Skip;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       Log__diskAppend "log";;
@@ -207,7 +207,7 @@ End Txn.
 
 (* XXX wait if cannot reserve space in log *)
 Definition Begin: val :=
-  λ: "log",
+  rec: "Begin" "log" :=
     let: "txn" := struct.mk Txn.S [
       "log" ::= "log";
       "blks" ::= NewMap disk.blockT
@@ -218,7 +218,7 @@ Proof. typecheck. Qed.
 Hint Resolve Begin_t : types.
 
 Definition Txn__Write: val :=
-  λ: "txn" "addr" "blk",
+  rec: "Txn__Write" "txn" "addr" "blk" :=
     let: "ret" := ref #true in
     let: (<>, "ok") := MapGet (struct.get Txn.S "blks" "txn") "addr" in
     (if: "ok"
@@ -239,7 +239,7 @@ Proof. typecheck. Qed.
 Hint Resolve Txn__Write_t : types.
 
 Definition Txn__Read: val :=
-  λ: "txn" "addr",
+  rec: "Txn__Read" "txn" "addr" :=
     let: ("v", "ok") := MapGet (struct.get Txn.S "blks" "txn") "addr" in
     (if: "ok"
     then "v"
@@ -249,7 +249,7 @@ Proof. typecheck. Qed.
 Hint Resolve Txn__Read_t : types.
 
 Definition Txn__Commit: val :=
-  λ: "txn",
+  rec: "Txn__Commit" "txn" :=
     let: "blks" := ref (zero_val (slice.T disk.blockT)) in
     MapIter (struct.get Txn.S "blks" "txn") (λ: <> "v",
       "blks" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "v");;

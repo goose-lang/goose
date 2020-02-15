@@ -772,7 +772,7 @@ func (d FuncDecl) CoqDecl() string {
 	func() {
 		pp.Indent(2)
 		defer pp.Indent(-2)
-		pp.Add("λ: %s,", d.Signature())
+		pp.Add("rec: \"%s\" %s :=", d.Name, d.Signature())
 		pp.Indent(2)
 		defer pp.Indent(-2)
 		pp.AddLine(d.Body.Coq() + ".")

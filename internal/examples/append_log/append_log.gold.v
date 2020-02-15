@@ -18,7 +18,7 @@ Module Log.
 End Log.
 
 Definition Log__mkHdr: val :=
-  λ: "log",
+  rec: "Log__mkHdr" "log" :=
     let: "enc" := marshal.NewEnc disk.BlockSize in
     marshal.Enc__PutInt "enc" (struct.get Log.S "sz" "log");;
     marshal.Enc__PutInt "enc" (struct.get Log.S "diskSz" "log");;
@@ -28,14 +28,14 @@ Proof. typecheck. Qed.
 Hint Resolve Log__mkHdr_t : types.
 
 Definition Log__writeHdr: val :=
-  λ: "log",
+  rec: "Log__writeHdr" "log" :=
     disk.Write #0 (Log__mkHdr "log").
 Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__writeHdr_t : types.
 
 Definition Init: val :=
-  λ: "diskSz",
+  rec: "Init" "diskSz" :=
     (if: "diskSz" < #1
     then
       (struct.mk Log.S [
@@ -54,7 +54,7 @@ Proof. typecheck. Qed.
 Hint Resolve Init_t : types.
 
 Definition Open: val :=
-  λ: <>,
+  rec: "Open" <> :=
     let: "hdr" := disk.Read #0 in
     let: "dec" := marshal.NewDec "hdr" in
     let: "sz" := marshal.Dec__GetInt "dec" in
@@ -68,7 +68,7 @@ Proof. typecheck. Qed.
 Hint Resolve Open_t : types.
 
 Definition Log__Get: val :=
-  λ: "log" "i",
+  rec: "Log__Get" "log" "i" :=
     let: "sz" := struct.get Log.S "sz" "log" in
     (if: "i" < "sz"
     then (disk.Read (#1 + "i"), #true)
@@ -78,7 +78,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Get_t : types.
 
 Definition writeAll: val :=
-  λ: "bks" "off",
+  rec: "writeAll" "bks" "off" :=
     ForSlice (slice.T byteT) "i" "bk" "bks"
       (disk.Write ("off" + "i") "bk").
 Theorem writeAll_t: ⊢ writeAll : (slice.T disk.blockT -> uint64T -> unitT).
@@ -86,7 +86,7 @@ Proof. typecheck. Qed.
 Hint Resolve writeAll_t : types.
 
 Definition Log__Append: val :=
-  λ: "log" "bks",
+  rec: "Log__Append" "log" "bks" :=
     let: "sz" := struct.loadF Log.S "sz" "log" in
     (if: slice.len "bks" ≥ struct.loadF Log.S "diskSz" "log" - #1 - "sz"
     then #false
@@ -104,7 +104,7 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Append_t : types.
 
 Definition Log__Reset: val :=
-  λ: "log",
+  rec: "Log__Reset" "log" :=
     let: "newLog" := struct.mk Log.S [
       "sz" ::= #0;
       "diskSz" ::= struct.loadF Log.S "diskSz" "log"
