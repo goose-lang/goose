@@ -51,7 +51,7 @@ func (d FileDisk) Write(a uint64, v Block) {
 	if a >= d.numBlocks {
 		panic(fmt.Errorf("out-of-bounds write at %v", a))
 	}
-	_, err := unix.Pread(d.fd, v, int64(a*BlockSize))
+	_, err := unix.Pwrite(d.fd, v, int64(a*BlockSize))
 	if err != nil {
 		panic("write failed: " + err.Error())
 	}
