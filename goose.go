@@ -252,7 +252,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		if info, ok := ctx.getStructInfo(t); ok {
 			return coq.StructName(info.name)
 		}
-		return coq.TypeIdent(t.Obj().Name())
+		return coq.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
@@ -840,6 +840,15 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	return ctx.methodExpr(s)
 }
 
+func (ctx Ctx) qualifiedName(obj types.Object) string {
+	name := obj.Name()
+	if ctx.pkgPath == obj.Pkg().Path() {
+		// no module name needed
+		return name
+	}
+	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
+}
+
 type structTypeInfo struct {
 	name           string
 	throughPointer bool
@@ -853,11 +862,7 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		name := t.Obj().Name()
-		// qualify struct name if needed
-		if ctx.pkgPath != t.Obj().Pkg().Path() {
-			name = fmt.Sprintf("%s.%s", t.Obj().Pkg().Name(), name)
-		}
+		name := ctx.qualifiedName(t.Obj())
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
 				name:           name,
