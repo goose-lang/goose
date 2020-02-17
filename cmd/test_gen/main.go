@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -85,6 +86,11 @@ func main() {
 	}
 
 	// read files from input directory
+	if flag.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "Path to semantics package not provided")
+		flag.Usage()
+		os.Exit(1)
+	}
 	srcDir := flag.Arg(0)
 
 	d, err := os.Open(srcDir)
@@ -108,7 +114,7 @@ func main() {
 				continue
 			}
 
-			f, err := os.Open(srcDir + file.Name())
+			f, err := os.Open(path.Join(srcDir, file.Name()))
 			if err != nil {
 				panic(err)
 			}
@@ -136,7 +142,7 @@ func main() {
 				continue
 			}
 
-			f, err := os.Open(srcDir + file.Name())
+			f, err := os.Open(path.Join(srcDir, file.Name()))
 			if err != nil {
 				panic(err)
 			}
