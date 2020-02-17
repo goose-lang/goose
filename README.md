@@ -103,3 +103,26 @@ directories within `internal/examples`.
 
 The Coq output is separately tested by building it within the [Perennial
 ](github.com/mit-pdos/perennial) source tree.
+
+Additionally, the `internal/examples/semantics` package contains a set of
+semantic tests for checking that translated programs preserve their semantic
+meaning. The testing infrastructure requires test functions to have the form
+`func test*() bool` and return true (that is, they begin with "test", take no
+arguments, and return a bool expected to always be true). Any helper functions
+should _not_ follow this pattern.
+
+The `cmd/test_gen/main.go` file generates the required test files from these
+functions. The files are:
+
+- A `.go` file which uses the Go `testing` package. This is for confirming that
+  tests actually do always return true, as intended. Note that the use of the
+testing package means that this file must end in `_test.go`.
+- A `.v` file that runs using Perennial's semantic interpreter. This file
+  should go in Perennial's `goose_lang/interpreter/` directory and can have any name.
+
+To generate these files, the executable takes a required flag of either `-go`
+or `-coq` which specifies the file type, an optional `-out` argument specifying
+where to write the output, and finally the path to the semantics package. For
+example, 
+`cmd/test_gen/test_gen -coq -out /.../goose_lang/interpreter/generated_test.v /.../goose/internal/examples/semantics`
+generates the Coq file of semantic tests.
