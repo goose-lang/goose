@@ -116,7 +116,8 @@ functions. The files are:
 
 - A `.go` file which uses the Go `testing` package. This is for confirming that
   tests actually do always return true, as intended. Note that the use of the
-testing package means that this file must end in `_test.go`.
+testing package means that this file must end in `_test.go`. It should go in
+the `semantics/` directory.
 - A `.v` file that runs using Perennial's semantic interpreter. This file
   should go in Perennial's `goose_lang/interpreter/` directory and can have any name.
 
