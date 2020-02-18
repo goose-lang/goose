@@ -44,7 +44,7 @@ func testReverseAssignOps64() bool {
 	return ok
 }
 
-func testReverseAssignOps32() bool {
+func failing_testReverseAssignOps32() bool {
 	var ok = true
 	ok = ok && (reverseAssignOps32(0) == 0)
 	ok = ok && (reverseAssignOps32(1) == 0)

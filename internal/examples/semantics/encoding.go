@@ -48,7 +48,7 @@ func testEncDec32Simple() bool {
 	return ok
 }
 
-func testEncDec32() bool {
+func failing_testEncDec32() bool {
 	var ok = true
 	ok = ok && (roundtripEncDec32(0xCCBB00AA) == 0xCCBB00AA)
 	ok = ok && (roundtripEncDec32(1<<20) == 1<<20)

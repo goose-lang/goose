@@ -123,11 +123,15 @@ func main() {
 			for scanner.Scan() {
 				line := scanner.Text()
 
-				re := regexp.MustCompile(`(?:^func\s)(?P<name>test[[:alnum:]]+)(?:\(.*)`)
+				re := regexp.MustCompile(`(?:^func\s)(?P<fail>(failing_)?)(?P<name>test[[:alnum:]]+)(?:\(.*)`)
 				m := re.FindStringSubmatch(line)
 
 				if len(m) != 0 {
-					fmt.Fprintf(out, "Example %s_ok : %s #() ~~> #true := t.\n", m[1], m[1])
+					if len(m[2]) != 0 {
+						fmt.Fprintf(out, "Fail Example %s_ok : %s #() ~~> #true := t.\n", m[3], m[3])
+					} else {
+						fmt.Fprintf(out, "Example %s_ok : %s #() ~~> #true := t.\n", m[3], m[3])
+					}
 				}
 			}
 		}

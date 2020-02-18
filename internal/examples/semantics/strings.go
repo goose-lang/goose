@@ -2,6 +2,7 @@ package semantics
 
 import "github.com/tchajed/goose/machine"
 
+// helpers
 func stringAppend(s string, x uint64) string {
 	return s + machine.UInt64ToString(x)
 }
@@ -10,7 +11,8 @@ func stringLength(s string) uint64 {
 	return uint64(len(s))
 }
 
-func testStringAppend() bool {
+// tests
+func failing_testStringAppend() bool {
 	var ok = true
 	var s = "123"
 
@@ -18,7 +20,7 @@ func testStringAppend() bool {
 	return ok && (y == "12345")
 }
 
-func testStringLength() bool {
+func failing_testStringLength() bool {
 	var ok = true
 	var s = ""
 

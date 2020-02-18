@@ -113,28 +113,28 @@ Hint Resolve testByteSliceToString_t : types.
 
 (* copy.go *)
 
-Definition testCopySimple: val :=
-  rec: "testCopySimple" <> :=
+Definition failing_testCopySimple: val :=
+  rec: "failing_testCopySimple" <> :=
     let: "x" := NewSlice byteT #10 in
     SliceSet byteT "x" #3 (#(U8 1));;
     let: "y" := NewSlice byteT #10 in
     SliceCopy byteT "y" "x";;
     (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem testCopySimple_t: ⊢ testCopySimple : (unitT -> boolT).
+Theorem failing_testCopySimple_t: ⊢ failing_testCopySimple : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testCopySimple_t : types.
+Hint Resolve failing_testCopySimple_t : types.
 
-Definition testCopyDifferentLengths: val :=
-  rec: "testCopyDifferentLengths" <> :=
+Definition failing_testCopyDifferentLengths: val :=
+  rec: "failing_testCopyDifferentLengths" <> :=
     let: "x" := NewSlice byteT #15 in
     SliceSet byteT "x" #3 (#(U8 1));;
     SliceSet byteT "x" #12 (#(U8 2));;
     let: "y" := NewSlice byteT #10 in
     let: "n" := SliceCopy byteT "y" "x" in
     ("n" = #10) && (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem testCopyDifferentLengths_t: ⊢ testCopyDifferentLengths : (unitT -> boolT).
+Theorem failing_testCopyDifferentLengths_t: ⊢ failing_testCopyDifferentLengths : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testCopyDifferentLengths_t : types.
+Hint Resolve failing_testCopyDifferentLengths_t : types.
 
 (* encoding.go *)
 
@@ -211,8 +211,8 @@ Theorem testEncDec32Simple_t: ⊢ testEncDec32Simple : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testEncDec32Simple_t : types.
 
-Definition testEncDec32: val :=
-  rec: "testEncDec32" <> :=
+Definition failing_testEncDec32: val :=
+  rec: "failing_testEncDec32" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 3434807466)) = #(U32 3434807466));;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #20) = #1 ≪ #20);;
@@ -221,9 +221,9 @@ Definition testEncDec32: val :=
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #0) = #1 ≪ #0);;
     "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #32 - #1) = #1 ≪ #32 - #1);;
     ![boolT] "ok".
-Theorem testEncDec32_t: ⊢ testEncDec32 : (unitT -> boolT).
+Theorem failing_testEncDec32_t: ⊢ failing_testEncDec32 : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testEncDec32_t : types.
+Hint Resolve failing_testEncDec32_t : types.
 
 Definition testEncDec64Simple: val :=
   rec: "testEncDec64Simple" <> :=
@@ -292,8 +292,8 @@ Module Pair.
 End Pair.
 
 (* tests *)
-Definition testFunctionOrdering: val :=
-  rec: "testFunctionOrdering" <> :=
+Definition failing_testFunctionOrdering: val :=
+  rec: "failing_testFunctionOrdering" <> :=
     let: "arr" := ref (NewSlice uint64T #5) in
     let: "e1" := struct.mk Editor.S [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
@@ -332,9 +332,9 @@ Definition testFunctionOrdering: val :=
                 (if: SliceGet uint64T (![slice.T uint64T] "arr") #4 ≠ #105
                 then #false
                 else (struct.get Pair.S "x" "p" + struct.get Pair.S "x" "q" = #109)))))))).
-Theorem testFunctionOrdering_t: ⊢ testFunctionOrdering : (unitT -> boolT).
+Theorem failing_testFunctionOrdering_t: ⊢ failing_testFunctionOrdering : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testFunctionOrdering_t : types.
+Hint Resolve failing_testFunctionOrdering_t : types.
 
 (* loops.go *)
 
@@ -514,8 +514,8 @@ Theorem testReverseAssignOps64_t: ⊢ testReverseAssignOps64 : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testReverseAssignOps64_t : types.
 
-Definition testReverseAssignOps32: val :=
-  rec: "testReverseAssignOps32" <> :=
+Definition failing_testReverseAssignOps32: val :=
+  rec: "failing_testReverseAssignOps32" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 0)) = #(U32 0));;
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 1)) = #(U32 0));;
@@ -527,9 +527,9 @@ Definition testReverseAssignOps32: val :=
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #0) = #(U32 0));;
     "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #32 - #1) = #(U32 0));;
     ![boolT] "ok".
-Theorem testReverseAssignOps32_t: ⊢ testReverseAssignOps32 : (unitT -> boolT).
+Theorem failing_testReverseAssignOps32_t: ⊢ failing_testReverseAssignOps32 : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testReverseAssignOps32_t : types.
+Hint Resolve failing_testReverseAssignOps32_t : types.
 
 Definition testAdd64Equals: val :=
   rec: "testAdd64Equals" <> :=
@@ -708,6 +708,7 @@ Hint Resolve testOverwriteArray_t : types.
 
 (* strings.go *)
 
+(* helpers *)
 Definition stringAppend: val :=
   rec: "stringAppend" "s" "x" :=
     "s" + uint64_to_string "x".
@@ -722,18 +723,19 @@ Theorem stringLength_t: ⊢ stringLength : (stringT -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve stringLength_t : types.
 
-Definition testStringAppend: val :=
-  rec: "testStringAppend" <> :=
+(* tests *)
+Definition failing_testStringAppend: val :=
+  rec: "failing_testStringAppend" <> :=
     let: "ok" := ref #true in
     let: "s" := ref #(str"123") in
     let: "y" := ref (stringAppend (![stringT] "s") #45) in
     ![boolT] "ok" && (![stringT] "y" = #(str"12345")).
-Theorem testStringAppend_t: ⊢ testStringAppend : (unitT -> boolT).
+Theorem failing_testStringAppend_t: ⊢ failing_testStringAppend : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testStringAppend_t : types.
+Hint Resolve failing_testStringAppend_t : types.
 
-Definition testStringLength: val :=
-  rec: "testStringLength" <> :=
+Definition failing_testStringLength: val :=
+  rec: "failing_testStringLength" <> :=
     let: "ok" := ref #true in
     let: "s" := ref #(str"") in
     "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #0);;
@@ -741,6 +743,6 @@ Definition testStringLength: val :=
     "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #1);;
     "s" <-[stringT] stringAppend (![stringT] "s") #23;;
     ![boolT] "ok" && (strLen (![stringT] "s") = #3).
-Theorem testStringLength_t: ⊢ testStringLength : (unitT -> boolT).
+Theorem failing_testStringLength_t: ⊢ failing_testStringLength : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testStringLength_t : types.
+Hint Resolve failing_testStringLength_t : types.

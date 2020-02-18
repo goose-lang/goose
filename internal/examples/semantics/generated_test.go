@@ -34,10 +34,6 @@ func (suite *GoTestSuite) TestEncDec32Simple() {
 	suite.Equal(true, testEncDec32Simple())
 }
 
-func (suite *GoTestSuite) TestEncDec32() {
-	suite.Equal(true, testEncDec32())
-}
-
 func (suite *GoTestSuite) TestEncDec64Simple() {
 	suite.Equal(true, testEncDec64Simple())
 }
@@ -52,18 +48,6 @@ func (suite *GoTestSuite) TestIterateMap() {
 
 func (suite *GoTestSuite) TestMapSize() {
 	suite.Equal(true, testMapSize())
-}
-
-func (suite *GoTestSuite) TestFunctionOrdering() {
-	suite.Equal(true, testFunctionOrdering())
-}
-
-func (suite *GoTestSuite) TestCopySimple() {
-	suite.Equal(true, testCopySimple())
-}
-
-func (suite *GoTestSuite) TestCopyDifferentLengths() {
-	suite.Equal(true, testCopyDifferentLengths())
 }
 
 func (suite *GoTestSuite) TestByteSliceToString() {
@@ -90,10 +74,6 @@ func (suite *GoTestSuite) TestReverseAssignOps64() {
 	suite.Equal(true, testReverseAssignOps64())
 }
 
-func (suite *GoTestSuite) TestReverseAssignOps32() {
-	suite.Equal(true, testReverseAssignOps32())
-}
-
 func (suite *GoTestSuite) TestAdd64Equals() {
 	suite.Equal(true, testAdd64Equals())
 }
@@ -116,14 +96,6 @@ func (suite *GoTestSuite) TestStandardForLoop() {
 
 func (suite *GoTestSuite) TestForLoopWait() {
 	suite.Equal(true, testForLoopWait())
-}
-
-func (suite *GoTestSuite) TestStringAppend() {
-	suite.Equal(true, testStringAppend())
-}
-
-func (suite *GoTestSuite) TestStringLength() {
-	suite.Equal(true, testStringLength())
 }
 
 func (suite *GoTestSuite) TestOverwriteArray() {

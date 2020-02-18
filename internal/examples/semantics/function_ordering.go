@@ -28,7 +28,7 @@ type Pair struct {
 }
 
 // tests
-func testFunctionOrdering() bool {
+func failing_testFunctionOrdering() bool {
 	var arr = make([]uint64, 5)
 
 	e1 := Editor{s: arr[0:], next_val: 1}
