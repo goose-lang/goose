@@ -82,14 +82,6 @@ func (suite *GoTestSuite) TestSub64Equals() {
 	suite.Equal(true, testSub64Equals())
 }
 
-func (suite *GoTestSuite) TestDivisionPrecedence() {
-	suite.Equal(true, testDivisionPrecedence())
-}
-
-func (suite *GoTestSuite) TestModPrecedence() {
-	suite.Equal(true, testModPrecedence())
-}
-
 func (suite *GoTestSuite) TestStandardForLoop() {
 	suite.Equal(true, testStandardForLoop())
 }
