@@ -552,24 +552,24 @@ Theorem testSub64Equals_t: ⊢ testSub64Equals : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testSub64Equals_t : types.
 
-Definition failing_testDivisionPrecedence: val :=
-  rec: "failing_testDivisionPrecedence" <> :=
+Definition testDivisionPrecedence: val :=
+  rec: "testDivisionPrecedence" <> :=
     let: "blockSize" := #4096 in
     let: "hdrmeta" := #8 in
     let: "hdraddrs" := ("blockSize" - "hdrmeta") `quot` #8 in
     ("hdraddrs" = #511).
-Theorem failing_testDivisionPrecedence_t: ⊢ failing_testDivisionPrecedence : (unitT -> boolT).
+Theorem testDivisionPrecedence_t: ⊢ testDivisionPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testDivisionPrecedence_t : types.
+Hint Resolve testDivisionPrecedence_t : types.
 
-Definition failing_testModPrecedence: val :=
-  rec: "failing_testModPrecedence" <> :=
+Definition testModPrecedence: val :=
+  rec: "testModPrecedence" <> :=
     let: "x1" := #513 + #12 `rem` #8 in
     let: "x2" := (#513 + #12) `rem` #8 in
     ("x1" = #517) && ("x2" = #5).
-Theorem failing_testModPrecedence_t: ⊢ failing_testModPrecedence : (unitT -> boolT).
+Theorem testModPrecedence_t: ⊢ testModPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testModPrecedence_t : types.
+Hint Resolve testModPrecedence_t : types.
 
 (* shortcircuiting.go *)
 

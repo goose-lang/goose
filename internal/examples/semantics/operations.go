@@ -73,14 +73,14 @@ func testSub64Equals() bool {
 	return ok
 }
 
-func failing_testDivisionPrecedence() bool {
+func testDivisionPrecedence() bool {
 	blockSize := uint64(4096)
 	hdrmeta := uint64(8)
 	hdraddrs := (blockSize - hdrmeta) / 8
 	return hdraddrs == 511
 }
 
-func failing_testModPrecedence() bool {
+func testModPrecedence() bool {
 	x1 := 513 + 12%8
 	x2 := (513 + 12) % 8
 	return x1 == 517 && x2 == 5

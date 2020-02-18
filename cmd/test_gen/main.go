@@ -128,7 +128,7 @@ func main() {
 
 				if len(m) != 0 {
 					if len(m[2]) != 0 {
-						fmt.Fprintf(out, "Fail Example %s_ok : %s #() ~~> #true := t.\n", m[3], m[3])
+						fmt.Fprintf(out, "Fail Example %s_ok : %s%s #() ~~> #true := t.\n", m[3], m[2], m[3])
 					} else {
 						fmt.Fprintf(out, "Example %s_ok : %s #() ~~> #true := t.\n", m[3], m[3])
 					}
@@ -155,12 +155,12 @@ func main() {
 			for scanner.Scan() {
 				line := scanner.Text()
 
-				re := regexp.MustCompile(`(?:^func\s)(?:test)(?P<name>[[:alnum:]]+)(?:\(.*)`)
+				re := regexp.MustCompile(`(?:^func\s)(?P<fail>(failing_)?)(?:test)(?P<name>[[:alnum:]]+)(?:\(.*)`)
 				m := re.FindStringSubmatch(line)
 
 				if len(m) != 0 {
-					fmt.Fprintf(out, "func (suite *GoTestSuite) Test%s() {\n", m[1])
-					fmt.Fprintf(out, "\tsuite.Equal(true, test%s())\n", m[1])
+					fmt.Fprintf(out, "func (suite *GoTestSuite) Test%s() {\n", m[3])
+					fmt.Fprintf(out, "\tsuite.Equal(true, %stest%s())\n", m[2], m[3])
 					fmt.Fprintf(out, "}\n\n")
 				}
 			}
