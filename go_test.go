@@ -111,3 +111,46 @@ func TestInterfaceTypeIdentity(t *testing.T) {
 	_, ok = isType1.(type2)
 	assert.Equal(false, ok, "type1 should not be type2")
 }
+
+// nil is a special slice value with a null pointer,
+// unequal to any other derived slice value
+func TestNilComparisons(t *testing.T) {
+	assert := assert.New(t)
+	var s []byte
+	assert.True(s == nil)
+	s = make([]byte, 0)
+	assert.False(s == nil)
+	s = make([]byte, 0, 10)
+	assert.False(s[:0] == nil)
+}
+
+func TestSliceCapacity(t *testing.T) {
+	assert := assert.New(t)
+	assert.Equal(10, cap(make([]byte, 10)))
+	assert.Equal(20, cap(make([]byte, 10, 20)))
+	assert.Equal(20, cap(make([]byte, 10, 20)[:5]),
+		"sub-slicing prefix maintains capacity")
+	assert.Equal(19, cap(make([]byte, 10, 20)[1:6]),
+		"sub-slicing middle maintains remaining capacity")
+	assert.Equal(15, cap(make([]byte, 10, 20)[:10:15]),
+		"can explicitly reduce capacity of subslice")
+	assert.Panics(func() {
+		_ = make([]byte, 10, 10)[:5:12]
+	}, "cannot get capacity beyond what is present")
+	assert.Equal(15, cap(make([]byte, 10, 20)[:10:15]),
+		"can explicitly reduce capacity of subslice")
+}
+
+func TestModifyCapacity(t *testing.T) {
+	assert := assert.New(t)
+	s := make([]uint64, 5)
+	s2 := s[:2]
+	assert.Equal(5, cap(s2))
+
+	s2 = append(s2, 7)
+	assert.Equal(uint64(7), s2[2])
+	assert.Equal(3, len(s2))
+
+	assert.Equal(uint64(7), s[2],
+		"appending modifies underlying slice via capacity")
+}
