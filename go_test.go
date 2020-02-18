@@ -145,11 +145,13 @@ func TestModifyCapacity(t *testing.T) {
 	assert := assert.New(t)
 	s := make([]uint64, 5)
 	s2 := s[:2]
-	assert.Equal(5, cap(s2))
+	assert.Equal(5, cap(s2), "subslicing retains the original capacity")
 
 	s2 = append(s2, 7)
-	assert.Equal(uint64(7), s2[2])
+	// s2 is in fact the same pointer as the original (not sure how to check
+	// this)
 	assert.Equal(3, len(s2))
+	assert.Equal(5, cap(s2))
 
 	assert.Equal(uint64(7), s[2],
 		"appending modifies underlying slice via capacity")
