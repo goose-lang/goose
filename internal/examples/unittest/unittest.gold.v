@@ -475,6 +475,28 @@ Definition multipleVar: val :=
   rec: "multipleVar" "x" "y" :=
     #().
 
+(* nil.go *)
+
+Definition AssignNilSlice: val :=
+  rec: "AssignNilSlice" <> :=
+    let: "s" := NewSlice (slice.T byteT) #4 in
+    SliceSet (slice.T byteT) "s" #2 slice.nil.
+
+Definition AssignNilPointer: val :=
+  rec: "AssignNilPointer" <> :=
+    let: "s" := NewSlice (refT uint64T) #4 in
+    SliceSet (refT uint64T) "s" #2 slice.nil.
+
+Definition CompareSliceToNil: val :=
+  rec: "CompareSliceToNil" <> :=
+    let: "s" := NewSlice byteT #0 in
+    "s" ≠ slice.nil.
+
+Definition ComparePointerToNil: val :=
+  rec: "ComparePointerToNil" <> :=
+    let: "s" := ref (zero_val uint64T) in
+    "s" ≠ slice.nil.
+
 (* operators.go *)
 
 Definition LogicalOperators: val :=

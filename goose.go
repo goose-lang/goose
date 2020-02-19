@@ -1056,7 +1056,22 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 }
 
 func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
-	return coq.GallinaIdent("slice.nil")
+	t := ctx.typeOf(e)
+	switch t.(type) {
+	case *types.Pointer:
+		return coq.GallinaIdent("null")
+	case *types.Slice:
+		return coq.GallinaIdent("slice.nil")
+	case *types.Basic:
+		// TODO: this gets triggered for all of our unit tests because the
+		//  nil identifier is mapped to an untyped nil object.
+		//  This seems wrong; the runtime representation of each of these
+		//  uses depends on the type, so Go must know how they're being used.
+		return coq.GallinaIdent("slice.nil")
+	default:
+		ctx.unsupported(e, "nil of type %v (not pointer or slice)", t)
+		return nil
+	}
 }
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
