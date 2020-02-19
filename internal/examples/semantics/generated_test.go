@@ -122,6 +122,14 @@ func (suite *GoTestSuite) TestStructConstructions() {
 	suite.Equal(true, testStructConstructions())
 }
 
+func (suite *GoTestSuite) TestStoreInStructVar() {
+	suite.Equal(true, testStoreInStructVar())
+}
+
+func (suite *GoTestSuite) TestStoreInStructPointerVar() {
+	suite.Equal(true, testStoreInStructPointerVar())
+}
+
 func (suite *GoTestSuite) TestStandardForLoop() {
 	suite.Equal(true, testStandardForLoop())
 }

@@ -87,3 +87,19 @@ func testStructConstructions() bool {
 	ok = ok && (&p4 != p1)
 	return ok
 }
+
+type StructWrap struct {
+	i uint64
+}
+
+func testStoreInStructVar() bool {
+	var p StructWrap = StructWrap{i: 0}
+	p.i = 5
+	return true
+}
+
+func testStoreInStructPointerVar() bool {
+	var p *StructWrap = new(StructWrap)
+	p.i = 5
+	return true
+}

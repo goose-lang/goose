@@ -882,7 +882,7 @@ Definition failing_testStructUpdates: val :=
     struct.storeF TwoInts.S "x" "b1" #3;;
     let: "b2" := ref (S__readB (![refT (struct.t S.S)] "ns")) in
     "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b2") = #1);;
-    let: "b3" := ref (struct.fieldRef S.S "b" "ns") in
+    let: "b3" := ref (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) in
     "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "b3") = #1);;
     S__updateBValX (![refT (struct.t S.S)] "ns") #4;;
     "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (S__readBVal (![refT (struct.t S.S)] "ns")) = #4);;
@@ -894,7 +894,7 @@ Hint Resolve failing_testStructUpdates_t : types.
 Definition failing_testNestedStructUpdate: val :=
   rec: "failing_testNestedStructUpdate" <> :=
     let: "ns" := ref (NewS #()) in
-    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" "ns") #5;;
+    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
     (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5).
 Theorem failing_testNestedStructUpdate_t: ⊢ failing_testNestedStructUpdate : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -923,3 +923,29 @@ Definition testStructConstructions: val :=
 Theorem testStructConstructions_t: ⊢ testStructConstructions : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStructConstructions_t : types.
+
+Module StructWrap.
+  Definition S := struct.decl [
+    "i" :: uint64T
+  ].
+End StructWrap.
+
+Definition testStoreInStructVar: val :=
+  rec: "testStoreInStructVar" <> :=
+    let: "p" := ref (struct.mk StructWrap.S [
+      "i" ::= #0
+    ]) in
+    struct.storeF StructWrap.S "i" "p" #5;;
+    #true.
+Theorem testStoreInStructVar_t: ⊢ testStoreInStructVar : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStoreInStructVar_t : types.
+
+Definition testStoreInStructPointerVar: val :=
+  rec: "testStoreInStructPointerVar" <> :=
+    let: "p" := ref (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
+    struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5;;
+    #true.
+Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStoreInStructPointerVar_t : types.

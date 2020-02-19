@@ -844,26 +844,6 @@ Definition setField: val :=
     struct.storeF S.S "c" "s" #true;;
     ![struct.t S.S] "s".
 
-(* struct_var.go *)
-
-Module StructWrap.
-  Definition S := struct.decl [
-    "i" :: uint64T
-  ].
-End StructWrap.
-
-Definition storeInStructVar: val :=
-  rec: "storeInStructVar" <> :=
-    let: "p" := ref (struct.mk StructWrap.S [
-      "i" ::= #0
-    ]) in
-    struct.storeF StructWrap.S "i" "p" #5.
-
-Definition storeInStructPointerVar: val :=
-  rec: "storeInStructPointerVar" <> :=
-    let: "p" := ref (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
-    struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5.
-
 (* synchronization.go *)
 
 (* DoSomeLocking uses the entire lock API *)
