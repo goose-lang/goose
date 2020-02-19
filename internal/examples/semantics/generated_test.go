@@ -110,6 +110,18 @@ func (suite *GoTestSuite) TestModPrecedence() {
 	suite.Equal(true, testModPrecedence())
 }
 
+func (suite *GoTestSuite) TestStructUpdates() {
+	suite.Equal(true, failing_testStructUpdates())
+}
+
+func (suite *GoTestSuite) TestNestedStructUpdate() {
+	suite.Equal(true, failing_testNestedStructUpdate())
+}
+
+func (suite *GoTestSuite) TestStructConstructions() {
+	suite.Equal(true, testStructConstructions())
+}
+
 func (suite *GoTestSuite) TestStandardForLoop() {
 	suite.Equal(true, testStandardForLoop())
 }
@@ -118,12 +130,24 @@ func (suite *GoTestSuite) TestForLoopWait() {
 	suite.Equal(true, testForLoopWait())
 }
 
+func (suite *GoTestSuite) TestBreakFromLoopWithContinue() {
+	suite.Equal(true, testBreakFromLoopWithContinue())
+}
+
+func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
+	suite.Equal(true, failing_testBreakFromLoopNoContinue())
+}
+
 func (suite *GoTestSuite) TestStringAppend() {
 	suite.Equal(true, failing_testStringAppend())
 }
 
 func (suite *GoTestSuite) TestStringLength() {
 	suite.Equal(true, failing_testStringLength())
+}
+
+func (suite *GoTestSuite) TestSliceOps() {
+	suite.Equal(true, testSliceOps())
 }
 
 func (suite *GoTestSuite) TestOverwriteArray() {

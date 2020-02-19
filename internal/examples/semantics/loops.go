@@ -55,3 +55,26 @@ func testForLoopWait() bool {
 	return (*ls.loopNext == 4)
 
 }
+
+func testBreakFromLoopWithContinue() bool {
+	var i uint64 = 0
+	for {
+		if true {
+			i = i + 1
+			break
+		}
+		continue
+	}
+	return (i == 1)
+}
+
+func failing_testBreakFromLoopNoContinue() bool {
+	var i uint64 = 0
+	for {
+		if true {
+			i = i + 1
+			break
+		}
+	}
+	return (i == 1)
+}

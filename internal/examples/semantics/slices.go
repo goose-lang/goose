@@ -14,6 +14,29 @@ func (ae *ArrayEditor) Advance(arr []uint64, next uint64) {
 }
 
 // tests
+func testSliceOps() bool {
+	x := make([]uint64, 10)
+	x[1] = 5
+	x[2] = 10
+	x[3] = 15
+	x[4] = 20
+	
+	v1 := x[2]
+	v2 := x[2:3]
+	v3 := x[:3]
+	v4 := &x[2]
+
+	var ok = true
+	ok = ok && (v1 == 10)
+	ok = ok && (v2[0] == 10)
+	ok = ok && (len(v2) == 1)
+	ok = ok && (v3[1] == 5)
+	ok = ok && (v3[2] == 10)
+	ok = ok && (len(v3) == 3)
+	ok = ok && (*v4 == 10)
+	return ok
+}
+
 func testOverwriteArray() bool {
 	var arr = make([]uint64, 4)
 
