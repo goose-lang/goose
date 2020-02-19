@@ -77,3 +77,13 @@ func sumSlice(xs []uint64) uint64 {
 	}
 	return sum
 }
+
+func breakFromLoop() {
+	for {
+		if true {
+			break
+		}
+		// TODO: this is necessary for the break to work
+		continue
+	}
+}

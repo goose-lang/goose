@@ -428,6 +428,14 @@ Definition sumSlice: val :=
       ("sum" <-[uint64T] ![uint64T] "sum" + "x");;
     ![uint64T] "sum".
 
+Definition breakFromLoop: val :=
+  rec: "breakFromLoop" <> :=
+    Skip;;
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
+      (if: #true
+      then Break
+      else Continue)).
+
 (* maps.go *)
 
 Definition clearMap: val :=
