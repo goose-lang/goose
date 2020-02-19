@@ -1059,16 +1059,6 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 	return coq.GallinaIdent("slice.nil")
 }
 
-func (ctx Ctx) isPointerInModel(e ast.Expr) bool {
-	if _, ok := ctx.typeOf(e).Underlying().(*types.Pointer); ok {
-		return true
-	}
-	if ident, ok := e.(*ast.Ident); ok {
-		return ctx.identInfo(ident).IsPtrWrapped
-	}
-	return false
-}
-
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{ctx.expr(e.X)}
