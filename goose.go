@@ -1630,8 +1630,15 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 				"reference to selector from non-struct type %v", ty)
 		}
 		fieldName := s.Sel.Name
+
+		var structExpr coq.Expr
+		if info.throughPointer {
+			structExpr = ctx.expr(s.X)
+		} else {
+			structExpr = ctx.refExpr(s.X)
+		}
 		return coq.NewCallExpr("struct.fieldRef", coq.StructDesc(info.name),
-			coq.GallinaString(fieldName), ctx.refExpr(s.X))
+			coq.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
 		ctx.futureWork(s, "reference to other types of expressions")
