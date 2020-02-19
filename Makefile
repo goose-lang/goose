@@ -1,5 +1,5 @@
 ci:
-	test -z $$(gofmt -d -s .)
+	test -z "$$(gofmt -d -s .)"
 	go vet -composites=false ./...
 	go test ./...
 
