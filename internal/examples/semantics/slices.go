@@ -20,7 +20,7 @@ func testSliceOps() bool {
 	x[2] = 10
 	x[3] = 15
 	x[4] = 20
-	
+
 	v1 := x[2]
 	v2 := x[2:3]
 	v3 := x[:3]
