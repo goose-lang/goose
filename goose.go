@@ -1694,12 +1694,21 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
 		info, ok := ctx.getStructInfo(ty)
+		var structExpr coq.Expr
+		// TODO: this adjusts for pointer-wrapping in refExpr, but there should
+		//  be a more systematic way to think about this (perhaps in terms of
+		//  distinguishing between translating for lvalues and rvalue)
+		if info.throughPointer {
+			structExpr = ctx.expr(lhs.X)
+		} else {
+			structExpr = ctx.refExpr(lhs.X)
+		}
 		if ok {
 			fieldName := lhs.Sel.Name
 			return coq.NewAnon(coq.NewCallExpr("struct.storeF",
 				coq.StructDesc(info.name),
 				coq.GallinaString(fieldName),
-				ctx.refExpr(lhs.X),
+				structExpr,
 				rhs))
 		}
 		ctx.unsupported(s,

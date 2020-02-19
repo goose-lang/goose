@@ -862,7 +862,7 @@ Definition storeInStructVar: val :=
 Definition storeInStructPointerVar: val :=
   rec: "storeInStructPointerVar" <> :=
     let: "p" := ref (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
-    struct.storeF StructWrap.S "i" "p" #5.
+    struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5.
 
 (* synchronization.go *)
 
