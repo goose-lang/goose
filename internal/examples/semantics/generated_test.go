@@ -111,7 +111,7 @@ func (suite *GoTestSuite) TestModPrecedence() {
 }
 
 func (suite *GoTestSuite) TestBitwiseOpsPrecedence() {
-	suite.Equal(true, failing_testBitwiseOpsPrecedence())
+	suite.Equal(true, testBitwiseOpsPrecedence())
 }
 
 func (suite *GoTestSuite) TestArithmeticShifts() {
@@ -122,8 +122,8 @@ func (suite *GoTestSuite) TestStructUpdates() {
 	suite.Equal(true, failing_testStructUpdates())
 }
 
-func (suite *GoTestSuite) TestNestedStructUpdate() {
-	suite.Equal(true, failing_testNestedStructUpdate())
+func (suite *GoTestSuite) TestNestedStructUpdates() {
+	suite.Equal(true, failing_testNestedStructUpdates())
 }
 
 func (suite *GoTestSuite) TestStructConstructions() {
@@ -135,7 +135,7 @@ func (suite *GoTestSuite) TestStoreInStructVar() {
 }
 
 func (suite *GoTestSuite) TestStoreInStructPointerVar() {
-	suite.Equal(true, testStoreInStructPointerVar())
+	suite.Equal(true, failing_testStoreInStructPointerVar())
 }
 
 func (suite *GoTestSuite) TestStandardForLoop() {

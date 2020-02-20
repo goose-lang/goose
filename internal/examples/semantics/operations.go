@@ -86,8 +86,9 @@ func testModPrecedence() bool {
 	return x1 == 517 && x2 == 5
 }
 
-func failing_testBitwiseOpsPrecedence() bool {
+func testBitwiseOpsPrecedence() bool {
 	var ok = true
+
 	ok = ok && (222|327 == 479)
 	ok = ok && (468&1191 == 132)
 	ok = ok && (453^761 == 828)

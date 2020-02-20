@@ -602,19 +602,19 @@ Theorem testModPrecedence_t: ⊢ testModPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testModPrecedence_t : types.
 
-Definition failing_testBitwiseOpsPrecedence: val :=
-  rec: "failing_testBitwiseOpsPrecedence" <> :=
+Definition testBitwiseOpsPrecedence: val :=
+  rec: "testBitwiseOpsPrecedence" <> :=
     let: "ok" := ref #true in
-    "ok" <-[boolT] ![boolT] "ok" && (#222 || #327 = #479);;
-    "ok" <-[boolT] ![boolT] "ok" && (#468 && #1191 = #132);;
+    "ok" <-[boolT] ![boolT] "ok" && (#222 ∥ #327 = #479);;
+    "ok" <-[boolT] ![boolT] "ok" && (#468 & #1191 = #132);;
     "ok" <-[boolT] ![boolT] "ok" && (#453 ^^ #761 = #828);;
-    "ok" <-[boolT] ![boolT] "ok" && (#453 ^^ #761 || #121 = #893);;
-    "ok" <-[boolT] ![boolT] "ok" && (#468 && #1191 || #333 = #461);;
-    "ok" <-[boolT] ![boolT] "ok" && #222 || #327 && #421 ≠ #389;;
+    "ok" <-[boolT] ![boolT] "ok" && (#453 ^^ #761 ∥ #121 = #893);;
+    "ok" <-[boolT] ![boolT] "ok" && (#468 & #1191 ∥ #333 = #461);;
+    "ok" <-[boolT] ![boolT] "ok" && #222 ∥ #327 & #421 ≠ #389;;
     ![boolT] "ok".
-Theorem failing_testBitwiseOpsPrecedence_t: ⊢ failing_testBitwiseOpsPrecedence : (unitT -> boolT).
+Theorem testBitwiseOpsPrecedence_t: ⊢ testBitwiseOpsPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testBitwiseOpsPrecedence_t : types.
+Hint Resolve testBitwiseOpsPrecedence_t : types.
 
 Definition testArithmeticShifts: val :=
   rec: "testArithmeticShifts" <> :=
@@ -831,7 +831,6 @@ Hint Resolve failing_testStringLength_t : types.
 
 (* structs.go *)
 
-(* helpers *)
 Module TwoInts.
   Definition S := struct.decl [
     "x" :: uint64T;
@@ -896,36 +895,49 @@ Theorem S__negateC_t: ⊢ S__negateC : (struct.ptrT S.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve S__negateC_t : types.
 
-(* tests *)
 Definition failing_testStructUpdates: val :=
   rec: "failing_testStructUpdates" <> :=
     let: "ok" := ref #true in
-    let: "ns" := ref (NewS #()) in
-    "ok" <-[boolT] ![boolT] "ok" && (S__readA (![refT (struct.t S.S)] "ns") = #2);;
-    let: "b1" := ref (S__readB (![refT (struct.t S.S)] "ns")) in
+    let: "ns" := NewS #() in
+    "ok" <-[boolT] ![boolT] "ok" && (S__readA "ns" = #2);;
+    let: "b1" := ref (S__readB "ns") in
     "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b1") = #1);;
-    S__negateC (![refT (struct.t S.S)] "ns");;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF S.S "c" (![refT (struct.t S.S)] "ns") = #false);;
+    S__negateC "ns";;
+    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF S.S "c" "ns" = #false);;
     struct.storeF TwoInts.S "x" "b1" #3;;
-    let: "b2" := ref (S__readB (![refT (struct.t S.S)] "ns")) in
+    let: "b2" := ref (S__readB "ns") in
     "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b2") = #1);;
-    let: "b3" := ref (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) in
+    let: "b3" := ref (struct.fieldRef S.S "b" "ns") in
     "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "b3") = #1);;
-    S__updateBValX (![refT (struct.t S.S)] "ns") #4;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (S__readBVal (![refT (struct.t S.S)] "ns")) = #4);;
+    S__updateBValX "ns" #4;;
+    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (S__readBVal "ns") = #4);;
     ![boolT] "ok".
 Theorem failing_testStructUpdates_t: ⊢ failing_testStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testStructUpdates_t : types.
 
-Definition failing_testNestedStructUpdate: val :=
-  rec: "failing_testNestedStructUpdate" <> :=
+Definition failing_testNestedStructUpdates: val :=
+  rec: "failing_testNestedStructUpdates" <> :=
+    let: "ok" := ref #true in
     let: "ns" := ref (NewS #()) in
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5).
-Theorem failing_testNestedStructUpdate_t: ⊢ failing_testNestedStructUpdate : (unitT -> boolT).
+    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
+    "ns" <-[refT (struct.t S.S)] NewS #();;
+    let: "p" := ref (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) in
+    struct.storeF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") #5;;
+    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
+    "ns" <-[refT (struct.t S.S)] NewS #();;
+    "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
+    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
+    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p")) = #5);;
+    "ns" <-[refT (struct.t S.S)] NewS #();;
+    "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
+    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
+    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
+    ![boolT] "ok".
+Theorem failing_testNestedStructUpdates_t: ⊢ failing_testNestedStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testNestedStructUpdate_t : types.
+Hint Resolve failing_testNestedStructUpdates_t : types.
 
 Definition testStructConstructions: val :=
   rec: "testStructConstructions" <> :=
@@ -963,16 +975,17 @@ Definition testStoreInStructVar: val :=
       "i" ::= #0
     ]) in
     struct.storeF StructWrap.S "i" "p" #5;;
-    #true.
+    (struct.get StructWrap.S "i" (![struct.t StructWrap.S] "p") = #5).
 Theorem testStoreInStructVar_t: ⊢ testStoreInStructVar : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreInStructVar_t : types.
 
-Definition testStoreInStructPointerVar: val :=
-  rec: "testStoreInStructPointerVar" <> :=
+(* missing deref when storing to a field of [var ptr *T] *)
+Definition failing_testStoreInStructPointerVar: val :=
+  rec: "failing_testStoreInStructPointerVar" <> :=
     let: "p" := ref (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
     struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5;;
-    #true.
-Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT -> boolT).
+    (struct.loadF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") = #5).
+Theorem failing_testStoreInStructPointerVar_t: ⊢ failing_testStoreInStructPointerVar : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testStoreInStructPointerVar_t : types.
+Hint Resolve failing_testStoreInStructPointerVar_t : types.
