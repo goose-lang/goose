@@ -1,6 +1,5 @@
 package semantics
 
-// helpers
 type TwoInts struct {
 	x uint64
 	y uint64
@@ -40,10 +39,9 @@ func (s *S) negateC() {
 	s.c = !s.c
 }
 
-// tests
 func failing_testStructUpdates() bool {
 	var ok = true
-	var ns = NewS()
+	ns := NewS()
 
 	ok = ok && (ns.readA() == 2)
 	var b1 = ns.readB()
@@ -63,10 +61,29 @@ func failing_testStructUpdates() bool {
 	return ok
 }
 
-func failing_testNestedStructUpdate() bool {
+func failing_testNestedStructUpdates() bool {
+	var ok = true
+
 	var ns = NewS()
 	ns.b.x = 5
-	return ns.b.x == 5
+	ok = ok && ns.b.x == 5
+
+	ns = NewS()
+	var p = &ns.b
+	p.x = 5
+	ok = ok && ns.b.x == 5
+
+	ns = NewS()
+	p = &ns.b
+	ns.b.x = 5
+	ok = ok && (*p).x == 5
+
+	ns = NewS()
+	p = &ns.b
+	ns.b.x = 5
+	ok = ok && p.x == 5
+
+	return ok
 }
 
 func testStructConstructions() bool {
@@ -95,11 +112,12 @@ type StructWrap struct {
 func testStoreInStructVar() bool {
 	var p StructWrap = StructWrap{i: 0}
 	p.i = 5
-	return true
+	return p.i == 5
 }
 
-func testStoreInStructPointerVar() bool {
+// missing deref when storing to a field of [var ptr *T]
+func failing_testStoreInStructPointerVar() bool {
 	var p *StructWrap = new(StructWrap)
 	p.i = 5
-	return true
+	return p.i == 5
 }
