@@ -123,7 +123,7 @@ func (suite *GoTestSuite) TestStructUpdates() {
 }
 
 func (suite *GoTestSuite) TestNestedStructUpdates() {
-	suite.Equal(true, failing_testNestedStructUpdates())
+	suite.Equal(true, testNestedStructUpdates())
 }
 
 func (suite *GoTestSuite) TestStructConstructions() {
@@ -135,7 +135,7 @@ func (suite *GoTestSuite) TestStoreInStructVar() {
 }
 
 func (suite *GoTestSuite) TestStoreInStructPointerVar() {
-	suite.Equal(true, failing_testStoreInStructPointerVar())
+	suite.Equal(true, testStoreInStructPointerVar())
 }
 
 func (suite *GoTestSuite) TestStandardForLoop() {

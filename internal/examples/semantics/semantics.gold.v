@@ -916,8 +916,8 @@ Theorem failing_testStructUpdates_t: ⊢ failing_testStructUpdates : (unitT -> b
 Proof. typecheck. Qed.
 Hint Resolve failing_testStructUpdates_t : types.
 
-Definition failing_testNestedStructUpdates: val :=
-  rec: "failing_testNestedStructUpdates" <> :=
+Definition testNestedStructUpdates: val :=
+  rec: "testNestedStructUpdates" <> :=
     let: "ok" := ref #true in
     let: "ns" := ref (NewS #()) in
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
@@ -935,9 +935,9 @@ Definition failing_testNestedStructUpdates: val :=
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
     "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
     ![boolT] "ok".
-Theorem failing_testNestedStructUpdates_t: ⊢ failing_testNestedStructUpdates : (unitT -> boolT).
+Theorem testNestedStructUpdates_t: ⊢ testNestedStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testNestedStructUpdates_t : types.
+Hint Resolve testNestedStructUpdates_t : types.
 
 Definition testStructConstructions: val :=
   rec: "testStructConstructions" <> :=
@@ -980,12 +980,11 @@ Theorem testStoreInStructVar_t: ⊢ testStoreInStructVar : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreInStructVar_t : types.
 
-(* missing deref when storing to a field of [var ptr *T] *)
-Definition failing_testStoreInStructPointerVar: val :=
-  rec: "failing_testStoreInStructPointerVar" <> :=
+Definition testStoreInStructPointerVar: val :=
+  rec: "testStoreInStructPointerVar" <> :=
     let: "p" := ref (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
     struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5;;
     (struct.loadF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") = #5).
-Theorem failing_testStoreInStructPointerVar_t: ⊢ failing_testStoreInStructPointerVar : (unitT -> boolT).
+Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testStoreInStructPointerVar_t : types.
+Hint Resolve testStoreInStructPointerVar_t : types.

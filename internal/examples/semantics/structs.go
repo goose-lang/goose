@@ -61,7 +61,7 @@ func failing_testStructUpdates() bool {
 	return ok
 }
 
-func failing_testNestedStructUpdates() bool {
+func testNestedStructUpdates() bool {
 	var ok = true
 
 	var ns = NewS()
@@ -115,8 +115,7 @@ func testStoreInStructVar() bool {
 	return p.i == 5
 }
 
-// missing deref when storing to a field of [var ptr *T]
-func failing_testStoreInStructPointerVar() bool {
+func testStoreInStructPointerVar() bool {
 	var p *StructWrap = new(StructWrap)
 	p.i = 5
 	return p.i == 5
