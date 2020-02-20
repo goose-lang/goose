@@ -606,11 +606,11 @@ Definition testBitwiseOpsPrecedence: val :=
   rec: "testBitwiseOpsPrecedence" <> :=
     let: "ok" := ref #true in
     "ok" <-[boolT] ![boolT] "ok" && (#222 ∥ #327 = #479);;
-    "ok" <-[boolT] ![boolT] "ok" && (#468 & #1191 = #132);;
+    "ok" <-[boolT] ![boolT] "ok" && ((#468 & #1191) = #132);;
     "ok" <-[boolT] ![boolT] "ok" && (#453 ^^ #761 = #828);;
     "ok" <-[boolT] ![boolT] "ok" && (#453 ^^ #761 ∥ #121 = #893);;
-    "ok" <-[boolT] ![boolT] "ok" && (#468 & #1191 ∥ #333 = #461);;
-    "ok" <-[boolT] ![boolT] "ok" && #222 ∥ #327 & #421 ≠ #389;;
+    "ok" <-[boolT] ![boolT] "ok" && ((#468 & #1191) ∥ #333 = #461);;
+    "ok" <-[boolT] ![boolT] "ok" && #222 ∥ (#327 & #421) ≠ #389;;
     ![boolT] "ok".
 Theorem testBitwiseOpsPrecedence_t: ⊢ testBitwiseOpsPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
