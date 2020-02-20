@@ -109,8 +109,10 @@ func main() {
 
 		for _, file := range files {
 
-			// skip emacs back-up files
-			if strings.HasSuffix(file.Name(), "~") {
+			// skip emacs back-up files, generated test file, and gold file
+			if strings.HasSuffix(file.Name(), "~") ||
+				strings.HasSuffix(file.Name(), ".gold.v") ||
+				strings.HasSuffix(file.Name(), "_test.go") {
 				continue
 			}
 
@@ -119,6 +121,7 @@ func main() {
 				panic(err)
 			}
 
+			fmt.Fprintf(out, "(* %s *)\n", file.Name())
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
 				line := scanner.Text()
@@ -134,6 +137,7 @@ func main() {
 					}
 				}
 			}
+			fmt.Fprintf(out, "\n")
 		}
 
 	} else if t == "go" {
