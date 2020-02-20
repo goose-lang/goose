@@ -556,8 +556,21 @@ func (b Binding) AddTo(pp *buffer) {
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			b.Expr.Coq())
+	} else if len(b.Names) == 3 {
+		pp.Add("let: (%s, %s, %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			binder(b.Names[2]),
+			b.Expr.Coq())
+	} else if len(b.Names) == 4 {
+		pp.Add("let: (%s, %s, %s, %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			binder(b.Names[2]),
+			binder(b.Names[3]),
+			b.Expr.Coq())
 	} else {
-		panic("no support for destructuring more than two return values")
+		panic("no support for destructuring more than 4 return values")
 	}
 }
 
