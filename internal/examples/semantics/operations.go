@@ -88,13 +88,13 @@ func testModPrecedence() bool {
 
 func failing_testBitwiseOpsPrecedence() bool {
 	var ok = true
-	ok = ok && (222 | 327 == 479)
-	ok = ok && (468 & 1191 == 132)
-	ok = ok && (453 ^ 761 == 828)
-	
-	ok = ok && (453 ^ 761 | 121 == 893)
-	ok = ok && (468 & 1191 | 333 == 461)
-	ok = ok && (222 | 327 & 421 != 389)
+	ok = ok && (222|327 == 479)
+	ok = ok && (468&1191 == 132)
+	ok = ok && (453^761 == 828)
+
+	ok = ok && (453^761|121 == 893)
+	ok = ok && (468&1191|333 == 461)
+	ok = ok && (222|327&421 != 389)
 	return ok
 }
 
@@ -106,6 +106,6 @@ func testArithmeticShifts() bool {
 	ok = ok && (672>>4 == 42)
 	ok = ok && (672>>12 == 0)
 
-	ok = ok &&(672>>4<<4 == 672)
+	ok = ok && (672>>4<<4 == 672)
 	return ok
 }
