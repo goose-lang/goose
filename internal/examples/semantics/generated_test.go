@@ -110,6 +110,14 @@ func (suite *GoTestSuite) TestModPrecedence() {
 	suite.Equal(true, testModPrecedence())
 }
 
+func (suite *GoTestSuite) TestBitwiseOpsPrecedence() {
+	suite.Equal(true, failing_testBitwiseOpsPrecedence())
+}
+
+func (suite *GoTestSuite) TestArithmeticShifts() {
+	suite.Equal(true, testArithmeticShifts())
+}
+
 func (suite *GoTestSuite) TestStructUpdates() {
 	suite.Equal(true, failing_testStructUpdates())
 }

@@ -85,3 +85,27 @@ func testModPrecedence() bool {
 	x2 := (513 + 12) % 8
 	return x1 == 517 && x2 == 5
 }
+
+func failing_testBitwiseOpsPrecedence() bool {
+	var ok = true
+	ok = ok && (222 | 327 == 479)
+	ok = ok && (468 & 1191 == 132)
+	ok = ok && (453 ^ 761 == 828)
+	
+	ok = ok && (453 ^ 761 | 121 == 893)
+	ok = ok && (468 & 1191 | 333 == 461)
+	ok = ok && (222 | 327 & 421 != 389)
+	return ok
+}
+
+func testArithmeticShifts() bool {
+	var ok = true
+	ok = ok && (672<<3 == 5376)
+	ok = ok && (672<<51 == 1513209474796486656)
+
+	ok = ok && (672>>4 == 42)
+	ok = ok && (672>>12 == 0)
+
+	ok = ok &&(672>>4<<4 == 672)
+	return ok
+}
