@@ -1524,8 +1524,10 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 }
 
 func (ctx Ctx) referenceTo(rhs ast.Expr) coq.Expr {
-	// TODO: this may need some type info to handle struct allocation
-	return coq.RefExpr{X: ctx.expr(rhs)}
+	return coq.RefExpr{
+		X:  ctx.expr(rhs),
+		Ty: ctx.coqTypeOfType(rhs, ctx.typeOf(rhs)),
+	}
 }
 
 func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {

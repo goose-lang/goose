@@ -605,11 +605,12 @@ func (e DerefExpr) Coq() string {
 }
 
 type RefExpr struct {
-	X Expr
+	X  Expr
+	Ty Expr
 }
 
 func (e RefExpr) Coq() string {
-	return NewCallExpr("ref", e.X).Coq()
+	return NewCallExpr("ref_to", e.Ty, e.X).Coq()
 }
 
 type StoreStmt struct {
