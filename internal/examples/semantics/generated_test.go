@@ -30,6 +30,18 @@ func (suite *GoTestSuite) TestCompareLE() {
 	suite.Equal(true, testCompareLE())
 }
 
+func (suite *GoTestSuite) TestByteSliceToString() {
+	suite.Equal(true, testByteSliceToString())
+}
+
+func (suite *GoTestSuite) TestCopySimple() {
+	suite.Equal(true, failing_testCopySimple())
+}
+
+func (suite *GoTestSuite) TestCopyDifferentLengths() {
+	suite.Equal(true, failing_testCopyDifferentLengths())
+}
+
 func (suite *GoTestSuite) TestEncDec32Simple() {
 	suite.Equal(true, testEncDec32Simple())
 }
@@ -46,44 +58,32 @@ func (suite *GoTestSuite) TestEncDec64() {
 	suite.Equal(true, testEncDec64())
 }
 
+func (suite *GoTestSuite) TestFunctionOrdering() {
+	suite.Equal(true, failing_testFunctionOrdering())
+}
+
+func (suite *GoTestSuite) TestStandardForLoop() {
+	suite.Equal(true, testStandardForLoop())
+}
+
+func (suite *GoTestSuite) TestForLoopWait() {
+	suite.Equal(true, testForLoopWait())
+}
+
+func (suite *GoTestSuite) TestBreakFromLoopWithContinue() {
+	suite.Equal(true, testBreakFromLoopWithContinue())
+}
+
+func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
+	suite.Equal(true, failing_testBreakFromLoopNoContinue())
+}
+
 func (suite *GoTestSuite) TestIterateMap() {
 	suite.Equal(true, testIterateMap())
 }
 
 func (suite *GoTestSuite) TestMapSize() {
 	suite.Equal(true, testMapSize())
-}
-
-func (suite *GoTestSuite) TestFunctionOrdering() {
-	suite.Equal(true, failing_testFunctionOrdering())
-}
-
-func (suite *GoTestSuite) TestCopySimple() {
-	suite.Equal(true, failing_testCopySimple())
-}
-
-func (suite *GoTestSuite) TestCopyDifferentLengths() {
-	suite.Equal(true, failing_testCopyDifferentLengths())
-}
-
-func (suite *GoTestSuite) TestByteSliceToString() {
-	suite.Equal(true, testByteSliceToString())
-}
-
-func (suite *GoTestSuite) TestShortcircuitAndTF() {
-	suite.Equal(true, testShortcircuitAndTF())
-}
-
-func (suite *GoTestSuite) TestShortcircuitAndFT() {
-	suite.Equal(true, testShortcircuitAndFT())
-}
-
-func (suite *GoTestSuite) TestShortcircuitOrTF() {
-	suite.Equal(true, testShortcircuitOrTF())
-}
-
-func (suite *GoTestSuite) TestShortcircuitOrFT() {
-	suite.Equal(true, testShortcircuitOrFT())
 }
 
 func (suite *GoTestSuite) TestReverseAssignOps64() {
@@ -118,6 +118,38 @@ func (suite *GoTestSuite) TestArithmeticShifts() {
 	suite.Equal(true, testArithmeticShifts())
 }
 
+func (suite *GoTestSuite) TestShortcircuitAndTF() {
+	suite.Equal(true, testShortcircuitAndTF())
+}
+
+func (suite *GoTestSuite) TestShortcircuitAndFT() {
+	suite.Equal(true, testShortcircuitAndFT())
+}
+
+func (suite *GoTestSuite) TestShortcircuitOrTF() {
+	suite.Equal(true, testShortcircuitOrTF())
+}
+
+func (suite *GoTestSuite) TestShortcircuitOrFT() {
+	suite.Equal(true, testShortcircuitOrFT())
+}
+
+func (suite *GoTestSuite) TestSliceOps() {
+	suite.Equal(true, testSliceOps())
+}
+
+func (suite *GoTestSuite) TestOverwriteArray() {
+	suite.Equal(true, testOverwriteArray())
+}
+
+func (suite *GoTestSuite) TestStringAppend() {
+	suite.Equal(true, failing_testStringAppend())
+}
+
+func (suite *GoTestSuite) TestStringLength() {
+	suite.Equal(true, failing_testStringLength())
+}
+
 func (suite *GoTestSuite) TestStructUpdates() {
 	suite.Equal(true, failing_testStructUpdates())
 }
@@ -136,38 +168,6 @@ func (suite *GoTestSuite) TestStoreInStructVar() {
 
 func (suite *GoTestSuite) TestStoreInStructPointerVar() {
 	suite.Equal(true, testStoreInStructPointerVar())
-}
-
-func (suite *GoTestSuite) TestStandardForLoop() {
-	suite.Equal(true, testStandardForLoop())
-}
-
-func (suite *GoTestSuite) TestForLoopWait() {
-	suite.Equal(true, testForLoopWait())
-}
-
-func (suite *GoTestSuite) TestBreakFromLoopWithContinue() {
-	suite.Equal(true, testBreakFromLoopWithContinue())
-}
-
-func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
-	suite.Equal(true, failing_testBreakFromLoopNoContinue())
-}
-
-func (suite *GoTestSuite) TestStringAppend() {
-	suite.Equal(true, failing_testStringAppend())
-}
-
-func (suite *GoTestSuite) TestStringLength() {
-	suite.Equal(true, failing_testStringLength())
-}
-
-func (suite *GoTestSuite) TestSliceOps() {
-	suite.Equal(true, testSliceOps())
-}
-
-func (suite *GoTestSuite) TestOverwriteArray() {
-	suite.Equal(true, testOverwriteArray())
 }
 
 func TestSuite(t *testing.T) {
