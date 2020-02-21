@@ -116,14 +116,15 @@ functions. The files are:
 
 - A `.go` file which uses the Go `testing` package. This is for confirming that
   tests actually do always return true, as intended. Note that the use of the
-testing package means that this file must end in `_test.go`. It should go in
-the `semantics/` directory.
+  testing package means that this file must end in `_test.go`. It should go in
+  the `semantics/` directory.
 - A `.v` file that runs using Perennial's semantic interpreter. This file
   should go in Perennial's `goose_lang/interpreter/` directory and can have any name.
 
 To generate these files, the executable takes a required flag of either `-go`
 or `-coq` which specifies the file type, an optional `-out` argument specifying
 where to write the output, and finally the path to the semantics package. For
-example, 
+example,
 `cmd/test_gen/test_gen -coq -out /.../goose_lang/interpreter/generated_test.v /.../goose/internal/examples/semantics`
-generates the Coq file of semantic tests.
+generates the Coq file of semantic tests. To re-generate the Go test file you
+can run `go generate ./...`.
