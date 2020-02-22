@@ -1,6 +1,6 @@
 package semantics
 
-func failing_testCopySimple() bool {
+func testCopySimple() bool {
 	x := make([]byte, 10)
 	x[3] = 1
 	y := make([]byte, 10)
@@ -8,7 +8,7 @@ func failing_testCopySimple() bool {
 	return y[3] == 1
 }
 
-func failing_testCopyDifferentLengths() bool {
+func testCopyDifferentLengths() bool {
 	x := make([]byte, 15)
 	x[3] = 1
 	x[12] = 2

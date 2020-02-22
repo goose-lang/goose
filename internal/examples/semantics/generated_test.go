@@ -35,11 +35,11 @@ func (suite *GoTestSuite) TestByteSliceToString() {
 }
 
 func (suite *GoTestSuite) TestCopySimple() {
-	suite.Equal(true, failing_testCopySimple())
+	suite.Equal(true, testCopySimple())
 }
 
 func (suite *GoTestSuite) TestCopyDifferentLengths() {
-	suite.Equal(true, failing_testCopyDifferentLengths())
+	suite.Equal(true, testCopyDifferentLengths())
 }
 
 func (suite *GoTestSuite) TestEncDec32Simple() {

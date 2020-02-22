@@ -113,28 +113,28 @@ Hint Resolve testByteSliceToString_t : types.
 
 (* copy.go *)
 
-Definition failing_testCopySimple: val :=
-  rec: "failing_testCopySimple" <> :=
+Definition testCopySimple: val :=
+  rec: "testCopySimple" <> :=
     let: "x" := NewSlice byteT #10 in
     SliceSet byteT "x" #3 (#(U8 1));;
     let: "y" := NewSlice byteT #10 in
     SliceCopy byteT "y" "x";;
     (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem failing_testCopySimple_t: ⊢ failing_testCopySimple : (unitT -> boolT).
+Theorem testCopySimple_t: ⊢ testCopySimple : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testCopySimple_t : types.
+Hint Resolve testCopySimple_t : types.
 
-Definition failing_testCopyDifferentLengths: val :=
-  rec: "failing_testCopyDifferentLengths" <> :=
+Definition testCopyDifferentLengths: val :=
+  rec: "testCopyDifferentLengths" <> :=
     let: "x" := NewSlice byteT #15 in
     SliceSet byteT "x" #3 (#(U8 1));;
     SliceSet byteT "x" #12 (#(U8 2));;
     let: "y" := NewSlice byteT #10 in
     let: "n" := SliceCopy byteT "y" "x" in
     ("n" = #10) && (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem failing_testCopyDifferentLengths_t: ⊢ failing_testCopyDifferentLengths : (unitT -> boolT).
+Theorem testCopyDifferentLengths_t: ⊢ testCopyDifferentLengths : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testCopyDifferentLengths_t : types.
+Hint Resolve testCopyDifferentLengths_t : types.
 
 (* encoding.go *)
 
