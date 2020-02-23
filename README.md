@@ -84,6 +84,25 @@ Another approach is to use a deeply-embedded language that closely represents an
 
 Directly modeling a low-level, imperative language (and especially writing in it) gives a great deal of control, which is good for performance. This approach is also well-suited to end-to-end verification: at first, one can pretty-print the imperative language and use any compiler, but eventually one can shift to a verified compiler and push the assumptions down the software stack.
 
+## Running goose
+
+Goose requires Go 1.12 or 1.13.
+
+You can install goose with either `go get github.com/tchajed/goose/cmd/goose
+` or from a clone of this repo with `go install ./cmd/goose`. These install
+ the `goose` binary to `$GOPATH/bin` (or `~/go/bin` if you don't have GOPATH
+set).
+
+To run `goose` on one of the internal examples and update the Coq output in
+ Perennial, run (for the append_log example):
+
+```
+goose -out $perennial/src/goose_lang/examples/append_log.v \
+  ./internal/examples/append_log
+```
+
+where `$perennial` is the path to a clone of [Perennial](https://github.com/mit-pdos/perennial).
+
 ## Developing goose
 
 The bulk of goose is implemented in `goose.go` (which translates Go) and
