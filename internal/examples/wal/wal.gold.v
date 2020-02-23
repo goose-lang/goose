@@ -13,6 +13,7 @@ Proof. typecheck. Qed.
 
 Module Log.
   Definition S := struct.decl [
+    "d" :: disk.Disk;
     "l" :: lockRefT;
     "cache" :: mapT disk.blockT;
     "length" :: refT uint64T
@@ -39,6 +40,7 @@ Hint Resolve blockToInt_t : types.
 (* New initializes a fresh log *)
 Definition New: val :=
   rec: "New" <> :=
+    let: "d" := disk.Get #() in
     let: "diskSize" := disk.Size #() in
     (if: "diskSize" ≤ logLength
     then
@@ -52,6 +54,7 @@ Definition New: val :=
     "lengthPtr" <-[refT uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
+      "d" ::= "d";
       "cache" ::= "cache";
       "length" ::= "lengthPtr";
       "l" ::= "l"
@@ -153,37 +156,37 @@ Proof. typecheck. Qed.
 Hint Resolve Log__Commit_t : types.
 
 Definition getLogEntry: val :=
-  rec: "getLogEntry" "logOffset" :=
+  rec: "getLogEntry" "d" "logOffset" :=
     let: "diskAddr" := #1 + #2 * "logOffset" in
     let: "aBlock" := disk.Read "diskAddr" in
     let: "a" := blockToInt "aBlock" in
     let: "v" := disk.Read ("diskAddr" + #1) in
     ("a", "v").
-Theorem getLogEntry_t: ⊢ getLogEntry : (uint64T -> (uint64T * disk.blockT)).
+Theorem getLogEntry_t: ⊢ getLogEntry : (disk.Disk -> uint64T -> (uint64T * disk.blockT)).
 Proof. typecheck. Qed.
 Hint Resolve getLogEntry_t : types.
 
 (* applyLog assumes we are running sequentially *)
 Definition applyLog: val :=
-  rec: "applyLog" "length" :=
+  rec: "applyLog" "d" "length" :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < "length"
       then
-        let: ("a", "v") := getLogEntry (![uint64T] "i") in
+        let: ("a", "v") := getLogEntry "d" (![uint64T] "i") in
         disk.Write (logLength + "a") "v";;
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Continue
       else Break)).
-Theorem applyLog_t: ⊢ applyLog : (uint64T -> unitT).
+Theorem applyLog_t: ⊢ applyLog : (disk.Disk -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve applyLog_t : types.
 
 Definition clearLog: val :=
-  rec: "clearLog" <> :=
+  rec: "clearLog" "d" :=
     let: "header" := intToBlock #0 in
     disk.Write #0 "header".
-Theorem clearLog_t: ⊢ clearLog : (unitT -> unitT).
+Theorem clearLog_t: ⊢ clearLog : (disk.Disk -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve clearLog_t : types.
 
@@ -194,8 +197,8 @@ Definition Log__Apply: val :=
   rec: "Log__Apply" "l" :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
-    applyLog "length";;
-    clearLog #();;
+    applyLog (struct.get Log.S "d" "l") "length";;
+    clearLog (struct.get Log.S "d" "l");;
     struct.get Log.S "length" "l" <-[refT uint64T] #0;;
     Log__unlock "l".
 Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log.S -> unitT).
@@ -205,15 +208,17 @@ Hint Resolve Log__Apply_t : types.
 (* Open recovers the log following a crash or shutdown *)
 Definition Open: val :=
   rec: "Open" <> :=
+    let: "d" := disk.Get #() in
     let: "header" := disk.Read #0 in
     let: "length" := blockToInt "header" in
-    applyLog "length";;
-    clearLog #();;
+    applyLog "d" "length";;
+    clearLog "d";;
     let: "cache" := NewMap disk.blockT in
     let: "lengthPtr" := ref (zero_val uint64T) in
     "lengthPtr" <-[refT uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
+      "d" ::= "d";
       "cache" ::= "cache";
       "length" ::= "lengthPtr";
       "l" ::= "l"

@@ -91,22 +91,35 @@ func Init(d Disk) {
 	implicitDisk = d
 }
 
+// Get returns the previously-initialized global disk
+func Get() Disk {
+	return implicitDisk
+}
+
 // Read (see the Disk documentation)
+//
+// Deprecated: use Get() and the Disk method
 func Read(a uint64) Block {
 	return implicitDisk.Read(a)
 }
 
 // Write (see the Disk documentation)
+//
+// Deprecated: use Get() and the Disk method
 func Write(a uint64, v Block) {
 	implicitDisk.Write(a, v)
 }
 
 // Size (see the Disk documentation)
+//
+// Deprecated: use Get() and the Disk method
 func Size() uint64 {
 	return implicitDisk.Size()
 }
 
 // Barrier (see the Disk documentation)
+//
+// Deprecated: use Get() and the Disk method
 func Barrier() {
 	implicitDisk.Barrier()
 }
