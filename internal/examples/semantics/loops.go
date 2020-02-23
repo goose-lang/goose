@@ -79,3 +79,35 @@ func failing_testBreakFromLoopNoContinue() bool {
 	}
 	return (i == 1)
 }
+
+func testNestedLoops() bool {
+	var ok = false
+	for i := uint64(0); ; {
+		for j := uint64(0); ; {
+			if j > 5 {
+				break
+			}
+			j = j + 1
+			ok = j == 6
+			continue
+		}
+		i = i + 1
+		break
+	ok = i == 1
+	}
+	return ok
+}
+
+func testNestedGoStyleLoops() bool {
+	var ok = false
+	for i := uint64(0); i < 10; i++ {
+		for j := uint64(0); j < i; j++ {
+			if true {
+				break
+			}
+			continue
+		}
+	ok = i == 9
+	}
+	return ok
+}

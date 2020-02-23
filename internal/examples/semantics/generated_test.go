@@ -38,8 +38,12 @@ func (suite *GoTestSuite) TestCopySimple() {
 	suite.Equal(true, testCopySimple())
 }
 
-func (suite *GoTestSuite) TestCopyDifferentLengths() {
-	suite.Equal(true, testCopyDifferentLengths())
+func (suite *GoTestSuite) TestCopyShorterDst() {
+	suite.Equal(true, testCopyShorterDst())
+}
+
+func (suite *GoTestSuite) TestCopyShorterSrc() {
+	suite.Equal(true, testCopyShorterSrc())
 }
 
 func (suite *GoTestSuite) TestEncDec32Simple() {
@@ -62,6 +66,10 @@ func (suite *GoTestSuite) TestFunctionOrdering() {
 	suite.Equal(true, failing_testFunctionOrdering())
 }
 
+func (suite *GoTestSuite) TestsUseLocks() {
+	suite.Equal(true, testsUseLocks())
+}
+
 func (suite *GoTestSuite) TestStandardForLoop() {
 	suite.Equal(true, testStandardForLoop())
 }
@@ -78,12 +86,28 @@ func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
 	suite.Equal(true, failing_testBreakFromLoopNoContinue())
 }
 
+func (suite *GoTestSuite) TestNestedLoops() {
+	suite.Equal(true, testNestedLoops())
+}
+
+func (suite *GoTestSuite) TestNestedGoStyleLoops() {
+	suite.Equal(true, testNestedGoStyleLoops())
+}
+
 func (suite *GoTestSuite) TestIterateMap() {
 	suite.Equal(true, testIterateMap())
 }
 
 func (suite *GoTestSuite) TestMapSize() {
 	suite.Equal(true, testMapSize())
+}
+
+func (suite *GoTestSuite) TestCompareSliceToNil() {
+	suite.Equal(true, testCompareSliceToNil())
+}
+
+func (suite *GoTestSuite) TestComparePointerToNil() {
+	suite.Equal(true, testComparePointerToNil())
 }
 
 func (suite *GoTestSuite) TestReverseAssignOps64() {
@@ -168,6 +192,10 @@ func (suite *GoTestSuite) TestStoreInStructVar() {
 
 func (suite *GoTestSuite) TestStoreInStructPointerVar() {
 	suite.Equal(true, testStoreInStructPointerVar())
+}
+
+func (suite *GoTestSuite) TestWal() {
+	suite.Equal(true, testWal())
 }
 
 func TestSuite(t *testing.T) {
