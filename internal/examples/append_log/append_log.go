@@ -6,12 +6,15 @@
 package append_log
 
 import (
+	"sync"
+
 	"github.com/tchajed/marshal"
 
 	"github.com/tchajed/goose/machine/disk"
 )
 
 type Log struct {
+	m      *sync.Mutex
 	sz     uint64
 	diskSz uint64
 }
@@ -29,9 +32,9 @@ func (log *Log) writeHdr() {
 
 func Init(diskSz uint64) (*Log, bool) {
 	if diskSz < 1 {
-		return &Log{sz: 0, diskSz: 0}, false
+		return &Log{m: new(sync.Mutex), sz: 0, diskSz: 0}, false
 	}
-	log := &Log{sz: 0, diskSz: diskSz}
+	log := &Log{m: new(sync.Mutex), sz: 0, diskSz: diskSz}
 	log.writeHdr()
 	return log, true
 }
@@ -41,7 +44,7 @@ func Open() *Log {
 	dec := marshal.NewDec(hdr)
 	sz := dec.GetInt()
 	diskSz := dec.GetInt()
-	return &Log{sz: sz, diskSz: diskSz}
+	return &Log{m: new(sync.Mutex), sz: sz, diskSz: diskSz}
 }
 
 func (log *Log) Get(i uint64) (disk.Block, bool) {

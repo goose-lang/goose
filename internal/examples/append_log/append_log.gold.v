@@ -12,6 +12,7 @@ From Goose Require github_com.tchajed.marshal.
 
 Module Log.
   Definition S := struct.decl [
+    "m" :: lockRefT;
     "sz" :: uint64T;
     "diskSz" :: uint64T
   ].
@@ -39,11 +40,13 @@ Definition Init: val :=
     (if: "diskSz" < #1
     then
       (struct.new Log.S [
+         "m" ::= lock.new #();
          "sz" ::= #0;
          "diskSz" ::= #0
        ], #false)
     else
       let: "log" := struct.new Log.S [
+        "m" ::= lock.new #();
         "sz" ::= #0;
         "diskSz" ::= "diskSz"
       ] in
@@ -60,6 +63,7 @@ Definition Open: val :=
     let: "sz" := marshal.Dec__GetInt "dec" in
     let: "diskSz" := marshal.Dec__GetInt "dec" in
     struct.new Log.S [
+      "m" ::= lock.new #();
       "sz" ::= "sz";
       "diskSz" ::= "diskSz"
     ].
