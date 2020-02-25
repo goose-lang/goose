@@ -6,8 +6,9 @@
 package append_log
 
 import (
-	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
+
+	"github.com/tchajed/goose/machine/disk"
 )
 
 type Log struct {
@@ -15,35 +16,35 @@ type Log struct {
 	diskSz uint64
 }
 
-func (log Log) mkHdr() disk.Block {
+func (log *Log) mkHdr() disk.Block {
 	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(log.sz)
 	enc.PutInt(log.diskSz)
 	return enc.Finish()
 }
 
-func (log Log) writeHdr() {
+func (log *Log) writeHdr() {
 	disk.Write(0, log.mkHdr())
 }
 
-func Init(diskSz uint64) (Log, bool) {
+func Init(diskSz uint64) (*Log, bool) {
 	if diskSz < 1 {
-		return Log{sz: 0, diskSz: 0}, false
+		return &Log{sz: 0, diskSz: 0}, false
 	}
-	log := Log{sz: 0, diskSz: diskSz}
+	log := &Log{sz: 0, diskSz: diskSz}
 	log.writeHdr()
 	return log, true
 }
 
-func Open() Log {
+func Open() *Log {
 	hdr := disk.Read(0)
 	dec := marshal.NewDec(hdr)
 	sz := dec.GetInt()
 	diskSz := dec.GetInt()
-	return Log{sz: sz, diskSz: diskSz}
+	return &Log{sz: sz, diskSz: diskSz}
 }
 
-func (log Log) Get(i uint64) (disk.Block, bool) {
+func (log *Log) Get(i uint64) (disk.Block, bool) {
 	sz := log.sz
 	if i < sz {
 		return disk.Read(1 + i), true
@@ -63,14 +64,12 @@ func (log *Log) Append(bks []disk.Block) bool {
 		return false
 	}
 	writeAll(bks, 1+sz)
-	newLog := Log{sz: sz + uint64(len(bks)), diskSz: log.diskSz}
-	newLog.writeHdr()
-	*log = newLog
+	log.sz += uint64(len(bks))
+	log.writeHdr()
 	return true
 }
 
 func (log *Log) Reset() {
-	newLog := Log{sz: 0, diskSz: log.diskSz}
-	newLog.writeHdr()
-	*log = newLog
+	log.sz = 0
+	log.writeHdr()
 }

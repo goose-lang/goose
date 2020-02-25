@@ -20,17 +20,17 @@ End Log.
 Definition Log__mkHdr: val :=
   rec: "Log__mkHdr" "log" :=
     let: "enc" := marshal.NewEnc disk.BlockSize in
-    marshal.Enc__PutInt "enc" (struct.get Log.S "sz" "log");;
-    marshal.Enc__PutInt "enc" (struct.get Log.S "diskSz" "log");;
+    marshal.Enc__PutInt "enc" (struct.loadF Log.S "sz" "log");;
+    marshal.Enc__PutInt "enc" (struct.loadF Log.S "diskSz" "log");;
     marshal.Enc__Finish "enc".
-Theorem Log__mkHdr_t: ⊢ Log__mkHdr : (struct.t Log.S -> disk.blockT).
+Theorem Log__mkHdr_t: ⊢ Log__mkHdr : (struct.ptrT Log.S -> disk.blockT).
 Proof. typecheck. Qed.
 Hint Resolve Log__mkHdr_t : types.
 
 Definition Log__writeHdr: val :=
   rec: "Log__writeHdr" "log" :=
     disk.Write #0 (Log__mkHdr "log").
-Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (struct.t Log.S -> unitT).
+Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (struct.ptrT Log.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__writeHdr_t : types.
 
@@ -38,18 +38,18 @@ Definition Init: val :=
   rec: "Init" "diskSz" :=
     (if: "diskSz" < #1
     then
-      (struct.mk Log.S [
+      (struct.new Log.S [
          "sz" ::= #0;
          "diskSz" ::= #0
        ], #false)
     else
-      let: "log" := struct.mk Log.S [
+      let: "log" := struct.new Log.S [
         "sz" ::= #0;
         "diskSz" ::= "diskSz"
       ] in
       Log__writeHdr "log";;
       ("log", #true)).
-Theorem Init_t: ⊢ Init : (uint64T -> (struct.t Log.S * boolT)).
+Theorem Init_t: ⊢ Init : (uint64T -> (struct.ptrT Log.S * boolT)).
 Proof. typecheck. Qed.
 Hint Resolve Init_t : types.
 
@@ -59,21 +59,21 @@ Definition Open: val :=
     let: "dec" := marshal.NewDec "hdr" in
     let: "sz" := marshal.Dec__GetInt "dec" in
     let: "diskSz" := marshal.Dec__GetInt "dec" in
-    struct.mk Log.S [
+    struct.new Log.S [
       "sz" ::= "sz";
       "diskSz" ::= "diskSz"
     ].
-Theorem Open_t: ⊢ Open : (unitT -> struct.t Log.S).
+Theorem Open_t: ⊢ Open : (unitT -> struct.ptrT Log.S).
 Proof. typecheck. Qed.
 Hint Resolve Open_t : types.
 
 Definition Log__Get: val :=
   rec: "Log__Get" "log" "i" :=
-    let: "sz" := struct.get Log.S "sz" "log" in
+    let: "sz" := struct.loadF Log.S "sz" "log" in
     (if: "i" < "sz"
     then (disk.Read (#1 + "i"), #true)
     else (slice.nil, #false)).
-Theorem Log__Get_t: ⊢ Log__Get : (struct.t Log.S -> uint64T -> (disk.blockT * boolT)).
+Theorem Log__Get_t: ⊢ Log__Get : (struct.ptrT Log.S -> uint64T -> (disk.blockT * boolT)).
 Proof. typecheck. Qed.
 Hint Resolve Log__Get_t : types.
 
@@ -92,12 +92,8 @@ Definition Log__Append: val :=
     then #false
     else
       writeAll "bks" (#1 + "sz");;
-      let: "newLog" := struct.mk Log.S [
-        "sz" ::= "sz" + slice.len "bks";
-        "diskSz" ::= struct.loadF Log.S "diskSz" "log"
-      ] in
-      Log__writeHdr "newLog";;
-      struct.store Log.S "log" "newLog";;
+      struct.storeF Log.S "sz" "log" (struct.loadF Log.S "sz" "log" + slice.len "bks");;
+      Log__writeHdr "log";;
       #true).
 Theorem Log__Append_t: ⊢ Log__Append : (struct.ptrT Log.S -> slice.T disk.blockT -> boolT).
 Proof. typecheck. Qed.
@@ -105,12 +101,8 @@ Hint Resolve Log__Append_t : types.
 
 Definition Log__Reset: val :=
   rec: "Log__Reset" "log" :=
-    let: "newLog" := struct.mk Log.S [
-      "sz" ::= #0;
-      "diskSz" ::= struct.loadF Log.S "diskSz" "log"
-    ] in
-    Log__writeHdr "newLog";;
-    struct.store Log.S "log" "newLog".
+    struct.storeF Log.S "sz" "log" #0;;
+    Log__writeHdr "log".
 Theorem Log__Reset_t: ⊢ Log__Reset : (struct.ptrT Log.S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Reset_t : types.
