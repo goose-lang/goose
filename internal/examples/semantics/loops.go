@@ -81,21 +81,22 @@ func failing_testBreakFromLoopNoContinue() bool {
 }
 
 func testNestedLoops() bool {
-	var ok = false
+	var ok1 = false
+	var ok2 = false
 	for i := uint64(0); ; {
 		for j := uint64(0); ; {
 			if j > 5 {
 				break
 			}
 			j = j + 1
-			ok = j == 6
+			ok1 = j == 6
 			continue
 		}
 		i = i + 1
+		ok2 = (i == 1)
 		break
-	ok = i == 1
 	}
-	return ok
+	return ok1 && ok2
 }
 
 func testNestedGoStyleLoops() bool {
@@ -107,7 +108,7 @@ func testNestedGoStyleLoops() bool {
 			}
 			continue
 		}
-	ok = i == 9
+		ok = i == 9
 	}
 	return ok
 }

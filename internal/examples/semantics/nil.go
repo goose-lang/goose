@@ -1,6 +1,6 @@
 package semantics
 
-func testCompareSliceToNil() bool {
+func failing_testCompareSliceToNil() bool {
 	s := make([]byte, 0)
 	return s != nil
 }

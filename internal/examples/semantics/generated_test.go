@@ -3,6 +3,7 @@ package semantics
 
 import (
 	"github.com/stretchr/testify/suite"
+	"github.com/tchajed/goose/machine/disk"
 	"testing"
 )
 
@@ -11,190 +12,284 @@ type GoTestSuite struct {
 }
 
 func (suite *GoTestSuite) TestCompareAll() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCompareAll())
 }
 
 func (suite *GoTestSuite) TestCompareGT() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCompareGT())
 }
 
 func (suite *GoTestSuite) TestCompareGE() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCompareGE())
 }
 
 func (suite *GoTestSuite) TestCompareLT() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCompareLT())
 }
 
 func (suite *GoTestSuite) TestCompareLE() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCompareLE())
 }
 
 func (suite *GoTestSuite) TestByteSliceToString() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testByteSliceToString())
 }
 
 func (suite *GoTestSuite) TestCopySimple() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCopySimple())
 }
 
 func (suite *GoTestSuite) TestCopyShorterDst() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCopyShorterDst())
 }
 
 func (suite *GoTestSuite) TestCopyShorterSrc() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testCopyShorterSrc())
 }
 
 func (suite *GoTestSuite) TestEncDec32Simple() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testEncDec32Simple())
 }
 
 func (suite *GoTestSuite) TestEncDec32() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testEncDec32())
 }
 
 func (suite *GoTestSuite) TestEncDec64Simple() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testEncDec64Simple())
 }
 
 func (suite *GoTestSuite) TestEncDec64() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testEncDec64())
 }
 
 func (suite *GoTestSuite) TestFunctionOrdering() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testFunctionOrdering())
 }
 
 func (suite *GoTestSuite) TestsUseLocks() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testsUseLocks())
 }
 
 func (suite *GoTestSuite) TestStandardForLoop() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testStandardForLoop())
 }
 
 func (suite *GoTestSuite) TestForLoopWait() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testForLoopWait())
 }
 
 func (suite *GoTestSuite) TestBreakFromLoopWithContinue() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testBreakFromLoopWithContinue())
 }
 
 func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testBreakFromLoopNoContinue())
 }
 
 func (suite *GoTestSuite) TestNestedLoops() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testNestedLoops())
 }
 
 func (suite *GoTestSuite) TestNestedGoStyleLoops() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testNestedGoStyleLoops())
 }
 
 func (suite *GoTestSuite) TestIterateMap() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testIterateMap())
 }
 
 func (suite *GoTestSuite) TestMapSize() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testMapSize())
 }
 
 func (suite *GoTestSuite) TestCompareSliceToNil() {
-	suite.Equal(true, testCompareSliceToNil())
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testCompareSliceToNil())
 }
 
 func (suite *GoTestSuite) TestComparePointerToNil() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testComparePointerToNil())
 }
 
 func (suite *GoTestSuite) TestReverseAssignOps64() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testReverseAssignOps64())
 }
 
 func (suite *GoTestSuite) TestReverseAssignOps32() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testReverseAssignOps32())
 }
 
 func (suite *GoTestSuite) TestAdd64Equals() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testAdd64Equals())
 }
 
 func (suite *GoTestSuite) TestSub64Equals() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testSub64Equals())
 }
 
 func (suite *GoTestSuite) TestDivisionPrecedence() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testDivisionPrecedence())
 }
 
 func (suite *GoTestSuite) TestModPrecedence() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testModPrecedence())
 }
 
 func (suite *GoTestSuite) TestBitwiseOpsPrecedence() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testBitwiseOpsPrecedence())
 }
 
 func (suite *GoTestSuite) TestArithmeticShifts() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testArithmeticShifts())
 }
 
 func (suite *GoTestSuite) TestShortcircuitAndTF() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testShortcircuitAndTF())
 }
 
 func (suite *GoTestSuite) TestShortcircuitAndFT() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testShortcircuitAndFT())
 }
 
 func (suite *GoTestSuite) TestShortcircuitOrTF() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testShortcircuitOrTF())
 }
 
 func (suite *GoTestSuite) TestShortcircuitOrFT() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testShortcircuitOrFT())
 }
 
 func (suite *GoTestSuite) TestSliceOps() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testSliceOps())
 }
 
 func (suite *GoTestSuite) TestOverwriteArray() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testOverwriteArray())
 }
 
 func (suite *GoTestSuite) TestStringAppend() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testStringAppend())
 }
 
 func (suite *GoTestSuite) TestStringLength() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testStringLength())
 }
 
 func (suite *GoTestSuite) TestStructUpdates() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, failing_testStructUpdates())
 }
 
 func (suite *GoTestSuite) TestNestedStructUpdates() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testNestedStructUpdates())
 }
 
 func (suite *GoTestSuite) TestStructConstructions() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testStructConstructions())
 }
 
 func (suite *GoTestSuite) TestStoreInStructVar() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testStoreInStructVar())
 }
 
 func (suite *GoTestSuite) TestStoreInStructPointerVar() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testStoreInStructPointerVar())
 }
 
 func (suite *GoTestSuite) TestWal() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
 	suite.Equal(true, testWal())
 }
 

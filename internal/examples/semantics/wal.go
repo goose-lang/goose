@@ -1,6 +1,5 @@
 package semantics
 
-// coped from log.go in awol package
 import (
 	"sync"
 
@@ -15,6 +14,7 @@ const MaxTxnWrites uint64 = 10 // 10 is completely arbitrary
 const logLength = 1 + 2*MaxTxnWrites
 
 type Log struct {
+	d disk.Disk
 	// protects cache and length
 	l     *sync.Mutex
 	cache map[uint64]disk.Block
@@ -35,17 +35,18 @@ func blockToInt(v disk.Block) uint64 {
 
 // New initializes a fresh log
 func New() Log {
-	diskSize := disk.Size()
+	d := disk.Get()
+	diskSize := d.Size()
 	if diskSize <= logLength {
 		panic("disk is too small to host log")
 	}
 	cache := make(map[uint64]disk.Block)
 	header := intToBlock(0)
-	disk.Write(0, header)
+	d.Write(0, header)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
 	l := new(sync.Mutex)
-	return Log{cache: cache, length: lengthPtr, l: l}
+	return Log{d: d, cache: cache, length: lengthPtr, l: l}
 }
 
 func (l Log) lock() {
@@ -82,13 +83,13 @@ func (l Log) Read(a uint64) disk.Block {
 	}
 	// TODO: maybe safe to unlock before reading from disk?
 	l.unlock()
-	dv := disk.Read(logLength + a)
+	dv := l.d.Read(logLength + a)
 	return dv
 }
 
 func (l Log) Size() uint64 {
 	// safe to do lock-free
-	sz := disk.Size()
+	sz := l.d.Size()
 	return sz - logLength
 }
 
@@ -101,8 +102,8 @@ func (l Log) Write(a uint64, v disk.Block) {
 	}
 	aBlock := intToBlock(a)
 	nextAddr := 1 + 2*length
-	disk.Write(nextAddr, aBlock)
-	disk.Write(nextAddr+1, v)
+	l.d.Write(nextAddr, aBlock)
+	l.d.Write(nextAddr+1, v)
 	l.cache[a] = v
 	*l.length = length + 1
 	l.unlock()
@@ -115,32 +116,32 @@ func (l Log) Commit() {
 	// TODO: maybe safe to unlock early?
 	l.unlock()
 	header := intToBlock(length)
-	disk.Write(0, header)
+	l.d.Write(0, header)
 }
 
-func getLogEntry(logOffset uint64) (uint64, disk.Block) {
+func getLogEntry(d disk.Disk, logOffset uint64) (uint64, disk.Block) {
 	diskAddr := 1 + 2*logOffset
-	aBlock := disk.Read(diskAddr)
+	aBlock := d.Read(diskAddr)
 	a := blockToInt(aBlock)
-	v := disk.Read(diskAddr + 1)
+	v := d.Read(diskAddr + 1)
 	return a, v
 }
 
 // applyLog assumes we are running sequentially
-func applyLog(length uint64) {
+func applyLog(d disk.Disk, length uint64) {
 	for i := uint64(0); ; {
 		if i < length {
-			a, v := getLogEntry(i)
-			disk.Write(logLength+a, v)
+			a, v := getLogEntry(d, i)
+			d.Write(logLength+a, v)
 			i = i + 1
 			continue
 		}
 		break
 	}
 }
-func clearLog() {
+func clearLog(d disk.Disk) {
 	header := intToBlock(0)
-	disk.Write(0, header)
+	d.Write(0, header)
 }
 
 // Apply all the committed transactions.
@@ -149,8 +150,8 @@ func clearLog() {
 func (l Log) Apply() {
 	l.lock()
 	length := *l.length
-	applyLog(length)
-	clearLog()
+	applyLog(l.d, length)
+	clearLog(l.d)
 	*l.length = 0
 	l.unlock()
 	// technically the log cache is no longer needed, but it is still valid;
@@ -160,39 +161,33 @@ func (l Log) Apply() {
 
 // Open recovers the log following a crash or shutdown
 func Open() Log {
-	header := disk.Read(0)
+	d := disk.Get()
+	header := d.Read(0)
 	length := blockToInt(header)
-	applyLog(length)
-	clearLog()
+	applyLog(d, length)
+	clearLog(d)
 
 	cache := make(map[uint64]disk.Block)
 	lengthPtr := new(uint64)
 	*lengthPtr = 0
 	l := new(sync.Mutex)
-	return Log{cache: cache, length: lengthPtr, l: l}
-}
-
-func diskInit() {
-	d := disk.NewMemDisk(30)
-	disk.Init(d)
+	return Log{d: d, cache: cache, length: lengthPtr, l: l}
 }
 
 // test
 func testWal() bool {
 	var ok = true
 
-	diskInit()
-	
 	lg := New()
 	if lg.BeginTxn() {
-		lg.Write(4, intToBlock(11))
+		lg.Write(2, intToBlock(11))
 	}
-	ok = ok && (blockToInt(lg.Read(4)) == 11)
-	ok = ok && (blockToInt(disk.Read(0)) == 0)
-	
+	ok = ok && (blockToInt(lg.Read(2)) == 11)
+	ok = ok && (blockToInt(lg.d.Read(0)) == 0)
+
 	lg.Commit()
-	ok = ok && (blockToInt(disk.Read(0)) == 1)
-	
+	ok = ok && (blockToInt(lg.d.Read(0)) == 1)
+
 	lg.Apply()
 	ok = ok && (*(lg.length) == 0)
 	return ok
