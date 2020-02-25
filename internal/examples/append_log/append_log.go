@@ -47,12 +47,19 @@ func Open() *Log {
 	return &Log{m: new(sync.Mutex), sz: sz, diskSz: diskSz}
 }
 
-func (log *Log) Get(i uint64) (disk.Block, bool) {
+func (log *Log) get(i uint64) (disk.Block, bool) {
 	sz := log.sz
 	if i < sz {
 		return disk.Read(1 + i), true
 	}
 	return nil, false
+}
+
+func (log *Log) Get(i uint64) (disk.Block, bool) {
+	log.m.Lock()
+	v, b := log.get(i)
+	log.m.Unlock()
+	return v, b
 }
 
 func writeAll(bks []disk.Block, off uint64) {
@@ -61,7 +68,7 @@ func writeAll(bks []disk.Block, off uint64) {
 	}
 }
 
-func (log *Log) Append(bks []disk.Block) bool {
+func (log *Log) append(bks []disk.Block) bool {
 	sz := log.sz
 	if uint64(len(bks)) >= log.diskSz-1-sz {
 		return false
@@ -72,7 +79,21 @@ func (log *Log) Append(bks []disk.Block) bool {
 	return true
 }
 
-func (log *Log) Reset() {
+func (log *Log) Append(bks []disk.Block) bool {
+	log.m.Lock()
+	b := log.append(bks)
+	log.m.Unlock()
+	return b
+}
+
+func (log *Log) reset() {
 	log.sz = 0
 	log.writeHdr()
+}
+
+func (log *Log) Reset() {
+	log.m.Lock()
+	log.writeHdr()
+	log.reset()
+	log.m.Unlock()
 }
