@@ -134,7 +134,6 @@ Hint Resolve Log__reset_t : types.
 Definition Log__Reset: val :=
   rec: "Log__Reset" "log" :=
     lock.acquire (struct.loadF Log.S "m" "log");;
-    Log__writeHdr "log";;
     Log__reset "log";;
     lock.release (struct.loadF Log.S "m" "log").
 Theorem Log__Reset_t: ⊢ Log__Reset : (struct.ptrT Log.S -> unitT).

@@ -93,7 +93,6 @@ func (log *Log) reset() {
 
 func (log *Log) Reset() {
 	log.m.Lock()
-	log.writeHdr()
 	log.reset()
 	log.m.Unlock()
 }
