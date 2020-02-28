@@ -3,10 +3,11 @@ language: go
 os: linux
 jobs:
   include:
-    - go: "1.13.x"
-    - go: "1.13.x"
+    - go: "1.14.x"
+    - go: "1.14.x"
       osx_image: "xcode10.1"
       os: osx
+    - go: "1.13.x"
     - go: "1.12.x"
       env:
         # on 1.12 this is needed to enable module support when the project is
