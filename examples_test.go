@@ -117,14 +117,16 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 	assert := assert.New(testingT)
 	t := positiveTest{newTest("internal/examples", name)}
 	if !t.isDir() {
-		assert.FailNowf("%s is now a test directory", t.path)
+		assert.FailNowf("not a test directory",
+			"path: %s",
+			t.path)
 	}
 	// c.Logf("testing example %s/", t.Path)
 
 	f, terr := conf.TranslatePackage("", t.path)
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
-		assert.FailNowf("%s translation failed", t.name)
+		assert.FailNow("translation failed")
 	}
 
 	var b bytes.Buffer
@@ -143,10 +145,14 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 
 	expected := t.Gold()
 	if expected == "" {
-		assert.FailNowf("could not load gold output %s", t.GoldFile())
+		assert.FailNowf("could not load gold output",
+			"gold file: %s",
+			t.GoldFile())
 	}
 	if actual != expected {
-		assert.FailNowf("actual Coq output != gold output; see %s", t.ActualFile())
+		assert.FailNowf("actual Coq output != gold output",
+			"see %s",
+			t.ActualFile())
 		t.PutActual(actual)
 		return
 	}
