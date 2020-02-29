@@ -120,3 +120,16 @@ func testStoreInStructPointerVar() bool {
 	p.i = 5
 	return p.i == 5
 }
+
+func testStoreComposite() bool {
+	p := new(TwoInts)
+	*p = TwoInts{x: 3, y: 4}
+	return (*p).y == 4
+}
+
+func testStoreSlice() bool {
+	p := new([]uint64)
+	s := make([]uint64, 3)
+	*p = s
+	return uint64(len(*p)) == uint64(3)
+}

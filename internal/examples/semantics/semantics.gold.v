@@ -1072,6 +1072,28 @@ Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT 
 Proof. typecheck. Qed.
 Hint Resolve testStoreInStructPointerVar_t : types.
 
+Definition testStoreComposite: val :=
+  rec: "testStoreComposite" <> :=
+    let: "p" := struct.alloc TwoInts.S (zero_val (struct.t TwoInts.S)) in
+    struct.store TwoInts.S "p" (struct.mk TwoInts.S [
+      "x" ::= #3;
+      "y" ::= #4
+    ]);;
+    (struct.get TwoInts.S "y" (struct.load TwoInts.S "p") = #4).
+Theorem testStoreComposite_t: ⊢ testStoreComposite : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStoreComposite_t : types.
+
+Definition testStoreSlice: val :=
+  rec: "testStoreSlice" <> :=
+    let: "p" := ref (zero_val (slice.T uint64T)) in
+    let: "s" := NewSlice uint64T #3 in
+    "p" <-[refT (slice.T uint64T)] "s";;
+    (slice.len (![slice.T uint64T] "p") = #3).
+Theorem testStoreSlice_t: ⊢ testStoreSlice : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testStoreSlice_t : types.
+
 (* wal.go *)
 
 (* 10 is completely arbitrary *)

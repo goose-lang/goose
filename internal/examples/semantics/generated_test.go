@@ -287,6 +287,18 @@ func (suite *GoTestSuite) TestStoreInStructPointerVar() {
 	suite.Equal(true, testStoreInStructPointerVar())
 }
 
+func (suite *GoTestSuite) TestStoreComposite() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testStoreComposite())
+}
+
+func (suite *GoTestSuite) TestStoreSlice() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testStoreSlice())
+}
+
 func (suite *GoTestSuite) TestWal() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
