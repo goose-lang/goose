@@ -1695,9 +1695,14 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 				ctx.expr(lhs.X),
 				rhs))
 		}
+		dstPtrTy, ok := ctx.typeOf(lhs.X).Underlying().(*types.Pointer)
+		if !ok {
+			ctx.unsupported(s,
+				"could not identify element type of assignment through pointer")
+		}
 		return coq.NewAnon(coq.StoreStmt{
 			Dst: ctx.expr(lhs.X),
-			Ty:  ctx.coqTypeOfType(lhs, ctx.typeOf(lhs.X)),
+			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
 			X:   rhs,
 		})
 	case *ast.SelectorExpr:

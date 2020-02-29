@@ -96,7 +96,7 @@ Definition Log__memWrite: val :=
     let: "n" := slice.len "l" in
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
-      struct.get Log.S "memLog" "log" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
+      struct.get Log.S "memLog" "log" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
       Continue).
 Theorem Log__memWrite_t: ⊢ Log__memWrite : (struct.t Log.S -> slice.T disk.blockT -> unitT).
 Proof. typecheck. Qed.
@@ -112,8 +112,8 @@ Definition Log__memAppend: val :=
     else
       let: "txn" := ![uint64T] (struct.get Log.S "memTxnNxt" "log") in
       let: "n" := ![uint64T] (struct.get Log.S "memLen" "log") + slice.len "l" in
-      struct.get Log.S "memLen" "log" <-[refT uint64T] "n";;
-      struct.get Log.S "memTxnNxt" "log" <-[refT uint64T] ![uint64T] (struct.get Log.S "memTxnNxt" "log") + #1;;
+      struct.get Log.S "memLen" "log" <-[uint64T] "n";;
+      struct.get Log.S "memTxnNxt" "log" <-[uint64T] ![uint64T] (struct.get Log.S "memTxnNxt" "log") + #1;;
       lock.release (struct.get Log.S "memLock" "log");;
       (#true, "txn")).
 Theorem Log__memAppend_t: ⊢ Log__memAppend : (struct.t Log.S -> slice.T disk.blockT -> (boolT * uint64T)).
@@ -180,7 +180,7 @@ Definition Log__diskAppend: val :=
     lock.release (struct.get Log.S "memLock" "log");;
     Log__writeBlocks "log" "blks" "disklen";;
     Log__writeHdr "log" "memlen";;
-    struct.get Log.S "logTxnNxt" "log" <-[refT uint64T] "memnxt";;
+    struct.get Log.S "logTxnNxt" "log" <-[uint64T] "memnxt";;
     lock.release (struct.get Log.S "logLock" "log").
 Theorem Log__diskAppend_t: ⊢ Log__diskAppend : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
@@ -252,7 +252,7 @@ Definition Txn__Commit: val :=
   rec: "Txn__Commit" "txn" :=
     let: "blks" := ref (zero_val (slice.T disk.blockT)) in
     MapIter (struct.get Txn.S "blks" "txn") (λ: <> "v",
-      "blks" <-[refT (slice.T (slice.T byteT))] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "v");;
+      "blks" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "v");;
     let: "ok" := Log__Append (struct.load Log.S (struct.get Txn.S "log" "txn")) (![slice.T (slice.T byteT)] "blks") in
     "ok".
 Theorem Txn__Commit_t: ⊢ Txn__Commit : (struct.t Txn.S -> boolT).

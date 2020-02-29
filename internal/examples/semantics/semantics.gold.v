@@ -374,7 +374,7 @@ Definition standardForLoop: val :=
       then
         let: "sum" := ![uint64T] "sumPtr" in
         let: "x" := SliceGet uint64T "s" (![uint64T] "i") in
-        "sumPtr" <-[refT uint64T] "sum" + "x";;
+        "sumPtr" <-[uint64T] "sum" + "x";;
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Continue
       else Break));;
@@ -399,7 +399,7 @@ Definition LoopStruct__forLoopWait: val :=
       (if: "i" < ![uint64T] "nxt"
       then Break
       else
-        struct.get LoopStruct.S "loopNext" "ls" <-[refT uint64T] ![uint64T] (struct.get LoopStruct.S "loopNext" "ls") + #1;;
+        struct.get LoopStruct.S "loopNext" "ls" <-[uint64T] ![uint64T] (struct.get LoopStruct.S "loopNext" "ls") + #1;;
         Continue)).
 Theorem LoopStruct__forLoopWait_t: ⊢ LoopStruct__forLoopWait : (struct.t LoopStruct.S -> uint64T -> unitT).
 Proof. typecheck. Qed.
@@ -1088,7 +1088,7 @@ Definition testStoreSlice: val :=
   rec: "testStoreSlice" <> :=
     let: "p" := ref (zero_val (slice.T uint64T)) in
     let: "s" := NewSlice uint64T #3 in
-    "p" <-[refT (slice.T uint64T)] "s";;
+    "p" <-[slice.T uint64T] "s";;
     (slice.len (![slice.T uint64T] "p") = #3).
 Theorem testStoreSlice_t: ⊢ testStoreSlice : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1145,7 +1145,7 @@ Definition New: val :=
     let: "header" := intToBlock #0 in
     disk.Write #0 "header";;
     let: "lengthPtr" := ref (zero_val uint64T) in
-    "lengthPtr" <-[refT uint64T] #0;;
+    "lengthPtr" <-[uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
       "d" ::= "d";
@@ -1231,7 +1231,7 @@ Definition Log__Write: val :=
     disk.Write "nextAddr" "aBlock";;
     disk.Write ("nextAddr" + #1) "v";;
     MapInsert (struct.get Log.S "cache" "l") "a" "v";;
-    struct.get Log.S "length" "l" <-[refT uint64T] "length" + #1;;
+    struct.get Log.S "length" "l" <-[uint64T] "length" + #1;;
     Log__unlock "l".
 Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log.S -> uint64T -> disk.blockT -> unitT).
 Proof. typecheck. Qed.
@@ -1293,7 +1293,7 @@ Definition Log__Apply: val :=
     let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
     applyLog (struct.get Log.S "d" "l") "length";;
     clearLog (struct.get Log.S "d" "l");;
-    struct.get Log.S "length" "l" <-[refT uint64T] #0;;
+    struct.get Log.S "length" "l" <-[uint64T] #0;;
     Log__unlock "l".
 Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log.S -> unitT).
 Proof. typecheck. Qed.
@@ -1309,7 +1309,7 @@ Definition Open: val :=
     clearLog "d";;
     let: "cache" := NewMap disk.blockT in
     let: "lengthPtr" := ref (zero_val uint64T) in
-    "lengthPtr" <-[refT uint64T] #0;;
+    "lengthPtr" <-[uint64T] #0;;
     let: "l" := lock.new #() in
     struct.mk Log.S [
       "d" ::= "d";
