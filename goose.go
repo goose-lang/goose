@@ -563,6 +563,14 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
+	// FIXME: this hack ensures variadic arguments are passed correctly to
+	//  util.DPrintf
+	if isIdent(f.X, "util") && f.Sel.Name == "DPrintf" {
+		return coq.NewCallExpr("util.DPrintf",
+			ctx.expr(args[0]),
+			ctx.expr(args[1]),
+			coq.UnitLiteral{})
+	}
 	if isIdent(f.X, "fmt") {
 		switch f.Sel.Name {
 		case "Println", "Printf":
