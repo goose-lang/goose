@@ -1,48 +1,30 @@
 # Writing in Goose
 
-(note that this document is still a work-in-progress)
+(this document is still to be written)
 
-Imports must be in a short whitelist
+Reassignments require using `var` instead of `:=` to declare the variable. This
+signals to Goose to wrap the local variable in an extra pointer. If you don't
+need reassignments avoiding this pointer is nice, hence this odd distinction
+(whereas in Go `var` and `:=` are identical).
 
-Supported types:
+Loops are subtle - generally you should make sure every return path has an
+explicit `break` or `continue`. The translator should be made sound on this
+aspect (rejecting unsupported code).
 
-- `uint64`
-- `byte`
-- user-defined structs, defined as a top-level alias
-  (this is idiomatic Go - it's also possible to define a field as an anonymous
-  struct field, which Goose probably doesn't handle correctly)
-- slices of Goose types, that is `[]T` where `T` is a Goose type
-- maps from `uint64` to a Goose type, that is `map[uint64]T` where `T` is a
-  goose type
-- pointers to Goose types, that is `*T` where `T` is a Goose type
-- `*sync.RWMutex` (note that these must be pointers; embedding a mutex in a
-  struct is not supported)
+# Supported features
 
-Functions can return multiple values.
-
-Goose may translate code and then you get an error roughly about a mismatch
-between `T` and `proc T'`. This is due to Goose not fully understanding the
-effect system of the Coq model, which requires exactly one effectful computation
-(that is, one `proc`) per line. If you have two effects on one line of Go, put
-one first and assign the result to a variable. If you need to return the value
-of a procedure, you need to sequence them:
-
-```go
-// bad: will produce Coq code of the form [Ret MyGoFunction], which doesn't work
-func f() {
-    return MyGoFunction()
-}
-
-// good: will produce [v <- MyGoFunction; Ret v], which is what you want
-func f() {
-    v := MyGoFunction()
-    return v
-}
-```
-
-You may also run into this issue in the opposite direction, where the Goose
-translator produces sequencing but the first component is actually pure (that
-is, not a Coq `proc`). You can either inline that assignment or improve Goose's
-recognition of pure expressions by improving `internal/coq/coq.go`'s `isPure`
-function. That function is untrusted - everything is checked by Coq's type
-system.
+- multiple return values
+- early return
+- for loops
+- slice and map iteration
+- panic
+- struct field pointers
+- struct literals
+- slice element pointers
+- sub-slicing
+- pointers to local variables
+- mutexes and cond vars (`*sync.Mutex` and `*sync.Cond`)
+- goroutines
+- `++` and `+=`
+- `uint64`, `uint32`, `byte` (no signed integers are supported)
+- bitwise ops
