@@ -62,3 +62,10 @@ type.
 
 It should work to use the fully-qualified name of each type as its identifier,
 comparing with string comparison.
+
+## Recursive structs
+
+To support recursive structs, descriptors should be a list of `Rec (f:string) | NonRec (f:string) (t:ty)`. One issue is that descriptors are no longer quite
+inductive, since the recursive occurrence needs to refer to the entire original
+list. We would need to take care to unfold recursion at the top level
+appropriately.
