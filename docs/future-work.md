@@ -42,3 +42,23 @@ channels have many different use cases and features (for example, buffered vs
 unbuffered and blocking vs non-blocking sends). We would also need reasoning
 principles, though Actris is the right starting point (with some extensions
 since Actris assumes much more primitive channels than Go provides).
+
+## Interfaces
+
+There are two aspects to interfaces: dynamic dispatch and type switches. Dynamic
+dispatch is simple: an interface value is a bundle of the interfaces' methods
+(implemented as a tuple, same as structs), as first-class functions. Go relies
+on an interface value to call an interface method, and we can call it by simply
+looking it up in the method bundle.
+
+Type switches are a bit more complicated, since Go supports inspecting the
+dynamic type of an interface value. Note that this isn't merely in the type
+system but requires dynamic semantics. To implement it we would first need to
+associate some identifier to each type, then store that identifier and the
+underlying type representation alongside the interface methods. (Note in the
+special case of `interface{}`, there are no methods, only a type identifier and
+data.) Type switches then simply compare the runtime type with the expected
+type.
+
+It should work to use the fully-qualified name of each type as its identifier,
+comparing with string comparison.
