@@ -126,7 +126,7 @@ Directly modeling a low-level, imperative language (and especially writing in it
 
 ## Running goose
 
-Goose requires Go 1.12 or 1.13.
+Goose requires Go 1.12+.
 
 You can install goose with either `go get github.com/tchajed/goose/cmd/goose` or from a clone of this repo with `go install ./cmd/goose`. These install
 the `goose` binary to `$GOPATH/bin` (or `~/go/bin` if you don't have GOPATH
