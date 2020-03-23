@@ -70,7 +70,7 @@ func testBreakFromLoopWithContinue() bool {
 
 func failing_testBreakFromLoopNoContinue() bool {
 	var i uint64 = 0
-	for i < 20 {
+	for i < 3 {
 		if true {
 			i = i + 1
 			break
