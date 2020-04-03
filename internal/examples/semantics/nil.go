@@ -9,3 +9,8 @@ func testComparePointerToNil() bool {
 	s := new(uint64)
 	return s != nil
 }
+
+func testCompareNilToNil() bool {
+	s := new(*uint64)
+	return *s == nil
+}

@@ -562,10 +562,18 @@ Hint Resolve failing_testCompareSliceToNil_t : types.
 Definition testComparePointerToNil: val :=
   rec: "testComparePointerToNil" <> :=
     let: "s" := ref (zero_val uint64T) in
-    "s" ≠ slice.nil.
+    "s" ≠ #null.
 Theorem testComparePointerToNil_t: ⊢ testComparePointerToNil : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testComparePointerToNil_t : types.
+
+Definition testCompareNilToNil: val :=
+  rec: "testCompareNilToNil" <> :=
+    let: "s" := ref (zero_val (refT uint64T)) in
+    (![refT uint64T] "s" = #null).
+Theorem testCompareNilToNil_t: ⊢ testCompareNilToNil : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testCompareNilToNil_t : types.
 
 (* operations.go *)
 
@@ -1035,7 +1043,7 @@ Definition testStructConstructions: val :=
       "x" ::= #0;
       "y" ::= #0
     ] in
-    "ok" <-[boolT] ![boolT] "ok" && (![refT (struct.t TwoInts.S)] "p1" = slice.nil);;
+    "ok" <-[boolT] ![boolT] "ok" && (![refT (struct.t TwoInts.S)] "p1" = #null);;
     "p1" <-[refT (struct.t TwoInts.S)] struct.alloc TwoInts.S (zero_val (struct.t TwoInts.S));;
     "ok" <-[boolT] ![boolT] "ok" && (![struct.t TwoInts.S] "p2" = "p3");;
     "ok" <-[boolT] ![boolT] "ok" && ("p3" = "p4");;
@@ -1321,9 +1329,9 @@ Theorem Open_t: ⊢ Open : (unitT -> struct.t Log.S).
 Proof. typecheck. Qed.
 Hint Resolve Open_t : types.
 
-(* test *)
-Definition testWal: val :=
-  rec: "testWal" <> :=
+(* disabled since performance is quite poor *)
+Definition disabled_testWal: val :=
+  rec: "disabled_testWal" <> :=
     let: "ok" := ref_to boolT #true in
     let: "lg" := New #() in
     (if: Log__BeginTxn "lg"
@@ -1338,6 +1346,6 @@ Definition testWal: val :=
     Log__Apply "lg";;
     "ok" <-[boolT] ![boolT] "ok" && (![uint64T] (struct.get Log.S "length" "lg") = #0);;
     ![boolT] "ok".
-Theorem testWal_t: ⊢ testWal : (unitT -> boolT).
+Theorem disabled_testWal_t: ⊢ disabled_testWal : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testWal_t : types.
+Hint Resolve disabled_testWal_t : types.

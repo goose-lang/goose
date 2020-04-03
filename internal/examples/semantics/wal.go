@@ -174,8 +174,8 @@ func Open() Log {
 	return Log{d: d, cache: cache, length: lengthPtr, l: l}
 }
 
-// test
-func testWal() bool {
+// disabled since performance is quite poor
+func disabled_testWal() bool {
 	var ok = true
 
 	lg := New()

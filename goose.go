@@ -1002,6 +1002,13 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 	return nil
 }
 
+func (ctx Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
+	if !(e.Op == token.EQL || e.Op == token.NEQ) {
+		return false
+	}
+	return ctx.info.Types[e.Y].IsNil()
+}
+
 func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	op, ok := map[token.Token]coq.BinOp{
 		token.LSS:  coq.OpLessThan,
@@ -1031,6 +1038,15 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		ok = true
 	}
 	if ok {
+		if ctx.isNilCompareExpr(e) {
+			if _, ok := ctx.typeOf(e.X).(*types.Pointer); ok {
+				return coq.BinaryExpr{
+					X:  ctx.expr(e.X),
+					Op: op,
+					Y:  coq.Null,
+				}
+			}
+		}
 		return coq.BinaryExpr{X: ctx.expr(e.X), Op: op, Y: ctx.expr(e.Y)}
 	}
 	ctx.unsupported(e, "binary operator %v", e.Op)
