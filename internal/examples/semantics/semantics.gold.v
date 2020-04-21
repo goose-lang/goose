@@ -444,8 +444,8 @@ Theorem testBreakFromLoopWithContinue_t: ⊢ testBreakFromLoopWithContinue : (un
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopWithContinue_t : types.
 
-Definition failing_testBreakFromLoopNoContinue: val :=
-  rec: "failing_testBreakFromLoopNoContinue" <> :=
+Definition testBreakFromLoopNoContinue: val :=
+  rec: "testBreakFromLoopNoContinue" <> :=
     let: "i" := ref_to uint64T #0 in
     Skip;;
     (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
@@ -453,12 +453,11 @@ Definition failing_testBreakFromLoopNoContinue: val :=
       then
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Break
-      else "i" <-[uint64T] ![uint64T] "i" + #2);;
-      Continue);;
+      else "i" <-[uint64T] ![uint64T] "i" + #2));;
     (![uint64T] "i" = #1).
-Theorem failing_testBreakFromLoopNoContinue_t: ⊢ failing_testBreakFromLoopNoContinue : (unitT -> boolT).
+Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testBreakFromLoopNoContinue_t : types.
+Hint Resolve testBreakFromLoopNoContinue_t : types.
 
 Definition testNestedLoops: val :=
   rec: "testNestedLoops" <> :=
@@ -482,8 +481,8 @@ Theorem testNestedLoops_t: ⊢ testNestedLoops : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testNestedLoops_t : types.
 
-Definition testNestedGoStyleLoops: val :=
-  rec: "testNestedGoStyleLoops" <> :=
+Definition failing_testNestedGoStyleLoops: val :=
+  rec: "failing_testNestedGoStyleLoops" <> :=
     let: "ok" := ref_to boolT #false in
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
@@ -492,12 +491,11 @@ Definition testNestedGoStyleLoops: val :=
         (if: #true
         then Break
         else Continue));;
-      "ok" <-[boolT] (![uint64T] "i" = #9);;
-      Continue);;
+      "ok" <-[boolT] (![uint64T] "i" = #9));;
     ![boolT] "ok".
-Theorem testNestedGoStyleLoops_t: ⊢ testNestedGoStyleLoops : (unitT -> boolT).
+Theorem failing_testNestedGoStyleLoops_t: ⊢ failing_testNestedGoStyleLoops : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testNestedGoStyleLoops_t : types.
+Hint Resolve failing_testNestedGoStyleLoops_t : types.
 
 (* maps.go *)
 

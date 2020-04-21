@@ -73,8 +73,7 @@ Definition Log__readBlocks: val :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "len"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "blk" := disk.Read (LOGSTART + ![uint64T] "i") in
-      "blks" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "blk";;
-      Continue);;
+      "blks" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] "blks") "blk");;
     ![slice.T (slice.T byteT)] "blks".
 Theorem Log__readBlocks_t: ⊢ Log__readBlocks : (struct.t Log.S -> uint64T -> slice.T disk.blockT).
 Proof. typecheck. Qed.
@@ -96,8 +95,7 @@ Definition Log__memWrite: val :=
     let: "n" := slice.len "l" in
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
-      struct.get Log.S "memLog" "log" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
-      Continue).
+      struct.get Log.S "memLog" "log" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log.S "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"))).
 Theorem Log__memWrite_t: ⊢ Log__memWrite : (struct.t Log.S -> slice.T disk.blockT -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__memWrite_t : types.
