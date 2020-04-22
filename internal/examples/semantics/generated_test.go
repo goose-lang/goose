@@ -215,6 +215,12 @@ func (suite *GoTestSuite) TestArithmeticShifts() {
 	suite.Equal(true, testArithmeticShifts())
 }
 
+func (suite *GoTestSuite) TestLinearize() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testLinearize())
+}
+
 func (suite *GoTestSuite) TestShortcircuitAndTF() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

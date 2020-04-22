@@ -66,3 +66,8 @@ func TestRandomDoesNotPanic(t *testing.T) {
 	RandomUint64()
 	RandomUint64()
 }
+
+func TestLinearizeDoesNothing(t *testing.T) {
+	// not much we can test here
+	Linearize()
+}

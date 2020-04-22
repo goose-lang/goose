@@ -720,6 +720,19 @@ Theorem testArithmeticShifts_t: ⊢ testArithmeticShifts : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testArithmeticShifts_t : types.
 
+(* prims.go *)
+
+Definition testLinearize: val :=
+  rec: "testLinearize" <> :=
+    let: "m" := lock.new #() in
+    lock.acquire "m";;
+    Linearize;;
+    lock.release "m";;
+    #true.
+Theorem testLinearize_t: ⊢ testLinearize : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testLinearize_t : types.
+
 (* shortcircuiting.go *)
 
 (* helpers *)
