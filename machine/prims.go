@@ -52,3 +52,10 @@ func RandomUint64() uint64 {
 func UInt64ToString(x uint64) string {
 	return fmt.Sprintf("%d", x)
 }
+
+// Linearize does nothing.
+//
+// Translates to an atomic step that supports opening invariants conveniently for
+// the sake of executing a simulation fancy update at the linearization point of
+// a procedure..
+func Linearize() {}

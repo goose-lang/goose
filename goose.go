@@ -552,6 +552,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("Data.randomUint64", nil)
 		case "UInt64ToString":
 			return ctx.newCoqCall("uint64_to_string", args)
+		case "Linearize":
+			return coq.GallinaIdent("Linearize")
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}
