@@ -215,6 +215,24 @@ func (suite *GoTestSuite) TestArithmeticShifts() {
 	suite.Equal(true, testArithmeticShifts())
 }
 
+func (suite *GoTestSuite) TestOrCompareSimple() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testOrCompareSimple())
+}
+
+func (suite *GoTestSuite) TestOrCompare() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testOrCompare())
+}
+
+func (suite *GoTestSuite) TestAndCompare() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testAndCompare())
+}
+
 func (suite *GoTestSuite) TestLinearize() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
