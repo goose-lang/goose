@@ -720,6 +720,49 @@ Theorem testArithmeticShifts_t: ⊢ testArithmeticShifts : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testArithmeticShifts_t : types.
 
+(* precedence.go *)
+
+Definition failing_testOrCompareSimple: val :=
+  rec: "failing_testOrCompareSimple" <> :=
+    (if: #3 > #4 || #4 > #3
+    then #true
+    else #false).
+Theorem failing_testOrCompareSimple_t: ⊢ failing_testOrCompareSimple : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testOrCompareSimple_t : types.
+
+Definition failing_testOrCompare: val :=
+  rec: "failing_testOrCompare" <> :=
+    let: "ok" := ref_to boolT #true in
+    (if: ~ (#3 > #4 || #4 > #3)
+    then
+      "ok" <-[boolT] #false;;
+      #()
+    else #());;
+    (if: #3 > #4 || #2 > #3
+    then "ok" <-[boolT] #false
+    else #());;
+    ![boolT] "ok".
+Theorem failing_testOrCompare_t: ⊢ failing_testOrCompare : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testOrCompare_t : types.
+
+Definition failing_testAndCompare: val :=
+  rec: "failing_testAndCompare" <> :=
+    let: "ok" := ref_to boolT #true in
+    (if: #3 > #4 && #4 > #3
+    then
+      "ok" <-[boolT] #false;;
+      #()
+    else #());;
+    (if: #4 > #3 || #3 > #2
+    then #()
+    else "ok" <-[boolT] #false);;
+    ![boolT] "ok".
+Theorem failing_testAndCompare_t: ⊢ failing_testAndCompare : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testAndCompare_t : types.
+
 (* prims.go *)
 
 Definition testLinearize: val :=
