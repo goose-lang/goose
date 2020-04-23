@@ -8,11 +8,11 @@ Definition testCompareAll: val :=
   rec: "testCompareAll" <> :=
     let: "ok" := ref_to boolT #true in
     let: "nok" := ref_to boolT #false in
-    "ok" <-[boolT] ![boolT] "ok" && #1 < #2;;
-    "nok" <-[boolT] ![boolT] "ok" && #2 < #1;;
-    "ok" <-[boolT] ![boolT] "ok" && #1 ≤ #2;;
-    "ok" <-[boolT] ![boolT] "ok" && #2 ≤ #2;;
-    "nok" <-[boolT] ![boolT] "ok" && #2 ≤ #1;;
+    "ok" <-[boolT] (![boolT] "ok") && (#1 < #2);;
+    "nok" <-[boolT] (![boolT] "ok") && (#2 < #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (#1 ≤ #2);;
+    "ok" <-[boolT] (![boolT] "ok") && (#2 ≤ #2);;
+    "nok" <-[boolT] (![boolT] "ok") && (#2 ≤ #1);;
     (if: ![boolT] "nok"
     then #false
     else ![boolT] "ok").
@@ -25,8 +25,8 @@ Definition testCompareGT: val :=
     let: "x" := ref_to uint64T #4 in
     let: "y" := ref_to uint64T #5 in
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" > #4;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" > ![uint64T] "x";;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" > #4);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" > ![uint64T] "x");;
     ![boolT] "ok".
 Theorem testCompareGT_t: ⊢ testCompareGT : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -37,9 +37,9 @@ Definition testCompareGE: val :=
     let: "x" := ref_to uint64T #4 in
     let: "y" := ref_to uint64T #5 in
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ #4;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ #5;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≥ ![uint64T] "x";;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" ≥ #4);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" ≥ #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" ≥ ![uint64T] "x");;
     (if: ![uint64T] "y" > #5
     then #false
     else ![boolT] "ok").
@@ -52,8 +52,8 @@ Definition testCompareLT: val :=
     let: "x" := ref_to uint64T #4 in
     let: "y" := ref_to uint64T #5 in
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" < #6;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" < ![uint64T] "y";;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" < #6);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "x" < ![uint64T] "y");;
     ![boolT] "ok".
 Theorem testCompareLT_t: ⊢ testCompareLT : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -64,9 +64,9 @@ Definition testCompareLE: val :=
     let: "x" := ref_to uint64T #4 in
     let: "y" := ref_to uint64T #5 in
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≤ #6;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "y" ≤ #5;;
-    "ok" <-[boolT] ![boolT] "ok" && ![uint64T] "x" ≤ ![uint64T] "y";;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" ≤ #6);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" ≤ #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "x" ≤ ![uint64T] "y");;
     (if: ![uint64T] "y" < #5
     then #false
     else ![boolT] "ok").
@@ -215,9 +215,9 @@ Hint Resolve roundtripEncDec64_t : types.
 Definition testEncDec32Simple: val :=
   rec: "testEncDec32Simple" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 0)) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 1)) = #(U32 1));;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 1231234)) = #(U32 1231234));;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 0)) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 1)) = #(U32 1));;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 1231234)) = #(U32 1231234));;
     ![boolT] "ok".
 Theorem testEncDec32Simple_t: ⊢ testEncDec32Simple : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -226,12 +226,12 @@ Hint Resolve testEncDec32Simple_t : types.
 Definition failing_testEncDec32: val :=
   rec: "failing_testEncDec32" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#(U32 3434807466)) = #(U32 3434807466));;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #20) = #1 ≪ #20);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #18) = #1 ≪ #18);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #10) = #1 ≪ #10);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #0) = #1 ≪ #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec32 (#1 ≪ #32 - #1) = #1 ≪ #32 - #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 3434807466)) = #(U32 3434807466));;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #20) = #1 ≪ #20);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #18) = #1 ≪ #18);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #10) = #1 ≪ #10);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #0) = #1 ≪ #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #32 - #1) = #1 ≪ #32 - #1);;
     ![boolT] "ok".
 Theorem failing_testEncDec32_t: ⊢ failing_testEncDec32 : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -240,9 +240,9 @@ Hint Resolve failing_testEncDec32_t : types.
 Definition testEncDec64Simple: val :=
   rec: "testEncDec64Simple" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #0 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #1 = #1);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #1231234 = #1231234);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #0 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #1 = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #1231234 = #1231234);;
     ![boolT] "ok".
 Theorem testEncDec64Simple_t: ⊢ testEncDec64Simple : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -251,14 +251,14 @@ Hint Resolve testEncDec64Simple_t : types.
 Definition testEncDec64: val :=
   rec: "testEncDec64" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 #62206846038638762 = #62206846038638762);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #63) = #1 ≪ #63);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #47) = #1 ≪ #47);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #20) = #1 ≪ #20);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #18) = #1 ≪ #18);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #10) = #1 ≪ #10);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #0) = #1 ≪ #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (roundtripEncDec64 (#1 ≪ #64 - #1) = #1 ≪ #64 - #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #62206846038638762 = #62206846038638762);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #63) = #1 ≪ #63);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #47) = #1 ≪ #47);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #20) = #1 ≪ #20);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #18) = #1 ≪ #18);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #10) = #1 ≪ #10);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #0) = #1 ≪ #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #64 - #1) = #1 ≪ #64 - #1);;
     ![boolT] "ok".
 Theorem testEncDec64_t: ⊢ testEncDec64 : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -477,7 +477,7 @@ Definition testNestedLoops: val :=
       "i" <-[uint64T] ![uint64T] "i" + #1;;
       "ok2" <-[boolT] (![uint64T] "i" = #1);;
       Break);;
-    ![boolT] "ok1" && ![boolT] "ok2".
+    (![boolT] "ok1") && (![boolT] "ok2").
 Theorem testNestedLoops_t: ⊢ testNestedLoops : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testNestedLoops_t : types.
@@ -528,8 +528,8 @@ Definition testIterateMap: val :=
     MapInsert "m" #0 #1;;
     MapInsert "m" #1 #2;;
     MapInsert "m" #3 #4;;
-    "ok" <-[boolT] ![boolT] "ok" && (IterateMapKeys "m" = #4);;
-    "ok" <-[boolT] ![boolT] "ok" && (IterateMapValues "m" = #7);;
+    "ok" <-[boolT] (![boolT] "ok") && (IterateMapKeys "m" = #4);;
+    "ok" <-[boolT] (![boolT] "ok") && (IterateMapValues "m" = #7);;
     ![boolT] "ok".
 Theorem testIterateMap_t: ⊢ testIterateMap : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -539,11 +539,11 @@ Definition testMapSize: val :=
   rec: "testMapSize" <> :=
     let: "ok" := ref_to boolT #true in
     let: "m" := NewMap uint64T in
-    "ok" <-[boolT] ![boolT] "ok" && (MapLen "m" = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (MapLen "m" = #0);;
     MapInsert "m" #0 #1;;
     MapInsert "m" #1 #2;;
     MapInsert "m" #3 #4;;
-    "ok" <-[boolT] ![boolT] "ok" && (MapLen "m" = #3);;
+    "ok" <-[boolT] (![boolT] "ok") && (MapLen "m" = #3);;
     ![boolT] "ok".
 Theorem testMapSize_t: ⊢ testMapSize : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -620,17 +620,17 @@ Hint Resolve sub64Equals_t : types.
 Definition testReverseAssignOps64: val :=
   rec: "testReverseAssignOps64" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #0 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #1 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #1231234 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 #62206846038638762 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #63) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #47) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #20) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #18) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #10) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #0) = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps64 (#1 ≪ #64 - #1) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 #0 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 #1 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 #1231234 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 #62206846038638762 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #63) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #47) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #20) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #18) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #10) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #0) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #64 - #1) = #0);;
     ![boolT] "ok".
 Theorem testReverseAssignOps64_t: ⊢ testReverseAssignOps64 : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -639,15 +639,15 @@ Hint Resolve testReverseAssignOps64_t : types.
 Definition failing_testReverseAssignOps32: val :=
   rec: "failing_testReverseAssignOps32" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 0)) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 1)) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 1231234)) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#(U32 3434807466)) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #20) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #18) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #10) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #0) = #(U32 0));;
-    "ok" <-[boolT] ![boolT] "ok" && (reverseAssignOps32 (#1 ≪ #32 - #1) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#(U32 0)) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#(U32 1)) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#(U32 1231234)) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#(U32 3434807466)) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #20) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #18) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #10) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #0) = #(U32 0));;
+    "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #32 - #1) = #(U32 0));;
     ![boolT] "ok".
 Theorem failing_testReverseAssignOps32_t: ⊢ failing_testReverseAssignOps32 : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -656,8 +656,8 @@ Hint Resolve failing_testReverseAssignOps32_t : types.
 Definition testAdd64Equals: val :=
   rec: "testAdd64Equals" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && add64Equals #2 #3 #5;;
-    "ok" <-[boolT] ![boolT] "ok" && add64Equals (#1 ≪ #64 - #1) #1 #0;;
+    "ok" <-[boolT] (![boolT] "ok") && (add64Equals #2 #3 #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (add64Equals (#1 ≪ #64 - #1) #1 #0);;
     ![boolT] "ok".
 Theorem testAdd64Equals_t: ⊢ testAdd64Equals : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -666,9 +666,9 @@ Hint Resolve testAdd64Equals_t : types.
 Definition testSub64Equals: val :=
   rec: "testSub64Equals" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && sub64Equals #2 #1 #1;;
-    "ok" <-[boolT] ![boolT] "ok" && sub64Equals (#1 ≪ #64 - #1) (#1 ≪ #63) (#1 ≪ #63 - #1);;
-    "ok" <-[boolT] ![boolT] "ok" && sub64Equals #2 #8 (#1 ≪ #64 - #6);;
+    "ok" <-[boolT] (![boolT] "ok") && (sub64Equals #2 #1 #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (sub64Equals (#1 ≪ #64 - #1) (#1 ≪ #63) (#1 ≪ #63 - #1));;
+    "ok" <-[boolT] (![boolT] "ok") && (sub64Equals #2 #8 (#1 ≪ #64 - #6));;
     ![boolT] "ok".
 Theorem testSub64Equals_t: ⊢ testSub64Equals : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -696,12 +696,12 @@ Hint Resolve testModPrecedence_t : types.
 Definition testBitwiseOpsPrecedence: val :=
   rec: "testBitwiseOpsPrecedence" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (#222 `or` #327 = #479);;
-    "ok" <-[boolT] ![boolT] "ok" && ((#468 `and` #1191) = #132);;
-    "ok" <-[boolT] ![boolT] "ok" && (#453 `xor` #761 = #828);;
-    "ok" <-[boolT] ![boolT] "ok" && (#453 `xor` #761 `or` #121 = #893);;
-    "ok" <-[boolT] ![boolT] "ok" && ((#468 `and` #1191) `or` #333 = #461);;
-    "ok" <-[boolT] ![boolT] "ok" && #222 `or` (#327 `and` #421) ≠ #389;;
+    "ok" <-[boolT] (![boolT] "ok") && (#222 `or` #327 = #479);;
+    "ok" <-[boolT] (![boolT] "ok") && ((#468 `and` #1191) = #132);;
+    "ok" <-[boolT] (![boolT] "ok") && (#453 `xor` #761 = #828);;
+    "ok" <-[boolT] (![boolT] "ok") && (#453 `xor` #761 `or` #121 = #893);;
+    "ok" <-[boolT] (![boolT] "ok") && ((#468 `and` #1191) `or` #333 = #461);;
+    "ok" <-[boolT] (![boolT] "ok") && (#222 `or` (#327 `and` #421) ≠ #389);;
     ![boolT] "ok".
 Theorem testBitwiseOpsPrecedence_t: ⊢ testBitwiseOpsPrecedence : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -710,11 +710,11 @@ Hint Resolve testBitwiseOpsPrecedence_t : types.
 Definition testArithmeticShifts: val :=
   rec: "testArithmeticShifts" <> :=
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && (#672 ≪ #3 = #5376);;
-    "ok" <-[boolT] ![boolT] "ok" && (#672 ≪ #51 = #1513209474796486656);;
-    "ok" <-[boolT] ![boolT] "ok" && (#672 ≫ #4 = #42);;
-    "ok" <-[boolT] ![boolT] "ok" && (#672 ≫ #12 = #0);;
-    "ok" <-[boolT] ![boolT] "ok" && (#672 ≫ #4 ≪ #4 = #672);;
+    "ok" <-[boolT] (![boolT] "ok") && (#672 ≪ #3 = #5376);;
+    "ok" <-[boolT] (![boolT] "ok") && (#672 ≪ #51 = #1513209474796486656);;
+    "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #4 = #42);;
+    "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #12 = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #4 ≪ #4 = #672);;
     ![boolT] "ok".
 Theorem testArithmeticShifts_t: ⊢ testArithmeticShifts : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -722,46 +722,46 @@ Hint Resolve testArithmeticShifts_t : types.
 
 (* precedence.go *)
 
-Definition failing_testOrCompareSimple: val :=
-  rec: "failing_testOrCompareSimple" <> :=
-    (if: #3 > #4 || #4 > #3
+Definition testOrCompareSimple: val :=
+  rec: "testOrCompareSimple" <> :=
+    (if: (#3 > #4) || (#4 > #3)
     then #true
     else #false).
-Theorem failing_testOrCompareSimple_t: ⊢ failing_testOrCompareSimple : (unitT -> boolT).
+Theorem testOrCompareSimple_t: ⊢ testOrCompareSimple : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testOrCompareSimple_t : types.
+Hint Resolve testOrCompareSimple_t : types.
 
-Definition failing_testOrCompare: val :=
-  rec: "failing_testOrCompare" <> :=
+Definition testOrCompare: val :=
+  rec: "testOrCompare" <> :=
     let: "ok" := ref_to boolT #true in
-    (if: ~ (#3 > #4 || #4 > #3)
+    (if: ~ (#3 > #4) || (#4 > #3)
     then
       "ok" <-[boolT] #false;;
       #()
     else #());;
-    (if: #3 > #4 || #2 > #3
+    (if: (#4 < #3) || (#2 > #3)
     then "ok" <-[boolT] #false
     else #());;
     ![boolT] "ok".
-Theorem failing_testOrCompare_t: ⊢ failing_testOrCompare : (unitT -> boolT).
+Theorem testOrCompare_t: ⊢ testOrCompare : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testOrCompare_t : types.
+Hint Resolve testOrCompare_t : types.
 
-Definition failing_testAndCompare: val :=
-  rec: "failing_testAndCompare" <> :=
+Definition testAndCompare: val :=
+  rec: "testAndCompare" <> :=
     let: "ok" := ref_to boolT #true in
-    (if: #3 > #4 && #4 > #3
+    (if: (#3 > #4) && (#4 > #3)
     then
       "ok" <-[boolT] #false;;
       #()
     else #());;
-    (if: #4 > #3 || #3 > #2
+    (if: (#4 > #3) || (#2 < #3)
     then #()
     else "ok" <-[boolT] #false);;
     ![boolT] "ok".
-Theorem failing_testAndCompare_t: ⊢ failing_testAndCompare : (unitT -> boolT).
+Theorem testAndCompare_t: ⊢ testAndCompare : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testAndCompare_t : types.
+Hint Resolve testAndCompare_t : types.
 
 (* prims.go *)
 
@@ -813,7 +813,7 @@ Definition testShortcircuitAndTF: val :=
       "tc" ::= #0;
       "fc" ::= #0
     ] in
-    (if: CheckTrue "b" && CheckFalse "b"
+    (if: (CheckTrue "b") && (CheckFalse "b")
     then #false
     else (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)).
 Theorem testShortcircuitAndTF_t: ⊢ testShortcircuitAndTF : (unitT -> boolT).
@@ -828,7 +828,7 @@ Definition testShortcircuitAndFT: val :=
       "tc" ::= #0;
       "fc" ::= #0
     ] in
-    (if: CheckFalse "b" && CheckTrue "b"
+    (if: (CheckFalse "b") && (CheckTrue "b")
     then #false
     else (struct.loadF BoolTest.S "tc" "b" = #0) && (struct.loadF BoolTest.S "fc" "b" = #1)).
 Theorem testShortcircuitAndFT_t: ⊢ testShortcircuitAndFT : (unitT -> boolT).
@@ -843,7 +843,7 @@ Definition testShortcircuitOrTF: val :=
       "tc" ::= #0;
       "fc" ::= #0
     ] in
-    (if: CheckTrue "b" || CheckFalse "b"
+    (if: (CheckTrue "b") || (CheckFalse "b")
     then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #0)
     else #false).
 Theorem testShortcircuitOrTF_t: ⊢ testShortcircuitOrTF : (unitT -> boolT).
@@ -858,7 +858,7 @@ Definition testShortcircuitOrFT: val :=
       "tc" ::= #0;
       "fc" ::= #0
     ] in
-    (if: CheckFalse "b" || CheckTrue "b"
+    (if: (CheckFalse "b") || (CheckTrue "b")
     then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)
     else #false).
 Theorem testShortcircuitOrFT_t: ⊢ testShortcircuitOrFT : (unitT -> boolT).
@@ -898,13 +898,13 @@ Definition testSliceOps: val :=
     let: "v3" := SliceTake "x" #3 in
     let: "v4" := SliceRef "x" #2 in
     let: "ok" := ref_to boolT #true in
-    "ok" <-[boolT] ![boolT] "ok" && ("v1" = #10);;
-    "ok" <-[boolT] ![boolT] "ok" && (SliceGet uint64T "v2" #0 = #10);;
-    "ok" <-[boolT] ![boolT] "ok" && (slice.len "v2" = #1);;
-    "ok" <-[boolT] ![boolT] "ok" && (SliceGet uint64T "v3" #1 = #5);;
-    "ok" <-[boolT] ![boolT] "ok" && (SliceGet uint64T "v3" #2 = #10);;
-    "ok" <-[boolT] ![boolT] "ok" && (slice.len "v3" = #3);;
-    "ok" <-[boolT] ![boolT] "ok" && (![uint64T] "v4" = #10);;
+    "ok" <-[boolT] (![boolT] "ok") && ("v1" = #10);;
+    "ok" <-[boolT] (![boolT] "ok") && (SliceGet uint64T "v2" #0 = #10);;
+    "ok" <-[boolT] (![boolT] "ok") && (slice.len "v2" = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (SliceGet uint64T "v3" #1 = #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (SliceGet uint64T "v3" #2 = #10);;
+    "ok" <-[boolT] (![boolT] "ok") && (slice.len "v3" = #3);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "v4" = #10);;
     ![boolT] "ok".
 Theorem testSliceOps_t: ⊢ testSliceOps : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -958,7 +958,7 @@ Definition failing_testStringAppend: val :=
     let: "ok" := ref_to boolT #true in
     let: "s" := ref_to stringT #(str"123") in
     let: "y" := ref_to stringT (stringAppend (![stringT] "s") #45) in
-    ![boolT] "ok" && (![stringT] "y" = #(str"12345")).
+    (![boolT] "ok") && (![stringT] "y" = #(str"12345")).
 Theorem failing_testStringAppend_t: ⊢ failing_testStringAppend : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testStringAppend_t : types.
@@ -967,11 +967,11 @@ Definition failing_testStringLength: val :=
   rec: "failing_testStringLength" <> :=
     let: "ok" := ref_to boolT #true in
     let: "s" := ref_to stringT #(str"") in
-    "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (strLen (![stringT] "s") = #0);;
     "s" <-[stringT] stringAppend (![stringT] "s") #1;;
-    "ok" <-[boolT] ![boolT] "ok" && (strLen (![stringT] "s") = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (strLen (![stringT] "s") = #1);;
     "s" <-[stringT] stringAppend (![stringT] "s") #23;;
-    ![boolT] "ok" && (strLen (![stringT] "s") = #3).
+    (![boolT] "ok") && (strLen (![stringT] "s") = #3).
 Theorem failing_testStringLength_t: ⊢ failing_testStringLength : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testStringLength_t : types.
@@ -1046,18 +1046,18 @@ Definition failing_testStructUpdates: val :=
   rec: "failing_testStructUpdates" <> :=
     let: "ok" := ref_to boolT #true in
     let: "ns" := NewS #() in
-    "ok" <-[boolT] ![boolT] "ok" && (S__readA "ns" = #2);;
+    "ok" <-[boolT] (![boolT] "ok") && (S__readA "ns" = #2);;
     let: "b1" := ref_to (struct.t TwoInts.S) (S__readB "ns") in
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b1") = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b1") = #1);;
     S__negateC "ns";;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF S.S "c" "ns" = #false);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF S.S "c" "ns" = #false);;
     struct.storeF TwoInts.S "x" "b1" #3;;
     let: "b2" := ref_to (struct.t TwoInts.S) (S__readB "ns") in
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b2") = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b2") = #1);;
     let: "b3" := ref_to (refT (struct.t TwoInts.S)) (struct.fieldRef S.S "b" "ns") in
-    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "b3") = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "b3") = #1);;
     S__updateBValX "ns" #4;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (S__readBVal "ns") = #4);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (S__readBVal "ns") = #4);;
     ![boolT] "ok".
 Theorem failing_testStructUpdates_t: ⊢ failing_testStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1068,19 +1068,19 @@ Definition testNestedStructUpdates: val :=
     let: "ok" := ref_to boolT #true in
     let: "ns" := ref_to (refT (struct.t S.S)) (NewS #()) in
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
     "ns" <-[refT (struct.t S.S)] NewS #();;
     let: "p" := ref_to (refT (struct.t TwoInts.S)) (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) in
     struct.storeF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") #5;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
     "ns" <-[refT (struct.t S.S)] NewS #();;
     "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.get TwoInts.S "x" (struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p")) = #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p")) = #5);;
     "ns" <-[refT (struct.t S.S)] NewS #();;
     "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] ![boolT] "ok" && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
     ![boolT] "ok".
 Theorem testNestedStructUpdates_t: ⊢ testNestedStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1099,12 +1099,12 @@ Definition testStructConstructions: val :=
       "x" ::= #0;
       "y" ::= #0
     ] in
-    "ok" <-[boolT] ![boolT] "ok" && (![refT (struct.t TwoInts.S)] "p1" = #null);;
+    "ok" <-[boolT] (![boolT] "ok") && (![refT (struct.t TwoInts.S)] "p1" = #null);;
     "p1" <-[refT (struct.t TwoInts.S)] struct.alloc TwoInts.S (zero_val (struct.t TwoInts.S));;
-    "ok" <-[boolT] ![boolT] "ok" && (![struct.t TwoInts.S] "p2" = "p3");;
-    "ok" <-[boolT] ![boolT] "ok" && ("p3" = "p4");;
-    "ok" <-[boolT] ![boolT] "ok" && ("p4" = struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p1"));;
-    "ok" <-[boolT] ![boolT] "ok" && "p4" ≠ ![refT (struct.t TwoInts.S)] "p1";;
+    "ok" <-[boolT] (![boolT] "ok") && (![struct.t TwoInts.S] "p2" = "p3");;
+    "ok" <-[boolT] (![boolT] "ok") && ("p3" = "p4");;
+    "ok" <-[boolT] (![boolT] "ok") && ("p4" = struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p1"));;
+    "ok" <-[boolT] (![boolT] "ok") && ("p4" ≠ ![refT (struct.t TwoInts.S)] "p1");;
     ![boolT] "ok".
 Theorem testStructConstructions_t: ⊢ testStructConstructions : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1395,12 +1395,12 @@ Definition disabled_testWal: val :=
       Log__Write "lg" #2 (intToBlock #11);;
       #()
     else #());;
-    "ok" <-[boolT] ![boolT] "ok" && (blockToInt (Log__Read "lg" #2) = #11);;
-    "ok" <-[boolT] ![boolT] "ok" && (blockToInt (disk.Read #0) = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (blockToInt (Log__Read "lg" #2) = #11);;
+    "ok" <-[boolT] (![boolT] "ok") && (blockToInt (disk.Read #0) = #0);;
     Log__Commit "lg";;
-    "ok" <-[boolT] ![boolT] "ok" && (blockToInt (disk.Read #0) = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (blockToInt (disk.Read #0) = #1);;
     Log__Apply "lg";;
-    "ok" <-[boolT] ![boolT] "ok" && (![uint64T] (struct.get Log.S "length" "lg") = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] (struct.get Log.S "length" "lg") = #0);;
     ![boolT] "ok".
 Theorem disabled_testWal_t: ⊢ disabled_testWal : (unitT -> boolT).
 Proof. typecheck. Qed.

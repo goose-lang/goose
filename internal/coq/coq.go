@@ -508,7 +508,7 @@ func (be BinaryExpr) Coq() string {
 		OpShr:         "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
-		if be.Op == OpQuot || be.Op == OpRem {
+		if be.Op == OpQuot || be.Op == OpRem || be.Op == OpLOr || be.Op == OpLAnd {
 			return fmt.Sprintf("%s %s %s",
 				addParens(be.X.Coq()), binop, addParens(be.Y.Coq()))
 		}
