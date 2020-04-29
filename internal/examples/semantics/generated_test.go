@@ -167,6 +167,18 @@ func (suite *GoTestSuite) TestCompareNilToNil() {
 	suite.Equal(true, testCompareNilToNil())
 }
 
+func (suite *GoTestSuite) TestComparePointerWrappedToNil() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testComparePointerWrappedToNil())
+}
+
+func (suite *GoTestSuite) TestComparePointerWrappedDefaultToNil() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testComparePointerWrappedDefaultToNil())
+}
+
 func (suite *GoTestSuite) TestReverseAssignOps64() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
