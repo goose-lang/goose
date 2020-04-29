@@ -1040,16 +1040,17 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 		ok = true
 	}
 	if ok {
+		expr := coq.BinaryExpr{
+			X:  ctx.expr(e.X),
+			Op: op,
+			Y:  ctx.expr(e.Y),
+		}
 		if ctx.isNilCompareExpr(e) {
 			if _, ok := ctx.typeOf(e.X).(*types.Pointer); ok {
-				return coq.BinaryExpr{
-					X:  ctx.expr(e.X),
-					Op: op,
-					Y:  coq.Null,
-				}
+				expr.Y = coq.Null
 			}
 		}
-		return coq.BinaryExpr{X: ctx.expr(e.X), Op: op, Y: ctx.expr(e.Y)}
+		return expr
 	}
 	ctx.unsupported(e, "binary operator %v", e.Op)
 	return nil

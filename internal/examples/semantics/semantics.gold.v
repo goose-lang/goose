@@ -575,6 +575,23 @@ Theorem testCompareNilToNil_t: ⊢ testCompareNilToNil : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testCompareNilToNil_t : types.
 
+Definition testComparePointerWrappedToNil: val :=
+  rec: "testComparePointerWrappedToNil" <> :=
+    let: "s" := ref (zero_val (slice.T byteT)) in
+    "s" <-[slice.T byteT] NewSlice byteT #1;;
+    ![slice.T byteT] "s" ≠ slice.nil.
+Theorem testComparePointerWrappedToNil_t: ⊢ testComparePointerWrappedToNil : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testComparePointerWrappedToNil_t : types.
+
+Definition testComparePointerWrappedDefaultToNil: val :=
+  rec: "testComparePointerWrappedDefaultToNil" <> :=
+    let: "s" := ref (zero_val (slice.T byteT)) in
+    (![slice.T byteT] "s" = slice.nil).
+Theorem testComparePointerWrappedDefaultToNil_t: ⊢ testComparePointerWrappedDefaultToNil : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testComparePointerWrappedDefaultToNil_t : types.
+
 (* operations.go *)
 
 (* helpers *)
