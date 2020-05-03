@@ -80,6 +80,30 @@ func testBreakFromLoopNoContinue() bool {
 	return (i == 1)
 }
 
+func testBreakFromLoopNoAssignAndContinue() bool {
+	var i uint64 = 0
+	for i < 3 {
+		if true {
+			i = i + 1
+			break
+		}
+		i = i + 2
+		continue
+	}
+	return (i == 1)
+}
+
+func testBreakFromLoop() bool {
+	var i uint64 = 0
+	for i < 3 {
+		if true {
+			i = i + 1
+			break
+		}
+	}
+	return (i == 1)
+}
+
 func testNestedLoops() bool {
 	var ok1 = false
 	var ok2 = false
@@ -109,6 +133,19 @@ func failing_testNestedGoStyleLoops() bool {
 			continue
 		}
 		ok = i == 9
+	}
+	return ok
+}
+
+func failing_testNestedGoStyleLoopsNoComparison() bool {
+	var ok = false
+	for i := uint64(0); i < 10; i++ {
+		for j := uint64(0); j < i; j++ {
+			if true {
+				break
+			}
+			continue
+		}
 	}
 	return ok
 }
