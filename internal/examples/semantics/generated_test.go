@@ -299,6 +299,12 @@ func (suite *GoTestSuite) TestStringLength() {
 	suite.Equal(true, failing_testStringLength())
 }
 
+func (suite *GoTestSuite) TestFooBarMutation() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testFooBarMutation())
+}
+
 func (suite *GoTestSuite) TestStructUpdates() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

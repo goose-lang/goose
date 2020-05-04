@@ -993,6 +993,52 @@ Theorem failing_testStringLength_t: ⊢ failing_testStringLength : (unitT -> boo
 Proof. typecheck. Qed.
 Hint Resolve failing_testStringLength_t : types.
 
+(* struct_pointers.go *)
+
+Module Bar.
+  Definition S := struct.decl [
+    "a" :: uint64T;
+    "b" :: uint64T
+  ].
+End Bar.
+
+(* Foo contains a nested struct which is intended to be manipulated through a
+   Foo pointer *)
+Module Foo.
+  Definition S := struct.decl [
+    "bar" :: struct.t Bar.S
+  ].
+End Foo.
+
+Definition Bar__mutate: val :=
+  rec: "Bar__mutate" "bar" :=
+    struct.storeF Bar.S "a" "bar" #2;;
+    struct.storeF Bar.S "b" "bar" #3.
+Theorem Bar__mutate_t: ⊢ Bar__mutate : (struct.ptrT Bar.S -> unitT).
+Proof. typecheck. Qed.
+Hint Resolve Bar__mutate_t : types.
+
+Definition Foo__mutateBar: val :=
+  rec: "Foo__mutateBar" "foo" :=
+    Bar__mutate (struct.loadF Foo.S "bar" "foo").
+Theorem Foo__mutateBar_t: ⊢ Foo__mutateBar : (struct.ptrT Foo.S -> unitT).
+Proof. typecheck. Qed.
+Hint Resolve Foo__mutateBar_t : types.
+
+Definition failing_testFooBarMutation: val :=
+  rec: "failing_testFooBarMutation" <> :=
+    let: "x" := struct.mk Foo.S [
+      "bar" ::= struct.mk Bar.S [
+        "a" ::= #0;
+        "b" ::= #0
+      ]
+    ] in
+    Foo__mutateBar "x";;
+    (struct.get Bar.S "a" (struct.get Foo.S "bar" "x") = #2).
+Theorem failing_testFooBarMutation_t: ⊢ failing_testFooBarMutation : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testFooBarMutation_t : types.
+
 (* structs.go *)
 
 Module TwoInts.
