@@ -565,8 +565,13 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
-	// FIXME: this hack ensures variadic arguments are passed correctly to
-	//  util.DPrintf
+	// FIXME: this hack ensures util.DPrintf runs correctly in goose-nfsd.
+	//
+	//  We always pass #() instead of a slice with the variadic arguments. The
+	//  function is important to handle but has no observable behavior in
+	//  GooseLang, so it's ok to skip the arguments.
+	//
+	// See https://github.com/mit-pdos/goose-nfsd/blob/master/util/util.go
 	if isIdent(f.X, "util") && f.Sel.Name == "DPrintf" {
 		return coq.NewCallExpr("util.DPrintf",
 			ctx.expr(args[0]),
