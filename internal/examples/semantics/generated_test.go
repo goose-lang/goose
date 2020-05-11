@@ -149,6 +149,24 @@ func (suite *GoTestSuite) TestMapSize() {
 	suite.Equal(true, testMapSize())
 }
 
+func (suite *GoTestSuite) TestReturnTwo() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testReturnTwo())
+}
+
+func (suite *GoTestSuite) TestAnonymousBinding() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAnonymousBinding())
+}
+
+func (suite *GoTestSuite) TestReturnThree() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testReturnThree())
+}
+
 func (suite *GoTestSuite) TestCompareSliceToNil() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

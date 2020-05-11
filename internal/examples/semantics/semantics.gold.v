@@ -549,6 +549,46 @@ Theorem testMapSize_t: ⊢ testMapSize : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testMapSize_t : types.
 
+(* multiple_return.go *)
+
+Definition returnTwo: val :=
+  rec: "returnTwo" <> :=
+    (#2, #3).
+Theorem returnTwo_t: ⊢ returnTwo : (unitT -> (uint64T * uint64T)).
+Proof. typecheck. Qed.
+Hint Resolve returnTwo_t : types.
+
+Definition testReturnTwo: val :=
+  rec: "testReturnTwo" <> :=
+    let: ("x", "y") := returnTwo #() in
+    ("x" = #2) && ("y" = #3).
+Theorem testReturnTwo_t: ⊢ testReturnTwo : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testReturnTwo_t : types.
+
+Definition testAnonymousBinding: val :=
+  rec: "testAnonymousBinding" <> :=
+    let: (<>, "y") := returnTwo #() in
+    ("y" = #3).
+Theorem testAnonymousBinding_t: ⊢ testAnonymousBinding : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testAnonymousBinding_t : types.
+
+Definition returnThree: val :=
+  rec: "returnThree" <> :=
+    (#2, #true, #(U32 1)).
+Theorem returnThree_t: ⊢ returnThree : (unitT -> (uint64T * boolT * uint32T)).
+Proof. typecheck. Qed.
+Hint Resolve returnThree_t : types.
+
+Definition failing_testReturnThree: val :=
+  rec: "failing_testReturnThree" <> :=
+    let: ("x", ("y", "z")) := returnThree #() in
+    ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)).
+Theorem failing_testReturnThree_t: ⊢ failing_testReturnThree : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testReturnThree_t : types.
+
 (* nil.go *)
 
 Definition failing_testCompareSliceToNil: val :=
