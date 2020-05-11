@@ -22,3 +22,12 @@ func failing_testReturnThree() bool {
 	x, y, z := returnThree()
 	return x == 2 && y == true && z == 1
 }
+
+func returnFour() (uint64, bool, uint32, uint64) {
+	return 2, true, 1, 7
+}
+
+func failing_testReturnFour() bool {
+	x, y, z, w := returnFour()
+	return x == 2 && y == true && z == 1 && w == 7
+}

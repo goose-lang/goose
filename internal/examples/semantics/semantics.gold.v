@@ -589,6 +589,21 @@ Theorem failing_testReturnThree_t: ⊢ failing_testReturnThree : (unitT -> boolT
 Proof. typecheck. Qed.
 Hint Resolve failing_testReturnThree_t : types.
 
+Definition returnFour: val :=
+  rec: "returnFour" <> :=
+    (#2, #true, #(U32 1), #7).
+Theorem returnFour_t: ⊢ returnFour : (unitT -> (uint64T * boolT * uint32T * uint64T)).
+Proof. typecheck. Qed.
+Hint Resolve returnFour_t : types.
+
+Definition failing_testReturnFour: val :=
+  rec: "failing_testReturnFour" <> :=
+    let: ("x", ("y", ("z", "w"))) := returnFour #() in
+    ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)) && ("w" = #7).
+Theorem failing_testReturnFour_t: ⊢ failing_testReturnFour : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testReturnFour_t : types.
+
 (* nil.go *)
 
 Definition failing_testCompareSliceToNil: val :=

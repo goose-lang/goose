@@ -167,6 +167,12 @@ func (suite *GoTestSuite) TestReturnThree() {
 	suite.Equal(true, failing_testReturnThree())
 }
 
+func (suite *GoTestSuite) TestReturnFour() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testReturnFour())
+}
+
 func (suite *GoTestSuite) TestCompareSliceToNil() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
