@@ -581,13 +581,13 @@ Theorem returnThree_t: ⊢ returnThree : (unitT -> (uint64T * boolT * uint32T)).
 Proof. typecheck. Qed.
 Hint Resolve returnThree_t : types.
 
-Definition failing_testReturnThree: val :=
-  rec: "failing_testReturnThree" <> :=
-    let: ("x", ("y", "z")) := returnThree #() in
+Definition testReturnThree: val :=
+  rec: "testReturnThree" <> :=
+    let: (("x", "y"), "z") := returnThree #() in
     ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)).
-Theorem failing_testReturnThree_t: ⊢ failing_testReturnThree : (unitT -> boolT).
+Theorem testReturnThree_t: ⊢ testReturnThree : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testReturnThree_t : types.
+Hint Resolve testReturnThree_t : types.
 
 Definition returnFour: val :=
   rec: "returnFour" <> :=
@@ -596,13 +596,13 @@ Theorem returnFour_t: ⊢ returnFour : (unitT -> (uint64T * boolT * uint32T * ui
 Proof. typecheck. Qed.
 Hint Resolve returnFour_t : types.
 
-Definition failing_testReturnFour: val :=
-  rec: "failing_testReturnFour" <> :=
-    let: ("x", ("y", ("z", "w"))) := returnFour #() in
+Definition testReturnFour: val :=
+  rec: "testReturnFour" <> :=
+    let: ((("x", "y"), "z"), "w") := returnFour #() in
     ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)) && ("w" = #7).
-Theorem failing_testReturnFour_t: ⊢ failing_testReturnFour : (unitT -> boolT).
+Theorem testReturnFour_t: ⊢ testReturnFour : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testReturnFour_t : types.
+Hint Resolve testReturnFour_t : types.
 
 (* nil.go *)
 

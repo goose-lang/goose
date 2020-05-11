@@ -328,9 +328,6 @@ type Binding struct {
 	// Names is a list to support anonymous and tuple-destructuring bindings.
 	//
 	// If Names is an empty list the binding is anonymous.
-	//
-	// If len(Names) > 1 then the binding uses the `let! p <- f; rx` notation,
-	// exploiting a pattern in `p` to destructure a tuple.
 	Names []string
 	Expr  Expr
 }
@@ -560,6 +557,7 @@ func (b Binding) AddTo(pp *buffer) {
 		pp.Add("%s", e.Coq())
 		return
 	}
+	// Printing for anonymous and multiple return values
 	if b.isAnonymous() {
 		pp.Add("%s;;", b.Expr.Coq())
 	} else if len(b.Names) == 1 {
@@ -570,13 +568,13 @@ func (b Binding) AddTo(pp *buffer) {
 			binder(b.Names[1]),
 			b.Expr.Coq())
 	} else if len(b.Names) == 3 {
-		pp.Add("let: (%s, (%s, %s)) := %s in",
+		pp.Add("let: ((%s, %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),
 			b.Expr.Coq())
 	} else if len(b.Names) == 4 {
-		pp.Add("let: (%s, (%s, (%s, %s))) := %s in",
+		pp.Add("let: (((%s, %s), %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),

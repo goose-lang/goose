@@ -164,13 +164,13 @@ func (suite *GoTestSuite) TestAnonymousBinding() {
 func (suite *GoTestSuite) TestReturnThree() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testReturnThree())
+	suite.Equal(true, testReturnThree())
 }
 
 func (suite *GoTestSuite) TestReturnFour() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testReturnFour())
+	suite.Equal(true, testReturnFour())
 }
 
 func (suite *GoTestSuite) TestCompareSliceToNil() {
