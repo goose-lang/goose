@@ -11,6 +11,18 @@ type GoTestSuite struct {
 	suite.Suite
 }
 
+func (suite *GoTestSuite) TestAllocateDistinct() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAllocateDistinct())
+}
+
+func (suite *GoTestSuite) TestAllocateFull() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAllocateFull())
+}
+
 func (suite *GoTestSuite) TestCompareAll() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
