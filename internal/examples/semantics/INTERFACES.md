@@ -1,21 +1,21 @@
 ## Plan for Implementation
 
 ### Basic Interfaces
-[] Create tuple of methods, ie `(catHello, catBye)`
-[] Return (method, typeDescriptor, value) when interface is called, value is a pointer to original value 
-[] Create interfaceT type in coq, defined by a list of arrowT methods, including `interfaceT []` empty interface 
-[] No proofs for now, including typecheck
+[X] Create tuple of methods, ie `(catHello, catBye)`
+[X] Return (method, typeDescriptor, value) when interface is called, value is a pointer to original value 
+[X] Create interfaceT type in coq, defined by a list of arrowT methods, including `interfaceT []` empty interface 
+[X] No proofs for now, including typecheck
 
 ### Type Switches 
 
-[] Handle empty interfaces, ie 
+[X] Handle empty interfaces, ie 
 ```
 func switch(x interface{}) ...
 ```
 
-[] Built method table as collection of methods, string, anyT (needs dynamic value)
+[X] Built method table as collection of methods, string, anyT (needs dynamic value)
 [] Sort order of methods
-[] Use struct for collection of methods (use search field by name function), ie
+[X] Use struct for collection of methods (use search field by name function), ie
 
 ```
 (getMethod x.1 "Get" )

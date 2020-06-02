@@ -2,26 +2,110 @@ package semantics
 
 import "fmt"
 
-type shape interface {
-	area() uint64
-	perim() uint64
+type greeting interface {
+	intro() string
 }
 
-type rect struct {
-	width  uint64
-	height uint64
+// Definition greeting := struct.decl [
+//		"method" :: struct.decl [
+//			"intro" :: string;
+//		];
+//		"typeDescriptor" :: #"greeting";
+//		"value" :: anyT;
+//   ].
+
+type food interface {
+	dish() string
 }
 
-func (r rect) area() uint64 {
-	return r.width * r.height
+// Definition food := struct.decl [
+//		"method" :: struct.decl [
+//			"dish" :: string;
+//		];
+//		"typeDescriptor" :: #"food";
+//		"value" :: anyT;
+//   ].
+
+type person struct {
+	name  string
+	meal string
 }
 
-func (r rect) perim() uint64 {
-	return 2*r.width + 2*r.height
+type animal struct {
+	bark string
+	kibble string
 }
 
-func measure(s shape) {
-	fmt.Println(s)
-	fmt.Println(s.area())
-	fmt.Println(s.perim())
+func (p person) intro() string {
+	return p.name
 }
+
+func (a animal) intro() string {
+	return a.bark
+}
+
+func (p person) feed() string {
+	return p.meal
+}
+
+func (a animal) feed() string {
+	return a.kibble
+}
+
+func greet(g greeting) {
+	fmt.Printf("%s\n", g.intro())
+}
+
+func eating(f food) {
+	fmt.Printf("%s\n", g.dish())
+}
+
+// Definition greet: val :=
+//   rec: "greet" "s" :=
+//     ((intro), greeting, anyT).
+// Theorem greet_t: ⊢ greet : (shape -> unitT).
+// Proof. typecheck. Qed.
+// Hint Resolve greet_t : types.
+
+func main() {
+	greeting(person{name: "Bob"})
+	food(animal{kibble: "Buster's Feed"})
+}
+
+// Empty interface
+
+var x interface{}
+
+// Definition x := struct.decl [
+//   ].
+
+// Type assertion
+
+var x interface{} = "foo"
+
+// Definition x := struct.decl [
+//		"method" :: struct.decl [];
+//		"typeDescriptor" :: #"x";
+//		"value" :: string;
+//   ].
+
+var s string = x.(string) // "foo"
+
+s, ok := x.(string)
+
+// Type switch
+
+switch v := x.(type) {
+case nil:
+    fmt.Println("x is nil")
+case int: 
+    fmt.Println("x is", v)
+case bool, string:
+    fmt.Println("x is bool or string")
+default:
+    fmt.Println("type unknown")
+}
+
+// Downcast
+
+// Double pointers
