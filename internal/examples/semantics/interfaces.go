@@ -6,33 +6,17 @@ type greeting interface {
 	intro() string
 }
 
-// Definition greeting := struct.decl [
-//		"method" :: struct.decl [
-//			"intro" :: string;
-//		];
-//		"typeDescriptor" :: #"greeting";
-//		"value" :: anyT;
-//   ].
-
 type food interface {
 	dish() string
 }
 
-// Definition food := struct.decl [
-//		"method" :: struct.decl [
-//			"dish" :: string;
-//		];
-//		"typeDescriptor" :: #"food";
-//		"value" :: anyT;
-//   ].
-
 type person struct {
-	name  string
+	name string
 	meal string
 }
 
 type animal struct {
-	bark string
+	bark   string
 	kibble string
 }
 
@@ -70,42 +54,33 @@ func eating(f food) {
 func main() {
 	greeting(person{name: "Bob"})
 	food(animal{kibble: "Buster's Feed"})
-}
 
-// Empty interface
+	// Empty interface
 
-var x interface{}
+	var x interface{}
 
-// Definition x := struct.decl [
-//   ].
+	// Type assertion
 
-// Type assertion
+	var y interface{} = "foo"
 
-var x interface{} = "foo"
+	var s string = y.(string)
 
-// Definition x := struct.decl [
-//		"method" :: struct.decl [];
-//		"typeDescriptor" :: #"x";
-//		"value" :: string;
-//   ].
+	// Type switch
 
-var s string = x.(string) // "foo"
-
-s, ok := x.(string)
-
-// Type switch
-
-switch v := x.(type) {
-case nil:
-    fmt.Println("x is nil")
-case int: 
-    fmt.Println("x is", v)
-case bool, string:
-    fmt.Println("x is bool or string")
-default:
-    fmt.Println("type unknown")
+	switch v := y.(type) {
+	case nil:
+		fmt.Println("y is nil")
+	case int:
+		fmt.Println("y is", v)
+	case bool, string:
+		fmt.Println("y is bool or string")
+	default:
+		fmt.Println("type unknown")
+	}
 }
 
 // Downcast
+
+// No interface to interface casting
 
 // Double pointers

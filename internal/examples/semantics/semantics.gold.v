@@ -348,6 +348,41 @@ Theorem failing_testFunctionOrdering_t: ⊢ failing_testFunctionOrdering : (unit
 Proof. typecheck. Qed.
 Hint Resolve failing_testFunctionOrdering_t : types.
 
+(* interfaces.go *)
+
+Definition shape: ty := anyT.
+
+Module rect.
+  Definition S := struct.decl [
+    "width" :: uint64T;
+    "height" :: uint64T
+  ].
+End rect.
+
+Definition rect__area: val :=
+  rec: "rect__area" "r" :=
+    struct.get rect.S "width" "r" * struct.get rect.S "height" "r".
+Theorem rect__area_t: ⊢ rect__area : (struct.t rect.S -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve rect__area_t : types.
+
+Definition rect__perim: val :=
+  rec: "rect__perim" "r" :=
+    #2 * struct.get rect.S "width" "r" + #2 * struct.get rect.S "height" "r".
+Theorem rect__perim_t: ⊢ rect__perim : (struct.t rect.S -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve rect__perim_t : types.
+
+Definition measure: val :=
+  rec: "measure" "s" :=
+    (* fmt.Println(s) *)
+    (* fmt.Println(s.area()) *)
+    (* fmt.Println(s.perim()) *)
+    #().
+Theorem measure_t: ⊢ measure : (shape -> unitT).
+Proof. typecheck. Qed.
+Hint Resolve measure_t : types.
+
 (* lock.go *)
 
 (* We can't interpret multithreaded code, so this just checks that
@@ -459,6 +494,39 @@ Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT 
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopNoContinue_t : types.
 
+Definition testBreakFromLoopNoAssignAndContinue: val :=
+  rec: "testBreakFromLoopNoAssignAndContinue" <> :=
+    let: "i" := ref_to uint64T #0 in
+    Skip;;
+    (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
+      (if: #true
+      then
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
+        Break
+      else
+        "i" <-[uint64T] ![uint64T] "i" + #2;;
+        Continue));;
+    (![uint64T] "i" = #1).
+Theorem testBreakFromLoopNoAssignAndContinue_t: ⊢ testBreakFromLoopNoAssignAndContinue : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testBreakFromLoopNoAssignAndContinue_t : types.
+
+Definition testBreakFromLoop: val :=
+  rec: "testBreakFromLoop" <> :=
+    let: "i" := ref_to uint64T #0 in
+    Skip;;
+    (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
+      (if: #true
+      then
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
+        Break
+      else #());;
+      Continue);;
+    (![uint64T] "i" = #1).
+Theorem testBreakFromLoop_t: ⊢ testBreakFromLoop : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testBreakFromLoop_t : types.
+
 Definition testNestedLoops: val :=
   rec: "testNestedLoops" <> :=
     let: "ok1" := ref_to boolT #false in
@@ -496,6 +564,38 @@ Definition failing_testNestedGoStyleLoops: val :=
 Theorem failing_testNestedGoStyleLoops_t: ⊢ failing_testNestedGoStyleLoops : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testNestedGoStyleLoops_t : types.
+
+Definition failing_testNestedGoStyleLoopsNoComparison: val :=
+  rec: "failing_testNestedGoStyleLoopsNoComparison" <> :=
+    let: "ok" := ref_to boolT #false in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
+      let: "j" := ref_to uint64T #0 in
+      (for: (λ: <>, ![uint64T] "j" < ![uint64T] "i"); (λ: <>, "j" <-[uint64T] ![uint64T] "j" + #1) := λ: <>,
+        (if: #true
+        then Break
+        else Continue));;
+      Continue);;
+    ![boolT] "ok".
+Theorem failing_testNestedGoStyleLoopsNoComparison_t: ⊢ failing_testNestedGoStyleLoopsNoComparison : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testNestedGoStyleLoopsNoComparison_t : types.
+
+Definition failing_testNestedGoStyleLoopsElse: val :=
+  rec: "failing_testNestedGoStyleLoopsElse" <> :=
+    let: "ok" := ref_to boolT #false in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
+      let: "j" := ref_to uint64T #0 in
+      (for: (λ: <>, ![uint64T] "j" < ![uint64T] "i"); (λ: <>, "j" <-[uint64T] ![uint64T] "j" + #1) := λ: <>,
+        (if: #true
+        then Break
+        else Continue));;
+      Continue);;
+    ![boolT] "ok".
+Theorem failing_testNestedGoStyleLoopsElse_t: ⊢ failing_testNestedGoStyleLoopsElse : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testNestedGoStyleLoopsElse_t : types.
 
 (* maps.go *)
 

@@ -234,6 +234,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("boolT")
 		case "string", "untyped string":
 			return coq.TypeIdent("stringT")
+		case "float64":
+			ctx.unsupported(n, "basic type %s", t.Name())
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -283,6 +285,11 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
+func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Type {
+	// TODO: get the type descriptor from parent node
+	return coq.InterfaceStmt{Method: ctx.paramList(e.Methods), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
+}
+
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 	// check for *sync.Mutex
 	if e, ok := e.X.(*ast.SelectorExpr); ok {
@@ -321,9 +328,9 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.ptrType(e)
 	case *ast.InterfaceType:
 		if isEmptyInterface(e) {
-			return coq.TypeIdent("anyT")
+			return coq.TypeIdent("interfaceT")
 		} else {
-			ctx.unsupported(e, "non-empty interface")
+			return ctx.interfaceType(e)
 		}
 	case *ast.Ellipsis:
 		// NOTE: ellipsis types are not fully supported
@@ -1917,10 +1924,33 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
+	case *ast.TypeSwitchStmt:
+		return ctx.typeSwitchStmt(s)
+	// TODO: Add SwitchStmt
 	default:
 		ctx.unsupported(s, "statement")
 	}
 	return coq.Binding{}
+}
+
+func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt) coq.Binding {
+	var ident = ctx.expr(s.Assign.Rhs)
+
+	for _, i := range interfaces {
+		// TODO: get type from interfaces (also make global interfaces table)
+	}
+
+	if len(s.Body.List) > 0 {
+		for _, i := range s.Body.List {
+			for _, j := range i {
+				if ident == j.Value {
+					return coq.NewAnon(ctx.expr(j.Expr))
+				}
+			}
+		}
+	}
+
+	return ctx.unsupported(s, "switch statement does not contain the type")
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {

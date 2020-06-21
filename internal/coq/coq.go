@@ -191,6 +191,14 @@ func (t MapType) Coq() string {
 	return NewCallExpr("mapT", t.Value).Coq()
 }
 
+type InterfaceType struct {
+	Value Type
+}
+
+func (t InterfaceType) Coq() string {
+	return NewCallExpr("interfaceT", t.Value).Coq()
+}
+
 type SliceType struct {
 	Value Type
 }
@@ -620,6 +628,12 @@ type RefExpr struct {
 
 func (e RefExpr) Coq() string {
 	return NewCallExpr("ref_to", e.Ty, e.X).Coq()
+}
+
+type InterfaceStmt struct {
+	Method         []FieldDecl
+	TypeDescriptor string
+	Value          Type
 }
 
 type StoreStmt struct {
