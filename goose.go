@@ -40,6 +40,12 @@ type identCtx struct {
 	info map[scopedName]identInfo
 }
 
+type interfaceCtx struct {
+	method         []string
+	typeDescriptor string
+	value          string
+}
+
 func newIdentCtx() identCtx {
 	return identCtx{info: make(map[scopedName]identInfo)}
 }
@@ -108,10 +114,11 @@ func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	idents  identCtx
-	info    *types.Info
-	fset    *token.FileSet
-	pkgPath string
+	idents     identCtx
+	info       *types.Info
+	fset       *token.FileSet
+	pkgPath    string
+	interfaces []interfaceCtx
 	errorReporter
 	Config
 }
@@ -285,9 +292,9 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
-func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Type {
+func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Binding {
 	// TODO: get the type descriptor from parent node
-	return coq.InterfaceStmt{Method: ctx.paramList(e.Methods), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
+	return coq.InterfaceStmt{Method: ctx.paramList(e.Methods.List), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
@@ -1925,7 +1932,7 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
 	case *ast.TypeSwitchStmt:
-		return ctx.typeSwitchStmt(s)
+		return ctx.typeSwitchStmt(s, c, loopVar)
 	// TODO: Add SwitchStmt
 	default:
 		ctx.unsupported(s, "statement")
@@ -1933,18 +1940,21 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	return coq.Binding{}
 }
 
-func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt) coq.Binding {
-	var ident = ctx.expr(s.Assign.Rhs)
+func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, c *cursor, loopVar *string) coq.Binding {
+	var ident = s.Assign.Rhs.X.Name
+	var td = "anyT"
 
-	for _, i := range interfaces {
-		// TODO: get type from interfaces (also make global interfaces table)
+	for _, i := range ctx.interfaces {
+		if i.typeDescriptor == ident {
+			td = i.value
+		}
 	}
 
 	if len(s.Body.List) > 0 {
 		for _, i := range s.Body.List {
-			for _, j := range i {
-				if ident == j.Value {
-					return coq.NewAnon(ctx.expr(j.Expr))
+			for _, j := range i.List {
+				if td == j.List.Name {
+					return coq.NewAnon(ctx.expr(j.Body.X))
 				}
 			}
 		}
