@@ -1281,6 +1281,30 @@ func endsWithReturn(s ast.Stmt) bool {
 	}
 }
 
+func endsWithContinue(s ast.Stmt) bool {
+	if s == nil {
+		return false
+	}
+	switch s := s.(type) {
+	case *ast.BlockStmt:
+		return stmtsEndWithContinue(s.List)
+	default:
+		return stmtsEndWithContinue([]ast.Stmt{s})
+	}
+}
+
+func endsWithAssign(s ast.Stmt) bool {
+	if s == nil {
+		return false
+	}
+	switch s := s.(type) {
+	case *ast.BlockStmt:
+		return stmtsEndWithAssign(s.List)
+	default:
+		return stmtsEndWithAssign([]ast.Stmt{s})
+	}
+}
+
 func stmtsEndWithReturn(ss []ast.Stmt) bool {
 	if len(ss) == 0 {
 		return false
@@ -1288,6 +1312,28 @@ func stmtsEndWithReturn(ss []ast.Stmt) bool {
 	// TODO: should also catch implicit continue
 	switch ss[len(ss)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
+		return true
+	}
+	return false
+}
+
+func stmtsEndWithContinue(ss []ast.Stmt) bool {
+	if len(ss) == 0 {
+		return false
+	}
+	switch ss[len(ss)-1].(type) {
+	case *ast.BranchStmt:
+		return true
+	}
+	return false
+}
+
+func stmtsEndWithAssign(ss []ast.Stmt) bool {
+	if len(ss) == 0 {
+		return false
+	}
+	switch ss[len(ss)-1].(type) {
+	case *ast.AssignStmt:
 		return true
 	}
 	return false
@@ -1419,12 +1465,14 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 
 	hasExplicitBranch := endsWithReturn(s.Body)
+	hasExplicitAssign := endsWithAssign(s.Body)
+
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	if !hasExplicitBranch {
+	if !hasExplicitBranch && !hasExplicitAssign {
 		bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
 	}
 	body := coq.BlockExpr{bindings}
