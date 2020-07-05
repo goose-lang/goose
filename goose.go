@@ -40,6 +40,12 @@ type identCtx struct {
 	info map[scopedName]identInfo
 }
 
+type interfaceCtx struct {
+	method         []string
+	typeDescriptor string
+	value          string
+}
+
 func newIdentCtx() identCtx {
 	return identCtx{info: make(map[scopedName]identInfo)}
 }
@@ -112,6 +118,11 @@ type Ctx struct {
 	info    *types.Info
 	fset    *token.FileSet
 	pkgPath string
+	idents     identCtx
+	info       *types.Info
+	fset       *token.FileSet
+	pkgPath    string
+	interfaces []interfaceCtx
 	errorReporter
 	Config
 }
@@ -234,6 +245,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("boolT")
 		case "string", "untyped string":
 			return coq.TypeIdent("stringT")
+		case "float64":
+			ctx.unsupported(n, "basic type %s", t.Name())
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -282,6 +295,11 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 		return coq.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
 	}
 	return coq.SliceType{ctx.coqType(e.Elt)}
+}
+
+func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Binding {
+	// TODO: get the type descriptor from parent node
+	return coq.InterfaceStmt{Method: ctx.paramList(e.Methods.List), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
@@ -335,9 +353,9 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.ptrType(e)
 	case *ast.InterfaceType:
 		if isEmptyInterface(e) {
-			return coq.TypeIdent("anyT")
+			return coq.TypeIdent("interfaceT")
 		} else {
-			ctx.unsupported(e, "non-empty interface")
+			return ctx.interfaceType(e)
 		}
 	case *ast.Ellipsis:
 		// NOTE: ellipsis types are not fully supported
@@ -1947,10 +1965,36 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
+	case *ast.TypeSwitchStmt:
+		return ctx.typeSwitchStmt(s, c, loopVar)
+	// TODO: Add SwitchStmt
 	default:
 		ctx.unsupported(s, "statement")
 	}
 	return coq.Binding{}
+}
+
+func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, c *cursor, loopVar *string) coq.Binding {
+	var ident = s.Assign.Rhs.X.Name
+	var td = "anyT"
+
+	for _, i := range ctx.interfaces {
+		if i.typeDescriptor == ident {
+			td = i.value
+		}
+	}
+
+	if len(s.Body.List) > 0 {
+		for _, i := range s.Body.List {
+			for _, j := range i.List {
+				if td == j.List.Name {
+					return coq.NewAnon(ctx.expr(j.Body.X))
+				}
+			}
+		}
+	}
+
+	return ctx.unsupported(s, "switch statement does not contain the type")
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
