@@ -146,6 +146,7 @@ func failing_testNestedGoStyleLoopsNoComparison() bool {
 			}
 			continue
 		}
+		ok = i == 9
 	}
 	return ok
 }

@@ -487,7 +487,7 @@ Definition failing_testNestedGoStyleLoopsNoComparison: val :=
         (if: #true
         then Break
         else Continue));;
-      Continue);;
+      "ok" <-[boolT] (![uint64T] "i" = #9));;
     ![boolT] "ok".
 
 (* maps.go *)
