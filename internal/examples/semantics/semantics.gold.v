@@ -33,8 +33,7 @@ Definition freeRange: val :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "sz"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       MapInsert "m" (![uint64T] "i") (struct.mk unit.S [
-      ]);;
-      Continue);;
+      ]));;
     "m".
 
 Definition testAllocateDistinct: val :=
