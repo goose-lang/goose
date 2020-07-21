@@ -2,9 +2,10 @@
 package semantics
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/disk"
-	"testing"
 )
 
 type GoTestSuite struct {
@@ -134,7 +135,7 @@ func (suite *GoTestSuite) TestBreakFromLoopWithContinue() {
 func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testBreakFromLoopNoContinue())
+	suite.Equal(true, testBreakFromLoopNoContinue())
 }
 
 func (suite *GoTestSuite) TestNestedLoops() {
@@ -147,6 +148,18 @@ func (suite *GoTestSuite) TestNestedGoStyleLoops() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
 	suite.Equal(true, testNestedGoStyleLoops())
+}
+
+func (suite *GoTestSuite) failing_testNestedGoStyleLoopsNoComparison() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testNestedGoStyleLoopsNoComparison())
+}
+
+func (suite *GoTestSuite) failing_testNestedGoStyleLoopsElse() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testNestedGoStyleLoopsElse())
 }
 
 func (suite *GoTestSuite) TestIterateMap() {
