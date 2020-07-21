@@ -150,12 +150,6 @@ func (suite *GoTestSuite) TestNestedGoStyleLoops() {
 	suite.Equal(true, testNestedGoStyleLoops())
 }
 
-func (suite *GoTestSuite) failing_testNestedGoStyleLoopsNoComparison() {
-	d := disk.NewMemDisk(30)
-	disk.Init(d)
-	suite.Equal(false, failing_testNestedGoStyleLoopsNoComparison())
-}
-
 func (suite *GoTestSuite) TestIterateMap() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
