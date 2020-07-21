@@ -490,19 +490,6 @@ Definition failing_testNestedGoStyleLoopsNoComparison: val :=
       Continue);;
     ![boolT] "ok".
 
-Definition failing_testNestedGoStyleLoopsElse: val :=
-  rec: "failing_testNestedGoStyleLoopsElse" <> :=
-    let: "ok" := ref_to boolT #false in
-    let: "i" := ref_to uint64T #0 in
-    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
-      let: "j" := ref_to uint64T #0 in
-      (for: (λ: <>, ![uint64T] "j" < ![uint64T] "i"); (λ: <>, "j" <-[uint64T] ![uint64T] "j" + #1) := λ: <>,
-        (if: #true
-        then Break
-        else Continue));;
-      Continue);;
-    ![boolT] "ok".
-
 (* maps.go *)
 
 Definition IterateMapKeys: val :=

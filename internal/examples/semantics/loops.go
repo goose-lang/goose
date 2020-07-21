@@ -149,19 +149,3 @@ func failing_testNestedGoStyleLoopsNoComparison() bool {
 	}
 	return ok
 }
-
-func failing_testNestedGoStyleLoopsElse() bool {
-	var ok = false
-	for i := uint64(0); i < 10; i++ {
-		for j := uint64(0); j < i; j++ {
-			if true {
-				break
-			}
-			// else {
-			// 	break
-			// }
-			continue
-		}
-	}
-	return ok
-}
