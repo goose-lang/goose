@@ -114,10 +114,6 @@ func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	idents  identCtx
-	info    *types.Info
-	fset    *token.FileSet
-	pkgPath string
 	idents     identCtx
 	info       *types.Info
 	fset       *token.FileSet
@@ -271,6 +267,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Map:
 		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
 		// TODO: to support pointers to function types, need to add case *types.Signature:
+	case *types.Interface:
+		return coq.InterfaceType{}
 	}
 	panic(fmt.Errorf("unhandled type %v", t))
 }
@@ -297,9 +295,9 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
-func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Binding {
+func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Type {
 	// TODO: get the type descriptor from parent node
-	return coq.InterfaceStmt{Method: ctx.paramList(e.Methods.List), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
+	return coq.InterfaceType{ctx.coqType(e)} //Method: ctx.paramList(e.Methods.List), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
@@ -1272,6 +1270,8 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 		return ctx.callExpr(e)
 	case *ast.MapType:
 		return ctx.mapType(e)
+	case *ast.InterfaceType:
+		return ctx.interfaceType(e)
 	case *ast.Ident:
 		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
@@ -1975,26 +1975,26 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 }
 
 func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, c *cursor, loopVar *string) coq.Binding {
-	var ident = s.Assign.Rhs.X.Name
+	var ident = s.Assign
 	var td = "anyT"
 
 	for _, i := range ctx.interfaces {
-		if i.typeDescriptor == ident {
+		if i.typeDescriptor == "sample" {
 			td = i.value
 		}
 	}
 
 	if len(s.Body.List) > 0 {
 		for _, i := range s.Body.List {
-			for _, j := range i.List {
-				if td == j.List.Name {
-					return coq.NewAnon(ctx.expr(j.Body.X))
-				}
+			// for _, j := range i {//.List {
+			if td == j.List.Name {
+				return coq.NewAnon(ctx.expr(j.Body.X))
+				// }
 			}
 		}
 	}
 
-	return ctx.unsupported(s, "switch statement does not contain the type")
+	return coq.Binding{}
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {

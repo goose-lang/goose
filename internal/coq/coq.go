@@ -646,7 +646,7 @@ func (e RefExpr) Coq() string {
 }
 
 type InterfaceStmt struct {
-	Method         []string
+	Method         []FieldDecl
 	TypeDescriptor string
 	Value          Type
 }
