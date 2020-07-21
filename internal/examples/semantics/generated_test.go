@@ -2,10 +2,9 @@
 package semantics
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/disk"
+	"testing"
 )
 
 type GoTestSuite struct {
@@ -162,10 +161,10 @@ func (suite *GoTestSuite) TestNestedGoStyleLoops() {
 	suite.Equal(true, testNestedGoStyleLoops())
 }
 
-func (suite *GoTestSuite) failing_testNestedGoStyleLoopsNoComparison() {
+func (suite *GoTestSuite) TestNestedGoStyleLoopsNoComparison() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(false, failing_testNestedGoStyleLoopsNoComparison())
+	suite.Equal(true, failing_testNestedGoStyleLoopsNoComparison())
 }
 
 func (suite *GoTestSuite) TestIterateMap() {
