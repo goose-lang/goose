@@ -20,18 +20,12 @@ Definition findKey: val :=
         "ok" <-[boolT] #true
       else #()));;
     (![uint64T] "found", ![boolT] "ok").
-Theorem findKey_t: ⊢ findKey : (mapT (struct.t unit.S) -> (uint64T * boolT)).
-Proof. typecheck. Qed.
-Hint Resolve findKey_t : types.
 
 Definition allocate: val :=
   rec: "allocate" "m" :=
     let: ("k", "ok") := findKey "m" in
     MapDelete "m" "k";;
     ("k", "ok").
-Theorem allocate_t: ⊢ allocate : (mapT (struct.t unit.S) -> (uint64T * boolT)).
-Proof. typecheck. Qed.
-Hint Resolve allocate_t : types.
 
 Definition freeRange: val :=
   rec: "freeRange" "sz" :=
@@ -39,11 +33,9 @@ Definition freeRange: val :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "sz"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       MapInsert "m" (![uint64T] "i") (struct.mk unit.S [
-      ]));;
+      ]);;
+      Continue);;
     "m".
-Theorem freeRange_t: ⊢ freeRange : (uint64T -> mapT (struct.t unit.S)).
-Proof. typecheck. Qed.
-Hint Resolve freeRange_t : types.
 
 Definition testAllocateDistinct: val :=
   rec: "testAllocateDistinct" <> :=
@@ -51,9 +43,6 @@ Definition testAllocateDistinct: val :=
     let: ("a1", <>) := allocate "free" in
     let: ("a2", <>) := allocate "free" in
     "a1" ≠ "a2".
-Theorem testAllocateDistinct_t: ⊢ testAllocateDistinct : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testAllocateDistinct_t : types.
 
 Definition testAllocateFull: val :=
   rec: "testAllocateFull" <> :=
@@ -62,9 +51,6 @@ Definition testAllocateFull: val :=
     let: (<>, "ok2") := allocate "free" in
     let: (<>, "ok3") := allocate "free" in
     ("ok1" && "ok2") && (~ "ok3").
-Theorem testAllocateFull_t: ⊢ testAllocateFull : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testAllocateFull_t : types.
 
 (* comparisons.go *)
 
@@ -80,9 +66,6 @@ Definition testCompareAll: val :=
     (if: ![boolT] "nok"
     then #false
     else ![boolT] "ok").
-Theorem testCompareAll_t: ⊢ testCompareAll : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareAll_t : types.
 
 Definition testCompareGT: val :=
   rec: "testCompareGT" <> :=
@@ -92,9 +75,6 @@ Definition testCompareGT: val :=
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" > #4);;
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" > ![uint64T] "x");;
     ![boolT] "ok".
-Theorem testCompareGT_t: ⊢ testCompareGT : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareGT_t : types.
 
 Definition testCompareGE: val :=
   rec: "testCompareGE" <> :=
@@ -107,9 +87,6 @@ Definition testCompareGE: val :=
     (if: ![uint64T] "y" > #5
     then #false
     else ![boolT] "ok").
-Theorem testCompareGE_t: ⊢ testCompareGE : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareGE_t : types.
 
 Definition testCompareLT: val :=
   rec: "testCompareLT" <> :=
@@ -119,9 +96,6 @@ Definition testCompareLT: val :=
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "y" < #6);;
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "x" < ![uint64T] "y");;
     ![boolT] "ok".
-Theorem testCompareLT_t: ⊢ testCompareLT : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareLT_t : types.
 
 Definition testCompareLE: val :=
   rec: "testCompareLE" <> :=
@@ -134,9 +108,6 @@ Definition testCompareLE: val :=
     (if: ![uint64T] "y" < #5
     then #false
     else ![boolT] "ok").
-Theorem testCompareLE_t: ⊢ testCompareLE : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareLE_t : types.
 
 (* conversions.go *)
 
@@ -144,24 +115,15 @@ Definition literalCast: val :=
   rec: "literalCast" <> :=
     let: "x" := #2 in
     "x" + #2.
-Theorem literalCast_t: ⊢ literalCast : (unitT -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve literalCast_t : types.
 
 Definition stringToByteSlice: val :=
   rec: "stringToByteSlice" "s" :=
     let: "p" := Data.stringToBytes "s" in
     "p".
-Theorem stringToByteSlice_t: ⊢ stringToByteSlice : (stringT -> slice.T byteT).
-Proof. typecheck. Qed.
-Hint Resolve stringToByteSlice_t : types.
 
 Definition byteSliceToString: val :=
   rec: "byteSliceToString" "p" :=
     Data.bytesToString "p".
-Theorem byteSliceToString_t: ⊢ byteSliceToString : (slice.T byteT -> stringT).
-Proof. typecheck. Qed.
-Hint Resolve byteSliceToString_t : types.
 
 (* tests *)
 Definition testByteSliceToString: val :=
@@ -171,9 +133,6 @@ Definition testByteSliceToString: val :=
     SliceSet byteT "x" #1 (#(U8 66));;
     SliceSet byteT "x" #2 (#(U8 67));;
     (byteSliceToString "x" = #(str"ABC")).
-Theorem testByteSliceToString_t: ⊢ testByteSliceToString : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testByteSliceToString_t : types.
 
 (* copy.go *)
 
@@ -184,9 +143,6 @@ Definition testCopySimple: val :=
     let: "y" := NewSlice byteT #10 in
     SliceCopy byteT "y" "x";;
     (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem testCopySimple_t: ⊢ testCopySimple : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCopySimple_t : types.
 
 Definition testCopyShorterDst: val :=
   rec: "testCopyShorterDst" <> :=
@@ -196,9 +152,6 @@ Definition testCopyShorterDst: val :=
     let: "y" := NewSlice byteT #10 in
     let: "n" := SliceCopy byteT "y" "x" in
     ("n" = #10) && (SliceGet byteT "y" #3 = #(U8 1)).
-Theorem testCopyShorterDst_t: ⊢ testCopyShorterDst : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCopyShorterDst_t : types.
 
 Definition testCopyShorterSrc: val :=
   rec: "testCopyShorterSrc" <> :=
@@ -208,9 +161,6 @@ Definition testCopyShorterSrc: val :=
     SliceSet byteT "y" #12 (#(U8 2));;
     let: "n" := SliceCopy byteT "y" "x" in
     ("n" = #10) && (SliceGet byteT "y" #3 = #(U8 1)) && (SliceGet byteT "y" #12 = #(U8 2)).
-Theorem testCopyShorterSrc_t: ⊢ testCopyShorterSrc : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCopyShorterSrc_t : types.
 
 (* encoding.go *)
 
@@ -226,9 +176,6 @@ Definition Enc__consume: val :=
     let: "b" := SliceTake (struct.loadF Enc.S "p" "e") "n" in
     struct.storeF Enc.S "p" "e" (SliceSkip byteT (struct.loadF Enc.S "p" "e") "n");;
     "b".
-Theorem Enc__consume_t: ⊢ Enc__consume : (struct.ptrT Enc.S -> uint64T -> slice.T byteT).
-Proof. typecheck. Qed.
-Hint Resolve Enc__consume_t : types.
 
 Module Dec.
   Definition S := struct.decl [
@@ -241,9 +188,6 @@ Definition Dec__consume: val :=
     let: "b" := SliceTake (struct.loadF Dec.S "p" "d") "n" in
     struct.storeF Dec.S "p" "d" (SliceSkip byteT (struct.loadF Dec.S "p" "d") "n");;
     "b".
-Theorem Dec__consume_t: ⊢ Dec__consume : (struct.ptrT Dec.S -> uint64T -> slice.T byteT).
-Proof. typecheck. Qed.
-Hint Resolve Dec__consume_t : types.
 
 Definition roundtripEncDec32: val :=
   rec: "roundtripEncDec32" "x" :=
@@ -256,9 +200,6 @@ Definition roundtripEncDec32: val :=
     ] in
     UInt32Put (Enc__consume "e" #4) "x";;
     UInt32Get (Dec__consume "d" #4).
-Theorem roundtripEncDec32_t: ⊢ roundtripEncDec32 : (uint32T -> uint32T).
-Proof. typecheck. Qed.
-Hint Resolve roundtripEncDec32_t : types.
 
 Definition roundtripEncDec64: val :=
   rec: "roundtripEncDec64" "x" :=
@@ -271,9 +212,6 @@ Definition roundtripEncDec64: val :=
     ] in
     UInt64Put (Enc__consume "e" #8) "x";;
     UInt64Get (Dec__consume "d" #8).
-Theorem roundtripEncDec64_t: ⊢ roundtripEncDec64 : (uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve roundtripEncDec64_t : types.
 
 (* tests *)
 Definition testEncDec32Simple: val :=
@@ -283,9 +221,6 @@ Definition testEncDec32Simple: val :=
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 1)) = #(U32 1));;
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#(U32 1231234)) = #(U32 1231234));;
     ![boolT] "ok".
-Theorem testEncDec32Simple_t: ⊢ testEncDec32Simple : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testEncDec32Simple_t : types.
 
 Definition failing_testEncDec32: val :=
   rec: "failing_testEncDec32" <> :=
@@ -297,9 +232,6 @@ Definition failing_testEncDec32: val :=
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #0) = #1 ≪ #0);;
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec32 (#1 ≪ #32 - #1) = #1 ≪ #32 - #1);;
     ![boolT] "ok".
-Theorem failing_testEncDec32_t: ⊢ failing_testEncDec32 : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testEncDec32_t : types.
 
 Definition testEncDec64Simple: val :=
   rec: "testEncDec64Simple" <> :=
@@ -308,9 +240,6 @@ Definition testEncDec64Simple: val :=
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #1 = #1);;
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 #1231234 = #1231234);;
     ![boolT] "ok".
-Theorem testEncDec64Simple_t: ⊢ testEncDec64Simple : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testEncDec64Simple_t : types.
 
 Definition testEncDec64: val :=
   rec: "testEncDec64" <> :=
@@ -324,9 +253,6 @@ Definition testEncDec64: val :=
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #0) = #1 ≪ #0);;
     "ok" <-[boolT] (![boolT] "ok") && (roundtripEncDec64 (#1 ≪ #64 - #1) = #1 ≪ #64 - #1);;
     ![boolT] "ok".
-Theorem testEncDec64_t: ⊢ testEncDec64 : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testEncDec64_t : types.
 
 (* function_ordering.go *)
 
@@ -347,18 +273,12 @@ Definition Editor__AdvanceReturn: val :=
     struct.storeF Editor.S "next_val" "e" "next";;
     struct.storeF Editor.S "s" "e" (SliceSkip uint64T (struct.loadF Editor.S "s" "e") #1);;
     ![uint64T] "tmp".
-Theorem Editor__AdvanceReturn_t: ⊢ Editor__AdvanceReturn : (struct.ptrT Editor.S -> uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve Editor__AdvanceReturn_t : types.
 
 (* we call this function with side-effectful function calls as arguments,
    its implementation is unimportant *)
 Definition addFour64: val :=
   rec: "addFour64" "a" "b" "c" "d" :=
     "a" + "b" + "c" + "d".
-Theorem addFour64_t: ⊢ addFour64 : (uint64T -> uint64T -> uint64T -> uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve addFour64_t : types.
 
 Module Pair.
   Definition S := struct.decl [
@@ -408,9 +328,6 @@ Definition failing_testFunctionOrdering: val :=
                 (if: SliceGet uint64T (![slice.T uint64T] "arr") #4 ≠ #105
                 then #false
                 else (struct.get Pair.S "x" "p" + struct.get Pair.S "x" "q" = #109)))))))).
-Theorem failing_testFunctionOrdering_t: ⊢ failing_testFunctionOrdering : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testFunctionOrdering_t : types.
 
 (* lock.go *)
 
@@ -422,9 +339,6 @@ Definition testsUseLocks: val :=
     lock.acquire "m";;
     lock.release "m";;
     #true.
-Theorem testsUseLocks_t: ⊢ testsUseLocks : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testsUseLocks_t : types.
 
 (* loops.go *)
 
@@ -444,9 +358,6 @@ Definition standardForLoop: val :=
       else Break));;
     let: "sum" := ![uint64T] "sumPtr" in
     "sum".
-Theorem standardForLoop_t: ⊢ standardForLoop : (slice.T uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve standardForLoop_t : types.
 
 (* based off diskAppendWait loop pattern in logging2 *)
 Module LoopStruct.
@@ -465,9 +376,6 @@ Definition LoopStruct__forLoopWait: val :=
       else
         struct.get LoopStruct.S "loopNext" "ls" <-[uint64T] ![uint64T] (struct.get LoopStruct.S "loopNext" "ls") + #1;;
         Continue)).
-Theorem LoopStruct__forLoopWait_t: ⊢ LoopStruct__forLoopWait : (struct.t LoopStruct.S -> uint64T -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve LoopStruct__forLoopWait_t : types.
 
 (* tests *)
 Definition testStandardForLoop: val :=
@@ -478,9 +386,6 @@ Definition testStandardForLoop: val :=
     SliceSet uint64T (![slice.T uint64T] "arr") #2 (SliceGet uint64T (![slice.T uint64T] "arr") #2 + #5);;
     SliceSet uint64T (![slice.T uint64T] "arr") #3 (SliceGet uint64T (![slice.T uint64T] "arr") #3 + #7);;
     (standardForLoop (![slice.T uint64T] "arr") = #16).
-Theorem testStandardForLoop_t: ⊢ testStandardForLoop : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStandardForLoop_t : types.
 
 Definition testForLoopWait: val :=
   rec: "testForLoopWait" <> :=
@@ -489,9 +394,6 @@ Definition testForLoopWait: val :=
     ] in
     LoopStruct__forLoopWait "ls" #3;;
     (![uint64T] (struct.get LoopStruct.S "loopNext" "ls") = #4).
-Theorem testForLoopWait_t: ⊢ testForLoopWait : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testForLoopWait_t : types.
 
 Definition testBreakFromLoopWithContinue: val :=
   rec: "testBreakFromLoopWithContinue" <> :=
@@ -504,9 +406,6 @@ Definition testBreakFromLoopWithContinue: val :=
         Break
       else Continue));;
     (![uint64T] "i" = #1).
-Theorem testBreakFromLoopWithContinue_t: ⊢ testBreakFromLoopWithContinue : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testBreakFromLoopWithContinue_t : types.
 
 Definition testBreakFromLoopNoContinue: val :=
   rec: "testBreakFromLoopNoContinue" <> :=
@@ -519,9 +418,6 @@ Definition testBreakFromLoopNoContinue: val :=
         Break
       else "i" <-[uint64T] ![uint64T] "i" + #2));;
     (![uint64T] "i" = #1).
-Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testBreakFromLoopNoContinue_t : types.
 
 Definition testBreakFromLoopAssignAndContinue: val :=
   rec: "testBreakFromLoopAssignAndContinue" <> :=
@@ -536,9 +432,6 @@ Definition testBreakFromLoopAssignAndContinue: val :=
         "i" <-[uint64T] ![uint64T] "i" + #2;;
         Continue));;
     (![uint64T] "i" = #1).
-Theorem testBreakFromLoopAssignAndContinue_t: ⊢ testBreakFromLoopAssignAndContinue : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testBreakFromLoopAssignAndContinue_t : types.
 
 Definition testBreakFromLoop: val :=
   rec: "testBreakFromLoop" <> :=
@@ -552,9 +445,6 @@ Definition testBreakFromLoop: val :=
       else #());;
       Continue);;
     (![uint64T] "i" = #1).
-Theorem testBreakFromLoop_t: ⊢ testBreakFromLoop : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testBreakFromLoop_t : types.
 
 Definition testNestedLoops: val :=
   rec: "testNestedLoops" <> :=
@@ -574,9 +464,6 @@ Definition testNestedLoops: val :=
       "ok2" <-[boolT] (![uint64T] "i" = #1);;
       Break);;
     (![boolT] "ok1") && (![boolT] "ok2").
-Theorem testNestedLoops_t: ⊢ testNestedLoops : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testNestedLoops_t : types.
 
 Definition testNestedGoStyleLoops: val :=
   rec: "testNestedGoStyleLoops" <> :=
@@ -590,9 +477,6 @@ Definition testNestedGoStyleLoops: val :=
         else Continue));;
       "ok" <-[boolT] (![uint64T] "i" = #9));;
     ![boolT] "ok".
-Theorem testNestedGoStyleLoops_t: ⊢ testNestedGoStyleLoops : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testNestedGoStyleLoops_t : types.
 
 Definition failing_testNestedGoStyleLoopsNoComparison: val :=
   rec: "failing_testNestedGoStyleLoopsNoComparison" <> :=
@@ -606,9 +490,6 @@ Definition failing_testNestedGoStyleLoopsNoComparison: val :=
         else Continue));;
       Continue);;
     ![boolT] "ok".
-Theorem failing_testNestedGoStyleLoopsNoComparison_t: ⊢ failing_testNestedGoStyleLoopsNoComparison : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testNestedGoStyleLoopsNoComparison_t : types.
 
 Definition failing_testNestedGoStyleLoopsElse: val :=
   rec: "failing_testNestedGoStyleLoopsElse" <> :=
@@ -622,9 +503,6 @@ Definition failing_testNestedGoStyleLoopsElse: val :=
         else Continue));;
       Continue);;
     ![boolT] "ok".
-Theorem failing_testNestedGoStyleLoopsElse_t: ⊢ failing_testNestedGoStyleLoopsElse : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testNestedGoStyleLoopsElse_t : types.
 
 (* maps.go *)
 
@@ -634,9 +512,6 @@ Definition IterateMapKeys: val :=
     MapIter "m" (λ: "k" <>,
       "sum" <-[uint64T] ![uint64T] "sum" + "k");;
     ![uint64T] "sum".
-Theorem IterateMapKeys_t: ⊢ IterateMapKeys : (mapT uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve IterateMapKeys_t : types.
 
 Definition IterateMapValues: val :=
   rec: "IterateMapValues" "m" :=
@@ -644,9 +519,6 @@ Definition IterateMapValues: val :=
     MapIter "m" (λ: <> "v",
       "sum" <-[uint64T] ![uint64T] "sum" + "v");;
     ![uint64T] "sum".
-Theorem IterateMapValues_t: ⊢ IterateMapValues : (mapT uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve IterateMapValues_t : types.
 
 Definition testIterateMap: val :=
   rec: "testIterateMap" <> :=
@@ -658,9 +530,6 @@ Definition testIterateMap: val :=
     "ok" <-[boolT] (![boolT] "ok") && (IterateMapKeys "m" = #4);;
     "ok" <-[boolT] (![boolT] "ok") && (IterateMapValues "m" = #7);;
     ![boolT] "ok".
-Theorem testIterateMap_t: ⊢ testIterateMap : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testIterateMap_t : types.
 
 Definition testMapSize: val :=
   rec: "testMapSize" <> :=
@@ -672,64 +541,40 @@ Definition testMapSize: val :=
     MapInsert "m" #3 #4;;
     "ok" <-[boolT] (![boolT] "ok") && (MapLen "m" = #3);;
     ![boolT] "ok".
-Theorem testMapSize_t: ⊢ testMapSize : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testMapSize_t : types.
 
 (* multiple_return.go *)
 
 Definition returnTwo: val :=
   rec: "returnTwo" <> :=
     (#2, #3).
-Theorem returnTwo_t: ⊢ returnTwo : (unitT -> (uint64T * uint64T)).
-Proof. typecheck. Qed.
-Hint Resolve returnTwo_t : types.
 
 Definition testReturnTwo: val :=
   rec: "testReturnTwo" <> :=
     let: ("x", "y") := returnTwo #() in
     ("x" = #2) && ("y" = #3).
-Theorem testReturnTwo_t: ⊢ testReturnTwo : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testReturnTwo_t : types.
 
 Definition testAnonymousBinding: val :=
   rec: "testAnonymousBinding" <> :=
     let: (<>, "y") := returnTwo #() in
     ("y" = #3).
-Theorem testAnonymousBinding_t: ⊢ testAnonymousBinding : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testAnonymousBinding_t : types.
 
 Definition returnThree: val :=
   rec: "returnThree" <> :=
     (#2, #true, #(U32 1)).
-Theorem returnThree_t: ⊢ returnThree : (unitT -> (uint64T * boolT * uint32T)).
-Proof. typecheck. Qed.
-Hint Resolve returnThree_t : types.
 
 Definition testReturnThree: val :=
   rec: "testReturnThree" <> :=
     let: (("x", "y"), "z") := returnThree #() in
     ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)).
-Theorem testReturnThree_t: ⊢ testReturnThree : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testReturnThree_t : types.
 
 Definition returnFour: val :=
   rec: "returnFour" <> :=
     (#2, #true, #(U32 1), #7).
-Theorem returnFour_t: ⊢ returnFour : (unitT -> (uint64T * boolT * uint32T * uint64T)).
-Proof. typecheck. Qed.
-Hint Resolve returnFour_t : types.
 
 Definition testReturnFour: val :=
   rec: "testReturnFour" <> :=
     let: ((("x", "y"), "z"), "w") := returnFour #() in
     ("x" = #2) && ("y" = #true) && ("z" = #(U32 1)) && ("w" = #7).
-Theorem testReturnFour_t: ⊢ testReturnFour : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testReturnFour_t : types.
 
 (* nil.go *)
 
@@ -737,42 +582,27 @@ Definition failing_testCompareSliceToNil: val :=
   rec: "failing_testCompareSliceToNil" <> :=
     let: "s" := NewSlice byteT #0 in
     "s" ≠ slice.nil.
-Theorem failing_testCompareSliceToNil_t: ⊢ failing_testCompareSliceToNil : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testCompareSliceToNil_t : types.
 
 Definition testComparePointerToNil: val :=
   rec: "testComparePointerToNil" <> :=
     let: "s" := ref (zero_val uint64T) in
     "s" ≠ #null.
-Theorem testComparePointerToNil_t: ⊢ testComparePointerToNil : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testComparePointerToNil_t : types.
 
 Definition testCompareNilToNil: val :=
   rec: "testCompareNilToNil" <> :=
     let: "s" := ref (zero_val (refT uint64T)) in
     (![refT uint64T] "s" = #null).
-Theorem testCompareNilToNil_t: ⊢ testCompareNilToNil : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testCompareNilToNil_t : types.
 
 Definition testComparePointerWrappedToNil: val :=
   rec: "testComparePointerWrappedToNil" <> :=
     let: "s" := ref (zero_val (slice.T byteT)) in
     "s" <-[slice.T byteT] NewSlice byteT #1;;
     ![slice.T byteT] "s" ≠ slice.nil.
-Theorem testComparePointerWrappedToNil_t: ⊢ testComparePointerWrappedToNil : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testComparePointerWrappedToNil_t : types.
 
 Definition testComparePointerWrappedDefaultToNil: val :=
   rec: "testComparePointerWrappedDefaultToNil" <> :=
     let: "s" := ref (zero_val (slice.T byteT)) in
     (![slice.T byteT] "s" = slice.nil).
-Theorem testComparePointerWrappedDefaultToNil_t: ⊢ testComparePointerWrappedDefaultToNil : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testComparePointerWrappedDefaultToNil_t : types.
 
 (* operations.go *)
 
@@ -785,9 +615,6 @@ Definition reverseAssignOps64: val :=
     "y" <-[uint64T] ![uint64T] "y" + #1;;
     "y" <-[uint64T] ![uint64T] "y" - #1;;
     ![uint64T] "y".
-Theorem reverseAssignOps64_t: ⊢ reverseAssignOps64 : (uint64T -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve reverseAssignOps64_t : types.
 
 Definition reverseAssignOps32: val :=
   rec: "reverseAssignOps32" "x" :=
@@ -797,23 +624,14 @@ Definition reverseAssignOps32: val :=
     "y" <-[uint32T] ![uint32T] "y" + #1;;
     "y" <-[uint32T] ![uint32T] "y" - #1;;
     ![uint32T] "y".
-Theorem reverseAssignOps32_t: ⊢ reverseAssignOps32 : (uint32T -> uint32T).
-Proof. typecheck. Qed.
-Hint Resolve reverseAssignOps32_t : types.
 
 Definition add64Equals: val :=
   rec: "add64Equals" "x" "y" "z" :=
     ("x" + "y" = "z").
-Theorem add64Equals_t: ⊢ add64Equals : (uint64T -> uint64T -> uint64T -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve add64Equals_t : types.
 
 Definition sub64Equals: val :=
   rec: "sub64Equals" "x" "y" "z" :=
     ("x" - "y" = "z").
-Theorem sub64Equals_t: ⊢ sub64Equals : (uint64T -> uint64T -> uint64T -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve sub64Equals_t : types.
 
 (* tests *)
 Definition testReverseAssignOps64: val :=
@@ -831,9 +649,6 @@ Definition testReverseAssignOps64: val :=
     "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #0) = #0);;
     "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps64 (#1 ≪ #64 - #1) = #0);;
     ![boolT] "ok".
-Theorem testReverseAssignOps64_t: ⊢ testReverseAssignOps64 : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testReverseAssignOps64_t : types.
 
 Definition failing_testReverseAssignOps32: val :=
   rec: "failing_testReverseAssignOps32" <> :=
@@ -848,9 +663,6 @@ Definition failing_testReverseAssignOps32: val :=
     "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #0) = #(U32 0));;
     "ok" <-[boolT] (![boolT] "ok") && (reverseAssignOps32 (#1 ≪ #32 - #1) = #(U32 0));;
     ![boolT] "ok".
-Theorem failing_testReverseAssignOps32_t: ⊢ failing_testReverseAssignOps32 : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testReverseAssignOps32_t : types.
 
 Definition testAdd64Equals: val :=
   rec: "testAdd64Equals" <> :=
@@ -858,9 +670,6 @@ Definition testAdd64Equals: val :=
     "ok" <-[boolT] (![boolT] "ok") && (add64Equals #2 #3 #5);;
     "ok" <-[boolT] (![boolT] "ok") && (add64Equals (#1 ≪ #64 - #1) #1 #0);;
     ![boolT] "ok".
-Theorem testAdd64Equals_t: ⊢ testAdd64Equals : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testAdd64Equals_t : types.
 
 Definition testSub64Equals: val :=
   rec: "testSub64Equals" <> :=
@@ -869,9 +678,6 @@ Definition testSub64Equals: val :=
     "ok" <-[boolT] (![boolT] "ok") && (sub64Equals (#1 ≪ #64 - #1) (#1 ≪ #63) (#1 ≪ #63 - #1));;
     "ok" <-[boolT] (![boolT] "ok") && (sub64Equals #2 #8 (#1 ≪ #64 - #6));;
     ![boolT] "ok".
-Theorem testSub64Equals_t: ⊢ testSub64Equals : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testSub64Equals_t : types.
 
 Definition testDivisionPrecedence: val :=
   rec: "testDivisionPrecedence" <> :=
@@ -879,18 +685,12 @@ Definition testDivisionPrecedence: val :=
     let: "hdrmeta" := #8 in
     let: "hdraddrs" := ("blockSize" - "hdrmeta") `quot` #8 in
     ("hdraddrs" = #511).
-Theorem testDivisionPrecedence_t: ⊢ testDivisionPrecedence : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testDivisionPrecedence_t : types.
 
 Definition testModPrecedence: val :=
   rec: "testModPrecedence" <> :=
     let: "x1" := #513 + #12 `rem` #8 in
     let: "x2" := (#513 + #12) `rem` #8 in
     ("x1" = #517) && ("x2" = #5).
-Theorem testModPrecedence_t: ⊢ testModPrecedence : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testModPrecedence_t : types.
 
 Definition testBitwiseOpsPrecedence: val :=
   rec: "testBitwiseOpsPrecedence" <> :=
@@ -902,9 +702,6 @@ Definition testBitwiseOpsPrecedence: val :=
     "ok" <-[boolT] (![boolT] "ok") && ((#468 `and` #1191) `or` #333 = #461);;
     "ok" <-[boolT] (![boolT] "ok") && (#222 `or` (#327 `and` #421) ≠ #389);;
     ![boolT] "ok".
-Theorem testBitwiseOpsPrecedence_t: ⊢ testBitwiseOpsPrecedence : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testBitwiseOpsPrecedence_t : types.
 
 Definition testArithmeticShifts: val :=
   rec: "testArithmeticShifts" <> :=
@@ -915,9 +712,6 @@ Definition testArithmeticShifts: val :=
     "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #12 = #0);;
     "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #4 ≪ #4 = #672);;
     ![boolT] "ok".
-Theorem testArithmeticShifts_t: ⊢ testArithmeticShifts : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testArithmeticShifts_t : types.
 
 (* precedence.go *)
 
@@ -926,9 +720,6 @@ Definition testOrCompareSimple: val :=
     (if: (#3 > #4) || (#4 > #3)
     then #true
     else #false).
-Theorem testOrCompareSimple_t: ⊢ testOrCompareSimple : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testOrCompareSimple_t : types.
 
 Definition testOrCompare: val :=
   rec: "testOrCompare" <> :=
@@ -942,9 +733,6 @@ Definition testOrCompare: val :=
     then "ok" <-[boolT] #false
     else #());;
     ![boolT] "ok".
-Theorem testOrCompare_t: ⊢ testOrCompare : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testOrCompare_t : types.
 
 Definition testAndCompare: val :=
   rec: "testAndCompare" <> :=
@@ -958,9 +746,6 @@ Definition testAndCompare: val :=
     then #()
     else "ok" <-[boolT] #false);;
     ![boolT] "ok".
-Theorem testAndCompare_t: ⊢ testAndCompare : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testAndCompare_t : types.
 
 (* prims.go *)
 
@@ -971,9 +756,6 @@ Definition testLinearize: val :=
     Linearize;;
     lock.release "m";;
     #true.
-Theorem testLinearize_t: ⊢ testLinearize : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testLinearize_t : types.
 
 (* shortcircuiting.go *)
 
@@ -991,17 +773,11 @@ Definition CheckTrue: val :=
   rec: "CheckTrue" "b" :=
     struct.storeF BoolTest.S "tc" "b" (struct.loadF BoolTest.S "tc" "b" + #1);;
     struct.loadF BoolTest.S "t" "b".
-Theorem CheckTrue_t: ⊢ CheckTrue : (struct.ptrT BoolTest.S -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve CheckTrue_t : types.
 
 Definition CheckFalse: val :=
   rec: "CheckFalse" "b" :=
     struct.storeF BoolTest.S "fc" "b" (struct.loadF BoolTest.S "fc" "b" + #1);;
     struct.loadF BoolTest.S "f" "b".
-Theorem CheckFalse_t: ⊢ CheckFalse : (struct.ptrT BoolTest.S -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve CheckFalse_t : types.
 
 (* tests *)
 Definition testShortcircuitAndTF: val :=
@@ -1015,9 +791,6 @@ Definition testShortcircuitAndTF: val :=
     (if: (CheckTrue "b") && (CheckFalse "b")
     then #false
     else (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)).
-Theorem testShortcircuitAndTF_t: ⊢ testShortcircuitAndTF : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testShortcircuitAndTF_t : types.
 
 Definition testShortcircuitAndFT: val :=
   rec: "testShortcircuitAndFT" <> :=
@@ -1030,9 +803,6 @@ Definition testShortcircuitAndFT: val :=
     (if: (CheckFalse "b") && (CheckTrue "b")
     then #false
     else (struct.loadF BoolTest.S "tc" "b" = #0) && (struct.loadF BoolTest.S "fc" "b" = #1)).
-Theorem testShortcircuitAndFT_t: ⊢ testShortcircuitAndFT : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testShortcircuitAndFT_t : types.
 
 Definition testShortcircuitOrTF: val :=
   rec: "testShortcircuitOrTF" <> :=
@@ -1045,9 +815,6 @@ Definition testShortcircuitOrTF: val :=
     (if: (CheckTrue "b") || (CheckFalse "b")
     then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #0)
     else #false).
-Theorem testShortcircuitOrTF_t: ⊢ testShortcircuitOrTF : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testShortcircuitOrTF_t : types.
 
 Definition testShortcircuitOrFT: val :=
   rec: "testShortcircuitOrFT" <> :=
@@ -1060,9 +827,6 @@ Definition testShortcircuitOrFT: val :=
     (if: (CheckFalse "b") || (CheckTrue "b")
     then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)
     else #false).
-Theorem testShortcircuitOrFT_t: ⊢ testShortcircuitOrFT : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testShortcircuitOrFT_t : types.
 
 (* slices.go *)
 
@@ -1080,9 +844,6 @@ Definition ArrayEditor__Advance: val :=
     SliceSet uint64T (struct.loadF ArrayEditor.S "s" "ae") #0 (struct.loadF ArrayEditor.S "next_val" "ae");;
     struct.storeF ArrayEditor.S "next_val" "ae" "next";;
     struct.storeF ArrayEditor.S "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor.S "s" "ae") #1).
-Theorem ArrayEditor__Advance_t: ⊢ ArrayEditor__Advance : (struct.ptrT ArrayEditor.S -> slice.T uint64T -> uint64T -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve ArrayEditor__Advance_t : types.
 
 (* tests *)
 Definition testSliceOps: val :=
@@ -1105,9 +866,6 @@ Definition testSliceOps: val :=
     "ok" <-[boolT] (![boolT] "ok") && (slice.len "v3" = #3);;
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "v4" = #10);;
     ![boolT] "ok".
-Theorem testSliceOps_t: ⊢ testSliceOps : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testSliceOps_t : types.
 
 Definition testOverwriteArray: val :=
   rec: "testOverwriteArray" <> :=
@@ -1130,9 +888,6 @@ Definition testOverwriteArray: val :=
     (if: SliceGet uint64T (![slice.T uint64T] "arr") #0 + SliceGet uint64T (![slice.T uint64T] "arr") #1 + SliceGet uint64T (![slice.T uint64T] "arr") #2 + SliceGet uint64T (![slice.T uint64T] "arr") #3 ≥ #100
     then #false
     else (SliceGet uint64T (![slice.T uint64T] "arr") #3 = #4) && (SliceGet uint64T (![slice.T uint64T] "arr") #0 = #4)).
-Theorem testOverwriteArray_t: ⊢ testOverwriteArray : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testOverwriteArray_t : types.
 
 (* strings.go *)
 
@@ -1140,16 +895,10 @@ Hint Resolve testOverwriteArray_t : types.
 Definition stringAppend: val :=
   rec: "stringAppend" "s" "x" :=
     "s" + uint64_to_string "x".
-Theorem stringAppend_t: ⊢ stringAppend : (stringT -> uint64T -> stringT).
-Proof. typecheck. Qed.
-Hint Resolve stringAppend_t : types.
 
 Definition stringLength: val :=
   rec: "stringLength" "s" :=
     strLen "s".
-Theorem stringLength_t: ⊢ stringLength : (stringT -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve stringLength_t : types.
 
 (* tests *)
 Definition failing_testStringAppend: val :=
@@ -1158,9 +907,6 @@ Definition failing_testStringAppend: val :=
     let: "s" := ref_to stringT #(str"123") in
     let: "y" := ref_to stringT (stringAppend (![stringT] "s") #45) in
     (![boolT] "ok") && (![stringT] "y" = #(str"12345")).
-Theorem failing_testStringAppend_t: ⊢ failing_testStringAppend : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testStringAppend_t : types.
 
 Definition failing_testStringLength: val :=
   rec: "failing_testStringLength" <> :=
@@ -1171,9 +917,6 @@ Definition failing_testStringLength: val :=
     "ok" <-[boolT] (![boolT] "ok") && (strLen (![stringT] "s") = #1);;
     "s" <-[stringT] stringAppend (![stringT] "s") #23;;
     (![boolT] "ok") && (strLen (![stringT] "s") = #3).
-Theorem failing_testStringLength_t: ⊢ failing_testStringLength : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testStringLength_t : types.
 
 (* struct_pointers.go *)
 
@@ -1196,16 +939,10 @@ Definition Bar__mutate: val :=
   rec: "Bar__mutate" "bar" :=
     struct.storeF Bar.S "a" "bar" #2;;
     struct.storeF Bar.S "b" "bar" #3.
-Theorem Bar__mutate_t: ⊢ Bar__mutate : (struct.ptrT Bar.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Bar__mutate_t : types.
 
 Definition Foo__mutateBar: val :=
   rec: "Foo__mutateBar" "foo" :=
     Bar__mutate (struct.loadF Foo.S "bar" "foo").
-Theorem Foo__mutateBar_t: ⊢ Foo__mutateBar : (struct.ptrT Foo.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Foo__mutateBar_t : types.
 
 Definition failing_testFooBarMutation: val :=
   rec: "failing_testFooBarMutation" <> :=
@@ -1217,9 +954,6 @@ Definition failing_testFooBarMutation: val :=
     ] in
     Foo__mutateBar "x";;
     (struct.get Bar.S "a" (struct.get Foo.S "bar" "x") = #2).
-Theorem failing_testFooBarMutation_t: ⊢ failing_testFooBarMutation : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testFooBarMutation_t : types.
 
 (* structs.go *)
 
@@ -1248,44 +982,26 @@ Definition NewS: val :=
       ];
       "c" ::= #true
     ].
-Theorem NewS_t: ⊢ NewS : (unitT -> struct.ptrT S.S).
-Proof. typecheck. Qed.
-Hint Resolve NewS_t : types.
 
 Definition S__readA: val :=
   rec: "S__readA" "s" :=
     struct.loadF S.S "a" "s".
-Theorem S__readA_t: ⊢ S__readA : (struct.ptrT S.S -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve S__readA_t : types.
 
 Definition S__readB: val :=
   rec: "S__readB" "s" :=
     struct.loadF S.S "b" "s".
-Theorem S__readB_t: ⊢ S__readB : (struct.ptrT S.S -> struct.t TwoInts.S).
-Proof. typecheck. Qed.
-Hint Resolve S__readB_t : types.
 
 Definition S__readBVal: val :=
   rec: "S__readBVal" "s" :=
     struct.get S.S "b" "s".
-Theorem S__readBVal_t: ⊢ S__readBVal : (struct.t S.S -> struct.t TwoInts.S).
-Proof. typecheck. Qed.
-Hint Resolve S__readBVal_t : types.
 
 Definition S__updateBValX: val :=
   rec: "S__updateBValX" "s" "i" :=
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" "s") "i".
-Theorem S__updateBValX_t: ⊢ S__updateBValX : (struct.ptrT S.S -> uint64T -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve S__updateBValX_t : types.
 
 Definition S__negateC: val :=
   rec: "S__negateC" "s" :=
     struct.storeF S.S "c" "s" (~ (struct.loadF S.S "c" "s")).
-Theorem S__negateC_t: ⊢ S__negateC : (struct.ptrT S.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve S__negateC_t : types.
 
 Definition failing_testStructUpdates: val :=
   rec: "failing_testStructUpdates" <> :=
@@ -1304,9 +1020,6 @@ Definition failing_testStructUpdates: val :=
     S__updateBValX "ns" #4;;
     "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (S__readBVal "ns") = #4);;
     ![boolT] "ok".
-Theorem failing_testStructUpdates_t: ⊢ failing_testStructUpdates : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve failing_testStructUpdates_t : types.
 
 Definition testNestedStructUpdates: val :=
   rec: "testNestedStructUpdates" <> :=
@@ -1327,9 +1040,6 @@ Definition testNestedStructUpdates: val :=
     struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
     "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
     ![boolT] "ok".
-Theorem testNestedStructUpdates_t: ⊢ testNestedStructUpdates : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testNestedStructUpdates_t : types.
 
 Definition testStructConstructions: val :=
   rec: "testStructConstructions" <> :=
@@ -1351,9 +1061,6 @@ Definition testStructConstructions: val :=
     "ok" <-[boolT] (![boolT] "ok") && ("p4" = struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p1"));;
     "ok" <-[boolT] (![boolT] "ok") && ("p4" ≠ ![refT (struct.t TwoInts.S)] "p1");;
     ![boolT] "ok".
-Theorem testStructConstructions_t: ⊢ testStructConstructions : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStructConstructions_t : types.
 
 Module StructWrap.
   Definition S := struct.decl [
@@ -1368,18 +1075,12 @@ Definition testStoreInStructVar: val :=
     ]) in
     struct.storeF StructWrap.S "i" "p" #5;;
     (struct.get StructWrap.S "i" (![struct.t StructWrap.S] "p") = #5).
-Theorem testStoreInStructVar_t: ⊢ testStoreInStructVar : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStoreInStructVar_t : types.
 
 Definition testStoreInStructPointerVar: val :=
   rec: "testStoreInStructPointerVar" <> :=
     let: "p" := ref_to (refT (struct.t StructWrap.S)) (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
     struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5;;
     (struct.loadF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") = #5).
-Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStoreInStructPointerVar_t : types.
 
 Definition testStoreComposite: val :=
   rec: "testStoreComposite" <> :=
@@ -1389,9 +1090,6 @@ Definition testStoreComposite: val :=
       "y" ::= #4
     ]);;
     (struct.get TwoInts.S "y" (struct.load TwoInts.S "p") = #4).
-Theorem testStoreComposite_t: ⊢ testStoreComposite : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStoreComposite_t : types.
 
 Definition testStoreSlice: val :=
   rec: "testStoreSlice" <> :=
@@ -1399,20 +1097,13 @@ Definition testStoreSlice: val :=
     let: "s" := NewSlice uint64T #3 in
     "p" <-[slice.T uint64T] "s";;
     (slice.len (![slice.T uint64T] "p") = #3).
-Theorem testStoreSlice_t: ⊢ testStoreSlice : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testStoreSlice_t : types.
 
 (* wal.go *)
 
 (* 10 is completely arbitrary *)
 Definition MaxTxnWrites : expr := #10.
-Theorem MaxTxnWrites_t Γ : Γ ⊢ MaxTxnWrites : uint64T.
-Proof. typecheck. Qed.
 
 Definition logLength : expr := #1 + #2 * MaxTxnWrites.
-Theorem logLength_t Γ : Γ ⊢ logLength : uint64T.
-Proof. typecheck. Qed.
 
 Module Log.
   Definition S := struct.decl [
@@ -1428,17 +1119,11 @@ Definition intToBlock: val :=
     let: "b" := NewSlice byteT disk.BlockSize in
     UInt64Put "b" "a";;
     "b".
-Theorem intToBlock_t: ⊢ intToBlock : (uint64T -> disk.blockT).
-Proof. typecheck. Qed.
-Hint Resolve intToBlock_t : types.
 
 Definition blockToInt: val :=
   rec: "blockToInt" "v" :=
     let: "a" := UInt64Get "v" in
     "a".
-Theorem blockToInt_t: ⊢ blockToInt : (disk.blockT -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve blockToInt_t : types.
 
 (* New initializes a fresh log *)
 Definition New: val :=
@@ -1462,23 +1147,14 @@ Definition New: val :=
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
-Theorem New_t: ⊢ New : (unitT -> struct.t Log.S).
-Proof. typecheck. Qed.
-Hint Resolve New_t : types.
 
 Definition Log__lock: val :=
   rec: "Log__lock" "l" :=
     lock.acquire (struct.get Log.S "l" "l").
-Theorem Log__lock_t: ⊢ Log__lock : (struct.t Log.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Log__lock_t : types.
 
 Definition Log__unlock: val :=
   rec: "Log__unlock" "l" :=
     lock.release (struct.get Log.S "l" "l").
-Theorem Log__unlock_t: ⊢ Log__unlock : (struct.t Log.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Log__unlock_t : types.
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -1494,9 +1170,6 @@ Definition Log__BeginTxn: val :=
     else
       Log__unlock "l";;
       #false).
-Theorem Log__BeginTxn_t: ⊢ Log__BeginTxn : (struct.t Log.S -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve Log__BeginTxn_t : types.
 
 (* Read from the logical disk.
 
@@ -1513,17 +1186,11 @@ Definition Log__Read: val :=
       Log__unlock "l";;
       let: "dv" := disk.Read (logLength + "a") in
       "dv").
-Theorem Log__Read_t: ⊢ Log__Read : (struct.t Log.S -> uint64T -> disk.blockT).
-Proof. typecheck. Qed.
-Hint Resolve Log__Read_t : types.
 
 Definition Log__Size: val :=
   rec: "Log__Size" "l" :=
     let: "sz" := disk.Size #() in
     "sz" - logLength.
-Theorem Log__Size_t: ⊢ Log__Size : (struct.t Log.S -> uint64T).
-Proof. typecheck. Qed.
-Hint Resolve Log__Size_t : types.
 
 (* Write to the disk through the log. *)
 Definition Log__Write: val :=
@@ -1542,9 +1209,6 @@ Definition Log__Write: val :=
     MapInsert (struct.get Log.S "cache" "l") "a" "v";;
     struct.get Log.S "length" "l" <-[uint64T] "length" + #1;;
     Log__unlock "l".
-Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log.S -> uint64T -> disk.blockT -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Log__Write_t : types.
 
 (* Commit the current transaction. *)
 Definition Log__Commit: val :=
@@ -1554,9 +1218,6 @@ Definition Log__Commit: val :=
     Log__unlock "l";;
     let: "header" := intToBlock "length" in
     disk.Write #0 "header".
-Theorem Log__Commit_t: ⊢ Log__Commit : (struct.t Log.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Log__Commit_t : types.
 
 Definition getLogEntry: val :=
   rec: "getLogEntry" "d" "logOffset" :=
@@ -1565,9 +1226,6 @@ Definition getLogEntry: val :=
     let: "a" := blockToInt "aBlock" in
     let: "v" := disk.Read ("diskAddr" + #1) in
     ("a", "v").
-Theorem getLogEntry_t: ⊢ getLogEntry : (disk.Disk -> uint64T -> (uint64T * disk.blockT)).
-Proof. typecheck. Qed.
-Hint Resolve getLogEntry_t : types.
 
 (* applyLog assumes we are running sequentially *)
 Definition applyLog: val :=
@@ -1581,17 +1239,11 @@ Definition applyLog: val :=
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Continue
       else Break)).
-Theorem applyLog_t: ⊢ applyLog : (disk.Disk -> uint64T -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve applyLog_t : types.
 
 Definition clearLog: val :=
   rec: "clearLog" "d" :=
     let: "header" := intToBlock #0 in
     disk.Write #0 "header".
-Theorem clearLog_t: ⊢ clearLog : (disk.Disk -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve clearLog_t : types.
 
 (* Apply all the committed transactions.
 
@@ -1604,9 +1256,6 @@ Definition Log__Apply: val :=
     clearLog (struct.get Log.S "d" "l");;
     struct.get Log.S "length" "l" <-[uint64T] #0;;
     Log__unlock "l".
-Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log.S -> unitT).
-Proof. typecheck. Qed.
-Hint Resolve Log__Apply_t : types.
 
 (* Open recovers the log following a crash or shutdown *)
 Definition Open: val :=
@@ -1626,9 +1275,6 @@ Definition Open: val :=
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
-Theorem Open_t: ⊢ Open : (unitT -> struct.t Log.S).
-Proof. typecheck. Qed.
-Hint Resolve Open_t : types.
 
 (* disabled since performance is quite poor *)
 Definition disabled_testWal: val :=
@@ -1647,6 +1293,3 @@ Definition disabled_testWal: val :=
     Log__Apply "lg";;
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] (struct.get Log.S "length" "lg") = #0);;
     ![boolT] "ok".
-Theorem disabled_testWal_t: ⊢ disabled_testWal : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve disabled_testWal_t : types.
