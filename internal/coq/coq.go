@@ -115,6 +115,10 @@ func (d FieldDecl) CoqBinder() string {
 	return binder(d.Name)
 }
 
+func (d FieldDecl) Coq() string {
+	return binder(d.Name)
+}
+
 // StructDecl is a Coq record for a Go struct
 type StructDecl struct {
 	Name    string
@@ -137,6 +141,33 @@ func (d StructDecl) CoqDecl() string {
 	for i, fd := range d.Fields {
 		sep := ";"
 		if i == len(d.Fields)-1 {
+			sep = ""
+		}
+		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
+	}
+	pp.Indent(-2)
+	pp.AddLine("].")
+	pp.Indent(-2)
+	pp.Add("End %s.", d.Name)
+	return pp.Build()
+}
+
+type InterfaceDecl struct {
+	Name    string
+	Methods []FieldDecl
+	Comment string
+}
+
+func (d InterfaceDecl) CoqDecl() string {
+	var pp buffer
+	pp.AddComment(d.Comment)
+	pp.Add("Module %s.", d.Name)
+	pp.Indent(2)
+	pp.AddLine("Definition M := struct.decl [")
+	pp.Indent(2)
+	for i, fd := range d.Methods {
+		sep := ";"
+		if i == len(d.Methods)-1 {
 			sep = ""
 		}
 		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
@@ -194,12 +225,26 @@ func (t MapType) Coq() string {
 	return NewCallExpr("mapT", t.Value).Coq()
 }
 
-type InterfaceType struct {
-	Value Type
+type FuncType struct {
+	Params  []string
+	Results []string
 }
 
-func (t InterfaceType) Coq() string {
-	return NewCallExpr("interfaceT", t.Value).Coq()
+func (t FuncType) Coq() string {
+	var args []string
+	for _, a := range t.Params {
+		args = append(args, a)
+	}
+	if len(t.Params) == 0 {
+		args = []string{"unitT"}
+	}
+	for _, a := range t.Results {
+		args = append(args, a)
+	}
+	if len(args) == 0 {
+		args = []string{"<>"}
+	}
+	return fmt.Sprintf("arrowT %s", strings.Join(args, " "))
 }
 
 type SliceType struct {
@@ -643,12 +688,6 @@ type RefExpr struct {
 
 func (e RefExpr) Coq() string {
 	return NewCallExpr("ref_to", e.Ty, e.X).Coq()
-}
-
-type InterfaceStmt struct {
-	Method         []FieldDecl
-	TypeDescriptor string
-	Value          Type
 }
 
 type StoreStmt struct {

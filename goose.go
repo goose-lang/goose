@@ -40,12 +40,6 @@ type identCtx struct {
 	info map[scopedName]identInfo
 }
 
-type interfaceCtx struct {
-	method         []string
-	typeDescriptor string
-	value          string
-}
-
 func newIdentCtx() identCtx {
 	return identCtx{info: make(map[scopedName]identInfo)}
 }
@@ -114,11 +108,11 @@ func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	idents     identCtx
-	info       *types.Info
-	fset       *token.FileSet
-	pkgPath    string
-	interfaces []interfaceCtx
+	idents  identCtx
+	info    *types.Info
+	fset    *token.FileSet
+	pkgPath string
+	// interfaces []interfaceCtx
 	errorReporter
 	Config
 }
@@ -241,8 +235,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("boolT")
 		case "string", "untyped string":
 			return coq.TypeIdent("stringT")
-		case "float64":
-			ctx.unsupported(n, "basic type %s", t.Name())
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -317,6 +309,18 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 	return coq.PtrType{ctx.coqType(e.X)}
 }
 
+func (ctx Ctx) funcType(e *ast.FuncType) coq.Type {
+	var params = []string{}
+	var results = []string{}
+	for _, a := range e.Params.List {
+		params = append(params, ctx.coqType(a.Type).Coq())
+	}
+	for _, a := range e.Results.List {
+		results = append(results, ctx.coqType(a.Type).Coq())
+	}
+	return coq.FuncType{Params: params, Results: results}
+}
+
 func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
 }
@@ -351,10 +355,12 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.ptrType(e)
 	case *ast.InterfaceType:
 		if isEmptyInterface(e) {
-			return coq.TypeIdent("interfaceT")
+			return coq.TypeIdent("anyT")
 		} else {
-			return ctx.interfaceType(e)
+			ctx.unsupported(e, "non-empty interface")
 		}
+	case *ast.FuncType:
+		return ctx.funcType(e)
 	case *ast.Ellipsis:
 		// NOTE: ellipsis types are not fully supported
 		// we emit the right type here but Goose doesn't know how to call a method
@@ -422,6 +428,7 @@ func (ctx Ctx) structFields(structName string,
 		ty := ctx.coqType(f.Type)
 		info, ok := ctx.getStructInfo(ctx.typeOf(f.Type))
 		if ok && info.name == structName && info.throughPointer {
+			// TODO: Remove reference to refT, use indirection in coq.go
 			ty = coq.NewCallExpr("refT", coq.TypeIdent("anyT"))
 		}
 		decls = append(decls, coq.FieldDecl{
@@ -465,6 +472,18 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
 		ty.Fields = ctx.structFields(spec.Name.Name, goTy.Fields)
+		return ty
+	case *ast.InterfaceType:
+		ctx.addDef(spec.Name, identInfo{
+			IsPtrWrapped: false,
+			IsMacro:      false,
+		})
+		ty := coq.InterfaceDecl{
+			Name: spec.Name.Name,
+		}
+		addSourceDoc(doc, &ty.Comment)
+		ctx.addSourceFile(spec, &ty.Comment)
+		ty.Methods = ctx.structFields(spec.Name.Name, goTy.Methods)
 		return ty
 	default:
 		ctx.addDef(spec.Name, identInfo{
@@ -1270,8 +1289,6 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 		return ctx.callExpr(e)
 	case *ast.MapType:
 		return ctx.mapType(e)
-	case *ast.InterfaceType:
-		return ctx.interfaceType(e)
 	case *ast.Ident:
 		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
@@ -1728,6 +1745,7 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
 	// guaranteed to be a *Ast.ValueSpec due to decl.Tok
 	//
 	// https://golang.org/pkg/go/ast/#GenDecl
+	// TODO: handle TypeSpec
 	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec))
 }
 
@@ -1965,9 +1983,10 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 		return coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
 		return coq.NewAnon(ctx.rangeStmt(s))
+	case *ast.SwitchStmt:
+		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
-		return ctx.typeSwitchStmt(s, c, loopVar)
-	// TODO: Add SwitchStmt
+		ctx.todo(s, "check for type switch statement")
 	default:
 		ctx.unsupported(s, "statement")
 	}

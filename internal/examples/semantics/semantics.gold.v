@@ -478,6 +478,53 @@ Definition failing_testU32NewtypeLen: val :=
 Theorem failing_testU32NewtypeLen_t: ⊢ failing_testU32NewtypeLen : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testU32NewtypeLen_t : types.
+(* interfaces.go *)
+
+(* Interface with method set *)
+Module testInterface.
+  Definition M := struct.decl [
+    "Square" :: arrowT unitT uint64T
+  ].
+End testInterface.
+
+(* Empty interface *)
+Module emptyInterface.
+  Definition M := struct.decl [
+  ].
+End emptyInterface.
+
+(* Receiving a type that satisfies an interface *)
+Definition useInterface: val :=
+  rec: "useInterface" "t" :=
+    (* fmt.Printf("%T", t.Square()) *)
+    #().
+Theorem useInterface_t: ⊢ useInterface : (testInterface -> unitT).
+Proof. typecheck. Qed.
+Hint Resolve useInterface_t : types.
+
+Module TestStruct.
+  Definition S := struct.decl [
+    "Number" :: uint64T
+  ].
+End TestStruct.
+
+Definition TestStruct__Square: val :=
+  rec: "TestStruct__Square" "t" :=
+    struct.get TestStruct.S "Number" "t" * struct.get TestStruct.S "Number" "t".
+Theorem TestStruct__Square_t: ⊢ TestStruct__Square : (struct.t TestStruct.S -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve TestStruct__Square_t : types.
+
+Definition test: val :=
+  rec: "test" <> :=
+    let: "s" := struct.mk TestStruct.S [
+      "Number" ::= #2
+    ] in
+    (* fmt.Println(s.Square()) *)
+    #().
+Theorem test_t: ⊢ test : (unitT -> unitT).
+Proof. typecheck. Qed.
+Hint Resolve test_t : types.
 
 (* lock.go *)
 
