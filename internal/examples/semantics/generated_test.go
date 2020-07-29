@@ -137,16 +137,22 @@ func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
 	suite.Equal(true, testBreakFromLoopNoContinue())
 }
 
+func (suite *GoTestSuite) TestBreakFromLoopNoContinueDouble() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBreakFromLoopNoContinueDouble())
+}
+
+func (suite *GoTestSuite) TestBreakFromLoopForOnly() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBreakFromLoopForOnly())
+}
+
 func (suite *GoTestSuite) TestBreakFromLoopAssignAndContinue() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
 	suite.Equal(true, testBreakFromLoopAssignAndContinue())
-}
-
-func (suite *GoTestSuite) TestBreakFromLoop() {
-	d := disk.NewMemDisk(30)
-	disk.Init(d)
-	suite.Equal(true, testBreakFromLoop())
 }
 
 func (suite *GoTestSuite) TestNestedLoops() {
@@ -164,7 +170,7 @@ func (suite *GoTestSuite) TestNestedGoStyleLoops() {
 func (suite *GoTestSuite) TestNestedGoStyleLoopsNoComparison() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testNestedGoStyleLoopsNoComparison())
+	suite.Equal(true, testNestedGoStyleLoopsNoComparison())
 }
 
 func (suite *GoTestSuite) TestIterateMap() {
