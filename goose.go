@@ -1313,7 +1313,7 @@ func stmtsEndIncludesIf(ss []ast.Stmt) bool {
 	case *ast.IfStmt:
 		return false
 	}
-	for _, item := range ss[:len(ss)] {
+	for _, item := range ss {
 		switch item.(type) {
 		case *ast.IfStmt:
 			return true
