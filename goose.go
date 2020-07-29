@@ -1293,15 +1293,15 @@ func endsWithContinue(s ast.Stmt) bool {
 	}
 }
 
-func endsWithAssign(s ast.Stmt) bool {
+func endsWithIf(s ast.Stmt) bool {
 	if s == nil {
 		return false
 	}
 	switch s := s.(type) {
 	case *ast.BlockStmt:
-		return stmtsEndWithAssign(s.List)
+		return stmtsEndWithIf(s.List)
 	default:
-		return stmtsEndWithAssign([]ast.Stmt{s})
+		return stmtsEndWithIf([]ast.Stmt{s})
 	}
 }
 
@@ -1328,13 +1328,19 @@ func stmtsEndWithContinue(ss []ast.Stmt) bool {
 	return false
 }
 
-func stmtsEndWithAssign(ss []ast.Stmt) bool {
-	if len(ss) == 0 {
+func stmtsEndWithIf(ss []ast.Stmt) bool {
+	if len(ss) <= 1 {
 		return false
 	}
 	switch ss[len(ss)-1].(type) {
-	case *ast.AssignStmt:
-		return true
+	case *ast.IfStmt:
+		return false
+	}
+	for _, item := range ss[:len(ss)] {
+		switch item.(type) {
+		case *ast.IfStmt:
+			return true
+		}
 	}
 	return false
 }
@@ -1465,14 +1471,14 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 
 	hasExplicitBranch := endsWithReturn(s.Body)
-	hasExplicitAssign := endsWithAssign(s.Body)
+	hasImplicitStmt := endsWithIf(s.Body)
 
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	if !hasExplicitBranch && !hasExplicitAssign {
+	if !hasExplicitBranch && !hasImplicitStmt {
 		bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
 	}
 	body := coq.BlockExpr{bindings}
