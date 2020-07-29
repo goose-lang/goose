@@ -169,23 +169,23 @@ func TestSimpleDb(t *testing.T) {
 }
 
 func TestWal(t *testing.T) {
-	testExample(t, "wal", goose.Config{TypeCheck: false})
+	testExample(t, "wal", goose.Config{TypeCheck: true})
 }
 
 func TestLogging2(t *testing.T) {
-	testExample(t, "logging2", goose.Config{TypeCheck: false})
+	testExample(t, "logging2", goose.Config{TypeCheck: true})
 }
 
 func TestAppendLog(t *testing.T) {
-	testExample(t, "append_log", goose.Config{TypeCheck: false})
+	testExample(t, "append_log", goose.Config{TypeCheck: true})
 }
 
 func TestRfc1813(t *testing.T) {
-	testExample(t, "rfc1813", goose.Config{TypeCheck: false})
+	testExample(t, "rfc1813", goose.Config{TypeCheck: true})
 }
 
 func TestSemantics(t *testing.T) {
-	testExample(t, "semantics", goose.Config{TypeCheck: false})
+	testExample(t, "semantics", goose.Config{TypeCheck: true})
 }
 
 type errorExpectation struct {
