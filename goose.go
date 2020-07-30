@@ -1281,6 +1281,16 @@ func endsWithReturn(s ast.Stmt) bool {
 	}
 }
 
+func endIncludesIf(s ast.Stmt) bool {
+	if s == nil {
+		return false
+	}
+	if s, ok := s.(*ast.BlockStmt); ok {
+		return stmtsEndIncludesIf(s.List)
+	}
+	return stmtsEndIncludesIf([]ast.Stmt{s})
+}
+
 func stmtsEndWithReturn(ss []ast.Stmt) bool {
 	if len(ss) == 0 {
 		return false
@@ -1289,6 +1299,21 @@ func stmtsEndWithReturn(ss []ast.Stmt) bool {
 	switch ss[len(ss)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
+	}
+	return false
+}
+
+func stmtsEndIncludesIf(ss []ast.Stmt) bool {
+	if len(ss) <= 1 {
+		return false
+	}
+	if _, ok := ss[len(ss)-1].(*ast.IfStmt); ok {
+		return false
+	}
+	for _, item := range ss {
+		if _, ok := item.(*ast.IfStmt); ok {
+			return true
+		}
 	}
 	return false
 }
@@ -1419,12 +1444,14 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 
 	hasExplicitBranch := endsWithReturn(s.Body)
+	hasImplicitBranch := endIncludesIf(s.Body)
+
 	c := &cursor{s.Body.List}
 	var bindings []coq.Binding
 	for c.HasNext() {
 		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
 	}
-	if !hasExplicitBranch {
+	if !hasExplicitBranch && !hasImplicitBranch {
 		bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
 	}
 	body := coq.BlockExpr{bindings}

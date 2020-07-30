@@ -509,8 +509,8 @@ Theorem testBreakFromLoopWithContinue_t: ⊢ testBreakFromLoopWithContinue : (un
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopWithContinue_t : types.
 
-Definition failing_testBreakFromLoopNoContinue: val :=
-  rec: "failing_testBreakFromLoopNoContinue" <> :=
+Definition testBreakFromLoopNoContinue: val :=
+  rec: "testBreakFromLoopNoContinue" <> :=
     let: "i" := ref_to uint64T #0 in
     Skip;;
     (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
@@ -518,12 +518,57 @@ Definition failing_testBreakFromLoopNoContinue: val :=
       then
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Break
-      else "i" <-[uint64T] ![uint64T] "i" + #2);;
-      Continue);;
+      else "i" <-[uint64T] ![uint64T] "i" + #2));;
     (![uint64T] "i" = #1).
-Theorem failing_testBreakFromLoopNoContinue_t: ⊢ failing_testBreakFromLoopNoContinue : (unitT -> boolT).
+Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testBreakFromLoopNoContinue_t : types.
+Hint Resolve testBreakFromLoopNoContinue_t : types.
+
+Definition failing_testBreakFromLoopNoContinueDouble: val :=
+  rec: "failing_testBreakFromLoopNoContinueDouble" <> :=
+    let: "i" := ref_to uint64T #0 in
+    Skip;;
+    (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
+      (if: (![uint64T] "i" = #1)
+      then
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
+        Break
+      else
+        "i" <-[uint64T] ![uint64T] "i" + #2;;
+        "i" <-[uint64T] ![uint64T] "i" + #2));;
+    (![uint64T] "i" = #4).
+Theorem failing_testBreakFromLoopNoContinueDouble_t: ⊢ failing_testBreakFromLoopNoContinueDouble : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testBreakFromLoopNoContinueDouble_t : types.
+
+Definition testBreakFromLoopForOnly: val :=
+  rec: "testBreakFromLoopForOnly" <> :=
+    let: "i" := ref_to uint64T #0 in
+    Skip;;
+    (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
+      "i" <-[uint64T] ![uint64T] "i" + #2;;
+      Continue);;
+    (![uint64T] "i" = #4).
+Theorem testBreakFromLoopForOnly_t: ⊢ testBreakFromLoopForOnly : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testBreakFromLoopForOnly_t : types.
+
+Definition testBreakFromLoopAssignAndContinue: val :=
+  rec: "testBreakFromLoopAssignAndContinue" <> :=
+    let: "i" := ref_to uint64T #0 in
+    Skip;;
+    (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
+      (if: #true
+      then
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
+        Break
+      else
+        "i" <-[uint64T] ![uint64T] "i" + #2;;
+        Continue));;
+    (![uint64T] "i" = #1).
+Theorem testBreakFromLoopAssignAndContinue_t: ⊢ testBreakFromLoopAssignAndContinue : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testBreakFromLoopAssignAndContinue_t : types.
 
 Definition testNestedLoops: val :=
   rec: "testNestedLoops" <> :=
@@ -563,6 +608,23 @@ Definition testNestedGoStyleLoops: val :=
 Theorem testNestedGoStyleLoops_t: ⊢ testNestedGoStyleLoops : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testNestedGoStyleLoops_t : types.
+
+Definition testNestedGoStyleLoopsNoComparison: val :=
+  rec: "testNestedGoStyleLoopsNoComparison" <> :=
+    let: "ok" := ref_to boolT #false in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
+      let: "j" := ref_to uint64T #0 in
+      (for: (λ: <>, ![uint64T] "j" < ![uint64T] "i"); (λ: <>, "j" <-[uint64T] ![uint64T] "j" + #1) := λ: <>,
+        (if: #true
+        then Break
+        else Continue));;
+      "ok" <-[boolT] (![uint64T] "i" = #9);;
+      Continue);;
+    ![boolT] "ok".
+Theorem testNestedGoStyleLoopsNoComparison_t: ⊢ testNestedGoStyleLoopsNoComparison : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testNestedGoStyleLoopsNoComparison_t : types.
 
 (* maps.go *)
 
