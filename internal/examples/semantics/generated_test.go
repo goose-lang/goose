@@ -2,9 +2,10 @@
 package semantics
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/disk"
-	"testing"
 )
 
 type GoTestSuite struct {
@@ -140,7 +141,7 @@ func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
 func (suite *GoTestSuite) TestBreakFromLoopNoContinueDouble() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, testBreakFromLoopNoContinueDouble())
+	suite.Equal(true, failing_testBreakFromLoopNoContinueDouble())
 }
 
 func (suite *GoTestSuite) TestBreakFromLoopForOnly() {
