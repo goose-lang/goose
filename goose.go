@@ -1285,12 +1285,10 @@ func endIncludesIf(s ast.Stmt) bool {
 	if s == nil {
 		return false
 	}
-	switch s := s.(type) {
-	case *ast.BlockStmt:
+	if s, ok := s.(*ast.BlockStmt); ok {
 		return stmtsEndIncludesIf(s.List)
-	default:
-		return stmtsEndIncludesIf([]ast.Stmt{s})
 	}
+	return stmtsEndIncludesIf([]ast.Stmt{s})
 }
 
 func stmtsEndWithReturn(ss []ast.Stmt) bool {
@@ -1309,13 +1307,11 @@ func stmtsEndIncludesIf(ss []ast.Stmt) bool {
 	if len(ss) <= 1 {
 		return false
 	}
-	switch ss[len(ss)-1].(type) {
-	case *ast.IfStmt:
+	if _, ok := ss[len(ss)-1].(*ast.IfStmt); ok {
 		return false
 	}
 	for _, item := range ss {
-		switch item.(type) {
-		case *ast.IfStmt:
+		if _, ok := item.(*ast.IfStmt); ok {
 			return true
 		}
 	}

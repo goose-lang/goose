@@ -494,7 +494,6 @@ Theorem testForLoopWait_t: ⊢ testForLoopWait : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testForLoopWait_t : types.
 
-(* must have continue for this example to work *)
 Definition testBreakFromLoopWithContinue: val :=
   rec: "testBreakFromLoopWithContinue" <> :=
     let: "i" := ref_to uint64T #0 in
@@ -525,22 +524,22 @@ Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT 
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopNoContinue_t : types.
 
-Definition testBreakFromLoopNoContinueDouble: val :=
-  rec: "testBreakFromLoopNoContinueDouble" <> :=
+Definition failing_testBreakFromLoopNoContinueDouble: val :=
+  rec: "failing_testBreakFromLoopNoContinueDouble" <> :=
     let: "i" := ref_to uint64T #0 in
     Skip;;
     (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
-      (if: #true
+      (if: (![uint64T] "i" = #1)
       then
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Break
       else
         "i" <-[uint64T] ![uint64T] "i" + #2;;
         "i" <-[uint64T] ![uint64T] "i" + #2));;
-    (![uint64T] "i" = #1).
-Theorem testBreakFromLoopNoContinueDouble_t: ⊢ testBreakFromLoopNoContinueDouble : (unitT -> boolT).
+    (![uint64T] "i" = #4).
+Theorem failing_testBreakFromLoopNoContinueDouble_t: ⊢ failing_testBreakFromLoopNoContinueDouble : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve testBreakFromLoopNoContinueDouble_t : types.
+Hint Resolve failing_testBreakFromLoopNoContinueDouble_t : types.
 
 Definition testBreakFromLoopForOnly: val :=
   rec: "testBreakFromLoopForOnly" <> :=

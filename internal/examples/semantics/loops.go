@@ -56,7 +56,6 @@ func testForLoopWait() bool {
 
 }
 
-// must have continue for this example to work
 func testBreakFromLoopWithContinue() bool {
 	var i uint64 = 0
 	for {
@@ -81,17 +80,17 @@ func testBreakFromLoopNoContinue() bool {
 	return (i == 1)
 }
 
-func testBreakFromLoopNoContinueDouble() bool {
+func failing_testBreakFromLoopNoContinueDouble() bool {
 	var i uint64 = 0
 	for i < 3 {
-		if true {
+		if i == 1 {
 			i = i + 1
 			break
 		}
 		i = i + 2
 		i = i + 2
 	}
-	return (i == 1)
+	return (i == 4)
 }
 
 func testBreakFromLoopForOnly() bool {
