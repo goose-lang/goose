@@ -110,8 +110,7 @@ func sortedFiles(files map[string]*ast.File) []NamedFile {
 // and not dependent on map or directory iteration order.
 func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, error) {
 	// TODO: we might be able to replace this implementation with something
-	//  based on go/packages; see https://pkg.go.dev/golang.
-	//  org/x/tools/go/packages?tab=doc#Package.
+	//  based on go/packages; see https://pkg.go.dev/golang.org/x/tools/go/packages?tab=doc#Package.
 	fset := token.NewFileSet()
 	filter := func(info os.FileInfo) bool {
 		if strings.HasSuffix(info.Name(), "_test.go") {
