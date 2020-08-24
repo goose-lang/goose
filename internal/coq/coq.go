@@ -87,6 +87,9 @@ func (pp *buffer) AddComment(c string) {
 	if c == "" {
 		return
 	}
+	// these hacks ensure that Go comments don't insert stray Coq comments
+	c = strings.ReplaceAll(c, "(*", "( *")
+	c = strings.ReplaceAll(c, "*)", "* )")
 	indent := pp.Block("(* ", "%s *)", c)
 	pp.Indent(-indent)
 }
