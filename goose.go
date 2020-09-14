@@ -40,6 +40,14 @@ type identCtx struct {
 	info map[scopedName]identInfo
 }
 
+type visitor int
+
+func (v visitor) Visit(n ast.Node) ast.Visitor {
+	// check if this functions uses the struct to interface transform
+	// do a struct to interface transform
+	// make sure this prints in coq
+}
+
 func newIdentCtx() identCtx {
 	return identCtx{info: make(map[scopedName]identInfo)}
 }

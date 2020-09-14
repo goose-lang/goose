@@ -10,8 +10,8 @@ type testInterface interface {
 // Empty interface
 type emptyInterface interface{}
 
-func useInterface(t testInterface) {
-	fmt.Printf("%T", t.Square())
+func returnSquare(t testInterface) uint64 {
+	return t.Square()
 }
 
 type TestStruct struct {
@@ -27,5 +27,5 @@ func test() {
 		Number: 2,
 	}
 
-	fmt.Println(s.Square())
+	fmt.Println("%d", uint64(returnSquare(s)))
 }
