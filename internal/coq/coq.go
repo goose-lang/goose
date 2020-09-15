@@ -179,6 +179,33 @@ func (d InterfaceDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+type StructToInterface struct {
+	Struct    string
+	Interface string
+	Methods   []string
+}
+
+func (d StructToInterface) Coq() string {
+	var pp buffer
+	pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
+	pp.Indent(2)
+	pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
+	pp.Indent(2)
+	if len(d.Methods) == 1 {
+		pp.Add("struct.mk %s.S [\"%s\" ::= \"%s__%s\" \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
+	} else {
+		pp.Add("struct.mk %s.S [", d.Interface)
+		pp.Indent(2)
+		for i := range d.Methods {
+			// TODO: need to remove last semicolon
+			pp.Add("\"%s\" ::= \"%s__%s\" \"t\";", d.Methods[i], d.Struct, d.Methods[i])
+		}
+		pp.Indent(-2)
+		pp.Add("].")
+	}
+	return pp.Build()
+}
+
 type TypeDecl struct {
 	Name string
 	Body Type

@@ -19,6 +19,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -38,14 +39,6 @@ type scopedName struct {
 
 type identCtx struct {
 	info map[scopedName]identInfo
-}
-
-type visitor int
-
-func (v visitor) Visit(n ast.Node) ast.Visitor {
-	// check if this functions uses the struct to interface transform
-	// do a struct to interface transform
-	// make sure this prints in coq
 }
 
 func newIdentCtx() identCtx {
@@ -2156,9 +2149,55 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 	return decls
 }
 
+type visitor struct {
+	Conversions []string
+	Interfaces  []ast.Expr
+	ctx         Ctx
+	info        *types.Info
+}
+
+func (v visitor) Visit(n ast.Node) ast.Visitor {
+	if reflect.TypeOf(n) != nil {
+		switch n.(type) {
+		case *ast.FuncDecl:
+			if len(n.(*ast.FuncDecl).Type.Params.List) > 0 {
+				// expecting interface
+				v.Interfaces = append(v.Interfaces, n.(*ast.FuncDecl).Type.Params.List[0].Type)
+				fmt.Println(v.Interfaces)
+				// fmt.Println(n.(*ast.FuncDecl).Type.Params.List[0].Type.Methods)
+
+			}
+		case *ast.CallExpr:
+			if len(n.(*ast.CallExpr).Args) > 0 {
+				// receiving struct
+				// fmt.Println(n.(*ast.CallExpr).Fun)
+				// fmt.Println(n.(*ast.CallExpr).Args)
+				// fmt.Println(reflect.TypeOf(n.(*ast.CallExpr).Args[0]))
+				// mismatch?
+			}
+		case *ast.Ident:
+			// get interface method list
+			for _, b := range v.Interfaces {
+				if fmt.Sprintf("%v", b) == n.(*ast.Ident).Name {
+					fmt.Println("found one!")
+					fmt.Println(n.(*ast.Ident).Obj.Type)
+				}
+			}
+		default:
+			fmt.Println(reflect.TypeOf(n))
+			fmt.Println(reflect.ValueOf(n))
+
+		}
+	}
+
+	return v
+}
+
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
+		ast.Walk(new(visitor), d)
+		// generate conversions
 		fd := ctx.funcDecl(d)
 		return []coq.Decl{fd}
 	case *ast.GenDecl:
