@@ -19,7 +19,6 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -2149,55 +2148,38 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 	return decls
 }
 
-type visitor struct {
-	Conversions []string
-	Interfaces  []ast.Expr
-	ctx         Ctx
-	info        *types.Info
-}
-
-func (v visitor) Visit(n ast.Node) ast.Visitor {
-	if reflect.TypeOf(n) != nil {
-		switch n.(type) {
-		case *ast.FuncDecl:
-			if len(n.(*ast.FuncDecl).Type.Params.List) > 0 {
-				// expecting interface
-				v.Interfaces = append(v.Interfaces, n.(*ast.FuncDecl).Type.Params.List[0].Type)
-				fmt.Println(v.Interfaces)
-				// fmt.Println(n.(*ast.FuncDecl).Type.Params.List[0].Type.Methods)
-
-			}
-		case *ast.CallExpr:
-			if len(n.(*ast.CallExpr).Args) > 0 {
-				// receiving struct
-				// fmt.Println(n.(*ast.CallExpr).Fun)
-				// fmt.Println(n.(*ast.CallExpr).Args)
-				// fmt.Println(reflect.TypeOf(n.(*ast.CallExpr).Args[0]))
-				// mismatch?
-			}
-		case *ast.Ident:
-			// get interface method list
-			for _, b := range v.Interfaces {
-				if fmt.Sprintf("%v", b) == n.(*ast.Ident).Name {
-					fmt.Println("found one!")
-					fmt.Println(n.(*ast.Ident).Obj.Type)
-				}
-			}
-		default:
-			fmt.Println(reflect.TypeOf(n))
-			fmt.Println(reflect.ValueOf(n))
-
-		}
-	}
-
-	return v
-}
-
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		ast.Walk(new(visitor), d)
+		for i := 0; i < len(d.Body.List); i++ {
+			switch f := d.Body.List[i].(type) {
+			case *ast.ExprStmt:
+				interfaceName := ""
+				methods := []string{}
+				params := ctx.typeOf(f.X.(*ast.CallExpr).Fun).(*types.Signature).Params()
+				for j := 0; j < params.Len(); j++ {
+					interfaceName = params.At(j).Type().String()
+					switch v := params.At(j).Type().Underlying().(type) {
+					case *types.Interface:
+						for m := 0; m < v.NumMethods(); m++ {
+							methods = append(methods, v.Method(m).Name())
+						}
+					default:
+					}
+				}
+				for k := 0; k < len(f.X.(*ast.CallExpr).Args); k++ {
+					structName := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).String()
+					switch ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).Underlying().(type) {
+					case *types.Struct:
+						fmt.Println(coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}.Coq())
+					default:
+					}
+				}
+			default:
+			}
+		}
 		// generate conversions
+
 		fd := ctx.funcDecl(d)
 		return []coq.Decl{fd}
 	case *ast.GenDecl:
