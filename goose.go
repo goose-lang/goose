@@ -2151,6 +2151,7 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
+		cv := coq.StructToInterface{}
 		for i := 0; i < len(d.Body.List); i++ {
 			switch f := d.Body.List[i].(type) {
 			case *ast.ExprStmt:
@@ -2159,6 +2160,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 				params := ctx.typeOf(f.X.(*ast.CallExpr).Fun).(*types.Signature).Params()
 				for j := 0; j < params.Len(); j++ {
 					interfaceName = params.At(j).Type().String()
+					interfaceName = strings.Replace(interfaceName, ".", "_", -1)
 					switch v := params.At(j).Type().Underlying().(type) {
 					case *types.Interface:
 						for m := 0; m < v.NumMethods(); m++ {
@@ -2167,21 +2169,31 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 					default:
 					}
 				}
+				// remove duplicates from methods
+				encountered := map[string]bool{}
+				deduplicated_methods := []string{}
+				for m := range methods {
+					if encountered[methods[m]] == true {
+					} else {
+						encountered[methods[m]] = true
+						deduplicated_methods = append(deduplicated_methods, methods[m])
+					}
+				}
 				for k := 0; k < len(f.X.(*ast.CallExpr).Args); k++ {
 					structName := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).String()
+					structName = strings.Replace(structName, ".", "_", -1)
 					switch ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).Underlying().(type) {
 					case *types.Struct:
-						fmt.Println(coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}.Coq())
+						cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: deduplicated_methods}
 					default:
 					}
 				}
 			default:
 			}
 		}
-		// generate conversions
-
 		fd := ctx.funcDecl(d)
-		return []coq.Decl{fd}
+		results := append([]coq.Decl{cv}, fd)
+		return results
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:

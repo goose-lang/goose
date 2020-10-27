@@ -187,21 +187,52 @@ type StructToInterface struct {
 
 func (d StructToInterface) Coq() string {
 	var pp buffer
-	pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
-	pp.Indent(2)
-	pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
-	pp.Indent(2)
-	if len(d.Methods) == 1 {
-		pp.Add("struct.mk %s.S [\"%s\" ::= \"%s__%s\" \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
-	} else {
-		pp.Add("struct.mk %s.S [", d.Interface)
+	if len(d.Struct) > 0 && len(d.Interface) > 0 {
+		pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
 		pp.Indent(2)
-		for i := range d.Methods {
-			// TODO: need to remove last semicolon
-			pp.Add("\"%s\" ::= \"%s__%s\" \"t\";", d.Methods[i], d.Struct, d.Methods[i])
+		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
+		pp.Indent(2)
+		if len(d.Methods) == 1 {
+			pp.Add("struct.mk %s.S [\"%s\" ::= \"%s__%s\" \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
+		} else {
+			pp.Add("struct.mk %s.S [", d.Interface)
+			pp.Indent(2)
+			for i := range d.Methods {
+				// TODO: need to remove last semicolon
+				pp.Add("\"%s\" ::= \"%s__%s\" \"t\";", d.Methods[i], d.Struct, d.Methods[i])
+			}
+			pp.Indent(-2)
+			pp.Add("].")
 		}
-		pp.Indent(-2)
-		pp.Add("].")
+	}
+	return pp.Build()
+}
+
+func (d StructToInterface) Name() string {
+	var pp buffer
+	pp.Add("%s__to__%s", d.Struct, d.Interface)
+	return pp.Build()
+}
+
+func (d StructToInterface) CoqDecl() string {
+	var pp buffer
+	if len(d.Struct) > 0 && len(d.Interface) > 0 {
+		pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
+		pp.Indent(2)
+		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
+		pp.Indent(2)
+		if len(d.Methods) == 1 {
+			pp.Add("struct.mk %s.S [\"%s\" ::= \"%s__%s\" \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
+		} else {
+			pp.Add("struct.mk %s.S [", d.Interface)
+			pp.Indent(2)
+			for i := range d.Methods {
+				// TODO: need to remove last semicolon
+				pp.Add("\"%s\" ::= \"%s__%s\" \"t\";", d.Methods[i], d.Struct, d.Methods[i])
+			}
+			pp.Indent(-2)
+			pp.Add("].")
+		}
 	}
 	return pp.Build()
 }
