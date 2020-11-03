@@ -952,7 +952,6 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 func (ctx Ctx) structLiteral(info structTypeInfo,
 	e *ast.CompositeLit) coq.StructLiteral {
 	lit := coq.NewStructLiteral(info.name)
-	foundFields := make(map[string]bool)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
@@ -962,15 +961,9 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 				return coq.StructLiteral{}
 			}
 			lit.AddField(ident, ctx.expr(el.Value))
-			foundFields[ident] = true
 		default:
 			ctx.unsupported(e,
 				"un-keyed struct literal field %v", ctx.printGo(el))
-		}
-	}
-	for _, f := range info.fields() {
-		if !foundFields[f] {
-			ctx.unsupported(e, "incomplete struct literal (missing %v)", f)
 		}
 	}
 	return lit

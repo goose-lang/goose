@@ -383,6 +383,12 @@ func (suite *GoTestSuite) TestStructConstructions() {
 	suite.Equal(true, testStructConstructions())
 }
 
+func (suite *GoTestSuite) TestIncompleteStruct() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testIncompleteStruct())
+}
+
 func (suite *GoTestSuite) TestStoreInStructVar() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

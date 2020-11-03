@@ -105,6 +105,19 @@ func testStructConstructions() bool {
 	return ok
 }
 
+func testIncompleteStruct() bool {
+	var ok = true
+
+	p1 := TwoInts{x: 0}
+	ok = ok && (p1.y == 0)
+
+	p2 := S{a: 2}
+	ok = ok && (p2.b.x == 0)
+	ok = ok && (p2.c == false)
+
+	return ok
+}
+
 type StructWrap struct {
 	i uint64
 }
