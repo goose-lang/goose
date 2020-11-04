@@ -257,7 +257,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
-	// TODO: to support pointers to function types, need to add case *types.Signature:
+		// TODO: to support pointers to function types, need to add case *types.Signature:
 	}
 	panic(fmt.Errorf("unhandled type %v", t))
 }
@@ -305,7 +305,7 @@ func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
 }
 
-func (ctx Ctx) coqFuncType (e *ast.FuncType) coq.Type {
+func (ctx Ctx) coqFuncType(e *ast.FuncType) coq.Type {
 	types := []coq.Type{}
 	args := ctx.paramList(e.Params)
 	for _, a := range args {
@@ -315,7 +315,7 @@ func (ctx Ctx) coqFuncType (e *ast.FuncType) coq.Type {
 		types = append(types, coq.TypeIdent("unitT"))
 	}
 	resType := ctx.returnType(e.Results)
-	return coq.ArrowType{ArgTypes:types, ReturnType:resType}
+	return coq.ArrowType{ArgTypes: types, ReturnType: resType}
 }
 
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {

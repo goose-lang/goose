@@ -9,10 +9,10 @@ func adder() func(uint64) uint64 {
 }
 
 func main() {
-    pos := adder()
-    doub := adder()
+	pos := adder()
+	doub := adder()
 	for i := uint64(0); i < 10; i++ {
-        pos(i)
-        doub(2*i)
+		pos(i)
+		doub(2 * i)
 	}
 }
