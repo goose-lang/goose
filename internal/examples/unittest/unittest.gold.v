@@ -4,6 +4,26 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 
 From Goose Require github_com.tchajed.marshal.
 
+(* closure.go *)
+
+Definition adder: val :=
+  rec: "adder" <> :=
+    let: "sum" := ref_to uint64T #0 in
+    (rec: "" "x" :=
+      "sum" <-[uint64T] ![uint64T] "sum" + "x";;
+      ![uint64T] "sum"
+      ).
+
+Definition main: val :=
+  rec: "main" <> :=
+    let: "pos" := adder #() in
+    let: "doub" := adder #() in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
+      "pos" (![uint64T] "i");;
+      "doub" (#2 * ![uint64T] "i");;
+      Continue).
+
 (* comments.go *)
 
 (* This struct is very important.

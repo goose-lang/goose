@@ -257,6 +257,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
+	// TODO: to support pointers to function types, need to add case *types.Signature:
 	}
 	panic(fmt.Errorf("unhandled type %v", t))
 }
@@ -304,6 +305,19 @@ func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
 }
 
+func (ctx Ctx) coqFuncType (e *ast.FuncType) coq.Type {
+	types := []coq.Type{}
+	args := ctx.paramList(e.Params)
+	for _, a := range args {
+		types = append(types, a.Type)
+	}
+	if len(args) == 0 {
+		types = append(types, coq.TypeIdent("unitT"))
+	}
+	resType := ctx.returnType(e.Results)
+	return coq.ArrowType{ArgTypes:types, ReturnType:resType}
+}
+
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
@@ -330,6 +344,8 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		// we emit the right type here but Goose doesn't know how to call a method
 		// which takes variadic parameters (it'll pass them as separate arguments)
 		return coq.SliceType{ctx.coqType(e.Elt)}
+	case *ast.FuncType:
+		return ctx.coqFuncType(e)
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
@@ -363,6 +379,12 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 			ctx.addDef(name, identInfo{
 				IsPtrWrapped: false,
 				IsMacro:      false,
+			})
+		}
+		if len(f.Names) == 0 { // Unnamed parameter
+			decls = append(decls, coq.FieldDecl{
+				Name: "",
+				Type: ty,
 			})
 		}
 	}
@@ -677,7 +699,13 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	}
 	switch f := call.Fun.(type) {
 	case *ast.Ident:
-		return ctx.newCoqCall(f.Name, args)
+		name := f.Name
+		// If the identifier name is actually a variable, need to output
+		// "\"" + name "\"" instead of name
+		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
+			name = fmt.Sprintf("\"%s\"", name)
+		}
+		return ctx.newCoqCall(name, args)
 	case *ast.SelectorExpr:
 		return ctx.selectorMethod(f, call)
 	}
@@ -1200,6 +1228,15 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 	return ctx.exprSpecial(e, false)
 }
 
+func (ctx Ctx) funcLit(e *ast.FuncLit) coq.FuncLit {
+	fl := coq.FuncLit{} // TODO: Add type checking?
+
+	fl.Args = ctx.paramList(e.Type.Params)
+	// fl.ReturnType = ctx.returnType(d.Type.Results)
+	fl.Body = ctx.blockStmt(e.Body, nil)
+	return fl
+}
+
 func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
@@ -1229,6 +1266,8 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	case *ast.TypeAssertExpr:
 		// TODO: do something with the type
 		return ctx.expr(e.X)
+	case *ast.FuncLit:
+		return ctx.funcLit(e)
 	default:
 		ctx.unsupported(e, "unexpected expr")
 	}
