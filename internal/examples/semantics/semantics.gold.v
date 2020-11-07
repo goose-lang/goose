@@ -413,6 +413,39 @@ Theorem failing_testFunctionOrdering_t: ⊢ failing_testFunctionOrdering : (unit
 Proof. typecheck. Qed.
 Hint Resolve failing_testFunctionOrdering_t : types.
 
+(* int_conversions.go *)
+
+Definition testU64ToU32: val :=
+  rec: "testU64ToU32" <> :=
+    let: "ok" := ref_to boolT #true in
+    let: "x" := #1230 in
+    let: "y" := #(U32 1230) in
+    "ok" <-[boolT] (![boolT] "ok") && (to_u32 "x" = "y");;
+    "ok" <-[boolT] (![boolT] "ok") && (to_u64 "y" = "x");;
+    ![boolT] "ok".
+Theorem testU64ToU32_t: ⊢ testU64ToU32 : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testU64ToU32_t : types.
+
+Definition testU32Len: val :=
+  rec: "testU32Len" <> :=
+    let: "s" := NewSlice byteT #100 in
+    (to_u32 (slice.len "s") = #(U32 100)).
+Theorem testU32Len_t: ⊢ testU32Len : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testU32Len_t : types.
+
+Definition Uint32: ty := uint32T.
+
+(* https://github.com/tchajed/goose/issues/14 *)
+Definition failing_testU32NewtypeLen: val :=
+  rec: "failing_testU32NewtypeLen" <> :=
+    let: "s" := NewSlice byteT #20 in
+    (slice.len "s" = #(U32 20)).
+Theorem failing_testU32NewtypeLen_t: ⊢ failing_testU32NewtypeLen : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve failing_testU32NewtypeLen_t : types.
+
 (* lock.go *)
 
 (* We can't interpret multithreaded code, so this just checks that

@@ -107,6 +107,24 @@ func (suite *GoTestSuite) TestFunctionOrdering() {
 	suite.Equal(true, failing_testFunctionOrdering())
 }
 
+func (suite *GoTestSuite) TestU64ToU32() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testU64ToU32())
+}
+
+func (suite *GoTestSuite) TestU32Len() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testU32Len())
+}
+
+func (suite *GoTestSuite) TestU32NewtypeLen() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, failing_testU32NewtypeLen())
+}
+
 func (suite *GoTestSuite) TestsUseLocks() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

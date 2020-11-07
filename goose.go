@@ -673,6 +673,8 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		}
 		// a different type conversion, which is a noop in GooseLang (which is
 		// untyped)
+		// TODO: handle integer conversions here, checking if call.Fun is an integer
+		//  type; see https://github.com/tchajed/goose/issues/14
 		return ctx.expr(args[0])
 	}
 	switch f := call.Fun.(type) {
