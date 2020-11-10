@@ -1,7 +1,5 @@
 package semantics
 
-import "fmt"
-
 // Interface with method set
 type testInterface interface {
 	Square() uint64
@@ -10,8 +8,8 @@ type testInterface interface {
 // Empty interface
 type emptyInterface interface{}
 
-func measure(t testInterface) {
-	fmt.Println(t.Square())
+func measureSquare(t testInterface) uint64 {
+	return t.Square()
 }
 
 type TestStruct struct {
@@ -22,10 +20,10 @@ func (t TestStruct) Square() uint64 {
 	return t.Number * t.Number
 }
 
-func test() {
+func interfaceTest() bool {
 	s := TestStruct{
 		Number: 2,
 	}
 
-	measure(s)
+	return measureSquare(s) == 4
 }

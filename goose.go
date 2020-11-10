@@ -682,12 +682,23 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		// skip disk argument (f.X) and just pass the method arguments
 		return ctx.newCoqCall(method, call.Args)
 	}
-	structInfo, ok := ctx.getStructInfo(selectorType)
-	if ok {
-		callArgs := append([]ast.Expr{f.X}, args...)
-		return ctx.newCoqCall(
-			coq.StructMethod(structInfo.name, f.Sel.Name),
-			callArgs)
+	switch selectorType.Underlying().(type) {
+	case *types.Interface:
+		interfaceInfo, ok := ctx.getInterfaceInfo(selectorType)
+		if ok {
+			callArgs := append([]ast.Expr{f.X}, args...)
+			return ctx.newCoqCall(
+				coq.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
+				callArgs)
+		}
+	default:
+		structInfo, ok := ctx.getStructInfo(selectorType)
+		if ok {
+			callArgs := append([]ast.Expr{f.X}, args...)
+			return ctx.newCoqCall(
+				coq.StructMethod(structInfo.name, f.Sel.Name),
+				callArgs)
+		}
 	}
 	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
 	return nil
@@ -952,6 +963,27 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		}
 	}
 	return structTypeInfo{}, false
+}
+
+type interfaceTypeInfo struct {
+	name          string
+	interfaceType *types.Interface
+}
+
+func (ctx Ctx) getInterfaceInfo(t types.Type) (interfaceTypeInfo, bool) {
+	if pt, ok := t.(*types.Pointer); ok {
+		t = pt.Elem()
+	}
+	if t, ok := t.(*types.Named); ok {
+		name := ctx.qualifiedName(t.Obj())
+		if interfaceType, ok := t.Underlying().(*types.Interface); ok {
+			return interfaceTypeInfo{
+				name:          name,
+				interfaceType: interfaceType,
+			}, true
+		}
+	}
+	return interfaceTypeInfo{}, false
 }
 
 func (info structTypeInfo) fields() []string {
@@ -2154,6 +2186,35 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 		cv := coq.StructToInterface{}
 		for i := 0; i < len(d.Body.List); i++ {
 			switch f := d.Body.List[i].(type) {
+			case *ast.ReturnStmt:
+				interfaceName := ""
+				methods := []string{}
+				if len(f.Results) > 0 {
+					if results, ok := f.Results[0].(*ast.BinaryExpr); ok {
+						if call, ok := results.X.(*ast.CallExpr); ok {
+							if signature, ok := ctx.typeOf(call.Fun).(*types.Signature); ok {
+								params := signature.Params()
+								for j := 0; j < params.Len(); j++ {
+									interfaceName = params.At(j).Type().String()
+									interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
+									if v, ok := params.At(j).Type().Underlying().(*types.Interface); ok {
+										for m := 0; m < v.NumMethods(); m++ {
+											methods = append(methods, v.Method(m).Name())
+										}
+									}
+								}
+								for k := 0; k < len(call.Args); k++ {
+									structName := ctx.typeOf(call.Args[k]).String()
+									structName = strings.Join(strings.Split(structName, ".")[1:], "")
+									if _, ok := ctx.typeOf(call.Args[k]).Underlying().(*types.Struct); ok {
+										cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
+									}
+								}
+							}
+						}
+					}
+				}
+
 			case *ast.ExprStmt:
 				interfaceName := ""
 				methods := []string{}
@@ -2161,38 +2222,27 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 				for j := 0; j < params.Len(); j++ {
 					interfaceName = params.At(j).Type().String()
 					interfaceName = strings.Replace(interfaceName, ".", "_", -1)
-					switch v := params.At(j).Type().Underlying().(type) {
-					case *types.Interface:
+					if v, ok := params.At(j).Type().Underlying().(*types.Interface); ok {
 						for m := 0; m < v.NumMethods(); m++ {
 							methods = append(methods, v.Method(m).Name())
 						}
-					default:
-					}
-				}
-				// remove duplicates from methods
-				encountered := map[string]bool{}
-				deduplicated_methods := []string{}
-				for m := range methods {
-					if encountered[methods[m]] == true {
-					} else {
-						encountered[methods[m]] = true
-						deduplicated_methods = append(deduplicated_methods, methods[m])
 					}
 				}
 				for k := 0; k < len(f.X.(*ast.CallExpr).Args); k++ {
 					structName := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).String()
 					structName = strings.Replace(structName, ".", "_", -1)
-					switch ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).Underlying().(type) {
-					case *types.Struct:
-						cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: deduplicated_methods}
-					default:
+					if _, ok := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).Underlying().(*types.Struct); ok {
+						cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 					}
 				}
 			default:
 			}
 		}
 		fd := ctx.funcDecl(d)
-		results := append([]coq.Decl{cv}, fd)
+		results := []coq.Decl{fd}
+		if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+			results = append([]coq.Decl{cv}, fd)
+		}
 		return results
 	case *ast.GenDecl:
 		switch d.Tok {

@@ -163,7 +163,7 @@ func (d InterfaceDecl) CoqDecl() string {
 	pp.AddComment(d.Comment)
 	pp.Add("Module %s.", d.Name)
 	pp.Indent(2)
-	pp.AddLine("Definition M := struct.decl [")
+	pp.AddLine("Definition S := struct.decl [")
 	pp.Indent(2)
 	for i, fd := range d.Methods {
 		sep := ";"
@@ -206,6 +206,10 @@ func (d StructToInterface) Coq() string {
 		}
 	}
 	return pp.Build()
+}
+
+func (d StructToInterface) MethodList() []string {
+	return d.Methods
 }
 
 func (d StructToInterface) Name() string {
@@ -1046,6 +1050,10 @@ func (t PtrType) Coq() string {
 
 func StructMethod(structName string, methodName string) string {
 	return fmt.Sprintf("%s__%s", structName, methodName)
+}
+
+func InterfaceMethod(interfaceName string, methodName string) string {
+	return fmt.Sprintf("struct.get %s.S \"%s\"", interfaceName, methodName)
 }
 
 // TODO: note that the second two lines should be customized depending on the
