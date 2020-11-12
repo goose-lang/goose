@@ -23,6 +23,12 @@ func (suite *GoTestSuite) TestAllocateFull() {
 	suite.Equal(true, testAllocateFull())
 }
 
+func (suite *GoTestSuite) TestClosureBasic() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testClosureBasic())
+}
+
 func (suite *GoTestSuite) TestCompareAll() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

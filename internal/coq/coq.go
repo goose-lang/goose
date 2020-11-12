@@ -211,6 +211,20 @@ func (t ArrayType) Coq() string {
 	return fmt.Sprintf("arrayT %s", t.Elt.Coq())
 }
 
+type ArrowType struct {
+	ArgTypes   []Type // Must be non-empty; if no arguments, consists of unitT
+	ReturnType Type
+}
+
+func (t ArrowType) Coq() string {
+	types := []string{}
+	for _, a := range t.ArgTypes {
+		types = append(types, a.Coq())
+	}
+	types = append(types, t.ReturnType.Coq())
+	return "(" + strings.Join(types, " -> ") + ")%ht"
+}
+
 type Expr interface {
 	Coq() string
 }
@@ -756,6 +770,35 @@ type SpawnExpr struct {
 func (e SpawnExpr) Coq() string {
 	var pp buffer
 	pp.Block("Fork (", "%s)", e.Body.Coq())
+	return pp.Build()
+}
+
+// FuncLit is an unnamed function literal, consisting of its parameters and body.
+type FuncLit struct {
+	Args []FieldDecl
+	// TODO: ReturnType Type
+	Body Expr
+	// TODO: AddTypes   bool
+}
+
+func (e FuncLit) Coq() string {
+	var pp buffer
+
+	var args []string
+	for _, a := range e.Args {
+		args = append(args, a.CoqBinder())
+	}
+	if len(args) == 0 {
+		args = []string{"<>"}
+	}
+	sig := strings.Join(args, " ")
+
+	pp.Add("(λ: %s,", sig)
+	pp.Indent(2)
+	defer pp.Indent(-2)
+	pp.AddLine(e.Body.Coq())
+	pp.Add(")")
+
 	return pp.Build()
 }
 
