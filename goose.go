@@ -942,6 +942,11 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 		}
 	}
 	structInfo, ok := ctx.getStructInfo(selectorType)
+	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
+	if isFuncType {
+		return coq.NewCallExpr(
+			coq.StructMethod(structInfo.name, e.Sel.Name), ctx.expr(e.X))
+	}
 	if ok {
 		return ctx.structSelector(structInfo, e)
 	}
@@ -1229,7 +1234,7 @@ func (ctx Ctx) expr(e ast.Expr) coq.Expr {
 }
 
 func (ctx Ctx) funcLit(e *ast.FuncLit) coq.FuncLit {
-	fl := coq.FuncLit{} // TODO: Add type checking?
+	fl := coq.FuncLit{}
 
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
