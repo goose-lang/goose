@@ -67,6 +67,39 @@ Theorem testAllocateFull_t: ⊢ testAllocateFull : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testAllocateFull_t : types.
 
+(* closures.go *)
+
+Definition AdderType: ty := (uint64T -> uint64T)%ht.
+
+Definition MultipleArgsType: ty := (uint64T -> boolT -> uint64T)%ht.
+
+Definition adder: val :=
+  rec: "adder" <> :=
+    let: "sum" := ref_to uint64T #0 in
+    (λ: "x",
+      "sum" <-[uint64T] ![uint64T] "sum" + "x";;
+      ![uint64T] "sum"
+      ).
+Theorem adder_t: ⊢ adder : (unitT -> AdderType).
+Proof. typecheck. Qed.
+Hint Resolve adder_t : types.
+
+Definition testClosureBasic: val :=
+  rec: "testClosureBasic" <> :=
+    let: "pos" := adder #() in
+    let: "doub" := adder #() in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, ![uint64T] "i" < #10); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
+      "pos" (![uint64T] "i");;
+      "doub" (#2 * ![uint64T] "i");;
+      Continue);;
+    (if: ("pos" #0 = #45) && ("doub" #0 = #90)
+    then #true
+    else #false).
+Theorem testClosureBasic_t: ⊢ testClosureBasic : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testClosureBasic_t : types.
+
 (* comparisons.go *)
 
 Definition testCompareAll: val :=

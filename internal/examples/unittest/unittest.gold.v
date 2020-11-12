@@ -9,7 +9,7 @@ From Goose Require github_com.tchajed.marshal.
 Definition adder: val :=
   rec: "adder" <> :=
     let: "sum" := ref_to uint64T #0 in
-    (rec: "" "x" :=
+    (λ: "x",
       "sum" <-[uint64T] ![uint64T] "sum" + "x";;
       ![uint64T] "sum"
       ).

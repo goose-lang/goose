@@ -222,7 +222,7 @@ func (t ArrowType) Coq() string {
 		types = append(types, a.Coq())
 	}
 	types = append(types, t.ReturnType.Coq())
-	return strings.Join(types, " -> ")
+	return "(" + strings.Join(types, " -> ") + ")%ht"
 }
 
 type Expr interface {
@@ -793,7 +793,7 @@ func (e FuncLit) Coq() string {
 	}
 	sig := strings.Join(args, " ")
 
-	pp.Add("(rec: \"\" %s :=", sig)
+	pp.Add("(λ: %s,", sig)
 	pp.Indent(2)
 	defer pp.Indent(-2)
 	pp.AddLine(e.Body.Coq())
