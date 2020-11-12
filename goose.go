@@ -942,6 +942,10 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 		}
 	}
 	structInfo, ok := ctx.getStructInfo(selectorType)
+
+	// Check if the select expression is actually referring to a function object
+	// If it is, we need to translate to 'StructName__FuncName varName' instead
+	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
 		return coq.NewCallExpr(
