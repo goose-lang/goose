@@ -478,54 +478,147 @@ Definition failing_testU32NewtypeLen: val :=
 Theorem failing_testU32NewtypeLen_t: ⊢ failing_testU32NewtypeLen : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testU32NewtypeLen_t : types.
+
 (* interfaces.go *)
 
-(* Interface with method set *)
-Module testInterface.
+Module squareInterface.
   Definition S := struct.decl [
-    "Square" :: arrowT unitT uint64T
+    "Square" :: (unitT -> uint64T)%ht
   ].
-End testInterface.
-
-(* Empty interface *)
-Module emptyInterface.
-  Definition S := struct.decl [
-  ].
-End emptyInterface.
+End squareInterface.
 
 Definition measureSquare: val :=
   rec: "measureSquare" "t" :=
-    struct.get testInterface.S "Square" "t".
-Theorem measureSquare_t: ⊢ measureSquare : (testInterface -> uint64T).
+    struct.get squareInterface.S "Square" "t".
+Theorem measureSquare_t: ⊢ measureSquare : (squareInterface -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve measureSquare_t : types.
 
-Module TestStruct.
+Module NumStruct.
   Definition S := struct.decl [
     "Number" :: uint64T
   ].
-End TestStruct.
+End NumStruct.
 
-Definition TestStruct__Square: val :=
-  rec: "TestStruct__Square" "t" :=
-    struct.get TestStruct.S "Number" "t" * struct.get TestStruct.S "Number" "t".
-Theorem TestStruct__Square_t: ⊢ TestStruct__Square : (struct.t TestStruct.S -> uint64T).
+Definition NumStruct__Square: val :=
+  rec: "NumStruct__Square" "t" :=
+    struct.get NumStruct.S "Number" "t" * struct.get NumStruct.S "Number" "t".
+Theorem NumStruct__Square_t: ⊢ NumStruct__Square : (struct.t NumStruct.S -> uint64T).
 Proof. typecheck. Qed.
-Hint Resolve TestStruct__Square_t : types.
+Hint Resolve NumStruct__Square_t : types.
 
-Definition TestStruct__to__testInterface: val :=
-  rec: "TestStruct_to_testInterface" "t" :=
-    struct.mk testInterface.S ["Square" ::= "TestStruct__Square" "t"].
 
-Definition interfaceTest: val :=
-  rec: "interfaceTest" <> :=
-    let: "s" := struct.mk TestStruct.S [
+
+Definition NumStruct__to__squareInterface: val :=
+  rec: "NumStruct_to_squareInterface" "t" :=
+    struct.mk squareInterface.S ["Square" ::= NumStruct__Square "t"].
+
+Definition testBasicInterface: val :=
+  rec: "testBasicInterface" <> :=
+    let: "s" := struct.mk NumStruct.S [
       "Number" ::= #2
     ] in
-    (measureSquare "s" = #4).
-Theorem interfaceTest_t: ⊢ interfaceTest : (unitT -> boolT).
+    (measureSquare (NumStruct__to__squareInterface "s") = #4).
+Theorem testBasicInterface_t: ⊢ testBasicInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve interfaceTest_t : types.
+Hint Resolve testBasicInterface_t : types.
+
+Definition testAssignInterface: val :=
+  rec: "testAssignInterface" <> :=
+    let: "s" := struct.mk NumStruct.S [
+      "Number" ::= #3
+    ] in
+    let: "square" := measureSquare (NumStruct__to__squareInterface "s") in
+    ("square" = #9).
+Theorem testAssignInterface_t: ⊢ testAssignInterface : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testAssignInterface_t : types.
+
+Module shapeInterface.
+  Definition S := struct.decl [
+    "describe" :: (unitT -> stringT)%ht
+  ].
+End shapeInterface.
+
+Module polygonInterface.
+  Definition S := struct.decl [
+    "sides" :: (unitT -> uint64T)%ht
+  ].
+End polygonInterface.
+
+Module shapeStruct.
+  Definition S := struct.decl [
+    "Shape" :: stringT
+  ].
+End shapeStruct.
+
+Definition shapeStruct__describe: val :=
+  rec: "shapeStruct__describe" "s" :=
+    struct.get shapeStruct.S "Shape" "s".
+Theorem shapeStruct__describe_t: ⊢ shapeStruct__describe : (struct.t shapeStruct.S -> stringT).
+Proof. typecheck. Qed.
+Hint Resolve shapeStruct__describe_t : types.
+
+Module polygonStruct.
+  Definition S := struct.decl [
+    "Shape" :: stringT;
+    "Sides" :: uint64T
+  ].
+End polygonStruct.
+
+Definition polygonStruct__describe: val :=
+  rec: "polygonStruct__describe" "p" :=
+    struct.get polygonStruct.S "Shape" "p".
+Theorem polygonStruct__describe_t: ⊢ polygonStruct__describe : (struct.t polygonStruct.S -> stringT).
+Proof. typecheck. Qed.
+Hint Resolve polygonStruct__describe_t : types.
+
+Definition polygonStruct__sides: val :=
+  rec: "polygonStruct__sides" "p" :=
+    struct.get polygonStruct.S "Sides" "p".
+Theorem polygonStruct__sides_t: ⊢ polygonStruct__sides : (struct.t polygonStruct.S -> uint64T).
+Proof. typecheck. Qed.
+Hint Resolve polygonStruct__sides_t : types.
+
+Module bookInterface.
+  Definition S := struct.decl [
+    "GetAuthor" :: (unitT -> stringT)%ht
+  ].
+End bookInterface.
+
+Module NovelStruct.
+  Definition S := struct.decl [
+    "Author" :: stringT
+  ].
+End NovelStruct.
+
+Definition NovelStruct__GetAuthor: val :=
+  rec: "NovelStruct__GetAuthor" "n" :=
+    struct.get NovelStruct.S "Author" "n".
+Theorem NovelStruct__GetAuthor_t: ⊢ NovelStruct__GetAuthor : (struct.t NovelStruct.S -> stringT).
+Proof. typecheck. Qed.
+Hint Resolve NovelStruct__GetAuthor_t : types.
+
+Definition WhichAuthor: val :=
+  rec: "WhichAuthor" "b" :=
+    struct.get bookInterface.S "GetAuthor" "b".
+Theorem WhichAuthor_t: ⊢ WhichAuthor : (bookInterface -> stringT).
+Proof. typecheck. Qed.
+Hint Resolve WhichAuthor_t : types.
+
+Definition NovelStruct__to__bookInterface: val :=
+  rec: "NovelStruct_to_bookInterface" "t" :=
+    struct.mk bookInterface.S ["GetAuthor" ::= NovelStruct__GetAuthor "t"].
+
+Definition interfaceMethodNoParamsTest: val :=
+  rec: "interfaceMethodNoParamsTest" <> :=
+    let: "n" := struct.mk NovelStruct.S [
+      "Author" ::= #(str"Steve")
+    ] in
+    (WhichAuthor (NovelStruct__to__bookInterface "n") = #(str"Steve")).
+Theorem interfaceMethodNoParamsTest_t: ⊢ interfaceMethodNoParamsTest : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve interfaceMethodNoParamsTest_t : types.
 
 (* lock.go *)
 

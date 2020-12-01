@@ -131,6 +131,18 @@ func (suite *GoTestSuite) TestU32NewtypeLen() {
 	suite.Equal(true, failing_testU32NewtypeLen())
 }
 
+func (suite *GoTestSuite) TestBasicInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBasicInterface())
+}
+
+func (suite *GoTestSuite) TestAssignInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignInterface())
+}
+
 func (suite *GoTestSuite) TestsUseLocks() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

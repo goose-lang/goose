@@ -112,7 +112,6 @@ type Ctx struct {
 	info    *types.Info
 	fset    *token.FileSet
 	pkgPath string
-	// interfaces []interfaceCtx
 	errorReporter
 	Config
 }
@@ -260,7 +259,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
 		// TODO: to support pointers to function types, need to add case *types.Signature:
 	case *types.Interface:
-		// return coq.InterfaceType{}
 		return coq.InterfaceDecl{Name: ""}
 	}
 	panic(fmt.Errorf("unhandled type %v", t))
@@ -288,11 +286,6 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{ctx.coqType(e.Elt)}
 }
 
-func (ctx Ctx) interfaceType(e *ast.InterfaceType) coq.Type {
-	// TODO: get the type descriptor from parent node
-	return coq.InterfaceType{ctx.coqType(e)} //Method: ctx.paramList(e.Methods.List), TypeDescriptor: "x", Value: coq.TypeIdent("anyT")}
-}
-
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 	// check for *sync.Mutex
 	if e, ok := e.X.(*ast.SelectorExpr); ok {
@@ -308,18 +301,6 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
 		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(info.name))
 	}
 	return coq.PtrType{ctx.coqType(e.X)}
-}
-
-func (ctx Ctx) funcType(e *ast.FuncType) coq.Type {
-	var params = []string{}
-	var results = []string{}
-	for _, a := range e.Params.List {
-		params = append(params, ctx.coqType(a.Type).Coq())
-	}
-	for _, a := range e.Results.List {
-		results = append(results, ctx.coqType(a.Type).Coq())
-	}
-	return coq.FuncType{Params: params, Results: results}
 }
 
 func isEmptyInterface(e *ast.InterfaceType) bool {
@@ -360,8 +341,6 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		} else {
 			ctx.unsupported(e, "non-empty interface")
 		}
-	case *ast.FuncType:
-		return ctx.funcType(e)
 	case *ast.Ellipsis:
 		// NOTE: ellipsis types are not fully supported
 		// we emit the right type here but Goose doesn't know how to call a method
@@ -878,15 +857,20 @@ func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
-	// TODO: make sure it's a
-	if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
-		for j := 0; j < signature.Params().Len(); j++ {
-			// fmt.Println("---------")
-			// fmt.Println(ctx.typeOf(s.Fun))
-			conversion := signature.Params().At(j).Type().String()
-			conversion = strings.Join(strings.Split(conversion, ".")[1:], "")
-			conversion = fmt.Sprintf("%s ", s.Fun) + "(" + strings.Join(strings.Split(ctx.typeOf(s.Args[0]).String(), ".")[1:], "") + "__to__" + conversion + " \"" + fmt.Sprintf("%s", s.Args[0]) + "\")"
-			return coq.CallExpr{MethodName: conversion}
+	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
+	} else {
+		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
+			for j := 0; j < signature.Params().Len(); j++ {
+				if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
+					interfaceName := signature.Params().At(j).Type().String()
+					interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
+					structName := strings.Join(strings.Split(ctx.typeOf(s.Args[0]).String(), ".")[1:], "")
+					if interfaceName != structName && interfaceName != "" && structName != "" {
+						conversion := fmt.Sprintf("%s ", s.Fun) + "(" + structName + "__to__" + interfaceName + " \"" + fmt.Sprintf("%s", s.Args[0]) + "\")"
+						return coq.CallExpr{MethodName: conversion}
+					}
+				}
+			}
 		}
 	}
 	if isIdent(s.Fun, "make") {
@@ -2034,29 +2018,6 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	default:
 		ctx.unsupported(s, "statement")
 	}
-	return coq.Binding{}
-}
-
-func (ctx Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, c *cursor, loopVar *string) coq.Binding {
-	var ident = s.Assign
-	var td = "anyT"
-
-	for _, i := range ctx.interfaces {
-		if i.typeDescriptor == "sample" {
-			td = i.value
-		}
-	}
-
-	if len(s.Body.List) > 0 {
-		for _, i := range s.Body.List {
-			// for _, j := range i {//.List {
-			if td == j.List.Name {
-				return coq.NewAnon(ctx.expr(j.Body.X))
-				// }
-			}
-		}
-	}
-
 	return coq.Binding{}
 }
 
