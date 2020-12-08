@@ -204,6 +204,7 @@ type StructToInterface struct {
 	Struct    string
 	Interface string
 	Methods   []string
+	Value     string
 }
 
 func (d StructToInterface) Coq() string {

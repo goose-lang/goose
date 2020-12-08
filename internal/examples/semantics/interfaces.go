@@ -1,43 +1,102 @@
 package semantics
 
-type squareInterface interface {
+type geometryInterface interface {
 	Square() uint64
+	Volume() uint64
 }
 
-func measureSquare(t squareInterface) uint64 {
+func measureSquare(t geometryInterface) uint64 {
 	return t.Square()
 }
 
-type NumStruct struct {
-	Number uint64
+func measureVolume(t geometryInterface, e uint64, s string) uint64 {
+	return t.Volume()
 }
 
-func (t NumStruct) Square() uint64 {
-	return t.Number * t.Number
+type SquareStruct struct {
+	Side uint64
+}
+
+func (t SquareStruct) Square() uint64 {
+	return t.Side * t.Side
+}
+
+func (t SquareStruct) Volume() uint64 {
+	return t.Side * t.Side * t.Side
 }
 
 func testBasicInterface() bool {
-	s := NumStruct{
-		Number: 2,
+	s := SquareStruct{
+		Side: 2,
 	}
-
 	return measureSquare(s) == 4
 }
 
 func testAssignInterface() bool {
-	s := NumStruct{
-		Number: 3,
+	s := SquareStruct{
+		Side: 3,
 	}
-
 	square := measureSquare(s)
 	return square == 9
+}
+
+func testParamsInterface() bool {
+	s := SquareStruct{
+		Side: 3,
+	}
+	volume := measureVolume(s, 5, "string")
+	return volume == 32
+}
+
+// ----------------------------
+
+type bookInterface interface {
+	GetAuthor() string
+}
+
+type authorInterface interface {
+	GetBirthdate() uint64
+}
+
+type BookStruct struct {
+	Author string
+}
+
+type AuthorStruct struct {
+	Birthdate uint64
+}
+
+func (b BookStruct) GetAuthor() string {
+	return b.Author
+}
+
+func (a AuthorStruct) GetBirthdate() uint64 {
+	return a.Birthdate
+}
+
+func WhichAuthor(b bookInterface) string {
+	return b.GetAuthor()
+}
+
+func WhichBirthdate(a authorInterface) uint64 {
+	return a.GetBirthdate()
+}
+
+// Make sure mutliple interfaces are translated
+func multipleInterfacesTest() bool {
+	b := BookStruct{
+		Author: "Steve",
+	}
+	a := AuthorStruct{
+		Birthdate: 11011998,
+	}
+	return WhichAuthor(b) == "Steve" && WhichBirthdate(a) == 11011998
 }
 
 // Failing
 // func testEmptyInterface() bool {
 // 	var i interface{}
 // 	var j interface{}
-
 // 	return i == j
 // }
 
@@ -45,7 +104,6 @@ func testAssignInterface() bool {
 // func testStringInterface() bool {
 // 	var i interface{} = "string"
 // 	var j interface{} = "string"
-
 // 	return i == j
 // }
 
@@ -59,41 +117,40 @@ func testAssignInterface() bool {
 // 	s := NumStruct{
 // 		Number: 3,
 // 	}
-
 // 	square1 := measureSquare(s)
 // 	square2 := measureSquare(s)
 
 // 	return square1 == square2
 // }
 
-type shapeInterface interface {
-	describe() string
-}
+// type shapeInterface interface {
+// 	describe() string
+// }
 
-type polygonInterface interface {
-	sides() uint64
-}
+// type polygonInterface interface {
+// 	sides() uint64
+// }
 
-type shapeStruct struct {
-	Shape string
-}
+// type shapeStruct struct {
+// 	Shape string
+// }
 
-func (s shapeStruct) describe() string {
-	return s.Shape
-}
+// func (s shapeStruct) describe() string {
+// 	return s.Shape
+// }
 
-type polygonStruct struct {
-	Shape string
-	Sides uint64
-}
+// type polygonStruct struct {
+// 	Shape string
+// 	Sides uint64
+// }
 
-func (p polygonStruct) describe() string {
-	return p.Shape
-}
+// func (p polygonStruct) describe() string {
+// 	return p.Shape
+// }
 
-func (p polygonStruct) sides() uint64 {
-	return p.Sides
-}
+// func (p polygonStruct) sides() uint64 {
+// 	return p.Sides
+// }
 
 // func doublePointerInterfaceTest() bool {
 // 	s := shapeStruct{"circle"}
@@ -106,7 +163,6 @@ func (p polygonStruct) sides() uint64 {
 
 // func multipleFieldsInterfaceTest() bool {
 // 	s := polygonStruct{"triangle", 3}
-
 // 	return s.Shape == "triangle" && s.Sides == 3
 // }
 
@@ -143,33 +199,8 @@ func (p polygonStruct) sides() uint64 {
 // func sharedFunctionsInterfaceTest() bool {
 // 	var kit catInterface = Kitten("Kitten")
 // 	var pup dogInterface = Puppy("Puppy")
-
 // 	return pup.Name() == kit.Name()
 // }
-
-type bookInterface interface {
-	GetAuthor() string
-}
-
-type NovelStruct struct {
-	Author string
-}
-
-func (n NovelStruct) GetAuthor() string {
-	return n.Author
-}
-
-func WhichAuthor(b bookInterface) string {
-	return b.GetAuthor()
-}
-
-func interfaceMethodNoParamsTest() bool {
-	n := NovelStruct{
-		Author: "Steve",
-	}
-
-	return WhichAuthor(n) == "Steve"
-}
 
 // type printInterface interface {
 // 	Assign(string)
@@ -193,13 +224,10 @@ func interfaceMethodNoParamsTest() bool {
 // 	var p2 PaperStruct
 // 	p1.Assign("Sample Title")
 // 	p2.Assign("Sample Title")
-
 // 	var print1 printInterface
 // 	var print2 printInterface
-
 // 	print1 = &p1
 // 	print2 = &p2
-
 // 	return print1.GetTitle() == print2.GetTitle()
 // }
 
@@ -232,7 +260,6 @@ func interfaceMethodNoParamsTest() bool {
 // 	r := new(Rose)
 // 	d := new(Daisy)
 // 	f := [...]Flower{l, r, d}
-
 // 	return f[0].Petals() == 3
 // }
 
@@ -241,7 +268,6 @@ func interfaceMethodNoParamsTest() bool {
 // 	r := new(Rose)
 // 	d := new(Daisy)
 // 	f := [...]Flora{l, r, d}
-
 // 	return f[0].Petals() == 3
 // }
 

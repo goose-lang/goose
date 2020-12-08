@@ -857,6 +857,7 @@ func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
+	// Special case for *sync.newCond
 	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
 	} else {
 		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
@@ -866,7 +867,19 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 					interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
 					structName := strings.Join(strings.Split(ctx.typeOf(s.Args[0]).String(), ".")[1:], "")
 					if interfaceName != structName && interfaceName != "" && structName != "" {
-						conversion := fmt.Sprintf("%s ", s.Fun) + "(" + structName + "__to__" + interfaceName + " \"" + fmt.Sprintf("%s", s.Args[0]) + "\")"
+						conversion := fmt.Sprintf("%s ", s.Fun) + "(" + structName + "__to__" + interfaceName
+						for _, arg := range s.Args {
+							if lit, ok := arg.(*ast.BasicLit); ok {
+								if lit.Kind == token.STRING {
+									conversion += fmt.Sprintf("  #(str%s)", lit.Value)
+								} else {
+									conversion += fmt.Sprintf("  #%s", lit.Value)
+								}
+							} else {
+								conversion += fmt.Sprintf(" \"%s\"", arg)
+							}
+						}
+						conversion += ")"
 						return coq.CallExpr{MethodName: conversion}
 					}
 				}
@@ -2170,10 +2183,10 @@ func (ctx Ctx) returnInterface(cv coq.StructToInterface, f *ast.ReturnStmt, d *a
 							}
 						}
 					}
-					for k := 0; k < len(call.Args); k++ {
-						structName := ctx.typeOf(call.Args[k]).String()
+					for _, arg := range call.Args {
+						structName := ctx.typeOf(arg).String()
 						structName = strings.Join(strings.Split(structName, ".")[1:], "")
-						if _, ok := ctx.typeOf(call.Args[k]).Underlying().(*types.Struct); ok {
+						if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
 							if len(cv.Coq()) == 0 {
 								cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 							}
@@ -2200,10 +2213,10 @@ func (ctx Ctx) exprInterface(cv coq.StructToInterface, f *ast.ExprStmt, d *ast.F
 				}
 			}
 		}
-		for k := 0; k < len(f.X.(*ast.CallExpr).Args); k++ {
-			structName := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).String()
+		for _, arg := range f.X.(*ast.CallExpr).Args {
+			structName := ctx.typeOf(arg).String()
 			structName = strings.Join(strings.Split(structName, ".")[1:], "")
-			if _, ok := ctx.typeOf(f.X.(*ast.CallExpr).Args[k]).Underlying().(*types.Struct); ok {
+			if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
 				if len(cv.Coq()) == 0 {
 					cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 				}
@@ -2228,10 +2241,10 @@ func (ctx Ctx) assignInterface(cv coq.StructToInterface, f *ast.AssignStmt, d *a
 					}
 				}
 			}
-			for k := 0; k < len(call.Args); k++ {
-				structName := ctx.typeOf(call.Args[k]).String()
+			for _, arg := range call.Args {
+				structName := ctx.typeOf(arg).String()
 				structName = strings.Join(strings.Split(structName, ".")[1:], "")
-				if _, ok := ctx.typeOf(call.Args[k]).Underlying().(*types.Struct); ok {
+				if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
 					if len(cv.Coq()) == 0 {
 						cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 					}
@@ -2242,7 +2255,6 @@ func (ctx Ctx) assignInterface(cv coq.StructToInterface, f *ast.AssignStmt, d *a
 	return cv
 }
 
-// TODO: Currently only converts one interface per function
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
@@ -2251,14 +2263,21 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 		for _, stmt := range d.Body.List {
 			switch f := stmt.(type) {
 			case *ast.ReturnStmt:
+				// TOOD: account for binary statements etc
 				cv = ctx.returnInterface(cv, f, d)
-				cvs = append(cvs, cv)
+				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+					cvs = append(cvs, cv)
+				}
 			case *ast.ExprStmt:
 				cv = ctx.exprInterface(cv, f, d)
-				cvs = append(cvs, cv)
+				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+					cvs = append(cvs, cv)
+				}
 			case *ast.AssignStmt:
 				cv = ctx.assignInterface(cv, f, d)
-				cvs = append(cvs, cv)
+				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+					cvs = append(cvs, cv)
+				}
 			}
 		}
 		fd := ctx.funcDecl(d)

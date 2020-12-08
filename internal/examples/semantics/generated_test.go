@@ -143,6 +143,12 @@ func (suite *GoTestSuite) TestAssignInterface() {
 	suite.Equal(true, testAssignInterface())
 }
 
+func (suite *GoTestSuite) TestParamsInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testParamsInterface())
+}
+
 func (suite *GoTestSuite) TestsUseLocks() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
