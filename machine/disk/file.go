@@ -21,7 +21,7 @@ func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
 	if err != nil {
 		return FileDisk{}, err
 	}
-	if uint64(stat.Size) != numBlocks {
+	if (stat.Mode&unix.S_IFREG) != 0 && uint64(stat.Size) != numBlocks {
 		err = unix.Ftruncate(fd, int64(numBlocks*BlockSize))
 		if err != nil {
 			return FileDisk{}, err
