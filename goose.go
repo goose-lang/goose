@@ -2166,43 +2166,64 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 	return decls
 }
 
-func (ctx Ctx) returnInterface(cv coq.StructToInterface, f *ast.ReturnStmt, d *ast.FuncDecl) coq.StructToInterface {
-	interfaceName := ""
-	methods := []string{}
-	if len(f.Results) > 0 {
-		if results, ok := f.Results[0].(*ast.BinaryExpr); ok {
-			if call, ok := results.X.(*ast.CallExpr); ok {
-				if signature, ok := ctx.typeOf(call.Fun).(*types.Signature); ok {
-					params := signature.Params()
-					for j := 0; j < params.Len(); j++ {
-						interfaceName = params.At(j).Type().String()
-						interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
-						if v, ok := params.At(j).Type().Underlying().(*types.Interface); ok {
-							for m := 0; m < v.NumMethods(); m++ {
-								methods = append(methods, v.Method(m).Name())
-							}
-						}
-					}
-					for _, arg := range call.Args {
-						structName := ctx.typeOf(arg).String()
-						structName = strings.Join(strings.Split(structName, ".")[1:], "")
-						if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
-							if len(cv.Coq()) == 0 {
-								cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
-							}
-						}
-					}
+func (ctx Ctx) exprInterface(cvs []coq.Decl, expr ast.Expr, d *ast.FuncDecl) []coq.Decl {
+	switch f := expr.(type) {
+	case *ast.UnaryExpr:
+		if left, ok := f.X.(*ast.BinaryExpr); ok {
+			if call, ok := left.X.(*ast.CallExpr); ok {
+				cvs = ctx.callExprInterface(cvs, call, d)
+			}
+		}
+	case *ast.BinaryExpr:
+		if left, ok := f.X.(*ast.BinaryExpr); ok {
+			if call, ok := left.X.(*ast.CallExpr); ok {
+				cvs = ctx.callExprInterface(cvs, call, d)
+			}
+		}
+		if right, ok := f.Y.(*ast.BinaryExpr); ok {
+			if call, ok := right.X.(*ast.CallExpr); ok {
+				cvs = ctx.callExprInterface(cvs, call, d)
+			}
+		}
+	case *ast.CallExpr:
+		cvs = ctx.callExprInterface(cvs, f, d)
+	}
+	return cvs
+}
+
+func (ctx Ctx) stmtInterface(cvs []coq.Decl, stmt ast.Stmt, d *ast.FuncDecl) []coq.Decl {
+	switch f := stmt.(type) {
+	case *ast.ReturnStmt:
+		for _, result := range f.Results {
+			cvs = ctx.exprInterface(cvs, result, d)
+		}
+		if len(f.Results) > 0 {
+			if results, ok := f.Results[0].(*ast.BinaryExpr); ok {
+				if call, ok := results.X.(*ast.CallExpr); ok {
+					cvs = ctx.callExprInterface(cvs, call, d)
 				}
 			}
 		}
+	case *ast.IfStmt:
+		if call, ok := f.Cond.(*ast.CallExpr); ok {
+			cvs = ctx.callExprInterface(cvs, call, d)
+		}
+	case *ast.ExprStmt:
+		if call, ok := f.X.(*ast.CallExpr); ok {
+			cvs = ctx.callExprInterface(cvs, call, d)
+		}
+	case *ast.AssignStmt:
+		if call, ok := f.Rhs[0].(*ast.CallExpr); ok {
+			cvs = ctx.callExprInterface(cvs, call, d)
+		}
 	}
-	return cv
+	return cvs
 }
 
-func (ctx Ctx) exprInterface(cv coq.StructToInterface, f *ast.ExprStmt, d *ast.FuncDecl) coq.StructToInterface {
+func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDecl) []coq.Decl {
 	interfaceName := ""
 	methods := []string{}
-	if signature, ok := ctx.typeOf(f.X.(*ast.CallExpr).Fun).(*types.Signature); ok {
+	if signature, ok := ctx.typeOf(r.Fun).(*types.Signature); ok {
 		params := signature.Params()
 		for j := 0; j < params.Len(); j++ {
 			interfaceName = params.At(j).Type().String()
@@ -2213,76 +2234,30 @@ func (ctx Ctx) exprInterface(cv coq.StructToInterface, f *ast.ExprStmt, d *ast.F
 				}
 			}
 		}
-		for _, arg := range f.X.(*ast.CallExpr).Args {
+		for _, arg := range r.Args {
 			structName := ctx.typeOf(arg).String()
 			structName = strings.Join(strings.Split(structName, ".")[1:], "")
 			if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
-				if len(cv.Coq()) == 0 {
-					cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
+				cv := coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
+				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+					cvs = append(cvs, cv)
 				}
 			}
 		}
 	}
-	return cv
-}
-
-func (ctx Ctx) assignInterface(cv coq.StructToInterface, f *ast.AssignStmt, d *ast.FuncDecl) coq.StructToInterface {
-	interfaceName := ""
-	methods := []string{}
-	if call, ok := f.Rhs[0].(*ast.CallExpr); ok {
-		if signature, ok := ctx.typeOf(call.Fun).(*types.Signature); ok {
-			params := signature.Params()
-			for j := 0; j < params.Len(); j++ {
-				interfaceName = params.At(j).Type().String()
-				interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
-				if v, ok := params.At(j).Type().Underlying().(*types.Interface); ok {
-					for m := 0; m < v.NumMethods(); m++ {
-						methods = append(methods, v.Method(m).Name())
-					}
-				}
-			}
-			for _, arg := range call.Args {
-				structName := ctx.typeOf(arg).String()
-				structName = strings.Join(strings.Split(structName, ".")[1:], "")
-				if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
-					if len(cv.Coq()) == 0 {
-						cv = coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
-					}
-				}
-			}
-		}
-	}
-	return cv
+	return cvs
 }
 
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		cv := coq.StructToInterface{}
 		cvs := []coq.Decl{}
 		for _, stmt := range d.Body.List {
-			switch f := stmt.(type) {
-			case *ast.ReturnStmt:
-				// TOOD: account for binary statements etc
-				cv = ctx.returnInterface(cv, f, d)
-				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
-					cvs = append(cvs, cv)
-				}
-			case *ast.ExprStmt:
-				cv = ctx.exprInterface(cv, f, d)
-				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
-					cvs = append(cvs, cv)
-				}
-			case *ast.AssignStmt:
-				cv = ctx.assignInterface(cv, f, d)
-				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
-					cvs = append(cvs, cv)
-				}
-			}
+			cvs = ctx.stmtInterface(cvs, stmt, d)
 		}
 		fd := ctx.funcDecl(d)
 		results := []coq.Decl{}
-		if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+		if len(cvs) > 0 {
 			results = append(cvs, fd)
 		} else {
 			results = []coq.Decl{fd}

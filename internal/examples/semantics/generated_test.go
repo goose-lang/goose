@@ -146,7 +146,25 @@ func (suite *GoTestSuite) TestAssignInterface() {
 func (suite *GoTestSuite) TestParamsInterface() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, testParamsInterface())
+	suite.Equal(true, failing_testParamsInterface())
+}
+
+func (suite *GoTestSuite) TestMultipleInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testMultipleInterface())
+}
+
+func (suite *GoTestSuite) TestBinaryExprInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBinaryExprInterface())
+}
+
+func (suite *GoTestSuite) TestIfStmtInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testIfStmtInterface())
 }
 
 func (suite *GoTestSuite) TestsUseLocks() {
