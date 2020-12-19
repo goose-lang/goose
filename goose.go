@@ -867,19 +867,12 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 					interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
 					structName := strings.Join(strings.Split(ctx.typeOf(s.Args[0]).String(), ".")[1:], "")
 					if interfaceName != structName && interfaceName != "" && structName != "" {
-						conversion := fmt.Sprintf("%s ", s.Fun) + "(" + structName + "__to__" + interfaceName
-						for _, arg := range s.Args {
-							if lit, ok := arg.(*ast.BasicLit); ok {
-								if lit.Kind == token.STRING {
-									conversion += fmt.Sprintf("  #(str%s)", lit.Value)
-								} else {
-									conversion += fmt.Sprintf("  #%s", lit.Value)
-								}
-							} else {
-								conversion += fmt.Sprintf(" \"%s\"", arg)
+						conversion := coq.StructToInterfaceDecl{Fun: ctx.expr(s.Fun).Coq(), Struct: structName, Interface: interfaceName, Arg: ctx.expr(s.Args[0]).Coq()}.Coq()
+						for i, arg := range s.Args {
+							if i > 0 {
+								conversion += " " + ctx.expr(arg).Coq()
 							}
 						}
-						conversion += ")"
 						return coq.CallExpr{MethodName: conversion}
 					}
 				}

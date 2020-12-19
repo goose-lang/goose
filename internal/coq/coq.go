@@ -204,7 +204,6 @@ type StructToInterface struct {
 	Struct    string
 	Interface string
 	Methods   []string
-	Value     string
 }
 
 func (d StructToInterface) Coq() string {
@@ -266,6 +265,19 @@ func (d StructToInterface) CoqDecl() string {
 			pp.Add("].")
 		}
 	}
+	return pp.Build()
+}
+
+type StructToInterfaceDecl struct {
+	Fun       string
+	Struct    string
+	Interface string
+	Arg       string
+}
+
+func (d StructToInterfaceDecl) Coq() string {
+	var pp buffer
+	pp.Add("%s (%s__to__%s %s)", d.Fun[1:len(d.Fun)-1], d.Struct, d.Interface, d.Arg)
 	return pp.Build()
 }
 

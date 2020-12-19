@@ -488,19 +488,19 @@ Module geometryInterface.
   ].
 End geometryInterface.
 
-Definition measureSquare: val :=
-  rec: "measureSquare" "t" :=
+Definition measureArea: val :=
+  rec: "measureArea" "t" :=
     struct.get geometryInterface.S "Square" "t".
-Theorem measureSquare_t: ⊢ measureSquare : (geometryInterface -> uint64T).
+Theorem measureArea_t: ⊢ measureArea : (geometryInterface -> uint64T).
 Proof. typecheck. Qed.
-Hint Resolve measureSquare_t : types.
+Hint Resolve measureArea_t : types.
 
-Definition measureVolumePlusN: val :=
-  rec: "measureVolumePlusN" "t" "n" :=
-    struct.get geometryInterface.S "Volume" "t" + "n".
-Theorem measureVolumePlusN_t: ⊢ measureVolumePlusN : (geometryInterface -> uint64T -> uint64T).
+Definition measureVolumePlusNM: val :=
+  rec: "measureVolumePlusNM" "t" "n" "m" :=
+    struct.get geometryInterface.S "Volume" "t" + "n" + "m".
+Theorem measureVolumePlusNM_t: ⊢ measureVolumePlusNM : (geometryInterface -> uint64T -> uint64T -> uint64T).
 Proof. typecheck. Qed.
-Hint Resolve measureVolumePlusN_t : types.
+Hint Resolve measureVolumePlusNM_t : types.
 
 Definition measureVolume: val :=
   rec: "measureVolume" "t" :=
@@ -541,7 +541,7 @@ Definition testBasicInterface: val :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #2
     ] in
-    (measureSquare (SquareStruct__to__geometryInterface "s") = #4).
+    (measureArea (SquareStruct__to__geometryInterface "s") = #4).
 Theorem testBasicInterface_t: ⊢ testBasicInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testBasicInterface_t : types.
@@ -551,30 +551,30 @@ Definition testAssignInterface: val :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #3
     ] in
-    let: "square" := measureSquare (SquareStruct__to__geometryInterface "s") in
-    ("square" = #9).
+    let: "area" := measureArea (SquareStruct__to__geometryInterface "s") in
+    ("area" = #9).
 Theorem testAssignInterface_t: ⊢ testAssignInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testAssignInterface_t : types.
 
-Definition failing_testParamsInterface: val :=
-  rec: "failing_testParamsInterface" <> :=
+Definition testParamsInterface: val :=
+  rec: "testParamsInterface" <> :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #3
     ] in
-    let: "volume" := measureVolumePlusN (SquareStruct__to__geometryInterface "s"  #1) in
-    ("volume" = #28).
-Theorem failing_testParamsInterface_t: ⊢ failing_testParamsInterface : (unitT -> boolT).
+    let: "volume" := measureVolumePlusNM (SquareStruct__to__geometryInterface "s") #1 #2 in
+    ("volume" = #30).
+Theorem testParamsInterface_t: ⊢ testParamsInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testParamsInterface_t : types.
+Hint Resolve testParamsInterface_t : types.
 
 Definition testMultipleInterface: val :=
   rec: "testMultipleInterface" <> :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #3
     ] in
-    let: "square1" := measureSquare (SquareStruct__to__geometryInterface "s") in
-    let: "square2" := measureSquare (SquareStruct__to__geometryInterface "s") in
+    let: "square1" := measureArea (SquareStruct__to__geometryInterface "s") in
+    let: "square2" := measureArea (SquareStruct__to__geometryInterface "s") in
     ("square1" = "square2").
 Theorem testMultipleInterface_t: ⊢ testMultipleInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -585,9 +585,9 @@ Definition testBinaryExprInterface: val :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #3
     ] in
-    let: "square1" := measureSquare (SquareStruct__to__geometryInterface "s") in
+    let: "square1" := measureArea (SquareStruct__to__geometryInterface "s") in
     let: "square2" := measureVolume (SquareStruct__to__geometryInterface "s") in
-    ("square1" = measureSquare (SquareStruct__to__geometryInterface "s")) && ("square2" = measureVolume (SquareStruct__to__geometryInterface "s")).
+    ("square1" = measureArea (SquareStruct__to__geometryInterface "s")) && ("square2" = measureVolume (SquareStruct__to__geometryInterface "s")).
 Theorem testBinaryExprInterface_t: ⊢ testBinaryExprInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testBinaryExprInterface_t : types.
@@ -597,7 +597,7 @@ Definition testIfStmtInterface: val :=
     let: "s" := struct.mk SquareStruct.S [
       "Side" ::= #3
     ] in
-    (if: (measureSquare (SquareStruct__to__geometryInterface "s") = #9)
+    (if: (measureArea (SquareStruct__to__geometryInterface "s") = #9)
     then #true
     else #false).
 Theorem testIfStmtInterface_t: ⊢ testIfStmtInterface : (unitT -> boolT).

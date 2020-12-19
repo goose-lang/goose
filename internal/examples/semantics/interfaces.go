@@ -9,12 +9,12 @@ type geometryInterface interface {
 	Volume() uint64
 }
 
-func measureSquare(t geometryInterface) uint64 {
+func measureArea(t geometryInterface) uint64 {
 	return t.Square()
 }
 
-func measureVolumePlusN(t geometryInterface, n uint64) uint64 {
-	return t.Volume() + n
+func measureVolumePlusNM(t geometryInterface, n uint64, m uint64) uint64 {
+	return t.Volume() + n + m
 }
 
 func measureVolume(t geometryInterface) uint64 {
@@ -41,31 +41,31 @@ func testBasicInterface() bool {
 	s := SquareStruct{
 		Side: 2,
 	}
-	return measureSquare(s) == 4
+	return measureArea(s) == 4
 }
 
 func testAssignInterface() bool {
 	s := SquareStruct{
 		Side: 3,
 	}
-	square := measureSquare(s)
-	return square == 9
+	area := measureArea(s)
+	return area == 9
 }
 
-func failing_testParamsInterface() bool {
+func testParamsInterface() bool {
 	s := SquareStruct{
 		Side: 3,
 	}
-	volume := measureVolumePlusN(s, 1)
-	return volume == 28
+	volume := measureVolumePlusNM(s, 1, 2)
+	return volume == 30
 }
 
 func testMultipleInterface() bool {
 	s := SquareStruct{
 		Side: 3,
 	}
-	square1 := measureSquare(s)
-	square2 := measureSquare(s)
+	square1 := measureArea(s)
+	square2 := measureArea(s)
 	return square1 == square2
 }
 
@@ -73,16 +73,16 @@ func testBinaryExprInterface() bool {
 	s := SquareStruct{
 		Side: 3,
 	}
-	square1 := measureSquare(s)
+	square1 := measureArea(s)
 	square2 := measureVolume(s)
-	return square1 == measureSquare(s) && square2 == measureVolume(s)
+	return square1 == measureArea(s) && square2 == measureVolume(s)
 }
 
 func testIfStmtInterface() bool {
 	s := SquareStruct{
 		Side: 3,
 	}
-	if measureSquare(s) == 9 {
+	if measureArea(s) == 9 {
 		return true
 	}
 	return false

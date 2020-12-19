@@ -146,7 +146,7 @@ func (suite *GoTestSuite) TestAssignInterface() {
 func (suite *GoTestSuite) TestParamsInterface() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testParamsInterface())
+	suite.Equal(true, testParamsInterface())
 }
 
 func (suite *GoTestSuite) TestMultipleInterface() {
