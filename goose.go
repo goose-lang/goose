@@ -1024,7 +1024,7 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 		info, ok := getIntegerType(ctx.typeOf(e))
 		v := ctx.info.Types[e].Value
 		n, ok := constant.Uint64Val(v)
-		if !ok || n < 0 {
+		if !ok {
 			ctx.unsupported(e,
 				"int literals must be positive numbers")
 			return nil
