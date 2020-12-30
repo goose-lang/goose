@@ -120,6 +120,7 @@ type Ctx struct {
 type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
+	ImportHeader          string
 }
 
 // NewCtx initializes a context
