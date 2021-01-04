@@ -150,10 +150,10 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 			t.GoldFile())
 	}
 	if actual != expected {
+		t.PutActual(actual)
 		assert.FailNowf("actual Coq output != gold output",
 			"see %s",
 			t.ActualFile())
-		t.PutActual(actual)
 		return
 	}
 	// when tests pass, clean up actual output
@@ -161,31 +161,41 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 }
 
 func TestUnitTests(t *testing.T) {
-	testExample(t, "unittest", goose.Config{})
+	testExample(t, "unittest", goose.MakeDefaultConfig())
 }
 
 func TestSimpleDb(t *testing.T) {
-	testExample(t, "simpledb", goose.Config{})
+	testExample(t, "simpledb", goose.MakeDefaultConfig())
 }
 
 func TestWal(t *testing.T) {
-	testExample(t, "wal", goose.Config{TypeCheck: true})
+	c := goose.MakeDefaultConfig()
+	c.TypeCheck = true
+	testExample(t, "wal", c)
 }
 
 func TestLogging2(t *testing.T) {
-	testExample(t, "logging2", goose.Config{TypeCheck: true})
+	c := goose.MakeDefaultConfig()
+	c.TypeCheck = true
+	testExample(t, "logging2", c)
 }
 
 func TestAppendLog(t *testing.T) {
-	testExample(t, "append_log", goose.Config{TypeCheck: true})
+	c := goose.MakeDefaultConfig()
+	c.TypeCheck = true
+	testExample(t, "append_log", c)
 }
 
 func TestRfc1813(t *testing.T) {
-	testExample(t, "rfc1813", goose.Config{TypeCheck: true})
+	c := goose.MakeDefaultConfig()
+	c.TypeCheck = true
+	testExample(t, "rfc1813", c)
 }
 
 func TestSemantics(t *testing.T) {
-	testExample(t, "semantics", goose.Config{TypeCheck: true})
+	c := goose.MakeDefaultConfig()
+	c.TypeCheck = true
+	testExample(t, "semantics", c)
 }
 
 type errorExpectation struct {

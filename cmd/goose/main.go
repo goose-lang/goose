@@ -12,8 +12,6 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-const defaultFfiImport string = "From Perennial.goose_lang Require Import ffi.disk_prelude."
-
 //noinspection GoUnhandledErrorResult
 func main() {
 	flag.Usage = func() {
@@ -21,8 +19,7 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-	var config goose.Config
-	config.Excludes = make(map[string]bool)
+	var config goose.Config = MakeDefaultConfig()
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
 	flag.BoolVar(&config.TypeCheck, "typecheck", false,

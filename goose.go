@@ -140,6 +140,16 @@ type Config struct {
 	Excludes              StringSet
 }
 
+const defaultFfiImport string = "From Perennial.goose_lang Require Import ffi.disk_prelude."
+
+// Returns the default config
+func MakeDefaultConfig() Config {
+	var config Config
+	config.Excludes = make(map[string]bool)
+	config.ImportHeader = defaultFfiImport
+	return config
+}
+
 // NewCtx initializes a context
 func NewCtx(pkgPath string, fset *token.FileSet, config Config) Ctx {
 	info := &types.Info{
