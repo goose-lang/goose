@@ -164,5 +164,5 @@ func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, 
 	if len(errs) != 0 {
 		err = errors.Wrap(MultipleErrors(errs), "conversion failed")
 	}
-	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader:config.ImportHeader}, err
+	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader: config.ImportHeader}, err
 }
