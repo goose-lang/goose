@@ -116,11 +116,38 @@ type Ctx struct {
 	Config
 }
 
+// Implement flag.Value for a "set" of strings; used by Config
+type StringSet map[string]bool
+
+func (s *StringSet) String() string {
+	r := ""
+	for k := range *s {
+		r += k
+	}
+	return r
+}
+
+func (s *StringSet) Set(value string) error {
+	(*s)[value] = true
+	return nil
+}
+
 // Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
 	ImportHeader          string
+	Excludes              StringSet
+}
+
+const defaultFfiImport string = "From Perennial.goose_lang Require Import ffi.disk_prelude."
+
+// Returns the default config
+func MakeDefaultConfig() Config {
+	var config Config
+	config.Excludes = make(map[string]bool)
+	config.ImportHeader = defaultFfiImport
+	return config
 }
 
 // NewCtx initializes a context
@@ -2062,6 +2089,7 @@ func stringLitValue(lit *ast.BasicLit) string {
 	return s
 }
 
+// TODO: the goose/machine/* imports ought to be part of the config.Excludes
 var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
 	"github.com/tchajed/goose/machine/disk":    true,
@@ -2079,7 +2107,7 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 			ctx.unsupported(s, "renaming imports")
 		}
 		importPath := stringLitValue(s.Path)
-		if !builtinImports[importPath] {
+		if !builtinImports[importPath] && !ctx.Config.Excludes[importPath] {
 			decls = append(decls, coq.ImportDecl{importPath})
 		}
 	}

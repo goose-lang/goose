@@ -19,13 +19,14 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-	var config goose.Config
+	var config goose.Config = goose.MakeDefaultConfig()
 	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
 	flag.BoolVar(&config.TypeCheck, "typecheck", false,
 		"add type-checking theorems")
-	flag.StringVar(&config.ImportHeader, "import-line", "",
-		"FFI import line (empty string defaults to disk)")
+	flag.Var(&config.Excludes, "exclude-import", "go package that should not generate a coq import; can specify multiple packages to exclude")
+	flag.StringVar(&config.ImportHeader, "import-line", config.ImportHeader,
+		"FFI import line (none specified defaults to disk)")
 
 	var outFile string
 	flag.StringVar(&outFile, "out", "-",
