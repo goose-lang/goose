@@ -128,7 +128,6 @@ func (s *StringSet) String() string {
 }
 
 func (s *StringSet) Set(value string) error {
-	fmt.Printf(value)
 	(*s)[value] = true
 	return nil
 }
