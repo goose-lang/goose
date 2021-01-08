@@ -1,3 +1,4 @@
+// unittest has two package comments
 package unittest
 
 import "github.com/tchajed/marshal"

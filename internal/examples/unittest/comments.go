@@ -1,3 +1,4 @@
+// unittest is a package full of many independent and small translation examples
 package unittest
 
 // This struct is very important.

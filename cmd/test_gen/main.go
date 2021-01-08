@@ -101,7 +101,7 @@ func main() {
 	}
 
 	if t == "coq" {
-		fmt.Fprintf(out, coqHeader)
+		fmt.Fprint(out, coqHeader)
 
 		for _, file := range files {
 
@@ -133,11 +133,12 @@ func main() {
 					}
 				}
 			}
-			fmt.Fprintf(out, "\n")
+			fmt.Fprint(out, "\n")
 		}
 
 	} else if t == "go" {
-		fmt.Fprintf(out, goHeader)
+		fmt.Fprint(out, goHeader)
+		re := regexp.MustCompile(`(?:^func\s)(?P<fail>(failing_)?)(?:test)(?P<name>[[:alnum:]]+)(?:\(.*)`)
 
 		for _, file := range files {
 
@@ -155,9 +156,7 @@ func main() {
 			for scanner.Scan() {
 				line := scanner.Text()
 
-				re := regexp.MustCompile(`(?:^func\s)(?P<fail>(failing_)?)(?:test)(?P<name>[[:alnum:]]+)(?:\(.*)`)
 				m := re.FindStringSubmatch(line)
-
 				if len(m) != 0 {
 					fmt.Fprintf(out, "func (suite *GoTestSuite) Test%s() {\n", m[3])
 					fmt.Fprintf(out, "\td := disk.NewMemDisk(30)\n")
@@ -168,7 +167,7 @@ func main() {
 			}
 		}
 
-		fmt.Fprintf(out, goFooter)
+		fmt.Fprint(out, goFooter)
 
 	} else {
 		fmt.Fprintln(os.Stderr, "could not write output")
