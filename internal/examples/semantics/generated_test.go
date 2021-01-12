@@ -131,6 +131,42 @@ func (suite *GoTestSuite) TestU32NewtypeLen() {
 	suite.Equal(true, failing_testU32NewtypeLen())
 }
 
+func (suite *GoTestSuite) TestBasicInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBasicInterface())
+}
+
+func (suite *GoTestSuite) TestAssignInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignInterface())
+}
+
+func (suite *GoTestSuite) TestParamsInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testParamsInterface())
+}
+
+func (suite *GoTestSuite) TestMultipleInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testMultipleInterface())
+}
+
+func (suite *GoTestSuite) TestBinaryExprInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBinaryExprInterface())
+}
+
+func (suite *GoTestSuite) TestIfStmtInterface() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testIfStmtInterface())
+}
+
 func (suite *GoTestSuite) TestsUseLocks() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
