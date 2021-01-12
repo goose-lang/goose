@@ -198,6 +198,11 @@ func TestSemantics(t *testing.T) {
 	testExample(t, "semantics", c)
 }
 
+func TestComments(t *testing.T) {
+	c := goose.MakeDefaultConfig()
+	testExample(t, "comments", c)
+}
+
 type errorExpectation struct {
 	Line  int
 	Error string
