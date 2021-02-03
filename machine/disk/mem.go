@@ -7,16 +7,13 @@ import (
 
 type MemDisk struct {
 	l      *sync.RWMutex
-	blocks []Block
+	blocks [][BlockSize]byte
 }
 
 var _ Disk = MemDisk{}
 
 func NewMemDisk(numBlocks uint64) MemDisk {
-	blocks := make([]Block, numBlocks)
-	for i := range blocks {
-		blocks[i] = make([]byte, BlockSize)
-	}
+	blocks := make([][BlockSize]byte, numBlocks)
 	return MemDisk{l: new(sync.RWMutex), blocks: blocks}
 }
 
@@ -27,7 +24,7 @@ func (d MemDisk) Read(a uint64) Block {
 		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
 	blk := make([]byte, BlockSize)
-	copy(blk, d.blocks[a])
+	copy(blk, d.blocks[a][:])
 	return blk
 }
 
@@ -40,9 +37,7 @@ func (d MemDisk) Write(a uint64, v Block) {
 	if a >= uint64(len(d.blocks)) {
 		panic(fmt.Errorf("out-of-bounds write at %v", a))
 	}
-	blk := make([]byte, BlockSize)
-	copy(blk, v)
-	d.blocks[a] = blk
+	copy(d.blocks[a][:], v)
 }
 
 func (d MemDisk) Size() uint64 {
