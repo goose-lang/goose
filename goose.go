@@ -2148,8 +2148,16 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []coq.Decl {
 	return specs
 }
 
-func (ctx Ctx) checkGlobalVar(d *ast.ValueSpec) {
-	ctx.futureWork(d, "global variables (might be used for objects)")
+func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []coq.Decl {
+	// NOTE: this treats globals as constants, which is unsound but used for a
+	// configurable Debug level in goose-nfsd. Configuration variables should
+	// instead be treated as a non-deterministic constant, assuming they aren't
+	// changed after startup.
+	var specs []coq.Decl
+	for _, spec := range d.Specs {
+		specs = append(specs, ctx.constSpec(spec.(*ast.ValueSpec)))
+	}
+	return specs
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
@@ -2292,11 +2300,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 		case token.CONST:
 			return ctx.constDecl(d)
 		case token.VAR:
-			if len(d.Specs) > 1 {
-				ctx.unsupported(d, "multiple vars")
-			}
-			spec := d.Specs[0].(*ast.ValueSpec)
-			ctx.checkGlobalVar(spec)
+			return ctx.globalVarDecl(d)
 		case token.TYPE:
 			if len(d.Specs) > 1 {
 				ctx.noExample(d, "multiple specs in a type decl")
