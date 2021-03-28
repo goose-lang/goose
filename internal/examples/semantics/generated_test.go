@@ -365,6 +365,12 @@ func (suite *GoTestSuite) TestAndCompare() {
 	suite.Equal(true, testAndCompare())
 }
 
+func (suite *GoTestSuite) TestShiftMod() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testShiftMod())
+}
+
 func (suite *GoTestSuite) TestLinearize() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

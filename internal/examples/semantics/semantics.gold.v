@@ -1155,6 +1155,13 @@ Theorem testAndCompare_t: ⊢ testAndCompare : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testAndCompare_t : types.
 
+Definition testShiftMod: val :=
+  rec: "testShiftMod" <> :=
+    (#20 ≫ #8 `rem` #4 = #20).
+Theorem testShiftMod_t: ⊢ testShiftMod : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testShiftMod_t : types.
+
 (* prims.go *)
 
 Definition testLinearize: val :=
