@@ -1106,7 +1106,7 @@ Definition testArithmeticShifts: val :=
     "ok" <-[boolT] (![boolT] "ok") && (#672 ≪ #51 = #1513209474796486656);;
     "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #4 = #42);;
     "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #12 = #0);;
-    "ok" <-[boolT] (![boolT] "ok") && (#672 ≫ #4 ≪ #4 = #672);;
+    "ok" <-[boolT] (![boolT] "ok") && ((#672 ≫ #4) ≪ #4 = #672);;
     ![boolT] "ok".
 Theorem testArithmeticShifts_t: ⊢ testArithmeticShifts : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1157,7 +1157,7 @@ Hint Resolve testAndCompare_t : types.
 
 Definition testShiftMod: val :=
   rec: "testShiftMod" <> :=
-    (#20 ≫ #8 `rem` #4 = #20).
+    (#20 ≫ (#8 `rem` #4) = #20).
 Theorem testShiftMod_t: ⊢ testShiftMod : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testShiftMod_t : types.

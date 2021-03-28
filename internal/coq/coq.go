@@ -686,6 +686,8 @@ func (be BinaryExpr) Coq() string {
 			OpRem:  true,
 			OpLOr:  true,
 			OpLAnd: true,
+			OpShl:  true,
+			OpShr:  true,
 		}
 		if badPrecedence[be.Op] {
 			return fmt.Sprintf("%s %s %s",
