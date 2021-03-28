@@ -30,3 +30,7 @@ func testAndCompare() bool {
 	}
 	return ok
 }
+
+func testShiftMod() bool {
+	return (20 >> (8 % 4)) == 20
+}
