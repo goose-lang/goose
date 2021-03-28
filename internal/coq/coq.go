@@ -677,7 +677,17 @@ func (be BinaryExpr) Coq() string {
 		OpShr:         "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
-		if be.Op == OpQuot || be.Op == OpRem || be.Op == OpLOr || be.Op == OpLAnd {
+		// these operators bind too tightly, so we wrap their arguments in parentheses
+		//
+		// TODO: it would really be better to add more parentheses to avoid
+		// semantic mismatches
+		badPrecedence := map[BinOp]bool{
+			OpQuot: true,
+			OpRem:  true,
+			OpLOr:  true,
+			OpLAnd: true,
+		}
+		if badPrecedence[be.Op] {
 			return fmt.Sprintf("%s %s %s",
 				addParens(be.X.Coq()), binop, addParens(be.Y.Coq()))
 		}
