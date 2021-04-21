@@ -4,10 +4,8 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 
 (* allocator.go *)
 
-Module unit.
-  Definition S := struct.decl [
-  ].
-End unit.
+Definition unit := struct.decl [
+].
 
 Definition findKey: val :=
   rec: "findKey" "m" :=
@@ -20,7 +18,7 @@ Definition findKey: val :=
         "ok" <-[boolT] #true
       else #()));;
     (![uint64T] "found", ![boolT] "ok").
-Theorem findKey_t: ⊢ findKey : (mapT (struct.t unit.S) -> (uint64T * boolT)).
+Theorem findKey_t: ⊢ findKey : (mapT (struct.t unit) -> (uint64T * boolT)).
 Proof. typecheck. Qed.
 Hint Resolve findKey_t : types.
 
@@ -29,20 +27,20 @@ Definition allocate: val :=
     let: ("k", "ok") := findKey "m" in
     MapDelete "m" "k";;
     ("k", "ok").
-Theorem allocate_t: ⊢ allocate : (mapT (struct.t unit.S) -> (uint64T * boolT)).
+Theorem allocate_t: ⊢ allocate : (mapT (struct.t unit) -> (uint64T * boolT)).
 Proof. typecheck. Qed.
 Hint Resolve allocate_t : types.
 
 Definition freeRange: val :=
   rec: "freeRange" "sz" :=
-    let: "m" := NewMap (struct.t unit.S) in
+    let: "m" := NewMap (struct.t unit) in
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "sz"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
-      MapInsert "m" (![uint64T] "i") (struct.mk unit.S [
+      MapInsert "m" (![uint64T] "i") (struct.mk unit [
       ]);;
       Continue);;
     "m".
-Theorem freeRange_t: ⊢ freeRange : (uint64T -> mapT (struct.t unit.S)).
+Theorem freeRange_t: ⊢ freeRange : (uint64T -> mapT (struct.t unit)).
 Proof. typecheck. Qed.
 Hint Resolve freeRange_t : types.
 
@@ -249,43 +247,39 @@ Hint Resolve testCopyShorterSrc_t : types.
 (* encoding.go *)
 
 (* helpers *)
-Module Enc.
-  Definition S := struct.decl [
-    "p" :: slice.T byteT
-  ].
-End Enc.
+Definition Enc := struct.decl [
+  "p" :: slice.T byteT
+].
 
 Definition Enc__consume: val :=
   rec: "Enc__consume" "e" "n" :=
-    let: "b" := SliceTake (struct.loadF Enc.S "p" "e") "n" in
-    struct.storeF Enc.S "p" "e" (SliceSkip byteT (struct.loadF Enc.S "p" "e") "n");;
+    let: "b" := SliceTake (struct.loadF Enc "p" "e") "n" in
+    struct.storeF Enc "p" "e" (SliceSkip byteT (struct.loadF Enc "p" "e") "n");;
     "b".
-Theorem Enc__consume_t: ⊢ Enc__consume : (struct.ptrT Enc.S -> uint64T -> slice.T byteT).
+Theorem Enc__consume_t: ⊢ Enc__consume : (struct.ptrT Enc -> uint64T -> slice.T byteT).
 Proof. typecheck. Qed.
 Hint Resolve Enc__consume_t : types.
 
-Module Dec.
-  Definition S := struct.decl [
-    "p" :: slice.T byteT
-  ].
-End Dec.
+Definition Dec := struct.decl [
+  "p" :: slice.T byteT
+].
 
 Definition Dec__consume: val :=
   rec: "Dec__consume" "d" "n" :=
-    let: "b" := SliceTake (struct.loadF Dec.S "p" "d") "n" in
-    struct.storeF Dec.S "p" "d" (SliceSkip byteT (struct.loadF Dec.S "p" "d") "n");;
+    let: "b" := SliceTake (struct.loadF Dec "p" "d") "n" in
+    struct.storeF Dec "p" "d" (SliceSkip byteT (struct.loadF Dec "p" "d") "n");;
     "b".
-Theorem Dec__consume_t: ⊢ Dec__consume : (struct.ptrT Dec.S -> uint64T -> slice.T byteT).
+Theorem Dec__consume_t: ⊢ Dec__consume : (struct.ptrT Dec -> uint64T -> slice.T byteT).
 Proof. typecheck. Qed.
 Hint Resolve Dec__consume_t : types.
 
 Definition roundtripEncDec32: val :=
   rec: "roundtripEncDec32" "x" :=
     let: "r" := NewSlice byteT #4 in
-    let: "e" := struct.new Enc.S [
+    let: "e" := struct.new Enc [
       "p" ::= "r"
     ] in
-    let: "d" := struct.new Dec.S [
+    let: "d" := struct.new Dec [
       "p" ::= "r"
     ] in
     UInt32Put (Enc__consume "e" #4) "x";;
@@ -297,10 +291,10 @@ Hint Resolve roundtripEncDec32_t : types.
 Definition roundtripEncDec64: val :=
   rec: "roundtripEncDec64" "x" :=
     let: "r" := NewSlice byteT #8 in
-    let: "e" := struct.new Enc.S [
+    let: "e" := struct.new Enc [
       "p" ::= "r"
     ] in
-    let: "d" := struct.new Dec.S [
+    let: "d" := struct.new Dec [
       "p" ::= "r"
     ] in
     UInt64Put (Enc__consume "e" #8) "x";;
@@ -365,23 +359,21 @@ Hint Resolve testEncDec64_t : types.
 (* function_ordering.go *)
 
 (* helpers *)
-Module Editor.
-  Definition S := struct.decl [
-    "s" :: slice.T uint64T;
-    "next_val" :: uint64T
-  ].
-End Editor.
+Definition Editor := struct.decl [
+  "s" :: slice.T uint64T;
+  "next_val" :: uint64T
+].
 
 (* advances the array editor, and returns the value it wrote, storing
    "next" in next_val *)
 Definition Editor__AdvanceReturn: val :=
   rec: "Editor__AdvanceReturn" "e" "next" :=
-    let: "tmp" := ref_to uint64T (struct.loadF Editor.S "next_val" "e") in
-    SliceSet uint64T (struct.loadF Editor.S "s" "e") #0 (![uint64T] "tmp");;
-    struct.storeF Editor.S "next_val" "e" "next";;
-    struct.storeF Editor.S "s" "e" (SliceSkip uint64T (struct.loadF Editor.S "s" "e") #1);;
+    let: "tmp" := ref_to uint64T (struct.loadF Editor "next_val" "e") in
+    SliceSet uint64T (struct.loadF Editor "s" "e") #0 (![uint64T] "tmp");;
+    struct.storeF Editor "next_val" "e" "next";;
+    struct.storeF Editor "s" "e" (SliceSkip uint64T (struct.loadF Editor "s" "e") #1);;
     ![uint64T] "tmp".
-Theorem Editor__AdvanceReturn_t: ⊢ Editor__AdvanceReturn : (struct.ptrT Editor.S -> uint64T -> uint64T).
+Theorem Editor__AdvanceReturn_t: ⊢ Editor__AdvanceReturn : (struct.ptrT Editor -> uint64T -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve Editor__AdvanceReturn_t : types.
 
@@ -394,22 +386,20 @@ Theorem addFour64_t: ⊢ addFour64 : (uint64T -> uint64T -> uint64T -> uint64T -
 Proof. typecheck. Qed.
 Hint Resolve addFour64_t : types.
 
-Module Pair.
-  Definition S := struct.decl [
-    "x" :: uint64T;
-    "y" :: uint64T
-  ].
-End Pair.
+Definition Pair := struct.decl [
+  "x" :: uint64T;
+  "y" :: uint64T
+].
 
 (* tests *)
 Definition failing_testFunctionOrdering: val :=
   rec: "failing_testFunctionOrdering" <> :=
     let: "arr" := ref_to (slice.T uint64T) (NewSlice uint64T #5) in
-    let: "e1" := struct.mk Editor.S [
+    let: "e1" := struct.mk Editor [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #1
     ] in
-    let: "e2" := struct.mk Editor.S [
+    let: "e2" := struct.mk Editor [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #101
     ] in
@@ -428,20 +418,20 @@ Definition failing_testFunctionOrdering: val :=
             (if: SliceGet uint64T (![slice.T uint64T] "arr") #2 ≠ #3
             then #false
             else
-              let: "p" := struct.mk Pair.S [
+              let: "p" := struct.mk Pair [
                 "x" ::= Editor__AdvanceReturn "e1" #5;
                 "y" ::= Editor__AdvanceReturn "e2" #105
               ] in
               (if: SliceGet uint64T (![slice.T uint64T] "arr") #3 ≠ #104
               then #false
               else
-                let: "q" := struct.mk Pair.S [
+                let: "q" := struct.mk Pair [
                   "y" ::= Editor__AdvanceReturn "e1" #6;
                   "x" ::= Editor__AdvanceReturn "e2" #106
                 ] in
                 (if: SliceGet uint64T (![slice.T uint64T] "arr") #4 ≠ #105
                 then #false
-                else (struct.get Pair.S "x" "p" + struct.get Pair.S "x" "q" = #109)))))))).
+                else (struct.get Pair "x" "p" + struct.get Pair "x" "q" = #109)))))))).
 Theorem failing_testFunctionOrdering_t: ⊢ failing_testFunctionOrdering : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testFunctionOrdering_t : types.
@@ -481,64 +471,60 @@ Hint Resolve failing_testU32NewtypeLen_t : types.
 
 (* interfaces.go *)
 
-Module geometryInterface.
-  Definition S := struct.decl [
-    "Square" :: (unitT -> uint64T)%ht;
-    "Volume" :: (unitT -> uint64T)%ht
-  ].
-End geometryInterface.
+Definition geometryInterface := struct.decl [
+  "Square" :: (unitT -> uint64T)%ht;
+  "Volume" :: (unitT -> uint64T)%ht
+].
 
 Definition measureArea: val :=
   rec: "measureArea" "t" :=
-    struct.get geometryInterface.S "Square" "t".
+    struct.get geometryInterface "Square" "t".
 Theorem measureArea_t: ⊢ measureArea : (geometryInterface -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve measureArea_t : types.
 
 Definition measureVolumePlusNM: val :=
   rec: "measureVolumePlusNM" "t" "n" "m" :=
-    struct.get geometryInterface.S "Volume" "t" + "n" + "m".
+    struct.get geometryInterface "Volume" "t" + "n" + "m".
 Theorem measureVolumePlusNM_t: ⊢ measureVolumePlusNM : (geometryInterface -> uint64T -> uint64T -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve measureVolumePlusNM_t : types.
 
 Definition measureVolume: val :=
   rec: "measureVolume" "t" :=
-    struct.get geometryInterface.S "Volume" "t".
+    struct.get geometryInterface "Volume" "t".
 Theorem measureVolume_t: ⊢ measureVolume : (geometryInterface -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve measureVolume_t : types.
 
-Module SquareStruct.
-  Definition S := struct.decl [
-    "Side" :: uint64T
-  ].
-End SquareStruct.
+Definition SquareStruct := struct.decl [
+  "Side" :: uint64T
+].
 
 Definition SquareStruct__Square: val :=
   rec: "SquareStruct__Square" "t" :=
-    struct.get SquareStruct.S "Side" "t" * struct.get SquareStruct.S "Side" "t".
-Theorem SquareStruct__Square_t: ⊢ SquareStruct__Square : (struct.t SquareStruct.S -> uint64T).
+    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
+Theorem SquareStruct__Square_t: ⊢ SquareStruct__Square : (struct.t SquareStruct -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve SquareStruct__Square_t : types.
 
 Definition SquareStruct__Volume: val :=
   rec: "SquareStruct__Volume" "t" :=
-    struct.get SquareStruct.S "Side" "t" * struct.get SquareStruct.S "Side" "t" * struct.get SquareStruct.S "Side" "t".
-Theorem SquareStruct__Volume_t: ⊢ SquareStruct__Volume : (struct.t SquareStruct.S -> uint64T).
+    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
+Theorem SquareStruct__Volume_t: ⊢ SquareStruct__Volume : (struct.t SquareStruct -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve SquareStruct__Volume_t : types.
 
 Definition SquareStruct__to__geometryInterface: val :=
   rec: "SquareStruct_to_geometryInterface" "t" :=
-    struct.mk geometryInterface.S [
+    struct.mk geometryInterface [
       "Square" ::= SquareStruct__Square "t";
       "Volume" ::= SquareStruct__Volume "t"
     ].
 
 Definition testBasicInterface: val :=
   rec: "testBasicInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #2
     ] in
     (measureArea (SquareStruct__to__geometryInterface "s") = #4).
@@ -548,7 +534,7 @@ Hint Resolve testBasicInterface_t : types.
 
 Definition testAssignInterface: val :=
   rec: "testAssignInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #3
     ] in
     let: "area" := measureArea (SquareStruct__to__geometryInterface "s") in
@@ -559,7 +545,7 @@ Hint Resolve testAssignInterface_t : types.
 
 Definition testParamsInterface: val :=
   rec: "testParamsInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #3
     ] in
     let: "volume" := measureVolumePlusNM (SquareStruct__to__geometryInterface "s") #1 #2 in
@@ -570,7 +556,7 @@ Hint Resolve testParamsInterface_t : types.
 
 Definition testMultipleInterface: val :=
   rec: "testMultipleInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #3
     ] in
     let: "square1" := measureArea (SquareStruct__to__geometryInterface "s") in
@@ -582,7 +568,7 @@ Hint Resolve testMultipleInterface_t : types.
 
 Definition testBinaryExprInterface: val :=
   rec: "testBinaryExprInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #3
     ] in
     let: "square1" := measureArea (SquareStruct__to__geometryInterface "s") in
@@ -594,7 +580,7 @@ Hint Resolve testBinaryExprInterface_t : types.
 
 Definition testIfStmtInterface: val :=
   rec: "testIfStmtInterface" <> :=
-    let: "s" := struct.mk SquareStruct.S [
+    let: "s" := struct.mk SquareStruct [
       "Side" ::= #3
     ] in
     (if: (measureArea (SquareStruct__to__geometryInterface "s") = #9)
@@ -643,23 +629,21 @@ Proof. typecheck. Qed.
 Hint Resolve standardForLoop_t : types.
 
 (* based off diskAppendWait loop pattern in logging2 *)
-Module LoopStruct.
-  Definition S := struct.decl [
-    "loopNext" :: refT uint64T
-  ].
-End LoopStruct.
+Definition LoopStruct := struct.decl [
+  "loopNext" :: refT uint64T
+].
 
 Definition LoopStruct__forLoopWait: val :=
   rec: "LoopStruct__forLoopWait" "ls" "i" :=
     Skip;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      let: "nxt" := struct.get LoopStruct.S "loopNext" "ls" in
+      let: "nxt" := struct.get LoopStruct "loopNext" "ls" in
       (if: "i" < ![uint64T] "nxt"
       then Break
       else
-        struct.get LoopStruct.S "loopNext" "ls" <-[uint64T] ![uint64T] (struct.get LoopStruct.S "loopNext" "ls") + #1;;
+        struct.get LoopStruct "loopNext" "ls" <-[uint64T] ![uint64T] (struct.get LoopStruct "loopNext" "ls") + #1;;
         Continue)).
-Theorem LoopStruct__forLoopWait_t: ⊢ LoopStruct__forLoopWait : (struct.t LoopStruct.S -> uint64T -> unitT).
+Theorem LoopStruct__forLoopWait_t: ⊢ LoopStruct__forLoopWait : (struct.t LoopStruct -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve LoopStruct__forLoopWait_t : types.
 
@@ -678,11 +662,11 @@ Hint Resolve testStandardForLoop_t : types.
 
 Definition testForLoopWait: val :=
   rec: "testForLoopWait" <> :=
-    let: "ls" := struct.mk LoopStruct.S [
+    let: "ls" := struct.mk LoopStruct [
       "loopNext" ::= ref (zero_val uint64T)
     ] in
     LoopStruct__forLoopWait "ls" #3;;
-    (![uint64T] (struct.get LoopStruct.S "loopNext" "ls") = #4).
+    (![uint64T] (struct.get LoopStruct "loopNext" "ls") = #4).
 Theorem testForLoopWait_t: ⊢ testForLoopWait : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testForLoopWait_t : types.
@@ -1178,35 +1162,33 @@ Hint Resolve testLinearize_t : types.
 (* shortcircuiting.go *)
 
 (* helpers *)
-Module BoolTest.
-  Definition S := struct.decl [
-    "t" :: boolT;
-    "f" :: boolT;
-    "tc" :: uint64T;
-    "fc" :: uint64T
-  ].
-End BoolTest.
+Definition BoolTest := struct.decl [
+  "t" :: boolT;
+  "f" :: boolT;
+  "tc" :: uint64T;
+  "fc" :: uint64T
+].
 
 Definition CheckTrue: val :=
   rec: "CheckTrue" "b" :=
-    struct.storeF BoolTest.S "tc" "b" (struct.loadF BoolTest.S "tc" "b" + #1);;
-    struct.loadF BoolTest.S "t" "b".
-Theorem CheckTrue_t: ⊢ CheckTrue : (struct.ptrT BoolTest.S -> boolT).
+    struct.storeF BoolTest "tc" "b" (struct.loadF BoolTest "tc" "b" + #1);;
+    struct.loadF BoolTest "t" "b".
+Theorem CheckTrue_t: ⊢ CheckTrue : (struct.ptrT BoolTest -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve CheckTrue_t : types.
 
 Definition CheckFalse: val :=
   rec: "CheckFalse" "b" :=
-    struct.storeF BoolTest.S "fc" "b" (struct.loadF BoolTest.S "fc" "b" + #1);;
-    struct.loadF BoolTest.S "f" "b".
-Theorem CheckFalse_t: ⊢ CheckFalse : (struct.ptrT BoolTest.S -> boolT).
+    struct.storeF BoolTest "fc" "b" (struct.loadF BoolTest "fc" "b" + #1);;
+    struct.loadF BoolTest "f" "b".
+Theorem CheckFalse_t: ⊢ CheckFalse : (struct.ptrT BoolTest -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve CheckFalse_t : types.
 
 (* tests *)
 Definition testShortcircuitAndTF: val :=
   rec: "testShortcircuitAndTF" <> :=
-    let: "b" := struct.new BoolTest.S [
+    let: "b" := struct.new BoolTest [
       "t" ::= #true;
       "f" ::= #false;
       "tc" ::= #0;
@@ -1214,14 +1196,14 @@ Definition testShortcircuitAndTF: val :=
     ] in
     (if: (CheckTrue "b") && (CheckFalse "b")
     then #false
-    else (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)).
+    else (struct.loadF BoolTest "tc" "b" = #1) && (struct.loadF BoolTest "fc" "b" = #1)).
 Theorem testShortcircuitAndTF_t: ⊢ testShortcircuitAndTF : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testShortcircuitAndTF_t : types.
 
 Definition testShortcircuitAndFT: val :=
   rec: "testShortcircuitAndFT" <> :=
-    let: "b" := struct.new BoolTest.S [
+    let: "b" := struct.new BoolTest [
       "t" ::= #true;
       "f" ::= #false;
       "tc" ::= #0;
@@ -1229,21 +1211,21 @@ Definition testShortcircuitAndFT: val :=
     ] in
     (if: (CheckFalse "b") && (CheckTrue "b")
     then #false
-    else (struct.loadF BoolTest.S "tc" "b" = #0) && (struct.loadF BoolTest.S "fc" "b" = #1)).
+    else (struct.loadF BoolTest "tc" "b" = #0) && (struct.loadF BoolTest "fc" "b" = #1)).
 Theorem testShortcircuitAndFT_t: ⊢ testShortcircuitAndFT : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testShortcircuitAndFT_t : types.
 
 Definition testShortcircuitOrTF: val :=
   rec: "testShortcircuitOrTF" <> :=
-    let: "b" := struct.new BoolTest.S [
+    let: "b" := struct.new BoolTest [
       "t" ::= #true;
       "f" ::= #false;
       "tc" ::= #0;
       "fc" ::= #0
     ] in
     (if: (CheckTrue "b") || (CheckFalse "b")
-    then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #0)
+    then (struct.loadF BoolTest "tc" "b" = #1) && (struct.loadF BoolTest "fc" "b" = #0)
     else #false).
 Theorem testShortcircuitOrTF_t: ⊢ testShortcircuitOrTF : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1251,14 +1233,14 @@ Hint Resolve testShortcircuitOrTF_t : types.
 
 Definition testShortcircuitOrFT: val :=
   rec: "testShortcircuitOrFT" <> :=
-    let: "b" := struct.new BoolTest.S [
+    let: "b" := struct.new BoolTest [
       "t" ::= #true;
       "f" ::= #false;
       "tc" ::= #0;
       "fc" ::= #0
     ] in
     (if: (CheckFalse "b") || (CheckTrue "b")
-    then (struct.loadF BoolTest.S "tc" "b" = #1) && (struct.loadF BoolTest.S "fc" "b" = #1)
+    then (struct.loadF BoolTest "tc" "b" = #1) && (struct.loadF BoolTest "fc" "b" = #1)
     else #false).
 Theorem testShortcircuitOrFT_t: ⊢ testShortcircuitOrFT : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1267,20 +1249,18 @@ Hint Resolve testShortcircuitOrFT_t : types.
 (* slices.go *)
 
 (* helpers *)
-Module ArrayEditor.
-  Definition S := struct.decl [
-    "s" :: slice.T uint64T;
-    "next_val" :: uint64T
-  ].
-End ArrayEditor.
+Definition ArrayEditor := struct.decl [
+  "s" :: slice.T uint64T;
+  "next_val" :: uint64T
+].
 
 Definition ArrayEditor__Advance: val :=
   rec: "ArrayEditor__Advance" "ae" "arr" "next" :=
     SliceSet uint64T "arr" #0 (SliceGet uint64T "arr" #0 + #1);;
-    SliceSet uint64T (struct.loadF ArrayEditor.S "s" "ae") #0 (struct.loadF ArrayEditor.S "next_val" "ae");;
-    struct.storeF ArrayEditor.S "next_val" "ae" "next";;
-    struct.storeF ArrayEditor.S "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor.S "s" "ae") #1).
-Theorem ArrayEditor__Advance_t: ⊢ ArrayEditor__Advance : (struct.ptrT ArrayEditor.S -> slice.T uint64T -> uint64T -> unitT).
+    SliceSet uint64T (struct.loadF ArrayEditor "s" "ae") #0 (struct.loadF ArrayEditor "next_val" "ae");;
+    struct.storeF ArrayEditor "next_val" "ae" "next";;
+    struct.storeF ArrayEditor "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor "s" "ae") #1).
+Theorem ArrayEditor__Advance_t: ⊢ ArrayEditor__Advance : (struct.ptrT ArrayEditor -> slice.T uint64T -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve ArrayEditor__Advance_t : types.
 
@@ -1312,11 +1292,11 @@ Hint Resolve testSliceOps_t : types.
 Definition testOverwriteArray: val :=
   rec: "testOverwriteArray" <> :=
     let: "arr" := ref_to (slice.T uint64T) (NewSlice uint64T #4) in
-    let: "ae1" := struct.new ArrayEditor.S [
+    let: "ae1" := struct.new ArrayEditor [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #0;
       "next_val" ::= #1
     ] in
-    let: "ae2" := struct.new ArrayEditor.S [
+    let: "ae2" := struct.new ArrayEditor [
       "s" ::= SliceSkip uint64T (![slice.T uint64T] "arr") #1;
       "next_val" ::= #102
     ] in
@@ -1377,113 +1357,105 @@ Hint Resolve failing_testStringLength_t : types.
 
 (* struct_pointers.go *)
 
-Module Bar.
-  Definition S := struct.decl [
-    "a" :: uint64T;
-    "b" :: uint64T
-  ].
-End Bar.
+Definition Bar := struct.decl [
+  "a" :: uint64T;
+  "b" :: uint64T
+].
 
 (* Foo contains a nested struct which is intended to be manipulated through a
    Foo pointer *)
-Module Foo.
-  Definition S := struct.decl [
-    "bar" :: struct.t Bar.S
-  ].
-End Foo.
+Definition Foo := struct.decl [
+  "bar" :: struct.t Bar
+].
 
 Definition Bar__mutate: val :=
   rec: "Bar__mutate" "bar" :=
-    struct.storeF Bar.S "a" "bar" #2;;
-    struct.storeF Bar.S "b" "bar" #3.
-Theorem Bar__mutate_t: ⊢ Bar__mutate : (struct.ptrT Bar.S -> unitT).
+    struct.storeF Bar "a" "bar" #2;;
+    struct.storeF Bar "b" "bar" #3.
+Theorem Bar__mutate_t: ⊢ Bar__mutate : (struct.ptrT Bar -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Bar__mutate_t : types.
 
 Definition Foo__mutateBar: val :=
   rec: "Foo__mutateBar" "foo" :=
-    Bar__mutate (struct.loadF Foo.S "bar" "foo").
-Theorem Foo__mutateBar_t: ⊢ Foo__mutateBar : (struct.ptrT Foo.S -> unitT).
+    Bar__mutate (struct.loadF Foo "bar" "foo").
+Theorem Foo__mutateBar_t: ⊢ Foo__mutateBar : (struct.ptrT Foo -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Foo__mutateBar_t : types.
 
 Definition failing_testFooBarMutation: val :=
   rec: "failing_testFooBarMutation" <> :=
-    let: "x" := struct.mk Foo.S [
-      "bar" ::= struct.mk Bar.S [
+    let: "x" := struct.mk Foo [
+      "bar" ::= struct.mk Bar [
         "a" ::= #0;
         "b" ::= #0
       ]
     ] in
     Foo__mutateBar "x";;
-    (struct.get Bar.S "a" (struct.get Foo.S "bar" "x") = #2).
+    (struct.get Bar "a" (struct.get Foo "bar" "x") = #2).
 Theorem failing_testFooBarMutation_t: ⊢ failing_testFooBarMutation : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve failing_testFooBarMutation_t : types.
 
 (* structs.go *)
 
-Module TwoInts.
-  Definition S := struct.decl [
-    "x" :: uint64T;
-    "y" :: uint64T
-  ].
-End TwoInts.
+Definition TwoInts := struct.decl [
+  "x" :: uint64T;
+  "y" :: uint64T
+].
 
-Module S.
-  Definition S := struct.decl [
-    "a" :: uint64T;
-    "b" :: struct.t TwoInts.S;
-    "c" :: boolT
-  ].
-End S.
+Definition S := struct.decl [
+  "a" :: uint64T;
+  "b" :: struct.t TwoInts;
+  "c" :: boolT
+].
 
 Definition NewS: val :=
   rec: "NewS" <> :=
-    struct.new S.S [
+    struct.new S [
       "a" ::= #2;
-      "b" ::= struct.mk TwoInts.S [
+      "b" ::= struct.mk TwoInts [
         "x" ::= #1;
         "y" ::= #2
       ];
       "c" ::= #true
     ].
-Theorem NewS_t: ⊢ NewS : (unitT -> struct.ptrT S.S).
+Theorem NewS_t: ⊢ NewS : (unitT -> struct.ptrT S).
 Proof. typecheck. Qed.
 Hint Resolve NewS_t : types.
 
 Definition S__readA: val :=
   rec: "S__readA" "s" :=
-    struct.loadF S.S "a" "s".
-Theorem S__readA_t: ⊢ S__readA : (struct.ptrT S.S -> uint64T).
+    struct.loadF S "a" "s".
+Theorem S__readA_t: ⊢ S__readA : (struct.ptrT S -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve S__readA_t : types.
 
 Definition S__readB: val :=
   rec: "S__readB" "s" :=
-    struct.loadF S.S "b" "s".
-Theorem S__readB_t: ⊢ S__readB : (struct.ptrT S.S -> struct.t TwoInts.S).
+    struct.loadF S "b" "s".
+Theorem S__readB_t: ⊢ S__readB : (struct.ptrT S -> struct.t TwoInts).
 Proof. typecheck. Qed.
 Hint Resolve S__readB_t : types.
 
 Definition S__readBVal: val :=
   rec: "S__readBVal" "s" :=
-    struct.get S.S "b" "s".
-Theorem S__readBVal_t: ⊢ S__readBVal : (struct.t S.S -> struct.t TwoInts.S).
+    struct.get S "b" "s".
+Theorem S__readBVal_t: ⊢ S__readBVal : (struct.t S -> struct.t TwoInts).
 Proof. typecheck. Qed.
 Hint Resolve S__readBVal_t : types.
 
 Definition S__updateBValX: val :=
   rec: "S__updateBValX" "s" "i" :=
-    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" "s") "i".
-Theorem S__updateBValX_t: ⊢ S__updateBValX : (struct.ptrT S.S -> uint64T -> unitT).
+    struct.storeF TwoInts "x" (struct.fieldRef S "b" "s") "i".
+Theorem S__updateBValX_t: ⊢ S__updateBValX : (struct.ptrT S -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve S__updateBValX_t : types.
 
 Definition S__negateC: val :=
   rec: "S__negateC" "s" :=
-    struct.storeF S.S "c" "s" (~ (struct.loadF S.S "c" "s")).
-Theorem S__negateC_t: ⊢ S__negateC : (struct.ptrT S.S -> unitT).
+    struct.storeF S "c" "s" (~ (struct.loadF S "c" "s")).
+Theorem S__negateC_t: ⊢ S__negateC : (struct.ptrT S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve S__negateC_t : types.
 
@@ -1492,17 +1464,17 @@ Definition failing_testStructUpdates: val :=
     let: "ok" := ref_to boolT #true in
     let: "ns" := NewS #() in
     "ok" <-[boolT] (![boolT] "ok") && (S__readA "ns" = #2);;
-    let: "b1" := ref_to (struct.t TwoInts.S) (S__readB "ns") in
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b1") = #1);;
+    let: "b1" := ref_to (struct.t TwoInts) (S__readB "ns") in
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (![struct.t TwoInts] "b1") = #1);;
     S__negateC "ns";;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF S.S "c" "ns" = #false);;
-    struct.storeF TwoInts.S "x" "b1" #3;;
-    let: "b2" := ref_to (struct.t TwoInts.S) (S__readB "ns") in
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (![struct.t TwoInts.S] "b2") = #1);;
-    let: "b3" := ref_to (refT (struct.t TwoInts.S)) (struct.fieldRef S.S "b" "ns") in
-    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "b3") = #1);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF S "c" "ns" = #false);;
+    struct.storeF TwoInts "x" "b1" #3;;
+    let: "b2" := ref_to (struct.t TwoInts) (S__readB "ns") in
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (![struct.t TwoInts] "b2") = #1);;
+    let: "b3" := ref_to (refT (struct.t TwoInts)) (struct.fieldRef S "b" "ns") in
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts "x" (![refT (struct.t TwoInts)] "b3") = #1);;
     S__updateBValX "ns" #4;;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (S__readBVal "ns") = #4);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (S__readBVal "ns") = #4);;
     ![boolT] "ok".
 Theorem failing_testStructUpdates_t: ⊢ failing_testStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1511,21 +1483,21 @@ Hint Resolve failing_testStructUpdates_t : types.
 Definition testNestedStructUpdates: val :=
   rec: "testNestedStructUpdates" <> :=
     let: "ok" := ref_to boolT #true in
-    let: "ns" := ref_to (refT (struct.t S.S)) (NewS #()) in
-    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
-    "ns" <-[refT (struct.t S.S)] NewS #();;
-    let: "p" := ref_to (refT (struct.t TwoInts.S)) (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) in
-    struct.storeF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") #5;;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.loadF S.S "b" (![refT (struct.t S.S)] "ns")) = #5);;
-    "ns" <-[refT (struct.t S.S)] NewS #();;
-    "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
-    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p")) = #5);;
-    "ns" <-[refT (struct.t S.S)] NewS #();;
-    "p" <-[refT (struct.t TwoInts.S)] struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns");;
-    struct.storeF TwoInts.S "x" (struct.fieldRef S.S "b" (![refT (struct.t S.S)] "ns")) #5;;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts.S "x" (![refT (struct.t TwoInts.S)] "p") = #5);;
+    let: "ns" := ref_to (refT (struct.t S)) (NewS #()) in
+    struct.storeF TwoInts "x" (struct.fieldRef S "b" (![refT (struct.t S)] "ns")) #5;;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (struct.loadF S "b" (![refT (struct.t S)] "ns")) = #5);;
+    "ns" <-[refT (struct.t S)] NewS #();;
+    let: "p" := ref_to (refT (struct.t TwoInts)) (struct.fieldRef S "b" (![refT (struct.t S)] "ns")) in
+    struct.storeF TwoInts "x" (![refT (struct.t TwoInts)] "p") #5;;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (struct.loadF S "b" (![refT (struct.t S)] "ns")) = #5);;
+    "ns" <-[refT (struct.t S)] NewS #();;
+    "p" <-[refT (struct.t TwoInts)] struct.fieldRef S "b" (![refT (struct.t S)] "ns");;
+    struct.storeF TwoInts "x" (struct.fieldRef S "b" (![refT (struct.t S)] "ns")) #5;;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (struct.load TwoInts (![refT (struct.t TwoInts)] "p")) = #5);;
+    "ns" <-[refT (struct.t S)] NewS #();;
+    "p" <-[refT (struct.t TwoInts)] struct.fieldRef S "b" (![refT (struct.t S)] "ns");;
+    struct.storeF TwoInts "x" (struct.fieldRef S "b" (![refT (struct.t S)] "ns")) #5;;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.loadF TwoInts "x" (![refT (struct.t TwoInts)] "p") = #5);;
     ![boolT] "ok".
 Theorem testNestedStructUpdates_t: ⊢ testNestedStructUpdates : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1534,22 +1506,22 @@ Hint Resolve testNestedStructUpdates_t : types.
 Definition testStructConstructions: val :=
   rec: "testStructConstructions" <> :=
     let: "ok" := ref_to boolT #true in
-    let: "p1" := ref (zero_val (refT (struct.t TwoInts.S))) in
-    let: "p2" := ref (zero_val (struct.t TwoInts.S)) in
-    let: "p3" := struct.mk TwoInts.S [
+    let: "p1" := ref (zero_val (refT (struct.t TwoInts))) in
+    let: "p2" := ref (zero_val (struct.t TwoInts)) in
+    let: "p3" := struct.mk TwoInts [
       "y" ::= #0;
       "x" ::= #0
     ] in
-    let: "p4" := struct.mk TwoInts.S [
+    let: "p4" := struct.mk TwoInts [
       "x" ::= #0;
       "y" ::= #0
     ] in
-    "ok" <-[boolT] (![boolT] "ok") && (![refT (struct.t TwoInts.S)] "p1" = #null);;
-    "p1" <-[refT (struct.t TwoInts.S)] struct.alloc TwoInts.S (zero_val (struct.t TwoInts.S));;
-    "ok" <-[boolT] (![boolT] "ok") && (![struct.t TwoInts.S] "p2" = "p3");;
+    "ok" <-[boolT] (![boolT] "ok") && (![refT (struct.t TwoInts)] "p1" = #null);;
+    "p1" <-[refT (struct.t TwoInts)] struct.alloc TwoInts (zero_val (struct.t TwoInts));;
+    "ok" <-[boolT] (![boolT] "ok") && (![struct.t TwoInts] "p2" = "p3");;
     "ok" <-[boolT] (![boolT] "ok") && ("p3" = "p4");;
-    "ok" <-[boolT] (![boolT] "ok") && ("p4" = struct.load TwoInts.S (![refT (struct.t TwoInts.S)] "p1"));;
-    "ok" <-[boolT] (![boolT] "ok") && ("p4" ≠ ![refT (struct.t TwoInts.S)] "p1");;
+    "ok" <-[boolT] (![boolT] "ok") && ("p4" = struct.load TwoInts (![refT (struct.t TwoInts)] "p1"));;
+    "ok" <-[boolT] (![boolT] "ok") && ("p4" ≠ ![refT (struct.t TwoInts)] "p1");;
     ![boolT] "ok".
 Theorem testStructConstructions_t: ⊢ testStructConstructions : (unitT -> boolT).
 Proof. typecheck. Qed.
@@ -1558,54 +1530,52 @@ Hint Resolve testStructConstructions_t : types.
 Definition testIncompleteStruct: val :=
   rec: "testIncompleteStruct" <> :=
     let: "ok" := ref_to boolT #true in
-    let: "p1" := struct.mk TwoInts.S [
+    let: "p1" := struct.mk TwoInts [
       "x" ::= #0
     ] in
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "y" "p1" = #0);;
-    let: "p2" := struct.mk S.S [
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "y" "p1" = #0);;
+    let: "p2" := struct.mk S [
       "a" ::= #2
     ] in
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts.S "x" (struct.get S.S "b" "p2") = #0);;
-    "ok" <-[boolT] (![boolT] "ok") && (struct.get S.S "c" "p2" = #false);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get TwoInts "x" (struct.get S "b" "p2") = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (struct.get S "c" "p2" = #false);;
     ![boolT] "ok".
 Theorem testIncompleteStruct_t: ⊢ testIncompleteStruct : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testIncompleteStruct_t : types.
 
-Module StructWrap.
-  Definition S := struct.decl [
-    "i" :: uint64T
-  ].
-End StructWrap.
+Definition StructWrap := struct.decl [
+  "i" :: uint64T
+].
 
 Definition testStoreInStructVar: val :=
   rec: "testStoreInStructVar" <> :=
-    let: "p" := ref_to (struct.t StructWrap.S) (struct.mk StructWrap.S [
+    let: "p" := ref_to (struct.t StructWrap) (struct.mk StructWrap [
       "i" ::= #0
     ]) in
-    struct.storeF StructWrap.S "i" "p" #5;;
-    (struct.get StructWrap.S "i" (![struct.t StructWrap.S] "p") = #5).
+    struct.storeF StructWrap "i" "p" #5;;
+    (struct.get StructWrap "i" (![struct.t StructWrap] "p") = #5).
 Theorem testStoreInStructVar_t: ⊢ testStoreInStructVar : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreInStructVar_t : types.
 
 Definition testStoreInStructPointerVar: val :=
   rec: "testStoreInStructPointerVar" <> :=
-    let: "p" := ref_to (refT (struct.t StructWrap.S)) (struct.alloc StructWrap.S (zero_val (struct.t StructWrap.S))) in
-    struct.storeF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") #5;;
-    (struct.loadF StructWrap.S "i" (![refT (struct.t StructWrap.S)] "p") = #5).
+    let: "p" := ref_to (refT (struct.t StructWrap)) (struct.alloc StructWrap (zero_val (struct.t StructWrap))) in
+    struct.storeF StructWrap "i" (![refT (struct.t StructWrap)] "p") #5;;
+    (struct.loadF StructWrap "i" (![refT (struct.t StructWrap)] "p") = #5).
 Theorem testStoreInStructPointerVar_t: ⊢ testStoreInStructPointerVar : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreInStructPointerVar_t : types.
 
 Definition testStoreComposite: val :=
   rec: "testStoreComposite" <> :=
-    let: "p" := struct.alloc TwoInts.S (zero_val (struct.t TwoInts.S)) in
-    struct.store TwoInts.S "p" (struct.mk TwoInts.S [
+    let: "p" := struct.alloc TwoInts (zero_val (struct.t TwoInts)) in
+    struct.store TwoInts "p" (struct.mk TwoInts [
       "x" ::= #3;
       "y" ::= #4
     ]);;
-    (struct.get TwoInts.S "y" (struct.load TwoInts.S "p") = #4).
+    (struct.get TwoInts "y" (struct.load TwoInts "p") = #4).
 Theorem testStoreComposite_t: ⊢ testStoreComposite : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreComposite_t : types.
@@ -1631,14 +1601,12 @@ Definition logLength : expr := #1 + #2 * MaxTxnWrites.
 Theorem logLength_t Γ : Γ ⊢ logLength : uint64T.
 Proof. typecheck. Qed.
 
-Module Log.
-  Definition S := struct.decl [
-    "d" :: disk.Disk;
-    "l" :: lockRefT;
-    "cache" :: mapT disk.blockT;
-    "length" :: refT uint64T
-  ].
-End Log.
+Definition Log := struct.decl [
+  "d" :: disk.Disk;
+  "l" :: lockRefT;
+  "cache" :: mapT disk.blockT;
+  "length" :: refT uint64T
+].
 
 Definition intToBlock: val :=
   rec: "intToBlock" "a" :=
@@ -1673,27 +1641,27 @@ Definition New: val :=
     let: "lengthPtr" := ref (zero_val uint64T) in
     "lengthPtr" <-[uint64T] #0;;
     let: "l" := lock.new #() in
-    struct.mk Log.S [
+    struct.mk Log [
       "d" ::= "d";
       "cache" ::= "cache";
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
-Theorem New_t: ⊢ New : (unitT -> struct.t Log.S).
+Theorem New_t: ⊢ New : (unitT -> struct.t Log).
 Proof. typecheck. Qed.
 Hint Resolve New_t : types.
 
 Definition Log__lock: val :=
   rec: "Log__lock" "l" :=
-    lock.acquire (struct.get Log.S "l" "l").
-Theorem Log__lock_t: ⊢ Log__lock : (struct.t Log.S -> unitT).
+    lock.acquire (struct.get Log "l" "l").
+Theorem Log__lock_t: ⊢ Log__lock : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__lock_t : types.
 
 Definition Log__unlock: val :=
   rec: "Log__unlock" "l" :=
-    lock.release (struct.get Log.S "l" "l").
-Theorem Log__unlock_t: ⊢ Log__unlock : (struct.t Log.S -> unitT).
+    lock.release (struct.get Log "l" "l").
+Theorem Log__unlock_t: ⊢ Log__unlock : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__unlock_t : types.
 
@@ -1703,7 +1671,7 @@ Hint Resolve Log__unlock_t : types.
 Definition Log__BeginTxn: val :=
   rec: "Log__BeginTxn" "l" :=
     Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
     (if: ("length" = #0)
     then
       Log__unlock "l";;
@@ -1711,7 +1679,7 @@ Definition Log__BeginTxn: val :=
     else
       Log__unlock "l";;
       #false).
-Theorem Log__BeginTxn_t: ⊢ Log__BeginTxn : (struct.t Log.S -> boolT).
+Theorem Log__BeginTxn_t: ⊢ Log__BeginTxn : (struct.t Log -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve Log__BeginTxn_t : types.
 
@@ -1721,7 +1689,7 @@ Hint Resolve Log__BeginTxn_t : types.
 Definition Log__Read: val :=
   rec: "Log__Read" "l" "a" :=
     Log__lock "l";;
-    let: ("v", "ok") := MapGet (struct.get Log.S "cache" "l") "a" in
+    let: ("v", "ok") := MapGet (struct.get Log "cache" "l") "a" in
     (if: "ok"
     then
       Log__unlock "l";;
@@ -1730,7 +1698,7 @@ Definition Log__Read: val :=
       Log__unlock "l";;
       let: "dv" := disk.Read (logLength + "a") in
       "dv").
-Theorem Log__Read_t: ⊢ Log__Read : (struct.t Log.S -> uint64T -> disk.blockT).
+Theorem Log__Read_t: ⊢ Log__Read : (struct.t Log -> uint64T -> disk.blockT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Read_t : types.
 
@@ -1738,7 +1706,7 @@ Definition Log__Size: val :=
   rec: "Log__Size" "l" :=
     let: "sz" := disk.Size #() in
     "sz" - logLength.
-Theorem Log__Size_t: ⊢ Log__Size : (struct.t Log.S -> uint64T).
+Theorem Log__Size_t: ⊢ Log__Size : (struct.t Log -> uint64T).
 Proof. typecheck. Qed.
 Hint Resolve Log__Size_t : types.
 
@@ -1746,7 +1714,7 @@ Hint Resolve Log__Size_t : types.
 Definition Log__Write: val :=
   rec: "Log__Write" "l" "a" "v" :=
     Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
     (if: "length" ≥ MaxTxnWrites
     then
       Panic ("transaction is at capacity");;
@@ -1756,10 +1724,10 @@ Definition Log__Write: val :=
     let: "nextAddr" := #1 + #2 * "length" in
     disk.Write "nextAddr" "aBlock";;
     disk.Write ("nextAddr" + #1) "v";;
-    MapInsert (struct.get Log.S "cache" "l") "a" "v";;
-    struct.get Log.S "length" "l" <-[uint64T] "length" + #1;;
+    MapInsert (struct.get Log "cache" "l") "a" "v";;
+    struct.get Log "length" "l" <-[uint64T] "length" + #1;;
     Log__unlock "l".
-Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log.S -> uint64T -> disk.blockT -> unitT).
+Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log -> uint64T -> disk.blockT -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Write_t : types.
 
@@ -1767,11 +1735,11 @@ Hint Resolve Log__Write_t : types.
 Definition Log__Commit: val :=
   rec: "Log__Commit" "l" :=
     Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
     Log__unlock "l";;
     let: "header" := intToBlock "length" in
     disk.Write #0 "header".
-Theorem Log__Commit_t: ⊢ Log__Commit : (struct.t Log.S -> unitT).
+Theorem Log__Commit_t: ⊢ Log__Commit : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Commit_t : types.
 
@@ -1816,12 +1784,12 @@ Hint Resolve clearLog_t : types.
 Definition Log__Apply: val :=
   rec: "Log__Apply" "l" :=
     Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log.S "length" "l") in
-    applyLog (struct.get Log.S "d" "l") "length";;
-    clearLog (struct.get Log.S "d" "l");;
-    struct.get Log.S "length" "l" <-[uint64T] #0;;
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
+    applyLog (struct.get Log "d" "l") "length";;
+    clearLog (struct.get Log "d" "l");;
+    struct.get Log "length" "l" <-[uint64T] #0;;
     Log__unlock "l".
-Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log.S -> unitT).
+Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Apply_t : types.
 
@@ -1837,13 +1805,13 @@ Definition Open: val :=
     let: "lengthPtr" := ref (zero_val uint64T) in
     "lengthPtr" <-[uint64T] #0;;
     let: "l" := lock.new #() in
-    struct.mk Log.S [
+    struct.mk Log [
       "d" ::= "d";
       "cache" ::= "cache";
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
-Theorem Open_t: ⊢ Open : (unitT -> struct.t Log.S).
+Theorem Open_t: ⊢ Open : (unitT -> struct.t Log).
 Proof. typecheck. Qed.
 Hint Resolve Open_t : types.
 
@@ -1862,7 +1830,7 @@ Definition disabled_testWal: val :=
     Log__Commit "lg";;
     "ok" <-[boolT] (![boolT] "ok") && (blockToInt (disk.Read #0) = #1);;
     Log__Apply "lg";;
-    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] (struct.get Log.S "length" "lg") = #0);;
+    "ok" <-[boolT] (![boolT] "ok") && (![uint64T] (struct.get Log "length" "lg") = #0);;
     ![boolT] "ok".
 Theorem disabled_testWal_t: ⊢ disabled_testWal : (unitT -> boolT).
 Proof. typecheck. Qed.
