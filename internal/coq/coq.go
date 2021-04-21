@@ -134,9 +134,7 @@ type StructDecl struct {
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Module %s.", d.Name)
-	pp.Indent(2)
-	pp.AddLine("Definition S := struct.decl [")
+	pp.Add("Definition %s := struct.decl [", d.Name)
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -147,8 +145,6 @@ func (d StructDecl) CoqDecl() string {
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
-	pp.Indent(-2)
-	pp.Add("End %s.", d.Name)
 	return pp.Build()
 }
 
@@ -161,9 +157,7 @@ type InterfaceDecl struct {
 func (d InterfaceDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Module %s.", d.Name)
-	pp.Indent(2)
-	pp.AddLine("Definition S := struct.decl [")
+	pp.Add("Definition %s := struct.decl [", d.Name)
 	pp.Indent(2)
 	for i, fd := range d.Methods {
 		sep := ";"
@@ -174,17 +168,13 @@ func (d InterfaceDecl) CoqDecl() string {
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
-	pp.Indent(-2)
-	pp.Add("End %s.", d.Name)
 	return pp.Build()
 }
 
 func (d InterfaceDecl) Coq() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Module %s.", d.Name)
-	pp.Indent(2)
-	pp.AddLine("Definition S := struct.decl [")
+	pp.Add("Definition %s := struct.decl [", d.Name)
 	pp.Indent(2)
 	for i, fd := range d.Methods {
 		sep := ";"
@@ -195,8 +185,6 @@ func (d InterfaceDecl) Coq() string {
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
-	pp.Indent(-2)
-	pp.Add("End %s.", d.Name)
 	return pp.Build()
 }
 
@@ -214,9 +202,9 @@ func (d StructToInterface) Coq() string {
 		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
 		pp.Indent(2)
 		if len(d.Methods) == 1 {
-			pp.Add("struct.mk %s.S [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
+			pp.Add("struct.mk %s [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
 		} else {
-			pp.Add("struct.mk %s.S [", d.Interface)
+			pp.Add("struct.mk %s [", d.Interface)
 			pp.Indent(2)
 			for i, method := range d.Methods {
 				if i == len(d.Methods)-1 {
@@ -250,9 +238,9 @@ func (d StructToInterface) CoqDecl() string {
 		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
 		pp.Indent(2)
 		if len(d.Methods) == 1 {
-			pp.Add("struct.mk %s.S [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
+			pp.Add("struct.mk %s [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
 		} else {
-			pp.Add("struct.mk %s.S [", d.Interface)
+			pp.Add("struct.mk %s [", d.Interface)
 			pp.Indent(2)
 			for i, method := range d.Methods {
 				if i == len(d.Methods)-1 {
@@ -468,7 +456,7 @@ type StructFieldAccessExpr struct {
 }
 
 func StructDesc(name string) Expr {
-	return GallinaIdent(fmt.Sprintf("%s.S", name))
+	return GallinaIdent(name)
 }
 
 func (e StructFieldAccessExpr) Coq() string {
@@ -1105,7 +1093,7 @@ func StructMethod(structName string, methodName string) string {
 }
 
 func InterfaceMethod(interfaceName string, methodName string) string {
-	return fmt.Sprintf("struct.get %s.S \"%s\"", interfaceName, methodName)
+	return fmt.Sprintf("struct.get %s \"%s\"", interfaceName, methodName)
 }
 
 // TODO: note that the second two lines should be customized depending on the

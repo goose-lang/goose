@@ -14,8 +14,6 @@ Definition TWO : expr := #2.
 
    it has multiple files *)
 
-Module Foo.
-  Definition S := struct.decl [
-    "a" :: boolT
-  ].
-End Foo.
+Definition Foo := struct.decl [
+  "a" :: boolT
+].
