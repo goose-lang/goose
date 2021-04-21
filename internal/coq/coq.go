@@ -145,7 +145,6 @@ func (d StructDecl) CoqDecl() string {
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
-	pp.Indent(-2)
 	return pp.Build()
 }
 
