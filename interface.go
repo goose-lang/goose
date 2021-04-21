@@ -164,5 +164,20 @@ func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, 
 	if len(errs) != 0 {
 		err = errors.Wrap(MultipleErrors(errs), "conversion failed")
 	}
-	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader: config.ImportHeader}, err
+	var ih string
+	var f string
+	if config.Ffi == "none" {
+		ih = fmt.Sprintf(""+
+			"Section %s.\n"+
+			"Context `{ext_ty: ext_types}.\n"+
+			"Local Coercion Var' s: expr := Var s.",
+			pkgName)
+		f = fmt.Sprintf("\nEnd %s.\n", pkgName)
+	} else {
+		ih = fmt.Sprintf(FfiImportFmt, config.Ffi)
+		f = ""
+	}
+	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader: ih, Footer: f}, err
 }
+
+const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
