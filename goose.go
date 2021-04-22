@@ -136,17 +136,15 @@ func (s *StringSet) Set(value string) error {
 type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
-	ImportHeader          string
+	Ffi                   string
 	Excludes              StringSet
 }
-
-const defaultFfiImport string = "From Perennial.goose_lang Require Import ffi.disk_prelude."
 
 // Returns the default config
 func MakeDefaultConfig() Config {
 	var config Config
 	config.Excludes = make(map[string]bool)
-	config.ImportHeader = defaultFfiImport
+	config.Ffi = "disk"
 	return config
 }
 

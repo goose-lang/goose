@@ -25,8 +25,8 @@ func main() {
 	flag.BoolVar(&config.TypeCheck, "typecheck", false,
 		"add type-checking theorems")
 	flag.Var(&config.Excludes, "exclude-import", "go package that should not generate a coq import; can specify multiple packages to exclude")
-	flag.StringVar(&config.ImportHeader, "import-line", config.ImportHeader,
-		"FFI import line (none specified defaults to disk)")
+	flag.StringVar(&config.Ffi, "ffi", config.Ffi,
+		"FFI {disk|dist|none} (not specified defaults to disk)")
 
 	var outFile string
 	flag.StringVar(&outFile, "out", "-",
