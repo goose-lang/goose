@@ -59,3 +59,25 @@ func UInt64ToString(x uint64) string {
 // the sake of executing a simulation fancy update at the linearization point of
 // a procedure..
 func Linearize() {}
+
+// Assume lets the proof assume that `c` is true.
+// *Use with care*, assumptions are trusted and should be justified!
+//
+// The Go implementation will panic (quit the process in a controlled manner) if
+// `c` is not true. (Not to be confused with GooseLang `Panic` which is UB.)
+// In GooseLang, it will loop infinitely.
+func Assume(c bool) {
+	if !c {
+		panic("Assume condition violated")
+	}
+}
+
+// Assert induces a proof obligation that `c` is true.
+//
+// The Go implementation will panic (quit the process in a controlled manner) if
+// `c` is not true. In GooseLang, it will make the machine stuck, i.e., cause UB.
+func Assert(c bool) {
+	if !c {
+		panic("Assert condition violated")
+	}
+}
