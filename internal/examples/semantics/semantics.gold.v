@@ -1590,6 +1590,35 @@ Theorem testStoreSlice_t: ⊢ testStoreSlice : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testStoreSlice_t : types.
 
+(* vars.go *)
+
+Definition testPointerAssignment: val :=
+  rec: "testPointerAssignment" <> :=
+    let: "x" := ref (zero_val boolT) in
+    "x" <-[boolT] #true;;
+    ![boolT] "x".
+Theorem testPointerAssignment_t: ⊢ testPointerAssignment : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testPointerAssignment_t : types.
+
+Definition testAddressOfLocal: val :=
+  rec: "testAddressOfLocal" <> :=
+    let: "x" := ref_to boolT #false in
+    let: "xptr" := "x" in
+    "xptr" <-[boolT] #true;;
+    (![boolT] "x") && (![boolT] "xptr").
+Theorem testAddressOfLocal_t: ⊢ testAddressOfLocal : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testAddressOfLocal_t : types.
+
+Definition testAnonymousAssign: val :=
+  rec: "testAnonymousAssign" <> :=
+    #1 + #2;;
+    #true.
+Theorem testAnonymousAssign_t: ⊢ testAnonymousAssign : (unitT -> boolT).
+Proof. typecheck. Qed.
+Hint Resolve testAnonymousAssign_t : types.
+
 (* wal.go *)
 
 (* 10 is completely arbitrary *)

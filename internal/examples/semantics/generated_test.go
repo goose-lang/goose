@@ -479,6 +479,24 @@ func (suite *GoTestSuite) TestStoreSlice() {
 	suite.Equal(true, testStoreSlice())
 }
 
+func (suite *GoTestSuite) TestPointerAssignment() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testPointerAssignment())
+}
+
+func (suite *GoTestSuite) TestAddressOfLocal() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAddressOfLocal())
+}
+
+func (suite *GoTestSuite) TestAnonymousAssign() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAnonymousAssign())
+}
+
 func TestSuite(t *testing.T) {
 	suite.Run(t, new(GoTestSuite))
 }

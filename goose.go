@@ -71,6 +71,9 @@ func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
 }
 
 func (ctx Ctx) identInfo(ident *ast.Ident) identInfo {
+	if ident.Name == "_" {
+		ctx.unsupported(ident, "unexpected use of anonymous identifier")
+	}
 	scope := ctx.info.Uses[ident].Parent()
 	return ctx.idents.lookupName(scope, ident.Name)
 }
@@ -1864,6 +1867,9 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	// assignments can mean various things
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
+		if lhs.Name == "_" {
+			return coq.NewAnon(rhs)
+		}
 		if ctx.identInfo(lhs).IsPtrWrapped {
 			return ctx.pointerAssign(lhs, rhs)
 		}
