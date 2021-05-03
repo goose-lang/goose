@@ -167,12 +167,10 @@ func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, 
 	var ih string
 	var f string
 	if config.Ffi == "none" {
-		ih = fmt.Sprintf(""+
-			"Section %s.\n"+
-			"Context `{ext_ty: ext_types}.\n"+
-			"Local Coercion Var' s: expr := Var s.",
-			pkgName)
-		f = fmt.Sprintf("\nEnd %s.\n", pkgName)
+		ih = "Section code.\n" +
+			"Context `{ext_ty: ext_types}.\n" +
+			"Local Coercion Var' s: expr := Var s."
+		f = "\nEnd code.\n"
 	} else {
 		ih = fmt.Sprintf(FfiImportFmt, config.Ffi)
 		f = ""
