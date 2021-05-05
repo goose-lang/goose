@@ -630,6 +630,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("control.impl.Assume", args)
 		case "Assert":
 			return ctx.newCoqCall("control.impl.Assert", args)
+		case "WaitTimeout":
+			return ctx.newCoqCall("lock.WaitTimeout", args)
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}
