@@ -93,7 +93,7 @@ func WaitTimeout(cond *sync.Cond, timeout_ms uint64) {
 		close(done)
 	}()
 	select {
-	case <-time.After(time.Duration(timeout_ms*1000*1000)): // convert to nanoseconds
+	case <-time.After(time.Duration(timeout_ms * 1000 * 1000)): // convert to nanoseconds
 		// timed out
 		return
 	case <-done:
