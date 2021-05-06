@@ -90,14 +90,17 @@ func WaitTimeout(cond *sync.Cond, timeout_ms uint64) {
 	done := make(chan struct{})
 	go func() {
 		cond.Wait()
+		cond.L.Unlock()
 		close(done)
 	}()
 	select {
 	case <-time.After(time.Duration(timeout_ms * 1000 * 1000)): // convert to nanoseconds
 		// timed out
+		cond.L.Lock()
 		return
 	case <-done:
 		// Wait returned
+		cond.L.Lock()
 		return
 	}
 }
