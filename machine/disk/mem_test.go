@@ -27,3 +27,23 @@ func BenchmarkMemWrite10(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSequentialWrite(b *testing.B) {
+	zero := make([]byte, 4096)
+	d := disk.NewMemDisk(uint64(b.N))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		d.Write(uint64(i), zero)
+	}
+	b.ReportMetric(float64(b.N)*4/1024, "MB/s")
+}
+
+func BenchmarkSequentialRead(b *testing.B) {
+	size := 10000
+	d := disk.NewMemDisk(10000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		d.Read(uint64(i % size))
+	}
+	b.ReportMetric(float64(b.N)*4/1024, "MB/s")
+}
