@@ -40,11 +40,11 @@ func BenchmarkSequentialWrite(b *testing.B) {
 }
 
 func BenchmarkSequentialRead(b *testing.B) {
-	size := 10000
+	size := uint64(10000)
 	d := disk.NewMemDisk(size)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		d.Read(uint64(i % size))
+		d.Read(uint64(i) % size)
 	}
 	b.ReportMetric(float64(b.N)*4/1024, "MB/s")
 }
