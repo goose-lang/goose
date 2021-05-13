@@ -1,6 +1,6 @@
 # Goose: a subset of Go with a semantics in Coq
 
-[![CI](https://github.com/tchajed/goose/workflows/CI/badge.svg)](https://github.com/tchajed/goose/actions?query=workflow%3ACI)
+[![CI](https://github.com/tchajed/goose/workflows/CI/badge.svg)](https://github.com/tchajed/goose/actions/workflows/build.yml)
 [![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
 
 Goose is a subset of Go equipped with a semantics in Coq, as well as translator to automatically convert Go programs written in Go to a model in Coq. The model plugs into [Perennial](https://github.com/mit-pdos/perennial) for carrying out verification of concurrent storage systems.
@@ -160,7 +160,7 @@ examples intended for wide coverage, as well as some real programs in other
 directories within `internal/examples`.
 
 The Coq output is separately tested by building it within the [Perennial
-](github.com/mit-pdos/perennial) source tree.
+](https://github.com/mit-pdos/perennial) source tree.
 
 Additionally, the `internal/examples/semantics` package contains a set of
 semantic tests for checking that translated programs preserve their semantic

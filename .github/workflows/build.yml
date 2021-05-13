@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-    - master
+      - master
   pull_request:
 
 jobs:
@@ -14,17 +14,17 @@ jobs:
         os: ["ubuntu-20.04"]
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
-    - uses: actions/checkout@v2
-    - name: Check style
-      run: |
-        gofmt -w -s .
-        go generate ./...
-        git diff --exit-code
-    - name: Test
-      run: |
-        go vet -composites=false ./...
-        go test -v ./...
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v2
+      - name: Check style
+        run: |
+          gofmt -w -s .
+          go generate ./...
+          git diff --exit-code
+      - name: Test
+        run: |
+          go vet -composites=false ./...
+          go test -v ./...
