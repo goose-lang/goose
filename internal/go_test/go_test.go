@@ -1,4 +1,4 @@
-package goose_test
+package go_test
 
 /*
 Tests to demonstrate Go's behavior on various subtle examples.
@@ -6,6 +6,7 @@ Tests to demonstrate Go's behavior on various subtle examples.
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -155,4 +156,73 @@ func TestModifyCapacity(t *testing.T) {
 
 	assert.Equal(uint64(7), s[2],
 		"appending modifies underlying slice via capacity")
+}
+
+const chanV uint64 = 7
+
+func TestGoBasicChannel(t *testing.T) {
+	c := make(chan uint64)
+	go func() {
+		c <- chanV
+	}()
+	x := <-c
+	assert.Equal(t, chanV, x)
+}
+
+func TestGoSendBlocks(t *testing.T) {
+	start := time.Now()
+	c := make(chan uint64)
+	go func() {
+		c <- chanV
+	}()
+	time.Sleep(200 * time.Millisecond)
+	x := <-c
+	assert.Equal(t, chanV, x)
+	assert.Greater(t, time.Now().Sub(start).Milliseconds(), int64(100))
+}
+
+func TestGoRecvBlocks(t *testing.T) {
+	start := time.Now()
+	c := make(chan uint64)
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		c <- chanV
+	}()
+	x := <-c
+	assert.Equal(t, chanV, x)
+	assert.Greater(t, time.Now().Sub(start).Milliseconds(), int64(100))
+}
+
+func TestGoRecvOnNil(t *testing.T) {
+	// receive on nil blocks forever
+	//
+	// https://golang.org/ref/spec#Receive_operator
+	var c chan uint64
+	select {
+	case <-c:
+		t.Fatalf("receiving on nil should block")
+	default:
+	}
+}
+func TestGoSendClosedPanics(t *testing.T) {
+	c := make(chan uint64)
+	close(c)
+	assert.Panics(t, func() {
+		c <- chanV
+	})
+}
+
+func TestGoRecvClosedZero(t *testing.T) {
+	c := make(chan uint64)
+	close(c)
+	x := <-c
+	assert.Equal(t, uint64(0), x)
+}
+
+func TestGoRecvClosedCheck(t *testing.T) {
+	c := make(chan uint64)
+	close(c)
+	x, ok := <-c
+	assert.Equal(t, uint64(0), x)
+	assert.False(t, ok, "receive should report channel closed")
 }
