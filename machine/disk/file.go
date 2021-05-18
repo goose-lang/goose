@@ -32,8 +32,10 @@ func NewFileDisk(path string, numBlocks uint64) (FileDisk, error) {
 
 var _ Disk = FileDisk{}
 
-func (d FileDisk) Read(a uint64) Block {
-	buf := make([]byte, BlockSize)
+func (d FileDisk) ReadTo(a uint64, buf Block) {
+	if uint64(len(buf)) != BlockSize {
+		panic("buffer is not block-sized")
+	}
 	if a >= d.numBlocks {
 		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
@@ -41,6 +43,11 @@ func (d FileDisk) Read(a uint64) Block {
 	if err != nil {
 		panic("read failed: " + err.Error())
 	}
+}
+
+func (d FileDisk) Read(a uint64) Block {
+	buf := make([]byte, BlockSize)
+	d.ReadTo(a, buf)
 	return buf
 }
 

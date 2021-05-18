@@ -17,15 +17,19 @@ func NewMemDisk(numBlocks uint64) MemDisk {
 	return MemDisk{l: new(sync.RWMutex), blocks: blocks}
 }
 
-func (d MemDisk) Read(a uint64) Block {
+func (d MemDisk) ReadTo(a uint64, buf Block) {
 	d.l.RLock()
 	defer d.l.RUnlock()
 	if a >= uint64(len(d.blocks)) {
 		panic(fmt.Errorf("out-of-bounds read at %v", a))
 	}
-	blk := make([]byte, BlockSize)
-	copy(blk, d.blocks[a][:])
-	return blk
+	copy(buf, d.blocks[a][:])
+}
+
+func (d MemDisk) Read(a uint64) Block {
+	buf := make(Block, BlockSize)
+	d.ReadTo(a, buf)
+	return buf
 }
 
 func (d MemDisk) Write(a uint64, v Block) {

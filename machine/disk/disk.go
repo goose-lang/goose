@@ -12,6 +12,11 @@ type Disk interface {
 	// Expects a < Size().
 	Read(a uint64) Block
 
+	// ReadTo reads the disk block at a and stores the result in b
+	//
+	// Expects a < Size().
+	ReadTo(a uint64, b Block)
+
 	// Write updates a disk block by address
 	//
 	// Expects a < Size().
