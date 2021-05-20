@@ -3,9 +3,6 @@ package goose
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -13,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/tchajed/goose/internal/coq"
+	"golang.org/x/tools/go/packages"
 )
 
 // declsOrError translates one top-level declaration,
@@ -89,10 +87,15 @@ func (f NamedFile) Name() string {
 	return path.Base(f.Path)
 }
 
-func sortedFiles(files map[string]*ast.File) []NamedFile {
+func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	var flatFiles []NamedFile
-	for n, f := range files {
-		flatFiles = append(flatFiles, NamedFile{Path: n, Ast: f})
+    if len(fileNames) != len(fileAsts) {
+		fmt.Printf("names: %+v\n", fileNames)
+		fmt.Printf("asts: %+v\n", fileAsts)
+		panic("sortedFiles(): fileNames must match fileAsts")
+    }
+	for i := range fileNames {
+		flatFiles = append(flatFiles, NamedFile{Path: fileNames[i], Ast: fileAsts[i]})
 	}
 	sort.Slice(flatFiles, func(i, j int) bool {
 		return flatFiles[i].Path < flatFiles[j].Path
@@ -108,74 +111,27 @@ func sortedFiles(files map[string]*ast.File) []NamedFile {
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, error) {
-	// TODO: we might be able to replace this implementation with something
-	//  based on go/packages; see https://pkg.go.dev/golang.org/x/tools/go/packages?tab=doc#Package.
-	fset := token.NewFileSet()
-	filter := func(info os.FileInfo) bool {
-		if strings.HasSuffix(info.Name(), "_test.go") {
-			return false
+func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
+
+	// Want to use the per-package Fset anyways
+	pkgs, err := packages.Load(&packages.Config{Dir:modDir, Mode:packages.LoadFiles | packages.LoadSyntax, Fset:nil}, pkgPattern)
+	var coqFiles []coq.File
+	for _, pkg := range pkgs {
+		ctx := NewCtx(pkg)
+		files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
+
+		decls, errs := ctx.Decls(files...)
+		if len(errs) != 0 {
+			// FIXME: collect all errors?
+			err = errors.Wrap(MultipleErrors(errs), "conversion failed")
 		}
-		return true
+		c := coq.File{GoPackage: pkg.PkgPath, Decls: decls, ImportHeader: "", Footer: ""}
+		if err != nil { // FIXME: collect all errors?
+			return coqFiles, err
+		}
+		coqFiles = append(coqFiles, c)
 	}
-	s, err := os.Stat(srcDir)
-	if err != nil {
-		return coq.File{},
-			fmt.Errorf("source directory %s does not exist", srcDir)
-	}
-	if !s.IsDir() {
-		return coq.File{},
-			fmt.Errorf("%s is a Ast (expected a directory)", srcDir)
-	}
-	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
-	if err != nil {
-		return coq.File{},
-			errors.Wrap(err, "code does not parse")
-	}
-
-	if len(packages) > 1 {
-		return coq.File{},
-			errors.New("found multiple packages")
-	}
-
-	var pkgName string
-	var files []NamedFile
-	for pName, p := range packages {
-		files = append(files, sortedFiles(p.Files)...)
-		pkgName = pName
-	}
-	if pkgPath != "" {
-		pkgName = pkgPath
-	}
-	var fileAsts []*ast.File
-	for _, f := range files {
-		fileAsts = append(fileAsts, f.Ast)
-	}
-
-	ctx := NewCtx(pkgName, fset, config)
-	err = ctx.TypeCheck(pkgName, fileAsts)
-	if err != nil {
-		return coq.File{},
-			errors.Wrap(err, "code does not type check")
-	}
-
-	decls, errs := ctx.Decls(files...)
-	err = nil
-	if len(errs) != 0 {
-		err = errors.Wrap(MultipleErrors(errs), "conversion failed")
-	}
-	var ih string
-	var f string
-	if config.Ffi == "none" {
-		ih = "Section code.\n" +
-			"Context `{ext_ty: ext_types}.\n" +
-			"Local Coercion Var' s: expr := Var s."
-		f = "\nEnd code.\n"
-	} else {
-		ih = fmt.Sprintf(FfiImportFmt, config.Ffi)
-		f = ""
-	}
-	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader: ih, Footer: f}, err
+	return coqFiles, err
 }
 
 const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."

@@ -24,6 +24,7 @@ import (
 	"unicode"
 
 	"github.com/tchajed/goose/internal/coq"
+	"golang.org/x/tools/go/packages"
 )
 
 // Ctx is a context for resolving Go code's types and source code
@@ -69,20 +70,14 @@ func MakeDefaultConfig() Config {
 }
 
 // NewCtx initializes a context
-func NewCtx(pkgPath string, fset *token.FileSet, config Config) Ctx {
-	info := &types.Info{
-		Defs:   make(map[*ast.Ident]types.Object),
-		Uses:   make(map[*ast.Ident]types.Object),
-		Types:  make(map[ast.Expr]types.TypeAndValue),
-		Scopes: make(map[ast.Node]*types.Scope),
-	}
+func NewCtx(pkg *packages.Package) Ctx {
 	return Ctx{
 		idents:        newIdentCtx(),
-		info:          info,
-		fset:          fset,
-		pkgPath:       pkgPath,
-		errorReporter: newErrorReporter(fset),
-		Config:        config,
+		info:          pkg.TypesInfo,
+		fset:          pkg.Fset,
+		pkgPath:       pkg.PkgPath,
+		errorReporter: newErrorReporter(pkg.Fset),
+		Config:        Config{}, // FIXME: make or take proper config
 	}
 }
 
