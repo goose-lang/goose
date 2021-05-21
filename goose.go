@@ -83,7 +83,7 @@ func getFfi(pkg *packages.Package) string {
 	if len(seenFfis) > 1 {
 		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
 	}
-	for ffi, _ := range seenFfis {
+	for ffi := range seenFfis {
 		return ffi
 	}
 	return "none"
