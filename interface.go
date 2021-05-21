@@ -123,7 +123,11 @@ func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.F
 	}
 	var coqFiles []coq.File
 	for _, pkg := range pkgs {
-		ctx := NewCtx(pkg)
+		var ctx Ctx
+		ctx, err = NewCtx(pkg)
+		if err != nil {
+			return nil, err // FIXME: collect errors?
+		}
 		files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
 		decls, errs := ctx.Decls(files...)
@@ -139,5 +143,3 @@ func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.F
 	}
 	return coqFiles, err
 }
-
-const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."

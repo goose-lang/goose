@@ -69,9 +69,39 @@ func MakeDefaultConfig() Config {
 	return config
 }
 
+const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
+
+func fillFfiSection(pkg *packages.Package) Config {
+	// DFS over all imports
+	var stack []*packages.Package
+	seen := make(map[string]struct{})
+	stack = make([]*packages.Package, 1)
+	stack[0] = pkg
+	for len(stack) > 0 {
+		var currPkg *packages.Package
+		l := len(stack)
+		currPkg, stack = stack[l-1], stack[:l-1]
+		if currPkg.PkgPath == "github.com/mit-pdos/gokv/dist_ffi" {
+			panic("dist_ffi used")
+		} else if currPkg.PkgPath == "github.com/tchajed/goose/machine/disk" {
+			panic("disk_ffi used")
+		} else {
+			// panic("none used")
+		}
+		for _, nextPkg := range currPkg.Imports {
+			if _, ok := seen[nextPkg.PkgPath]; !ok {
+				stack = append(stack, nextPkg)
+				seen[nextPkg.PkgPath] = struct{}{}
+			}
+		}
+	}
+	return Config{}
+}
+
 // NewCtx initializes a context
-func NewCtx(pkg *packages.Package) Ctx {
+func NewCtx(pkg *packages.Package) (Ctx, error) {
 	// Figure out which FFI we're using
+	config := fillFfiSection(pkg)
 
 	return Ctx{
 		idents:        newIdentCtx(),
@@ -79,8 +109,8 @@ func NewCtx(pkg *packages.Package) Ctx {
 		fset:          pkg.Fset,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
-		Config:        Config{}, // FIXME: make or take proper config
-	}
+		Config:        config, // FIXME: make or take proper config
+	}, nil
 }
 
 // TypeCheck type-checks a set of files and stores the result in the Ctx
