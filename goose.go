@@ -71,6 +71,8 @@ func MakeDefaultConfig() Config {
 
 // NewCtx initializes a context
 func NewCtx(pkg *packages.Package) Ctx {
+	// Figure out which FFI we're using
+
 	return Ctx{
 		idents:        newIdentCtx(),
 		info:          pkg.TypesInfo,

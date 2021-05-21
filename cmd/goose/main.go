@@ -12,39 +12,7 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-//noinspection GoUnhandledErrorResult
-func main() {
-	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")
-
-		flag.PrintDefaults()
-	}
-	var config goose.Config = goose.MakeDefaultConfig()
-	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
-		"add comments indicating Go source code location for each top-level declaration")
-	flag.BoolVar(&config.TypeCheck, "typecheck", false, "add type-checking theorems")
-
-	var outRootDir string
-	flag.StringVar(&outRootDir, "out", ".",
-		"root directory for output (default is current directory)")
-
-	var modDir string
-	flag.StringVar(&modDir, "in", "",
-		"directory containing necessary go.mod")
-
-	var ignoreErrors bool
-	flag.BoolVar(&ignoreErrors, "ignore-errors", false,
-		"output partial translation even if there are errors")
-
-	flag.Parse()
-	if flag.NArg() != 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// FIXME: support multiple packages in one run
-	pkgPattern := flag.Arg(0)
-
+func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, config *goose.Config) {
 	red := color.New(color.FgRed).SprintFunc()
 	fs, err := config.TranslatePackage(modDir, pkgPattern)
 	if err != nil {
@@ -72,5 +40,38 @@ func main() {
 	}
 	if err != nil {
 		os.Exit(1)
+	}
+}
+
+//noinspection GoUnhandledErrorResult
+func main() {
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")
+
+		flag.PrintDefaults()
+	}
+	var config goose.Config = goose.MakeDefaultConfig()
+
+	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
+		"add comments indicating Go source code location for each top-level declaration")
+	flag.BoolVar(&config.TypeCheck, "typecheck", false, "add type-checking theorems")
+
+	var outRootDir string
+	flag.StringVar(&outRootDir, "out", ".",
+		"root directory for output (default is current directory)")
+
+	var modDir string
+	flag.StringVar(&modDir, "in", "",
+		"directory containing necessary go.mod")
+
+	var ignoreErrors bool
+	flag.BoolVar(&ignoreErrors, "ignore-errors", false,
+		"output partial translation even if there are errors")
+
+	flag.Parse()
+
+	for i := 0; i < flag.NArg(); i++ {
+		pkgPattern := flag.Arg(i)
+		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, &config)
 	}
 }

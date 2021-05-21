@@ -115,6 +115,12 @@ func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.F
 
 	// Want to use the per-package Fset anyways
 	pkgs, err := packages.Load(&packages.Config{Dir:modDir, Mode:packages.LoadFiles | packages.LoadSyntax, Fset:nil}, pkgPattern)
+	if err != nil {
+		return nil, err
+	}
+	if len(pkgs) == 0 {
+		return nil, fmt.Errorf("Could not find matches for package %s", pkgPattern)
+	}
 	var coqFiles []coq.File
 	for _, pkg := range pkgs {
 		ctx := NewCtx(pkg)
