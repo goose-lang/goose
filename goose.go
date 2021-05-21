@@ -531,28 +531,6 @@ func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
-	// Special case for *sync.newCond
-	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
-	} else {
-		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
-			for j := 0; j < signature.Params().Len(); j++ {
-				if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
-					interfaceName := signature.Params().At(j).Type().String()
-					interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
-					structName := strings.Join(strings.Split(ctx.typeOf(s.Args[0]).String(), ".")[1:], "")
-					if interfaceName != structName && interfaceName != "" && structName != "" {
-						conversion := coq.StructToInterfaceDecl{Fun: ctx.expr(s.Fun).Coq(), Struct: structName, Interface: interfaceName, Arg: ctx.expr(s.Args[0]).Coq()}.Coq()
-						for i, arg := range s.Args {
-							if i > 0 {
-								conversion += " " + ctx.expr(arg).Coq()
-							}
-						}
-						return coq.CallExpr{MethodName: conversion}
-					}
-				}
-			}
-		}
-	}
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
 	}
@@ -603,6 +581,34 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 			}
 		}
 		return coq.NewCallExpr("Panic", coq.GallinaString(msg))
+	}
+	// Special case for *sync.NewCond
+	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
+	} else {
+		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
+			for j := 0; j < signature.Params().Len(); j++ {
+				if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
+					interfaceName := signature.Params().At(j).Type().String()
+					structName := ctx.typeOf(s.Args[0]).String()
+					interfaceName = unqualifyName(interfaceName)
+					structName = unqualifyName(structName)
+					if interfaceName != structName && interfaceName != "" && structName != "" {
+						conversion := coq.StructToInterfaceDecl{
+							Fun:       ctx.expr(s.Fun).Coq(),
+							Struct:    structName,
+							Interface: interfaceName,
+							Arg:       ctx.expr(s.Args[0]).Coq(),
+						}.Coq()
+						for i, arg := range s.Args {
+							if i > 0 {
+								conversion += " " + ctx.expr(arg).Coq()
+							}
+						}
+						return coq.CallExpr{MethodName: conversion}
+					}
+				}
+			}
+		}
 	}
 	return ctx.methodExpr(s)
 }
@@ -1845,6 +1851,14 @@ func (ctx Ctx) stmtInterface(cvs []coq.Decl, stmt ast.Stmt, d *ast.FuncDecl) []c
 	return cvs
 }
 
+// TODO: this is a hack, should have a better scheme for putting
+// interface/implementation types into the conversion name
+func unqualifyName(name string) string {
+	components := strings.Split(name, ".")
+	// return strings.Join(components[1:], "")
+	return components[len(components)-1]
+}
+
 func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDecl) []coq.Decl {
 	interfaceName := ""
 	methods := []string{}
@@ -1852,7 +1866,7 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDec
 		params := signature.Params()
 		for j := 0; j < params.Len(); j++ {
 			interfaceName = params.At(j).Type().String()
-			interfaceName = strings.Join(strings.Split(interfaceName, ".")[1:], "")
+			interfaceName = unqualifyName(interfaceName)
 			if v, ok := params.At(j).Type().Underlying().(*types.Interface); ok {
 				for m := 0; m < v.NumMethods(); m++ {
 					methods = append(methods, v.Method(m).Name())
@@ -1861,7 +1875,7 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDec
 		}
 		for _, arg := range r.Args {
 			structName := ctx.typeOf(arg).String()
-			structName = strings.Join(strings.Split(structName, ".")[1:], "")
+			structName = unqualifyName(structName)
 			if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
 				cv := coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {

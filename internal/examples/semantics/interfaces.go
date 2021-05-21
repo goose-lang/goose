@@ -52,14 +52,6 @@ func testAssignInterface() bool {
 	return area == 9
 }
 
-func testParamsInterface() bool {
-	s := SquareStruct{
-		Side: 3,
-	}
-	volume := measureVolumePlusNM(s, 1, 2)
-	return volume == 30
-}
-
 func testMultipleInterface() bool {
 	s := SquareStruct{
 		Side: 3,

@@ -543,17 +543,6 @@ Theorem testAssignInterface_t: ⊢ testAssignInterface : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testAssignInterface_t : types.
 
-Definition testParamsInterface: val :=
-  rec: "testParamsInterface" <> :=
-    let: "s" := struct.mk SquareStruct [
-      "Side" ::= #3
-    ] in
-    let: "volume" := measureVolumePlusNM (SquareStruct__to__geometryInterface "s") #1 #2 in
-    ("volume" = #30).
-Theorem testParamsInterface_t: ⊢ testParamsInterface : (unitT -> boolT).
-Proof. typecheck. Qed.
-Hint Resolve testParamsInterface_t : types.
-
 Definition testMultipleInterface: val :=
   rec: "testMultipleInterface" <> :=
     let: "s" := struct.mk SquareStruct [

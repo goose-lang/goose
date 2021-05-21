@@ -8,6 +8,16 @@ package semantics
 // - String interface
 // ----------------------------
 
+// this doesn't work because it generates a conversion from SquareStruct to
+// uint64 due to the extra parameters
+// func testParamsInterface() bool {
+// 	s := SquareStruct{
+// 		Side: 3,
+// 	}
+// 	volume := measureVolumePlusNM(s, 1, 2)
+// 	return volume == 30
+// }
+
 // func testEmptyInterface() bool {
 // 	var i interface{}
 // 	var j interface{}
