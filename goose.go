@@ -69,24 +69,23 @@ func MakeDefaultConfig() Config {
 	return config
 }
 
-const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
-
 func fillFfiSection(pkg *packages.Package) Config {
 	// DFS over all imports
+	var config Config
 	var stack []*packages.Package
 	seen := make(map[string]struct{})
 	stack = make([]*packages.Package, 1)
 	stack[0] = pkg
+	config.Ffi = "none"
 	for len(stack) > 0 {
 		var currPkg *packages.Package
 		l := len(stack)
 		currPkg, stack = stack[l-1], stack[:l-1]
 		if currPkg.PkgPath == "github.com/mit-pdos/gokv/dist_ffi" {
-			panic("dist_ffi used")
+			config.Ffi = "dist"
 		} else if currPkg.PkgPath == "github.com/tchajed/goose/machine/disk" {
-			panic("disk_ffi used")
+			config.Ffi = "disk"
 		} else {
-			// panic("none used")
 		}
 		for _, nextPkg := range currPkg.Imports {
 			if _, ok := seen[nextPkg.PkgPath]; !ok {
@@ -95,7 +94,7 @@ func fillFfiSection(pkg *packages.Package) Config {
 			}
 		}
 	}
-	return Config{}
+	return config
 }
 
 // NewCtx initializes a context

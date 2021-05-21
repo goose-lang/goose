@@ -12,9 +12,9 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, config *goose.Config) {
+func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, tr *goose.Translator) {
 	red := color.New(color.FgRed).SprintFunc()
-	fs, err := config.TranslatePackage(modDir, pkgPattern)
+	fs, err := tr.TranslatePackage(modDir, pkgPattern)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, red(err.Error()))
 		if !ignoreErrors {
@@ -50,11 +50,11 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-	var config goose.Config = goose.MakeDefaultConfig()
+	var tr goose.Translator
 
-	flag.BoolVar(&config.AddSourceFileComments, "source-comments", false,
+	flag.BoolVar(&tr.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
-	flag.BoolVar(&config.TypeCheck, "typecheck", false, "add type-checking theorems")
+	flag.BoolVar(&tr.TypeCheck, "typecheck", false, "add type-checking theorems")
 
 	var outRootDir string
 	flag.StringVar(&outRootDir, "out", ".",
@@ -72,6 +72,6 @@ func main() {
 
 	for i := 0; i < flag.NArg(); i++ {
 		pkgPattern := flag.Arg(i)
-		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, &config)
+		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, &tr)
 	}
 }

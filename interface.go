@@ -89,11 +89,11 @@ func (f NamedFile) Name() string {
 
 func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	var flatFiles []NamedFile
-    if len(fileNames) != len(fileAsts) {
+	if len(fileNames) != len(fileAsts) {
 		fmt.Printf("names: %+v\n", fileNames)
 		fmt.Printf("asts: %+v\n", fileAsts)
 		panic("sortedFiles(): fileNames must match fileAsts")
-    }
+	}
 	for i := range fileNames {
 		flatFiles = append(flatFiles, NamedFile{Path: fileNames[i], Ast: fileAsts[i]})
 	}
@@ -101,6 +101,11 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 		return flatFiles[i].Path < flatFiles[j].Path
 	})
 	return flatFiles
+}
+
+type Translator struct {
+	TypeCheck             bool
+	AddSourceFileComments bool
 }
 
 // TranslatePackage translates an entire package in a directory to a single Coq
@@ -111,10 +116,10 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
+func (tr *Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
 
 	// Want to use the per-package Fset anyways
-	pkgs, err := packages.Load(&packages.Config{Dir:modDir, Mode:packages.LoadFiles | packages.LoadSyntax, Fset:nil}, pkgPattern)
+	pkgs, err := packages.Load(&packages.Config{Dir: modDir, Mode: packages.LoadFiles | packages.LoadSyntax, Fset: nil}, pkgPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +140,19 @@ func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.F
 			// FIXME: collect all errors?
 			err = errors.Wrap(MultipleErrors(errs), "conversion failed")
 		}
-		c := coq.File{GoPackage: pkg.PkgPath, Decls: decls, ImportHeader: "", Footer: ""}
+		var ih string
+		var f string
+		if ctx.Config.Ffi == "none" {
+			ih = "Section code.\n" +
+				"Context `{ext_ty: ext_types}.\n" +
+				"Local Coercion Var' s: expr := Var s."
+			f = "\nEnd code.\n"
+		} else {
+			ih = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
+			f = ""
+		}
+
+		c := coq.File{GoPackage: pkg.PkgPath, Decls: decls, ImportHeader: ih, Footer: f}
 		if err != nil { // FIXME: collect all errors?
 			return coqFiles, err
 		}
@@ -143,3 +160,5 @@ func (config Config) TranslatePackage(modDir string, pkgPattern string) ([]coq.F
 	}
 	return coqFiles, err
 }
+
+const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
