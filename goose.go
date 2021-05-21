@@ -58,49 +58,42 @@ type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
 	Ffi                   string
-	Excludes              StringSet
 }
 
 // Returns the default config
 func MakeDefaultConfig() Config {
 	var config Config
-	config.Excludes = make(map[string]bool)
-	config.Ffi = "disk"
+	config.Ffi = "none"
 	return config
 }
 
-func fillFfiSection(pkg *packages.Package) Config {
-	// DFS over all imports
-	var config Config
-	var stack []*packages.Package
-	seen := make(map[string]struct{})
-	stack = make([]*packages.Package, 1)
-	stack[0] = pkg
-	config.Ffi = "none"
-	for len(stack) > 0 {
-		var currPkg *packages.Package
-		l := len(stack)
-		currPkg, stack = stack[l-1], stack[:l-1]
-		if currPkg.PkgPath == "github.com/mit-pdos/gokv/dist_ffi" {
-			config.Ffi = "dist"
-		} else if currPkg.PkgPath == "github.com/tchajed/goose/machine/disk" {
-			config.Ffi = "disk"
-		} else {
-		}
-		for _, nextPkg := range currPkg.Imports {
-			if _, ok := seen[nextPkg.PkgPath]; !ok {
-				stack = append(stack, nextPkg)
-				seen[nextPkg.PkgPath] = struct{}{}
+func getFfi(pkg *packages.Package) string {
+	seenFfis := make(map[string]struct{})
+	packages.Visit([]*packages.Package{pkg},
+		func(pkg *packages.Package) bool {
+			return true
+		},
+		func(pkg *packages.Package) {
+			if ffi, ok := ffiMapping[pkg.PkgPath]; ok {
+				seenFfis[ffi] = struct{}{}
 			}
-		}
+		},
+	)
+
+	if len(seenFfis) > 1 {
+		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
 	}
-	return config
+	for ffi, _ := range seenFfis {
+		return ffi
+	}
+	return "none"
 }
 
 // NewCtx initializes a context
 func NewCtx(pkg *packages.Package) (Ctx, error) {
 	// Figure out which FFI we're using
-	config := fillFfiSection(pkg)
+	var config Config
+	config.Ffi = getFfi(pkg)
 
 	return Ctx{
 		idents:        newIdentCtx(),
@@ -1798,14 +1791,20 @@ func stringLitValue(lit *ast.BasicLit) string {
 	return s
 }
 
-// TODO: the goose/machine/* imports ought to be part of the config.Excludes
+// TODO: put this in another file
 var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
-	"github.com/tchajed/goose/machine/disk":    true,
 	"github.com/tchajed/goose/machine/filesys": true,
-	"sync": true,
-	"log":  true,
-	"fmt":  true,
+	"github.com/mit-pdos/gokv/dist_ffi":        true,
+	"github.com/tchajed/goose/machine/disk":    true,
+	"sync":                                     true,
+	"log":                                      true,
+	"fmt":                                      true,
+}
+
+var ffiMapping = map[string]string{
+	"github.com/mit-pdos/gokv/dist_ffi":     "dist",
+	"github.com/tchajed/goose/machine/disk": "disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
@@ -1816,7 +1815,7 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 			ctx.unsupported(s, "renaming imports")
 		}
 		importPath := stringLitValue(s.Path)
-		if !builtinImports[importPath] && !ctx.Config.Excludes[importPath] {
+		if !builtinImports[importPath] {
 			decls = append(decls, coq.ImportDecl{importPath})
 		}
 	}
