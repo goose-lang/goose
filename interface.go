@@ -131,32 +131,34 @@ func pkgErrors(errors []packages.Error) error {
 // and not dependent on map or directory iteration order.
 func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
 	if len(pkg.Errors) > 0 {
-		return coq.File{}, errors.Wrap(pkgErrors(pkg.Errors),
-			fmt.Sprintf("could not load package %v", pkg.PkgPath))
+		return coq.File{}, errors.Errorf(
+			"could not load package %v:\n%v", pkg.PkgPath,
+			pkgErrors(pkg.Errors))
 	}
 	ctx := NewPkgCtx(pkg, tr)
 	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
-	decls, errs := ctx.Decls(files...)
-	if len(errs) != 0 {
-		return coq.File{}, errors.Wrap(MultipleErrors(errs), "conversion failed")
+	coqFile := coq.File{
+		PkgPath:   pkg.PkgPath,
+		GoPackage: pkg.Name,
 	}
-	var ih string
-	var f string
 	if ctx.Config.Ffi == "none" {
-		ih = "Section code.\n" +
+		coqFile.ImportHeader = "Section code.\n" +
 			"Context `{ext_ty: ext_types}.\n" +
 			"Local Coercion Var' s: expr := Var s."
-		f = "\nEnd code.\n"
+		coqFile.Footer = "\nEnd code.\n"
 	} else {
-		ih = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
-		f = ""
+		coqFile.ImportHeader = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
+		coqFile.Footer = ""
 	}
 
-	c := coq.File{PkgPath: pkg.PkgPath, GoPackage: pkg.Name, Decls: decls,
-		ImportHeader: ih,
-		Footer:       f}
-	return c, nil
+	decls, errs := ctx.Decls(files...)
+	coqFile.Decls = decls
+	if len(errs) != 0 {
+		return coqFile, errors.Wrap(MultipleErrors(errs),
+			"conversion failed")
+	}
+	return coqFile, nil
 }
 
 // newPackageConfig creates a package loading configuration suitable for
