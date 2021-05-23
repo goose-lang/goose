@@ -115,62 +115,88 @@ type Translator struct {
 	AddSourceFileComments bool
 }
 
-// TranslatePackage translates an entire package in a directory to a single Coq
-// Ast with all the declarations in the package.
+func pkgErrors(errors []packages.Error) error {
+	var errs []error
+	for _, err := range errors {
+		errs = append(errs, err)
+	}
+	return MultipleErrors(errs)
+}
+
+// translatePackage translates an entire package to a single Coq file.
 //
 // If the source directory has multiple source files, these are processed in
 // alphabetical order; this must be a topological sort of the definitions or the
-// Coq code will be out-of-order. Realistically files should not have
-// dependencies on each other, although sorting ensures the results are stable
+// Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (tr Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
+func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
+	if len(pkg.Errors) > 0 {
+		return coq.File{}, errors.Wrap(pkgErrors(pkg.Errors),
+			fmt.Sprintf("could not load package %v", pkg.PkgPath))
+	}
+	ctx := NewPkgCtx(pkg, tr)
+	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
+	decls, errs := ctx.Decls(files...)
+	if len(errs) != 0 {
+		return coq.File{}, errors.Wrap(MultipleErrors(errs), "conversion failed")
+	}
+	var ih string
+	var f string
+	if ctx.Config.Ffi == "none" {
+		ih = "Section code.\n" +
+			"Context `{ext_ty: ext_types}.\n" +
+			"Local Coercion Var' s: expr := Var s."
+		f = "\nEnd code.\n"
+	} else {
+		ih = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
+		f = ""
+	}
+
+	c := coq.File{PkgPath: pkg.PkgPath, GoPackage: pkg.Name, Decls: decls,
+		ImportHeader: ih,
+		Footer:       f}
+	return c, nil
+}
+
+// newPackageConfig creates a package loading configuration suitable for
+// Goose translation.
+func newPackageConfig(modDir string) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
 	mode |= packages.NeedImports
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
-	pkgs, err := packages.Load(&packages.Config{
+	return &packages.Config{
 		Dir:        modDir,
 		Mode:       mode,
 		BuildFlags: []string{"-tags", "goose"},
-		Fset:       token.NewFileSet()},
-		pkgPattern)
+		Fset:       token.NewFileSet(),
+	}
+}
+
+// TranslatePackages is loads packages by a list of patterns and translates them
+// all, producing one file per matched package.
+//
+// The errs list contains errors corresponding to each package (in parallel with
+// the files list). patternErr is only non-nil if the patterns themselves have
+// a syntax error.
+func (tr Translator) TranslatePackages(modDir string,
+	pkgPattern ...string) (files []coq.File, errs []error, patternErr error) {
+	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("Could not find matches for package %s", pkgPattern)
+		// consider matching nothing to be an error, unlike packages.Load
+		return nil, nil,
+			errors.New("patterns matched no packages")
 	}
-	var coqFiles []coq.File
+	// TODO: do these translations in parallel
 	for _, pkg := range pkgs {
-		ctx := NewPkgCtx(pkg, tr)
-		files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
-
-		decls, errs := ctx.Decls(files...)
-		if len(errs) != 0 {
-			// FIXME: collect all errors?
-			err = errors.Wrap(MultipleErrors(errs), "conversion failed")
-		}
-		var ih string
-		var f string
-		if ctx.Config.Ffi == "none" {
-			ih = "Section code.\n" +
-				"Context `{ext_ty: ext_types}.\n" +
-				"Local Coercion Var' s: expr := Var s."
-			f = "\nEnd code.\n"
-		} else {
-			ih = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
-			f = ""
-		}
-
-		c := coq.File{PkgPath: pkg.PkgPath, GoPackage: pkg.Name, Decls: decls,
-			ImportHeader: ih,
-			Footer:       f}
-		if err != nil { // FIXME: collect all errors?
-			return coqFiles, err
-		}
-		coqFiles = append(coqFiles, c)
+		f, err := tr.translatePackage(pkg)
+		files = append(files, f)
+		errs = append(errs, err)
 	}
-	return coqFiles, err
+	return
 }
 
 const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."

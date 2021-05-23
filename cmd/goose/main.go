@@ -12,23 +12,32 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, tr goose.Translator) {
+func translate(pkgPatterns []string, outRootDir string, modDir string,
+	ignoreErrors bool, tr goose.Translator) {
 	red := color.New(color.FgRed).SprintFunc()
-	fs, err := tr.TranslatePackage(modDir, pkgPattern)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, red(err.Error()))
-		if !ignoreErrors {
-			os.Exit(1)
-		}
+	fs, errs, patternError := tr.TranslatePackages(modDir, pkgPatterns...)
+	if patternError != nil {
+		fmt.Fprintln(os.Stderr, red(patternError.Error()))
+		os.Exit(1)
 	}
 
-	for _, f := range fs {
+	someError := false
+	for i, f := range fs {
+		err := errs[i]
+		if err != nil {
+			fmt.Fprintln(os.Stderr, red(err.Error()))
+			someError = true
+			if !ignoreErrors {
+				continue
+			}
+		}
 		outFile := path.Join(outRootDir,
 			coq.ImportToPath(f.PkgPath, f.GoPackage))
 		outDir := path.Dir(outFile)
-		_, err := os.Stat(outDir)
-		if os.IsNotExist(err) {
-			os.MkdirAll(outDir, 0777)
+		err = os.MkdirAll(outDir, 0777)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, red("could not create output directory"))
 		}
 		out, err := os.Create(outFile)
 		defer out.Close()
@@ -39,7 +48,7 @@ func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErr
 			os.Exit(1)
 		}
 	}
-	if err != nil {
+	if someError && !ignoreErrors {
 		os.Exit(1)
 	}
 }
@@ -71,8 +80,5 @@ func main() {
 
 	flag.Parse()
 
-	for i := 0; i < flag.NArg(); i++ {
-		pkgPattern := flag.Arg(i)
-		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, tr)
-	}
+	translate(flag.Args(), outRootDir, modDir, ignoreErrors, tr)
 }

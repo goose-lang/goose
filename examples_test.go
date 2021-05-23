@@ -125,13 +125,20 @@ func testExample(testingT *testing.T, name string, tr goose.Translator) {
 	}
 	// c.Logf("testing example %s/", t.Path)
 
-	files, terr := tr.TranslatePackage(t.path, ".")
+	files, errs, patternError := tr.TranslatePackages(t.path, ".")
+	if patternError != nil {
+		// shouldn't be possible since "." is valid
+		assert.FailNowf("loading failed", "load error: %v", patternError)
+	}
+	if !(len(files) == 1 && len(errs) == 1) {
+		assert.FailNowf("pattern matched unexpected number of packages",
+			"files: %v", files)
+	}
+	f, terr := files[0], errs[0]
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
 		assert.FailNow("translation failed")
 	}
-	// TODO: should only be one matching package but check
-	f := files[0]
 
 	var b bytes.Buffer
 	f.Write(&b)
