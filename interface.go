@@ -142,15 +142,7 @@ func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
-	if ctx.Config.Ffi == "none" {
-		coqFile.ImportHeader = "Section code.\n" +
-			"Context `{ext_ty: ext_types}.\n" +
-			"Local Coercion Var' s: expr := Var s."
-		coqFile.Footer = "\nEnd code.\n"
-	} else {
-		coqFile.ImportHeader = fmt.Sprintf(FfiImportFmt, ctx.Config.Ffi)
-		coqFile.Footer = ""
-	}
+	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.Config.Ffi)
 
 	decls, errs := ctx.Decls(files...)
 	coqFile.Decls = decls
@@ -159,6 +151,19 @@ func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
 			"conversion failed")
 	}
 	return coqFile, nil
+}
+
+func ffiHeaderFooter(ffi string) (header string, footer string) {
+	if ffi == "none" {
+		header = "Section code.\n" +
+			"Context `{ext_ty: ext_types}.\n" +
+			"Local Coercion Var' s: expr := Var s."
+		footer = "\nEnd code.\n"
+	} else {
+		header = fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
+			"%s_prelude.", ffi)
+	}
+	return
 }
 
 // newPackageConfig creates a package loading configuration suitable for
@@ -200,5 +205,3 @@ func (tr Translator) TranslatePackages(modDir string,
 	}
 	return
 }
-
-const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
