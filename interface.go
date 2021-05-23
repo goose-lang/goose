@@ -103,6 +103,12 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	return flatFiles
 }
 
+// Translator has global configuration for translation
+//
+// TODO: need a better name for this (Translator is somehow global stuff, Config
+// is per-package)
+//
+// TODO: fix duplication with Config, perhaps embed a Translator in a Config
 type Translator struct {
 	TypeCheck             bool
 	AddSourceFileComments bool
@@ -116,7 +122,7 @@ type Translator struct {
 // Coq code will be out-of-order. Realistically files should not have
 // dependencies on each other, although sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (tr *Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
+func (tr Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
 
 	// Want to use the per-package Fset anyways
 	pkgs, err := packages.Load(&packages.Config{Dir: modDir, Mode: packages.LoadFiles | packages.LoadSyntax, Fset: nil}, pkgPattern)
@@ -128,11 +134,7 @@ func (tr *Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.
 	}
 	var coqFiles []coq.File
 	for _, pkg := range pkgs {
-		var ctx Ctx
-		ctx, err = NewCtx(pkg)
-		if err != nil {
-			return nil, err // FIXME: collect errors?
-		}
+		ctx := NewPkgCtx(pkg, tr)
 		files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
 		decls, errs := ctx.Decls(files...)
@@ -152,7 +154,9 @@ func (tr *Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.
 			f = ""
 		}
 
-		c := coq.File{GoPackage: pkg.PkgPath, Decls: decls, ImportHeader: ih, Footer: f}
+		c := coq.File{PkgPath: pkg.PkgPath, GoPackage: pkg.Name, Decls: decls,
+			ImportHeader: ih,
+			Footer:       f}
 		if err != nil { // FIXME: collect all errors?
 			return coqFiles, err
 		}

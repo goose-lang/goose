@@ -23,7 +23,8 @@ func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErr
 	}
 
 	for _, f := range fs {
-		outFile := path.Join(outRootDir, coq.ImportToPath(f.GoPackage))
+		outFile := path.Join(outRootDir,
+			coq.ImportToPath(f.PkgPath, f.GoPackage))
 		outDir := path.Dir(outFile)
 		_, err := os.Stat(outDir)
 		if os.IsNotExist(err) {
