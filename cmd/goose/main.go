@@ -12,7 +12,7 @@ import (
 	"github.com/tchajed/goose/internal/coq"
 )
 
-func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, tr *goose.Translator) {
+func translateOne(pkgPattern string, outRootDir string, modDir string, ignoreErrors bool, tr goose.Translator) {
 	red := color.New(color.FgRed).SprintFunc()
 	fs, err := tr.TranslatePackage(modDir, pkgPattern)
 	if err != nil {
@@ -62,7 +62,7 @@ func main() {
 		"root directory for output (default is current directory)")
 
 	var modDir string
-	flag.StringVar(&modDir, "in", "",
+	flag.StringVar(&modDir, "dir", ".",
 		"directory containing necessary go.mod")
 
 	var ignoreErrors bool
@@ -73,6 +73,6 @@ func main() {
 
 	for i := 0; i < flag.NArg(); i++ {
 		pkgPattern := flag.Arg(i)
-		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, &tr)
+		translateOne(pkgPattern, outRootDir, modDir, ignoreErrors, tr)
 	}
 }

@@ -3,6 +3,7 @@ package goose
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"path"
 	"sort"
 	"strings"
@@ -124,8 +125,15 @@ type Translator struct {
 // and not dependent on map or directory iteration order.
 func (tr Translator) TranslatePackage(modDir string, pkgPattern string) ([]coq.File, error) {
 
-	// Want to use the per-package Fset anyways
-	pkgs, err := packages.Load(&packages.Config{Dir: modDir, Mode: packages.LoadFiles | packages.LoadSyntax, Fset: nil}, pkgPattern)
+	mode := packages.NeedName | packages.NeedCompiledGoFiles
+	mode |= packages.NeedImports
+	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
+	pkgs, err := packages.Load(&packages.Config{
+		Dir:        modDir,
+		Mode:       mode,
+		BuildFlags: []string{"-tags", "goose"},
+		Fset:       token.NewFileSet()},
+		pkgPattern)
 	if err != nil {
 		return nil, err
 	}

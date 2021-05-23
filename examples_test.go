@@ -114,6 +114,7 @@ func (t positiveTest) DeleteActual() {
 }
 
 func testExample(testingT *testing.T, name string, tr goose.Translator) {
+	testingT.Parallel()
 	testingT.Helper()
 	assert := assert.New(testingT)
 	t := positiveTest{newTest("internal/examples", name)}
