@@ -48,7 +48,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 			os.Exit(1)
 		}
 	}
-	if someError && !ignoreErrors {
+	if someError {
 		os.Exit(1)
 	}
 }

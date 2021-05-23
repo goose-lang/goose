@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - "*"
   pull_request:
 
 jobs:
@@ -19,12 +20,17 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - name: Check style
         run: |
           gofmt -w -s .
           go generate ./...
           git diff --exit-code
-      - name: Test
+      - name: Go tests
         run: |
           go vet -composites=false ./...
           go test -v ./...
+      - name: End-to-end CLI tests
+        run: |
+          ./test/bats/bin/bats ./test/goose.bats
