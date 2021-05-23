@@ -113,7 +113,8 @@ func (t positiveTest) DeleteActual() {
 	_ = os.Remove(t.ActualFile())
 }
 
-func testExample(testingT *testing.T, name string, conf goose.Config) {
+func testExample(testingT *testing.T, name string, tr goose.Translator) {
+	testingT.Parallel()
 	testingT.Helper()
 	assert := assert.New(testingT)
 	t := positiveTest{newTest("internal/examples", name)}
@@ -124,7 +125,16 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 	}
 	// c.Logf("testing example %s/", t.Path)
 
-	f, terr := conf.TranslatePackage("", t.path)
+	files, errs, patternError := tr.TranslatePackages(t.path, ".")
+	if patternError != nil {
+		// shouldn't be possible since "." is valid
+		assert.FailNowf("loading failed", "load error: %v", patternError)
+	}
+	if !(len(files) == 1 && len(errs) == 1) {
+		assert.FailNowf("pattern matched unexpected number of packages",
+			"files: %v", files)
+	}
+	f, terr := files[0], errs[0]
 	if terr != nil {
 		fmt.Fprintln(os.Stderr, terr)
 		assert.FailNow("translation failed")
@@ -162,46 +172,35 @@ func testExample(testingT *testing.T, name string, conf goose.Config) {
 }
 
 func TestUnitTests(t *testing.T) {
-	testExample(t, "unittest", goose.MakeDefaultConfig())
+	testExample(t, "unittest", goose.Translator{})
 }
 
 func TestSimpleDb(t *testing.T) {
-	testExample(t, "simpledb", goose.MakeDefaultConfig())
+	testExample(t, "simpledb", goose.Translator{})
 }
 
 func TestWal(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	c.TypeCheck = true
-	testExample(t, "wal", c)
+	testExample(t, "wal", goose.Translator{TypeCheck: true})
 }
 
 func TestLogging2(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	c.TypeCheck = true
-	testExample(t, "logging2", c)
+	testExample(t, "logging2", goose.Translator{TypeCheck: true})
 }
 
 func TestAppendLog(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	c.TypeCheck = true
-	testExample(t, "append_log", c)
+	testExample(t, "append_log", goose.Translator{TypeCheck: true})
 }
 
 func TestRfc1813(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	c.TypeCheck = true
-	testExample(t, "rfc1813", c)
+	testExample(t, "rfc1813", goose.Translator{TypeCheck: true})
 }
 
 func TestSemantics(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	c.TypeCheck = true
-	testExample(t, "semantics", c)
+	testExample(t, "semantics", goose.Translator{TypeCheck: true})
 }
 
 func TestComments(t *testing.T) {
-	c := goose.MakeDefaultConfig()
-	testExample(t, "comments", c)
+	testExample(t, "comments", goose.Translator{})
 }
 
 type errorExpectation struct {
@@ -239,9 +238,9 @@ func getExpectedError(fset *token.FileSet,
 }
 
 func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestResult {
-	fset := token.NewFileSet()
 	pkgName := "example"
-	ctx := goose.NewCtx(pkgName, fset, goose.Config{})
+	ctx := goose.NewCtx(pkgName, goose.Config{})
+	fset := ctx.Fset
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -249,7 +248,7 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 		return nil
 	}
 
-	err = ctx.TypeCheck(pkgName, []*ast.File{f})
+	err = ctx.TypeCheck([]*ast.File{f})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		assert.FailNowf("test code for %s does not type check", filePath)
@@ -278,12 +277,13 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 }
 
 func TestNegativeExamples(testingT *testing.T) {
-	tests := loadTests("./testdata")
+	tests := loadTests("./testdata/negative-tests")
 	for _, t := range tests {
 		if t.isDir() {
 			continue
 		}
 		testingT.Run(t.name, func(testingT *testing.T) {
+			testingT.Parallel()
 			assert := assert.New(testingT)
 			tt := translateErrorFile(assert, t.path)
 			if tt == nil {

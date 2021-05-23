@@ -3,9 +3,7 @@ package goose
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -13,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/tchajed/goose/internal/coq"
+	"golang.org/x/tools/go/packages"
 )
 
 // declsOrError translates one top-level declaration,
@@ -89,10 +88,15 @@ func (f NamedFile) Name() string {
 	return path.Base(f.Path)
 }
 
-func sortedFiles(files map[string]*ast.File) []NamedFile {
+func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	var flatFiles []NamedFile
-	for n, f := range files {
-		flatFiles = append(flatFiles, NamedFile{Path: n, Ast: f})
+	if len(fileNames) != len(fileAsts) {
+		fmt.Printf("names: %+v\n", fileNames)
+		fmt.Printf("asts: %+v\n", fileAsts)
+		panic("sortedFiles(): fileNames must match fileAsts")
+	}
+	for i := range fileNames {
+		flatFiles = append(flatFiles, NamedFile{Path: fileNames[i], Ast: fileAsts[i]})
 	}
 	sort.Slice(flatFiles, func(i, j int) bool {
 		return flatFiles[i].Path < flatFiles[j].Path
@@ -100,82 +104,104 @@ func sortedFiles(files map[string]*ast.File) []NamedFile {
 	return flatFiles
 }
 
-// TranslatePackage translates an entire package in a directory to a single Coq
-// Ast with all the declarations in the package.
+// Translator has global configuration for translation
+//
+// TODO: need a better name for this (Translator is somehow global stuff, Config
+// is per-package)
+//
+// TODO: fix duplication with Config, perhaps embed a Translator in a Config
+type Translator struct {
+	TypeCheck             bool
+	AddSourceFileComments bool
+}
+
+func pkgErrors(errors []packages.Error) error {
+	var errs []error
+	for _, err := range errors {
+		errs = append(errs, err)
+	}
+	return MultipleErrors(errs)
+}
+
+// translatePackage translates an entire package to a single Coq file.
 //
 // If the source directory has multiple source files, these are processed in
 // alphabetical order; this must be a topological sort of the definitions or the
-// Coq code will be out-of-order. Realistically files should not have
-// dependencies on each other, although sorting ensures the results are stable
+// Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (config Config) TranslatePackage(pkgPath string, srcDir string) (coq.File, error) {
-	// TODO: we might be able to replace this implementation with something
-	//  based on go/packages; see https://pkg.go.dev/golang.org/x/tools/go/packages?tab=doc#Package.
-	fset := token.NewFileSet()
-	filter := func(info os.FileInfo) bool {
-		if strings.HasSuffix(info.Name(), "_test.go") {
-			return false
-		}
-		return true
+func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
+	if len(pkg.Errors) > 0 {
+		return coq.File{}, errors.Errorf(
+			"could not load package %v:\n%v", pkg.PkgPath,
+			pkgErrors(pkg.Errors))
 	}
-	s, err := os.Stat(srcDir)
-	if err != nil {
-		return coq.File{},
-			fmt.Errorf("source directory %s does not exist", srcDir)
-	}
-	if !s.IsDir() {
-		return coq.File{},
-			fmt.Errorf("%s is a Ast (expected a directory)", srcDir)
-	}
-	packages, err := parser.ParseDir(fset, srcDir, filter, parser.ParseComments)
-	if err != nil {
-		return coq.File{},
-			errors.Wrap(err, "code does not parse")
-	}
+	ctx := NewPkgCtx(pkg, tr)
+	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
-	if len(packages) > 1 {
-		return coq.File{},
-			errors.New("found multiple packages")
+	coqFile := coq.File{
+		PkgPath:   pkg.PkgPath,
+		GoPackage: pkg.Name,
 	}
-
-	var pkgName string
-	var files []NamedFile
-	for pName, p := range packages {
-		files = append(files, sortedFiles(p.Files)...)
-		pkgName = pName
-	}
-	if pkgPath != "" {
-		pkgName = pkgPath
-	}
-	var fileAsts []*ast.File
-	for _, f := range files {
-		fileAsts = append(fileAsts, f.Ast)
-	}
-
-	ctx := NewCtx(pkgName, fset, config)
-	err = ctx.TypeCheck(pkgName, fileAsts)
-	if err != nil {
-		return coq.File{},
-			errors.Wrap(err, "code does not type check")
-	}
+	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.Config.Ffi)
 
 	decls, errs := ctx.Decls(files...)
-	err = nil
+	coqFile.Decls = decls
 	if len(errs) != 0 {
-		err = errors.Wrap(MultipleErrors(errs), "conversion failed")
+		return coqFile, errors.Wrap(MultipleErrors(errs),
+			"conversion failed")
 	}
-	var ih string
-	var f string
-	if config.Ffi == "none" {
-		ih = "Section code.\n" +
-			"Context `{ext_ty: ext_types}.\n" +
-			"Local Coercion Var' s: expr := Var s."
-		f = "\nEnd code.\n"
-	} else {
-		ih = fmt.Sprintf(FfiImportFmt, config.Ffi)
-		f = ""
-	}
-	return coq.File{GoPackage: pkgName, Decls: decls, ImportHeader: ih, Footer: f}, err
+	return coqFile, nil
 }
 
-const FfiImportFmt string = "From Perennial.goose_lang Require Import ffi.%s_prelude."
+func ffiHeaderFooter(ffi string) (header string, footer string) {
+	if ffi == "none" {
+		header = "Section code.\n" +
+			"Context `{ext_ty: ext_types}.\n" +
+			"Local Coercion Var' s: expr := Var s."
+		footer = "\nEnd code.\n"
+	} else {
+		header = fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
+			"%s_prelude.", ffi)
+	}
+	return
+}
+
+// newPackageConfig creates a package loading configuration suitable for
+// Goose translation.
+func newPackageConfig(modDir string) *packages.Config {
+	mode := packages.NeedName | packages.NeedCompiledGoFiles
+	mode |= packages.NeedImports
+	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
+	return &packages.Config{
+		Dir:        modDir,
+		Mode:       mode,
+		BuildFlags: []string{"-tags", "goose"},
+		Fset:       token.NewFileSet(),
+	}
+}
+
+// TranslatePackages loads packages by a list of patterns and translates them
+// all, producing one file per matched package.
+//
+// The errs list contains errors corresponding to each package (in parallel with
+// the files list). patternErr is only non-nil if the patterns themselves have
+// a syntax error.
+func (tr Translator) TranslatePackages(modDir string,
+	pkgPattern ...string) (files []coq.File, errs []error, patternErr error) {
+	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(pkgs) == 0 {
+		// consider matching nothing to be an error, unlike packages.Load
+		return nil, nil,
+			errors.New("patterns matched no packages")
+	}
+	// TODO: do these translations in parallel
+	for _, pkg := range pkgs {
+		f, err := tr.translatePackage(pkg)
+		files = append(files, f)
+		errs = append(errs, err)
+	}
+	return
+}

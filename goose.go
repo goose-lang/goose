@@ -24,13 +24,14 @@ import (
 	"unicode"
 
 	"github.com/tchajed/goose/internal/coq"
+	"golang.org/x/tools/go/packages"
 )
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
 	idents  identCtx
 	info    *types.Info
-	fset    *token.FileSet
+	Fset    *token.FileSet
 	pkgPath string
 	errorReporter
 	Config
@@ -57,52 +58,95 @@ type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
 	Ffi                   string
-	Excludes              StringSet
 }
 
 // Returns the default config
 func MakeDefaultConfig() Config {
 	var config Config
-	config.Excludes = make(map[string]bool)
-	config.Ffi = "disk"
+	config.Ffi = "none"
 	return config
 }
 
-// NewCtx initializes a context
-func NewCtx(pkgPath string, fset *token.FileSet, config Config) Ctx {
+func getFfi(pkg *packages.Package) string {
+	seenFfis := make(map[string]struct{})
+	packages.Visit([]*packages.Package{pkg},
+		func(pkg *packages.Package) bool {
+			return true
+		},
+		func(pkg *packages.Package) {
+			if ffi, ok := ffiMapping[pkg.PkgPath]; ok {
+				seenFfis[ffi] = struct{}{}
+			}
+		},
+	)
+
+	if len(seenFfis) > 1 {
+		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
+	}
+	for ffi := range seenFfis {
+		return ffi
+	}
+	return "none"
+}
+
+// NewPkgCtx initializes a context based on a properly loaded package
+func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
+	// Figure out which FFI we're using
+	var config Config
+	// TODO: this duplication is bad, Config should probably embed Translator or
+	//   some other cleanup is needed
+	config.TypeCheck = tr.TypeCheck
+	config.AddSourceFileComments = tr.AddSourceFileComments
+	config.Ffi = getFfi(pkg)
+
+	return Ctx{
+		idents:        newIdentCtx(),
+		info:          pkg.TypesInfo,
+		Fset:          pkg.Fset,
+		pkgPath:       pkg.PkgPath,
+		errorReporter: newErrorReporter(pkg.Fset),
+		Config:        config,
+	}
+}
+
+// NewCtx loads a context for files passed directly,
+// rather than loaded from a packages.
+// Errors from this function are errors during type-checking.
+func NewCtx(pkgPath string, conf Config) Ctx {
 	info := &types.Info{
 		Defs:   make(map[*ast.Ident]types.Object),
 		Uses:   make(map[*ast.Ident]types.Object),
 		Types:  make(map[ast.Expr]types.TypeAndValue),
 		Scopes: make(map[ast.Node]*types.Scope),
 	}
+	fset := token.NewFileSet()
 	return Ctx{
 		idents:        newIdentCtx(),
 		info:          info,
-		fset:          fset,
+		Fset:          fset,
 		pkgPath:       pkgPath,
 		errorReporter: newErrorReporter(fset),
-		Config:        config,
+		Config:        conf,
 	}
 }
 
 // TypeCheck type-checks a set of files and stores the result in the Ctx
 //
 // This is needed before conversion to Coq to disambiguate some methods.
-func (ctx Ctx) TypeCheck(pkgName string, files []*ast.File) error {
-	imp := importer.ForCompiler(ctx.fset, "source", nil)
+func (ctx Ctx) TypeCheck(files []*ast.File) error {
+	imp := importer.ForCompiler(ctx.Fset, "source", nil)
 	conf := types.Config{Importer: imp}
-	_, err := conf.Check(pkgName, ctx.fset, files, ctx.info)
+	_, err := conf.Check(ctx.pkgPath, ctx.Fset, files, ctx.info)
 	return err
 }
 
 func (ctx Ctx) where(node ast.Node) string {
-	return ctx.fset.Position(node.Pos()).String()
+	return ctx.Fset.Position(node.Pos()).String()
 }
 
 func (ctx Ctx) printGo(node ast.Node) string {
 	var what bytes.Buffer
-	err := printer.Fprint(&what, ctx.fset, node)
+	err := printer.Fprint(&what, ctx.Fset, node)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -1772,14 +1816,20 @@ func stringLitValue(lit *ast.BasicLit) string {
 	return s
 }
 
-// TODO: the goose/machine/* imports ought to be part of the config.Excludes
+// TODO: put this in another file
 var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
-	"github.com/tchajed/goose/machine/disk":    true,
 	"github.com/tchajed/goose/machine/filesys": true,
-	"sync": true,
-	"log":  true,
-	"fmt":  true,
+	"github.com/mit-pdos/gokv/dist_ffi":        true,
+	"github.com/tchajed/goose/machine/disk":    true,
+	"sync":                                     true,
+	"log":                                      true,
+	"fmt":                                      true,
+}
+
+var ffiMapping = map[string]string{
+	"github.com/mit-pdos/gokv/dist_ffi":     "dist",
+	"github.com/tchajed/goose/machine/disk": "disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
@@ -1790,7 +1840,11 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 			ctx.unsupported(s, "renaming imports")
 		}
 		importPath := stringLitValue(s.Path)
-		if !builtinImports[importPath] && !ctx.Config.Excludes[importPath] {
+		if !builtinImports[importPath] {
+			// TODO: this uses the syntax of the Go import to determine the Coq
+			// import, but Go packages can contain a different name than their
+			// path. We can get this information by using the *types.Package
+			// returned by Check (or the pkg.Types field from *packages.Package).
 			decls = append(decls, coq.ImportDecl{importPath})
 		}
 	}
