@@ -3,7 +3,6 @@ module github.com/tchajed/goose
 go 1.12
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.9.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.7 // indirect
