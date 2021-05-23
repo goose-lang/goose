@@ -270,12 +270,13 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 }
 
 func TestNegativeExamples(testingT *testing.T) {
-	tests := loadTests("./testdata")
+	tests := loadTests("./testdata/negative-tests")
 	for _, t := range tests {
 		if t.isDir() {
 			continue
 		}
 		testingT.Run(t.name, func(testingT *testing.T) {
+			testingT.Parallel()
 			assert := assert.New(testingT)
 			tt := translateErrorFile(assert, t.path)
 			if tt == nil {
