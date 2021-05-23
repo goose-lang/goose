@@ -175,7 +175,7 @@ func newPackageConfig(modDir string) *packages.Config {
 	}
 }
 
-// TranslatePackages is loads packages by a list of patterns and translates them
+// TranslatePackages loads packages by a list of patterns and translates them
 // all, producing one file per matched package.
 //
 // The errs list contains errors corresponding to each package (in parallel with
