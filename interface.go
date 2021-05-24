@@ -7,6 +7,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -197,11 +198,18 @@ func (tr Translator) TranslatePackages(modDir string,
 		return nil, nil,
 			errors.New("patterns matched no packages")
 	}
-	// TODO: do these translations in parallel
-	for _, pkg := range pkgs {
-		f, err := tr.translatePackage(pkg)
-		files = append(files, f)
-		errs = append(errs, err)
+	files = make([]coq.File, len(pkgs))
+	errs = make([]error, len(pkgs))
+	var wg sync.WaitGroup
+	wg.Add(len(pkgs))
+	for i, pkg := range pkgs {
+		go func(i int, pkg *packages.Package) {
+			f, err := tr.translatePackage(pkg)
+			files[i] = f
+			errs[i] = err
+			wg.Done()
+		}(i, pkg)
 	}
+	wg.Wait()
 	return
 }
