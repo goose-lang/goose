@@ -1,24 +1,28 @@
-setup() {
-    load 'test_helper/bats-support/load'
-    load 'test_helper/bats-assert/load'
-
+setup_file() {
     # get the containing directory of this file
     # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
     # as those will point to the bats executable's location or the preprocessed file respectively
     test_file_dir="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
-    GOOSE="$test_file_dir/.."
+    export GOOSE="$test_file_dir/.."
     cd "$GOOSE" || exit 1
     go build -o "$GOOSE/testdata/goose" ./cmd/goose
-    PATH="$GOOSE/testdata:$PATH"
-    TEST_DIR="$GOOSE/testdata/goose-tests"
+    export PATH="$GOOSE/testdata:$PATH"
+    export TEST_DIR="$GOOSE/testdata/goose-tests"
     cd "$TEST_DIR" || exit 1
     # goose output should be emitted here
-    OUT="Goose/example_com/goose_demo"
+    export OUT="Goose/example_com/goose_demo"
+}
+
+setup() {
+    load 'test_helper/bats-support/load'
+    load 'test_helper/bats-assert/load'
 }
 
 teardown() {
-    cd "$TEST_DIR" || exit 1
-    rm -rf "Goose"
+    rm -rf "$TEST_DIR/Goose"
+}
+
+teardown_file() {
     rm "$GOOSE/testdata/goose"
 }
 
