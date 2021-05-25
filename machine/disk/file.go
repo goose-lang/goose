@@ -69,6 +69,10 @@ func (d FileDisk) Size() uint64 {
 }
 
 func (d FileDisk) Barrier() {
+	// NOTE: on macOS, this flushes to the drive but doesn't actually issue a
+	// disk barrier; see https://golang.org/src/internal/poll/fd_fsync_darwin.go
+	// for more details. The correct replacement is to issue a fcntl syscall with
+	// cmd F_FULLFSYNC.
 	err := unix.Fsync(d.fd)
 	if err != nil {
 		panic("file sync failed: " + err.Error())
