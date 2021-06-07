@@ -1820,7 +1820,7 @@ func stringLitValue(lit *ast.BasicLit) string {
 var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine":         true,
 	"github.com/tchajed/goose/machine/filesys": true,
-	"github.com/mit-pdos/gokv/dist_ffi":        true,
+	"github.com/mit-pdos/gokv/grove_ffi":       true,
 	"github.com/tchajed/goose/machine/disk":    true,
 	"sync":                                     true,
 	"log":                                      true,
@@ -1828,7 +1828,7 @@ var builtinImports = map[string]bool{
 }
 
 var ffiMapping = map[string]string{
-	"github.com/mit-pdos/gokv/dist_ffi":     "dist",
+	"github.com/mit-pdos/gokv/grove_ffi":    "grove",
 	"github.com/tchajed/goose/machine/disk": "disk",
 }
 

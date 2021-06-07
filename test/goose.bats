@@ -62,16 +62,16 @@ assert_file_not_exist() {
 }
 
 @test "goose with multiple patterns" {
-    goose -out Goose . ./use_disk ./use_dist
+    goose -out Goose . ./use_disk ./use_grove
     assert_file_exists "$OUT"/m.v
     assert_file_exists "$OUT"/m/use_disk.v
-    assert_file_exists "$OUT"/m/use_dist.v
+    assert_file_exists "$OUT"/m/use_grove.v
 }
 
-@test "goose dist_ffi" {
-    goose -out Goose ./use_dist
-    run cat "$OUT"/m/use_dist.v
-    assert_output --partial "Import ffi.dist_prelude"
+@test "goose grove_ffi" {
+    goose -out Goose ./use_grove
+    run cat "$OUT"/m/use_grove.v
+    assert_output --partial "Import ffi.grove_prelude"
 }
 
 @test "goose bad path" {

@@ -84,12 +84,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
 			return coq.TypeIdent("disk.Disk")
 		}
-		if t.Obj().Pkg().Name() == "dist_ffi" && t.Obj().Name() == "Sender" {
-			return coq.TypeIdent("dist_ffi.Sender")
-		}
-		if t.Obj().Pkg().Name() == "dist_ffi" && t.Obj().Name() == "Receiver" {
-			return coq.TypeIdent("dist_ffi.Receiver")
-		}
 		if info, ok := ctx.getStructInfo(t); ok {
 			return coq.StructName(info.name)
 		}
