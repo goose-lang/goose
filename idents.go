@@ -11,8 +11,14 @@ import (
 // language)
 
 type identInfo struct {
+	// IsPtrWrapped is true when an identifier is a function binding that is
+	// represented as a pointer in the translation, so uses need an extra
+	// dereferencing. When an identifier is declared with var rather than :=,
+	// we make it pointer-wrapped.
 	IsPtrWrapped bool
-	IsMacro      bool
+	// IsMacro is true when an identifier refers to a Gallina definition in the
+	// translation (as opposed to a GooseLang variable)
+	IsMacro bool
 }
 
 type scopedName struct {
