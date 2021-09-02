@@ -35,6 +35,17 @@ func conditionalInLoop() {
 	}
 }
 
+func conditionalInLoopElse() {
+	for i := uint64(0); ; {
+		if i > 5 {
+			break
+		} else {
+			i = i + 1
+			continue
+		}
+	}
+}
+
 func ImplicitLoopContinue() {
 	for i := uint64(0); ; {
 		if i < 4 {
