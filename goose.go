@@ -1065,6 +1065,7 @@ func (c *cursor) Remainder() []ast.Stmt {
 	return s
 }
 
+// If this returns true, the body truly *must* always end in an early return or loop control effect.
 func (ctx Ctx) endsWithReturn(s ast.Stmt) bool {
 	if s == nil {
 		return false
@@ -1087,10 +1088,7 @@ func (ctx Ctx) stmtsEndWithReturn(ss []ast.Stmt) bool {
 	case *ast.IfStmt:
 		left := ctx.endsWithReturn(s.Body)
 		right := ctx.endsWithReturn(s.Else)
-		if left != right {
-			ctx.unsupported(s, "nested if statement branches differ on whether they return")
-		}
-		return left // or right, doesn't matter
+		return left && right // we can only return true if we *always* end in a control effect
 	}
 	return false
 }
@@ -1156,37 +1154,39 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	ife := coq.IfExpr{
 		Cond: condExpr,
 	}
+	// Extract (possibly empty) list of stmts in Else
+	var Else = []ast.Stmt{}
+	if s.Else != nil {
+		Else = s.Else.(*ast.BlockStmt).List
+	}
 
-	// Determine if we want to propagate our usage (i.e. the availability of control effects)
-	// to the conditional or not. This is not relevant for correctness (stmt generation will
-	// appropriately error when a control effect arises where it is not supported), but Crucial
-	// for supporting a reasonable subset of Go.
-	bodyEndsWithReturn := ctx.endsWithReturn(s.Body)
+	// Supported cases are:
+	// - There is no code after the conditional -- then anything goes.
+	// - The "then" branch always returns, and there is no "else" branch.
+	// - Neither "then" nor "else" ever return.
 
-	// If the "then" branch want to early-return, translate it accordingly, propagating the usage.
-	if bodyEndsWithReturn {
-		// stmts takes care of finalization for us
+	if len(remainder) == 0 {
+		// The remainder is empty, so just propagate the usage to both branches.
 		ife.Then = ctx.blockStmt(s.Body, usage)
-		if len(remainder) > 0 {
-			// If there are remaining expressions after this, put them into "else".
-			// Actual "else" must be empty.
-			if s.Else != nil {
-				ctx.futureWork(s.Else, "early return in if with an else branch")
-				return coq.Binding{}
-			}
-			// We can propagate the usage here since the return value of this part
-			// will become the return value of the entire conditional (that's why we
-			// put the remainder *inside* the conditional).
-			ife.Else = ctx.stmts(remainder, usage)
-		} else {
-			// Remainder is empty; translate "else" branch with our usage.
-			if s.Else == nil {
-				// Be careful to perform proper finalization according to our usage.
-				ife.Else = ctx.stmts([]ast.Stmt{}, usage)
-			} else {
-				ife.Else = ctx.stmts(s.Else.(*ast.BlockStmt).List, usage)
-			}
+		ife.Else = ctx.stmts(Else, usage)
+		return coq.NewAnon(ife)
+	}
+
+	// There is code after the conditional -- merging control flow. Let us see what we can do.
+	// Determine if we want to propagate our usage (i.e. the availability of control effects)
+	// to the conditional or not.
+	if ctx.endsWithReturn(s.Body) {
+		ife.Then = ctx.blockStmt(s.Body, usage)
+		// Put trailing code into "else". This is correct because "then" will always return.
+		// "else" must be empty.
+		if s.Else != nil {
+			ctx.futureWork(s.Else, "early return in if with an else branch")
+			return coq.Binding{}
 		}
+		// We can propagate the usage here since the return value of this part
+		// will become the return value of the entire conditional (that's why we
+		// put the remainder *inside* the conditional).
+		ife.Else = ctx.stmts(remainder, usage)
 		return coq.NewAnon(ife)
 	}
 
@@ -1194,11 +1194,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	// a block (not propagating the usage). This will implicitly check that
 	// the two branches do not rely on control effects.
 	ife.Then = ctx.blockStmt(s.Body, ExprValLocal)
-	if s.Else == nil {
-		ife.Else = ctx.stmts([]ast.Stmt{}, ExprValLocal)
-	} else {
-		ife.Else = ctx.stmts(s.Else.(*ast.BlockStmt).List, ExprValLocal)
-	}
+	ife.Else = ctx.stmts(Else, ExprValLocal)
 	// And translate the remainder with our usage.
 	tailExpr := ctx.stmts(remainder, usage)
 	// Prepend the if-then-else before the tail.

@@ -228,8 +228,7 @@ Definition Txn__Write: val :=
     then
       (if: ("addr" = LOGMAXBLK)
       then "ret" <-[boolT] #false
-      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"));;
-      #()
+      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"))
     else #());;
     ![boolT] "ret".
 Theorem Txn__Write_t: ⊢ Txn__Write : (struct.t Txn -> uint64T -> refT disk.blockT -> boolT).

@@ -407,14 +407,29 @@ Definition conditionalInLoopElse: val :=
         Continue));;
     #().
 
+Definition nestedConditionalInLoopImplicitContinue: val :=
+  rec: "nestedConditionalInLoopImplicitContinue" <> :=
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
+      (if: ![uint64T] "i" > #5
+      then
+        (if: ![uint64T] "i" > #10
+        then Break
+        else Continue)
+      else
+        "i" <-[uint64T] ![uint64T] "i" + #1;;
+        Continue));;
+    #().
+
 Definition ImplicitLoopContinue: val :=
   rec: "ImplicitLoopContinue" <> :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < #4
-      then "i" <-[uint64T] #0
-      else #());;
-      Continue);;
+      then
+        "i" <-[uint64T] #0;;
+        Continue
+      else Continue));;
     #().
 
 Definition ImplicitLoopContinue2: val :=

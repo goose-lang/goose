@@ -16,8 +16,7 @@ Definition findKey: val :=
       then
         "found" <-[uint64T] "k";;
         "ok" <-[boolT] #true
-      else #());;
-      #());;
+      else #()));;
     (![uint64T] "found", ![boolT] "ok").
 Theorem findKey_t: ⊢ findKey : (mapT (struct.t unit) -> (uint64T * boolT)).
 Proof. typecheck. Qed.
