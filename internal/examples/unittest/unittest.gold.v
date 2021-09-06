@@ -39,7 +39,8 @@ Definition condvarWrapping: val :=
     "mu" <-[lockRefT] lock.new #();;
     let: "cond1" := lock.newCond (![lockRefT] "mu") in
     "mu" <-[lockRefT] lock.new #();;
-    lock.condWait "cond1".
+    lock.condWait "cond1";;
+    #().
 
 (* const.go *)
 
@@ -155,7 +156,8 @@ Definition useSlice: val :=
   rec: "useSlice" <> :=
     let: "s" := NewSlice byteT #1 in
     let: "s1" := SliceAppendSlice byteT "s" "s" in
-    atomicCreateStub #(str"dir") #(str"file") "s1".
+    atomicCreateStub #(str"dir") #(str"file") "s1";;
+    #().
 
 Definition useSliceIndexing: val :=
   rec: "useSliceIndexing" <> :=
@@ -171,14 +173,17 @@ Definition useMap: val :=
     let: ("x", "ok") := MapGet "m" #2 in
     (if: "ok"
     then #()
-    else MapInsert "m" #3 "x").
+    else
+      MapInsert "m" #3 "x";;
+      #()).
 
 Definition usePtr: val :=
   rec: "usePtr" <> :=
     let: "p" := ref (zero_val uint64T) in
     "p" <-[uint64T] #1;;
     let: "x" := ![uint64T] "p" in
-    "p" <-[uint64T] "x".
+    "p" <-[uint64T] "x";;
+    #().
 
 Definition iterMapKeysAndValues: val :=
   rec: "iterMapKeysAndValues" "m" :=
@@ -215,7 +220,8 @@ Definition diskWrapper := struct.decl [
 Definition diskArgument: val :=
   rec: "diskArgument" "d" :=
     let: "b" := disk.Read #0 in
-    disk.Write #1 "b".
+    disk.Write #1 "b";;
+    #().
 
 (* empty_functions.go *)
 
@@ -241,11 +247,13 @@ Definition Enc__consume: val :=
 
 Definition Enc__UInt64: val :=
   rec: "Enc__UInt64" "e" "x" :=
-    UInt64Put (Enc__consume "e" #8) "x".
+    UInt64Put (Enc__consume "e" #8) "x";;
+    #().
 
 Definition Enc__UInt32: val :=
   rec: "Enc__UInt32" "e" "x" :=
-    UInt32Put (Enc__consume "e" #4) "x".
+    UInt32Put (Enc__consume "e" #4) "x";;
+    #().
 
 Definition Dec := struct.decl [
   "p" :: slice.T byteT
@@ -320,7 +328,8 @@ Definition useLocks: val :=
   rec: "useLocks" <> :=
     let: "m" := lock.new #() in
     lock.acquire "m";;
-    lock.release "m".
+    lock.release "m";;
+    #().
 
 Definition useCondVar: val :=
   rec: "useCondVar" <> :=
@@ -329,7 +338,8 @@ Definition useCondVar: val :=
     lock.acquire "m";;
     lock.condSignal "c";;
     lock.condWait "c";;
-    lock.release "m".
+    lock.release "m";;
+    #().
 
 Definition hasCondVar := struct.decl [
   "cond" :: condvarRefT
@@ -377,15 +387,14 @@ Definition conditionalInLoop: val :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: ![uint64T] "i" < #3
-      then
-        DoSomething (#(str"i is small"));;
-        #()
+      then DoSomething (#(str"i is small"))
       else #());;
       (if: ![uint64T] "i" > #5
       then Break
       else
         "i" <-[uint64T] ![uint64T] "i" + #1;;
-        Continue)).
+        Continue));;
+    #().
 
 Definition conditionalInLoopElse: val :=
   rec: "conditionalInLoopElse" <> :=
@@ -395,7 +404,8 @@ Definition conditionalInLoopElse: val :=
       then Break
       else
         "i" <-[uint64T] ![uint64T] "i" + #1;;
-        Continue)).
+        Continue));;
+    #().
 
 Definition ImplicitLoopContinue: val :=
   rec: "ImplicitLoopContinue" <> :=
@@ -404,7 +414,28 @@ Definition ImplicitLoopContinue: val :=
       (if: ![uint64T] "i" < #4
       then "i" <-[uint64T] #0
       else #());;
-      Continue).
+      Continue);;
+    #().
+
+Definition ImplicitLoopContinue2: val :=
+  rec: "ImplicitLoopContinue2" <> :=
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
+      (if: ![uint64T] "i" < #4
+      then
+        "i" <-[uint64T] #0;;
+        Continue
+      else Continue));;
+    #().
+
+Definition ImplicitLoopContinueAfterIfBreak: val :=
+  rec: "ImplicitLoopContinueAfterIfBreak" "i" :=
+    Skip;;
+    (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
+      (if: "i" > #0
+      then Break
+      else Continue));;
+    #().
 
 Definition nestedLoops: val :=
   rec: "nestedLoops" <> :=
@@ -418,7 +449,8 @@ Definition nestedLoops: val :=
           "j" <-[uint64T] ![uint64T] "j" + #1;;
           Continue));;
       "i" <-[uint64T] ![uint64T] "i" + #1;;
-      Continue).
+      Continue);;
+    #().
 
 Definition nestedGoStyleLoops: val :=
   rec: "nestedGoStyleLoops" <> :=
@@ -429,7 +461,8 @@ Definition nestedGoStyleLoops: val :=
         (if: #true
         then Break
         else Continue));;
-      Continue).
+      Continue);;
+    #().
 
 Definition sumSlice: val :=
   rec: "sumSlice" "xs" :=
@@ -444,19 +477,22 @@ Definition breakFromLoop: val :=
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: #true
       then Break
-      else Continue)).
+      else Continue));;
+    #().
 
 (* maps.go *)
 
 Definition clearMap: val :=
   rec: "clearMap" "m" :=
-    MapClear "m".
+    MapClear "m";;
+    #().
 
 Definition IterateMapKeys: val :=
   rec: "IterateMapKeys" "m" "sum" :=
     MapIter "m" (λ: "k" <>,
       let: "oldSum" := ![uint64T] "sum" in
-      "sum" <-[uint64T] "oldSum" + "k").
+      "sum" <-[uint64T] "oldSum" + "k");;
+    #().
 
 Definition MapSize: val :=
   rec: "MapSize" "m" :=
@@ -468,7 +504,8 @@ Definition MapWrapper: ty := mapT boolT.
 
 Definition MapTypeAliases: val :=
   rec: "MapTypeAliases" "m1" "m2" :=
-    MapInsert "m1" #4 (Fst (MapGet "m2" #0)).
+    MapInsert "m1" #4 (Fst (MapGet "m2" #0));;
+    #().
 
 (* multiple.go *)
 
@@ -490,12 +527,14 @@ Definition multipleVar: val :=
 Definition AssignNilSlice: val :=
   rec: "AssignNilSlice" <> :=
     let: "s" := NewSlice (slice.T byteT) #4 in
-    SliceSet (slice.T byteT) "s" #2 slice.nil.
+    SliceSet (slice.T byteT) "s" #2 slice.nil;;
+    #().
 
 Definition AssignNilPointer: val :=
   rec: "AssignNilPointer" <> :=
     let: "s" := NewSlice (refT uint64T) #4 in
-    SliceSet (refT uint64T) "s" #2 slice.nil.
+    SliceSet (refT uint64T) "s" #2 slice.nil;;
+    #().
 
 Definition CompareSliceToNil: val :=
   rec: "CompareSliceToNil" <> :=
@@ -549,7 +588,8 @@ Definition AssignOps: val :=
     "x" <-[uint64T] ![uint64T] "x" + #3;;
     "x" <-[uint64T] ![uint64T] "x" - #3;;
     "x" <-[uint64T] ![uint64T] "x" + #1;;
-    "x" <-[uint64T] ![uint64T] "x" - #1.
+    "x" <-[uint64T] ![uint64T] "x" - #1;;
+    #().
 
 (* package.go *)
 
@@ -562,13 +602,15 @@ Definition wrapExternalStruct := struct.decl [
 
 Definition wrapExternalStruct__moveUint64: val :=
   rec: "wrapExternalStruct__moveUint64" "w" :=
-    marshal.Enc__PutInt (struct.get wrapExternalStruct "e" "w") (marshal.Dec__GetInt (struct.get wrapExternalStruct "d" "w")).
+    marshal.Enc__PutInt (struct.get wrapExternalStruct "e" "w") (marshal.Dec__GetInt (struct.get wrapExternalStruct "d" "w"));;
+    #().
 
 (* panic.go *)
 
 Definition PanicAtTheDisco: val :=
   rec: "PanicAtTheDisco" <> :=
-    Panic "disco".
+    Panic "disco";;
+    #().
 
 (* reassign.go *)
 
@@ -590,7 +632,8 @@ Definition ReassignVars: val :=
       "a" ::= "y";
       "b" ::= ![uint64T] "x"
     ];;
-    "x" <-[uint64T] struct.get composite "a" (![struct.t composite] "z").
+    "x" <-[uint64T] struct.get composite "a" (![struct.t composite] "z");;
+    #().
 
 (* replicated_disk.go *)
 
@@ -646,7 +689,8 @@ Definition ReplicatedDiskWrite: val :=
     TwoDiskLock "a";;
     TwoDiskWrite Disk1 "a" "v";;
     TwoDiskWrite Disk2 "a" "v";;
-    TwoDiskUnlock "a".
+    TwoDiskUnlock "a";;
+    #().
 
 Definition ReplicatedDiskRecover: val :=
   rec: "ReplicatedDiskRecover" <> :=
@@ -657,12 +701,11 @@ Definition ReplicatedDiskRecover: val :=
       else
         let: ("v", "ok") := TwoDiskRead Disk1 (![uint64T] "a") in
         (if: "ok"
-        then
-          TwoDiskWrite Disk2 (![uint64T] "a") "v";;
-          #()
+        then TwoDiskWrite Disk2 (![uint64T] "a") "v"
         else #());;
         "a" <-[uint64T] ![uint64T] "a" + #1;;
-        Continue)).
+        Continue));;
+    #().
 
 (* slices.go *)
 
@@ -711,14 +754,13 @@ Definition simpleSpawn: val :=
     Fork (lock.acquire "l";;
           let: "x" := ![uint64T] "v" in
           (if: "x" > #0
-          then
-            Skip #();;
-            #()
+          then Skip #()
           else #());;
           lock.release "l");;
     lock.acquire "l";;
     "v" <-[uint64T] #1;;
-    lock.release "l".
+    lock.release "l";;
+    #().
 
 Definition threadCode: val :=
   rec: "threadCode" "tid" :=
@@ -734,7 +776,8 @@ Definition loopSpawn: val :=
     let: "dummy" := ref_to boolT #true in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       "dummy" <-[boolT] ~ (![boolT] "dummy");;
-      Continue).
+      Continue);;
+    #().
 
 (* strings.go *)
 
@@ -818,11 +861,13 @@ Definition S__readBVal: val :=
 
 Definition S__writeB: val :=
   rec: "S__writeB" "s" "two" :=
-    struct.storeF S "b" "s" "two".
+    struct.storeF S "b" "s" "two";;
+    #().
 
 Definition S__negateC: val :=
   rec: "S__negateC" "s" :=
-    struct.storeF S "c" "s" (~ (struct.loadF S "c" "s")).
+    struct.storeF S "c" "s" (~ (struct.loadF S "c" "s"));;
+    #().
 
 Definition S__refC: val :=
   rec: "S__refC" "s" :=
@@ -846,12 +891,25 @@ Definition setField: val :=
 Definition DoSomeLocking: val :=
   rec: "DoSomeLocking" "l" :=
     lock.acquire "l";;
-    lock.release "l".
+    lock.release "l";;
+    #().
 
 Definition makeLock: val :=
   rec: "makeLock" <> :=
     let: "l" := lock.new #() in
-    DoSomeLocking "l".
+    DoSomeLocking "l";;
+    #().
+
+(* trailing_call.go *)
+
+Definition mkInt: val :=
+  rec: "mkInt" <> :=
+    #42.
+
+Definition mkNothing: val :=
+  rec: "mkNothing" <> :=
+    mkInt #();;
+    #().
 
 (* type_alias.go *)
 
