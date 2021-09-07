@@ -1107,10 +1107,9 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 			finalized = true
 			break // This would happen anyway since we consumed the iterator via "Remainder"
 		default:
+			// All other statements are translated one-by-one
 			if c.HasNext() {
-				// "finalized" will always be true.
-				binding, _ := ctx.stmtInBlock(s, ExprValLocal)
-				bindings = append(bindings, binding)
+				bindings = append(bindings, ctx.stmt(s))
 			} else {
 				// The last statement is special: we propagate the usage and store "finalized"
 				binding, fin := ctx.stmtInBlock(s, usage)
@@ -1119,7 +1118,7 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 			}
 		}
 	}
-	// Crucially, we also arrive in this branch if the list if statements is empty.
+	// Crucially, we also arrive in this branch if the list of statements is empty.
 	if !finalized {
 		switch usage {
 		case ExprValReturned:
@@ -1154,10 +1153,10 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	ife := coq.IfExpr{
 		Cond: condExpr,
 	}
-	// Extract (possibly empty) list of stmts in Else
-	var Else = []ast.Stmt{}
+	// Extract (possibly empty) block in Else
+	var Else = &ast.BlockStmt{List: []ast.Stmt{}}
 	if s.Else != nil {
-		Else = s.Else.(*ast.BlockStmt).List
+		Else = s.Else.(*ast.BlockStmt)
 	}
 
 	// Supported cases are:
@@ -1168,7 +1167,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	if len(remainder) == 0 {
 		// The remainder is empty, so just propagate the usage to both branches.
 		ife.Then = ctx.blockStmt(s.Body, usage)
-		ife.Else = ctx.stmts(Else, usage)
+		ife.Else = ctx.blockStmt(Else, usage)
 		return coq.NewAnon(ife)
 	}
 
@@ -1179,7 +1178,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 		ife.Then = ctx.blockStmt(s.Body, usage)
 		// Put trailing code into "else". This is correct because "then" will always return.
 		// "else" must be empty.
-		if s.Else != nil {
+		if len(Else.List) > 0 {
 			ctx.futureWork(s.Else, "early return in if with an else branch")
 			return coq.Binding{}
 		}
@@ -1194,7 +1193,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	// a block (not propagating the usage). This will implicitly check that
 	// the two branches do not rely on control effects.
 	ife.Then = ctx.blockStmt(s.Body, ExprValLocal)
-	ife.Else = ctx.stmts(Else, ExprValLocal)
+	ife.Else = ctx.blockStmt(Else, ExprValLocal)
 	// And translate the remainder with our usage.
 	tailExpr := ctx.stmts(remainder, usage)
 	// Prepend the if-then-else before the tail.
@@ -1227,7 +1226,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 		ctx.addDef(ident, identInfo{
 			IsPtrWrapped: true,
 		})
-		init = ctx.stmt(s.Init, ExprValLocal)
+		init = ctx.stmt(s.Init)
 	}
 	var cond coq.Expr = coq.True
 	if s.Cond != nil {
@@ -1235,7 +1234,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 	var post coq.Expr = coq.Skip
 	if s.Post != nil {
-		postBlock := ctx.stmt(s.Post, ExprValLocal)
+		postBlock := ctx.stmt(s.Post)
 		if len(postBlock.Names) > 0 {
 			ctx.unsupported(s.Post, "post cannot bind names")
 		}
@@ -1723,17 +1722,14 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	}
 }
 
-// Translate a single statement and finalize it if needed
-func (ctx Ctx) stmt(s ast.Stmt, usage ExprValUsage) coq.Binding {
+// Translate a single statement without usage (i.e., no control effects available)
+func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 	// stmts takes care of finalization...
-	block := ctx.stmts([]ast.Stmt{s}, usage)
-	// ...but let's prettify the result while converting to a Binding.
-	// FIXME(RJ): not "prettifying" (always using NewAnon) actually breaks translation. Hu?
-	if len(block.Bindings) == 1 {
-		return block.Bindings[0]
-	} else {
-		return coq.NewAnon(block)
+	binding, finalized := ctx.stmtInBlock(s, ExprValLocal)
+	if !finalized {
+		panic("ExprValLocal usage should always be finalized")
 	}
+	return binding
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {

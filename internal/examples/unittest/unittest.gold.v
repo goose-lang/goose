@@ -77,6 +77,17 @@ Definition alwaysReturn: val :=
     then #0
     else #1).
 
+Definition alwaysReturnInNestedBranches: val :=
+  rec: "alwaysReturnInNestedBranches" "x" :=
+    (if: ~ "x"
+    then
+      (if: "x"
+      then #0
+      else #1)
+    else
+      let: "y" := #14 in
+      "y").
+
 Definition earlyReturn: val :=
   rec: "earlyReturn" "x" :=
     (if: "x"

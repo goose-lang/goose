@@ -15,6 +15,20 @@ func alwaysReturn(x bool) uint64 {
 	}
 }
 
+func alwaysReturnInNestedBranches(x bool) uint64 {
+	if !x {
+		if x {
+			return 0
+		} else {
+			return 1
+		}
+	} else {
+		// we can even have an empty else block
+	}
+	y := uint64(14)
+	return y
+}
+
 func earlyReturn(x bool) {
 	if x {
 		return
