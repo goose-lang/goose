@@ -1051,15 +1051,15 @@ func (c *cursor) Remainder() []ast.Stmt {
 	return s
 }
 
-func endsWithReturn(s ast.Stmt) bool {
+func (ctx Ctx) endsWithReturn(s ast.Stmt) bool {
 	if s == nil {
 		return false
 	}
 	switch s := s.(type) {
 	case *ast.BlockStmt:
-		return stmtsEndWithReturn(s.List)
+		return ctx.stmtsEndWithReturn(s.List)
 	default:
-		return stmtsEndWithReturn([]ast.Stmt{s})
+		return ctx.stmtsEndWithReturn([]ast.Stmt{s})
 	}
 }
 
@@ -1073,14 +1073,21 @@ func endIncludesIf(s ast.Stmt) bool {
 	return stmtsEndIncludesIf([]ast.Stmt{s})
 }
 
-func stmtsEndWithReturn(ss []ast.Stmt) bool {
+func (ctx Ctx) stmtsEndWithReturn(ss []ast.Stmt) bool {
 	if len(ss) == 0 {
 		return false
 	}
 	// TODO: should also catch implicit continue
-	switch ss[len(ss)-1].(type) {
+	switch s := ss[len(ss)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
+	case *ast.IfStmt:
+		left := ctx.endsWithReturn(s.Body)
+		right := ctx.endsWithReturn(s.Else)
+		if left != right {
+			ctx.unsupported(s, "nested if statement branches differ on whether they return")
+		}
+		return left // or right, doesn't matter
 	}
 	return false
 }
@@ -1140,7 +1147,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 	// of Else == nil should be supported, though.
 
 	remaining := c.HasNext()
-	bodyEndsWithReturn := endsWithReturn(s.Body)
+	bodyEndsWithReturn := ctx.endsWithReturn(s.Body)
 	if bodyEndsWithReturn && remaining {
 		if s.Else != nil {
 			ctx.futureWork(s.Else, "else with early return")
@@ -1159,7 +1166,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 		ife.Else = retUnit
 		return coq.NewAnon(ife)
 	}
-	elseEndsWithReturn := endsWithReturn(s.Else)
+	elseEndsWithReturn := ctx.endsWithReturn(s.Else)
 	// the if expression is last in the surrounding block,
 	// so returns in it become returns from the overall function
 	// OR
@@ -1225,7 +1232,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 		post = postBlock.Expr
 	}
 
-	hasExplicitBranch := endsWithReturn(s.Body)
+	hasExplicitBranch := ctx.endsWithReturn(s.Body)
 	hasImplicitBranch := endIncludesIf(s.Body)
 
 	c := &cursor{s.Body.List}
