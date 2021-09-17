@@ -1156,7 +1156,15 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	// Extract (possibly empty) block in Else
 	var Else = &ast.BlockStmt{List: []ast.Stmt{}}
 	if s.Else != nil {
-		Else = s.Else.(*ast.BlockStmt)
+		switch s := s.Else.(type) {
+		case *ast.BlockStmt:
+			Else = s
+		case *ast.IfStmt:
+			// This is an "else if"
+			Else.List = []ast.Stmt{s}
+		default:
+			panic("if statement with unexpected kind of else branch")
+		}
 	}
 
 	// Supported cases are:

@@ -103,6 +103,15 @@ Definition conditionalAssign: val :=
     "y" <-[uint64T] ![uint64T] "y" + #1;;
     ![uint64T] "y".
 
+Definition elseIf: val :=
+  rec: "elseIf" "x" "y" :=
+    (if: "x"
+    then #0
+    else
+      (if: "y"
+      then #1
+      else #2)).
+
 (* conversions.go *)
 
 Definition stringWrapper: ty := stringT.
