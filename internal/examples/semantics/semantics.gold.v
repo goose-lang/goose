@@ -693,8 +693,8 @@ Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT 
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopNoContinue_t : types.
 
-Definition failing_testBreakFromLoopNoContinueDouble: val :=
-  rec: "failing_testBreakFromLoopNoContinueDouble" <> :=
+Definition testBreakFromLoopNoContinueDouble: val :=
+  rec: "testBreakFromLoopNoContinueDouble" <> :=
     let: "i" := ref_to uint64T #0 in
     Skip;;
     (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
@@ -707,9 +707,9 @@ Definition failing_testBreakFromLoopNoContinueDouble: val :=
         "i" <-[uint64T] ![uint64T] "i" + #2;;
         Continue));;
     (![uint64T] "i" = #4).
-Theorem failing_testBreakFromLoopNoContinueDouble_t: ⊢ failing_testBreakFromLoopNoContinueDouble : (unitT -> boolT).
+Theorem testBreakFromLoopNoContinueDouble_t: ⊢ testBreakFromLoopNoContinueDouble : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testBreakFromLoopNoContinueDouble_t : types.
+Hint Resolve testBreakFromLoopNoContinueDouble_t : types.
 
 Definition testBreakFromLoopForOnly: val :=
   rec: "testBreakFromLoopForOnly" <> :=

@@ -80,7 +80,7 @@ func testBreakFromLoopNoContinue() bool {
 	return (i == 1)
 }
 
-func failing_testBreakFromLoopNoContinueDouble() bool {
+func testBreakFromLoopNoContinueDouble() bool {
 	var i uint64 = 0
 	for i < 3 {
 		if i == 1 {
