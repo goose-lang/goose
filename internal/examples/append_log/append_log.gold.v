@@ -28,7 +28,8 @@ Hint Resolve Log__mkHdr_t : types.
 
 Definition Log__writeHdr: val :=
   rec: "Log__writeHdr" "log" :=
-    disk.Write #0 (Log__mkHdr "log").
+    disk.Write #0 (Log__mkHdr "log");;
+    #().
 Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (struct.ptrT Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__writeHdr_t : types.
@@ -92,7 +93,8 @@ Hint Resolve Log__Get_t : types.
 Definition writeAll: val :=
   rec: "writeAll" "bks" "off" :=
     ForSlice (slice.T byteT) "i" "bk" "bks"
-      (disk.Write ("off" + "i") "bk").
+      (disk.Write ("off" + "i") "bk");;
+    #().
 Theorem writeAll_t: ⊢ writeAll : (slice.T disk.blockT -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve writeAll_t : types.
@@ -124,7 +126,8 @@ Hint Resolve Log__Append_t : types.
 Definition Log__reset: val :=
   rec: "Log__reset" "log" :=
     struct.storeF Log "sz" "log" #0;;
-    Log__writeHdr "log".
+    Log__writeHdr "log";;
+    #().
 Theorem Log__reset_t: ⊢ Log__reset : (struct.ptrT Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__reset_t : types.
@@ -133,7 +136,8 @@ Definition Log__Reset: val :=
   rec: "Log__Reset" "log" :=
     lock.acquire (struct.loadF Log "m" "log");;
     Log__reset "log";;
-    lock.release (struct.loadF Log "m" "log").
+    lock.release (struct.loadF Log "m" "log");;
+    #().
 Theorem Log__Reset_t: ⊢ Log__Reset : (struct.ptrT Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Reset_t : types.

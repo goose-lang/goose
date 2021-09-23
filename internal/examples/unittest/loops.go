@@ -46,11 +46,40 @@ func conditionalInLoopElse() {
 	}
 }
 
+func nestedConditionalInLoopImplicitContinue() {
+	for i := uint64(0); ; {
+		if i > 5 {
+			if i > 10 {
+				break
+			}
+		} else {
+			i = i + 1
+			continue
+		}
+	}
+}
+
 func ImplicitLoopContinue() {
 	for i := uint64(0); ; {
 		if i < 4 {
 			i = 0
-			// note that continue here is not correctly supported
+		}
+	}
+}
+
+func ImplicitLoopContinue2() {
+	for i := uint64(0); ; {
+		if i < 4 {
+			i = 0
+			continue
+		}
+	}
+}
+
+func ImplicitLoopContinueAfterIfBreak(i uint64) {
+	for {
+		if i > 0 {
+			break
 		}
 	}
 }

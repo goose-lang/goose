@@ -40,6 +40,20 @@ type Ctx struct {
 // Implement flag.Value for a "set" of strings; used by Config
 type StringSet map[string]bool
 
+// Says how the result of the currently generated expression will be used
+type ExprValUsage int
+
+const (
+	// The result of this expression will only be used locally, or entirelz discarded
+	ExprValLocal ExprValUsage = iota
+	// The result of this expression will be returned from the current function
+	// (i.e., the "early return" control effect is available here)
+	ExprValReturned
+	// The result of this expression will control the current loop
+	// (i.e., the "break/continue" control effect is available here)
+	ExprValLoop
+)
+
 func (s *StringSet) String() string {
 	r := ""
 	for k := range *s {
@@ -983,7 +997,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) coq.FuncLit {
 
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
-	fl.Body = ctx.blockStmt(e.Body, nil)
+	fl.Body = ctx.blockStmt(e.Body, ExprValReturned)
 	return fl
 }
 
@@ -1024,8 +1038,8 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt, loopVar *string) coq.BlockExpr {
-	return ctx.stmts(s.List, loopVar)
+func (ctx Ctx) blockStmt(s *ast.BlockStmt, usage ExprValUsage) coq.BlockExpr {
+	return ctx.stmts(s.List, usage)
 }
 
 type cursor struct {
@@ -1051,6 +1065,7 @@ func (c *cursor) Remainder() []ast.Stmt {
 	return s
 }
 
+// If this returns true, the body truly *must* always end in an early return or loop control effect.
 func (ctx Ctx) endsWithReturn(s ast.Stmt) bool {
 	if s == nil {
 		return false
@@ -1063,64 +1078,70 @@ func (ctx Ctx) endsWithReturn(s ast.Stmt) bool {
 	}
 }
 
-func endIncludesIf(s ast.Stmt) bool {
-	if s == nil {
-		return false
-	}
-	if s, ok := s.(*ast.BlockStmt); ok {
-		return stmtsEndIncludesIf(s.List)
-	}
-	return stmtsEndIncludesIf([]ast.Stmt{s})
-}
-
 func (ctx Ctx) stmtsEndWithReturn(ss []ast.Stmt) bool {
 	if len(ss) == 0 {
 		return false
 	}
-	// TODO: should also catch implicit continue
 	switch s := ss[len(ss)-1].(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
 	case *ast.IfStmt:
 		left := ctx.endsWithReturn(s.Body)
 		right := ctx.endsWithReturn(s.Else)
-		if left != right {
-			ctx.unsupported(s, "nested if statement branches differ on whether they return")
-		}
-		return left // or right, doesn't matter
+		return left && right // we can only return true if we *always* end in a control effect
 	}
 	return false
 }
 
-func stmtsEndIncludesIf(ss []ast.Stmt) bool {
-	if len(ss) <= 1 {
-		return false
-	}
-	if _, ok := ss[len(ss)-1].(*ast.IfStmt); ok {
-		return false
-	}
-	for _, item := range ss {
-		if _, ok := item.(*ast.IfStmt); ok {
-			return true
-		}
-	}
-	return false
-}
-
-func (ctx Ctx) stmts(ss []ast.Stmt, loopVar *string) coq.BlockExpr {
+func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 	c := &cursor{ss}
 	var bindings []coq.Binding
+	var finalized bool
 	for c.HasNext() {
-		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
+		s := c.Next()
+		// ifStmt is special, it gets a chance to "wrap" the entire remainder
+		// to better support early returns.
+		switch s := s.(type) {
+		case *ast.IfStmt:
+			bindings = append(bindings, ctx.ifStmt(s, c.Remainder(), usage))
+			finalized = true
+			break // This would happen anyway since we consumed the iterator via "Remainder"
+		default:
+			// All other statements are translated one-by-one
+			if c.HasNext() {
+				bindings = append(bindings, ctx.stmt(s))
+			} else {
+				// The last statement is special: we propagate the usage and store "finalized"
+				binding, fin := ctx.stmtInBlock(s, usage)
+				bindings = append(bindings, binding)
+				finalized = fin
+			}
+		}
 	}
-	if len(bindings) == 0 {
-		retExpr := coq.ReturnExpr{coq.Tt}
-		return coq.BlockExpr{[]coq.Binding{coq.NewAnon(retExpr)}}
+	// Crucially, we also arrive in this branch if the list of statements is empty.
+	if !finalized {
+		switch usage {
+		case ExprValReturned:
+			bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+		case ExprValLoop:
+			bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
+		case ExprValLocal:
+			// Make sure the list of bindings is not empty -- translate empty blocks to unit
+			if len(bindings) == 0 {
+				bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+			}
+		default:
+			panic("bad ExprValUsage")
+		}
 	}
 	return coq.BlockExpr{bindings}
 }
 
-func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
+// ifStmt has special support for an early-return "then" branch; to achieve that
+// it is responsible for generating the if *together with* all the statements that
+// follow it in the same block.
+// It is also responsible for "finalizing" the expression according to the usage.
+func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) coq.Binding {
 	// TODO: be more careful about nested if statements; if the then branch has
 	//  an if statement with early return, this is probably not handled correctly.
 	//  We should conservatively disallow such returns until they're properly analyzed.
@@ -1128,66 +1149,64 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, c *cursor, loopVar *string) coq.Binding {
 		ctx.unsupported(s.Init, "if statement initializations")
 		return coq.Binding{}
 	}
-	thenExpr, ok := ctx.stmt(s.Body, &cursor{nil}, loopVar).Unwrap()
-	if !ok {
-		ctx.nope(s.Body, "if statement body ends with an assignment")
-		return coq.Binding{}
-	}
+	condExpr := ctx.expr(s.Cond)
 	ife := coq.IfExpr{
-		Cond: ctx.expr(s.Cond),
-		Then: thenExpr,
+		Cond: condExpr,
+	}
+	// Extract (possibly empty) block in Else
+	var Else = &ast.BlockStmt{List: []ast.Stmt{}}
+	if s.Else != nil {
+		switch s := s.Else.(type) {
+		case *ast.BlockStmt:
+			Else = s
+		case *ast.IfStmt:
+			// This is an "else if"
+			Else.List = []ast.Stmt{s}
+		default:
+			panic("if statement with unexpected kind of else branch")
+		}
 	}
 
-	// supported use cases
-	// (1) early return, no else branch; remainder of function is lifted to else
-	// (2) both branches and no remainder
-	//
-	// If the else branch also doesn't return it's not a problem to handle subsequent code,
-	// but that's annoying and we can leave it for later. Maybe the special case
-	// of Else == nil should be supported, though.
+	// Supported cases are:
+	// - There is no code after the conditional -- then anything goes.
+	// - The "then" branch always returns, and there is no "else" branch.
+	// - Neither "then" nor "else" ever return.
 
-	remaining := c.HasNext()
-	bodyEndsWithReturn := ctx.endsWithReturn(s.Body)
-	if bodyEndsWithReturn && remaining {
-		if s.Else != nil {
-			ctx.futureWork(s.Else, "else with early return")
+	if len(remainder) == 0 {
+		// The remainder is empty, so just propagate the usage to both branches.
+		ife.Then = ctx.blockStmt(s.Body, usage)
+		ife.Else = ctx.blockStmt(Else, usage)
+		return coq.NewAnon(ife)
+	}
+
+	// There is code after the conditional -- merging control flow. Let us see what we can do.
+	// Determine if we want to propagate our usage (i.e. the availability of control effects)
+	// to the conditional or not.
+	if ctx.endsWithReturn(s.Body) {
+		ife.Then = ctx.blockStmt(s.Body, usage)
+		// Put trailing code into "else". This is correct because "then" will always return.
+		// "else" must be empty.
+		if len(Else.List) > 0 {
+			ctx.futureWork(s.Else, "early return in if with an else branch")
 			return coq.Binding{}
 		}
-		ife.Else = ctx.stmts(c.Remainder(), loopVar)
+		// We can propagate the usage here since the return value of this part
+		// will become the return value of the entire conditional (that's why we
+		// put the remainder *inside* the conditional).
+		ife.Else = ctx.stmts(remainder, usage)
 		return coq.NewAnon(ife)
 	}
-	if !bodyEndsWithReturn && remaining && s.Else == nil {
-		// conditional statement in the middle of a block
-		retUnit := coq.ReturnExpr{coq.Tt}
-		ife.Then = coq.BlockExpr{[]coq.Binding{
-			coq.NewAnon(ife.Then),
-			coq.NewAnon(retUnit),
-		}}
-		ife.Else = retUnit
-		return coq.NewAnon(ife)
-	}
-	elseEndsWithReturn := ctx.endsWithReturn(s.Else)
-	// the if expression is last in the surrounding block,
-	// so returns in it become returns from the overall function
-	// OR
-	// neither branch terminates the outer function,
-	// the if expression is just a conditional in the middle
-	if !remaining || (!bodyEndsWithReturn && !elseEndsWithReturn) {
-		if s.Else == nil {
-			ife.Else = coq.ReturnExpr{coq.Tt}
-			return coq.NewAnon(ife)
-		}
-		elseExpr, ok := ctx.stmt(s.Else, c, loopVar).Unwrap()
-		if !ok {
-			ctx.nope(s.Else, "if statement else ends with an assignment")
-			return coq.Binding{}
-		}
-		ife.Else = elseExpr
-		return coq.NewAnon(ife)
-	}
-	// there are some other cases that can be handled but it's a bit tricky
-	ctx.futureWork(s, "non-terminal if expressions are only partially supported")
-	return coq.Binding{}
+
+	// No early return in "then" branch; translate this as a conditional in the middle of
+	// a block (not propagating the usage). This will implicitly check that
+	// the two branches do not rely on control effects.
+	ife.Then = ctx.blockStmt(s.Body, ExprValLocal)
+	ife.Else = ctx.blockStmt(Else, ExprValLocal)
+	// And translate the remainder with our usage.
+	tailExpr := ctx.stmts(remainder, usage)
+	// Prepend the if-then-else before the tail.
+	bindings := append([]coq.Binding{coq.NewAnon(ife)}, tailExpr.Bindings...)
+	return coq.NewAnon(coq.BlockExpr{Bindings: bindings})
 }
 
 func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init coq.Expr) {
@@ -1210,14 +1229,12 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init coq.Expr) {
 func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	var init = coq.NewAnon(coq.Skip)
 	var ident *ast.Ident
-	loopVar := new(string)
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
 		ctx.addDef(ident, identInfo{
 			IsPtrWrapped: true,
 		})
-		init = ctx.stmt(s.Init, &cursor{nil}, nil)
-		loopVar = &ident.Name
+		init = ctx.stmt(s.Init)
 	}
 	var cond coq.Expr = coq.True
 	if s.Cond != nil {
@@ -1225,25 +1242,14 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 	var post coq.Expr = coq.Skip
 	if s.Post != nil {
-		postBlock := ctx.stmt(s.Post, &cursor{nil}, loopVar)
+		postBlock := ctx.stmt(s.Post)
 		if len(postBlock.Names) > 0 {
 			ctx.unsupported(s.Post, "post cannot bind names")
 		}
 		post = postBlock.Expr
 	}
 
-	hasExplicitBranch := ctx.endsWithReturn(s.Body)
-	hasImplicitBranch := endIncludesIf(s.Body)
-
-	c := &cursor{s.Body.List}
-	var bindings []coq.Binding
-	for c.HasNext() {
-		bindings = append(bindings, ctx.stmt(c.Next(), c, loopVar))
-	}
-	if !hasExplicitBranch && !hasImplicitBranch {
-		bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
-	}
-	body := coq.BlockExpr{bindings}
+	body := ctx.blockStmt(s.Body, ExprValLoop)
 	return coq.ForLoopExpr{
 		Init: init,
 		Cond: cond,
@@ -1312,7 +1318,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) coq.Expr {
 		KeyIdent:   key,
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
-		Body:       ctx.blockStmt(s.Body, nil),
+		Body:       ctx.blockStmt(s.Body, ExprValLocal),
 	}
 }
 
@@ -1332,7 +1338,6 @@ func (ctx Ctx) identBinder(id *ast.Ident) coq.Binder {
 }
 
 func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
-	var loopVar *string
 	key := getIdentOrNil(s.Key)
 	val := getIdentOrNil(s.Value)
 	if key != nil {
@@ -1340,7 +1345,6 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 			IsPtrWrapped: false,
 			IsMacro:      false,
 		})
-		loopVar = &key.Name
 	}
 	if val != nil {
 		ctx.addDef(val, identInfo{
@@ -1353,7 +1357,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
 		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
-		Body:  ctx.blockStmt(s.Body, loopVar),
+		Body:  ctx.blockStmt(s.Body, ExprValLocal),
 	}
 }
 
@@ -1585,7 +1589,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	return coq.Binding{}
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Binding {
+func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
 	}
@@ -1610,7 +1614,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, c *cursor, loopVar *string) coq.Bin
 	return ctx.assignFromTo(s, lhs, rhs)
 }
 
-func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, loopVar *string) coq.Binding {
+func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
 	ident := getIdentOrNil(stmt.X)
 	if ident == nil {
 		ctx.todo(stmt, "cannot inc/dec non-var")
@@ -1638,7 +1642,7 @@ func (ctx Ctx) spawnExpr(thread ast.Expr) coq.SpawnExpr {
 			"only function literal spawns are supported")
 		return coq.SpawnExpr{}
 	}
-	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, nil)}
+	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, ExprValLocal)}
 }
 
 func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.Expr {
@@ -1660,43 +1664,55 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
 	return ctx.spawnExpr(e.Call.Fun)
 }
 
-func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
+// This function also returns wether the expression has been "finalized",
+// which means the usage has been taken care of. If it is not finalized,
+// the caller is responsible for adding a trailing "return unit"/"continue".
+func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
+	// First the case where the statement matches the usage, i.e. the necessary
+	// control effect is actually available.
+	switch usage {
+	case ExprValReturned:
+		s, ok := s.(*ast.ReturnStmt)
+		if ok {
+			return coq.NewAnon(ctx.returnExpr(s.Results)), true
+		}
+	case ExprValLoop:
+		s, ok := s.(*ast.BranchStmt)
+		if ok {
+			return coq.NewAnon(ctx.branchStmt(s)), true
+		}
+	}
+	// Some statements can handle the usage themselves, and they make sure to finalize it, too
+	switch s := s.(type) {
+	case *ast.IfStmt:
+		return ctx.ifStmt(s, []ast.Stmt{}, usage), true
+	case *ast.BlockStmt:
+		return coq.NewAnon(ctx.blockStmt(s, usage)), true
+	}
+	// For everything else, we generate the statement and possibly tell the caller
+	// that this is not yet finalized.
+	var binding coq.Binding = coq.Binding{}
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
-		if c.HasNext() {
-			ctx.unsupported(c.Next(), "statement following return")
-			return coq.Binding{}
-		}
-		if loopVar != nil {
-			ctx.futureWork(s, "return in loop (use break)")
-			return coq.Binding{}
-		}
-		return coq.NewAnon(ctx.returnExpr(s.Results))
+		ctx.futureWork(s, "return in unsupported position")
 	case *ast.BranchStmt:
-		if loopVar == nil {
-			ctx.unsupported(s, "branching outside of a loop")
-		}
-		return coq.NewAnon(ctx.branchStmt(s))
+		ctx.futureWork(s, "break/continue in unsupported position")
 	case *ast.GoStmt:
-		return coq.NewAnon(ctx.goStmt(s))
+		binding = coq.NewAnon(ctx.goStmt(s))
 	case *ast.ExprStmt:
-		return coq.NewAnon(ctx.expr(s.X))
+		binding = coq.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
-		return ctx.assignStmt(s, c, loopVar)
+		binding = ctx.assignStmt(s)
 	case *ast.DeclStmt:
-		return ctx.varDeclStmt(s)
+		binding = ctx.varDeclStmt(s)
 	case *ast.IncDecStmt:
-		return ctx.incDecStmt(s, loopVar)
-	case *ast.BlockStmt:
-		return coq.NewAnon(ctx.blockStmt(s, loopVar))
-	case *ast.IfStmt:
-		return ctx.ifStmt(s, c, loopVar)
+		binding = ctx.incDecStmt(s)
 	case *ast.ForStmt:
 		// note that this might be a nested loop,
 		// in which case the loop var gets replaced by the inner loop.
-		return coq.NewAnon(ctx.forStmt(s))
+		binding = coq.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
-		return coq.NewAnon(ctx.rangeStmt(s))
+		binding = coq.NewAnon(ctx.rangeStmt(s))
 	case *ast.SwitchStmt:
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
@@ -1704,7 +1720,24 @@ func (ctx Ctx) stmt(s ast.Stmt, c *cursor, loopVar *string) coq.Binding {
 	default:
 		ctx.unsupported(s, "statement")
 	}
-	return coq.Binding{}
+	switch usage {
+	case ExprValLocal:
+		// Nothing to finalize.
+		return binding, true
+	default:
+		// Finalization required
+		return binding, false
+	}
+}
+
+// Translate a single statement without usage (i.e., no control effects available)
+func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
+	// stmts takes care of finalization...
+	binding, finalized := ctx.stmtInBlock(s, ExprValLocal)
+	if !finalized {
+		panic("ExprValLocal usage should always be finalized")
+	}
+	return binding
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
@@ -1766,7 +1799,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	}
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	fd.Body = ctx.blockStmt(d.Body, nil)
+	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
 	return fd
 }
 

@@ -631,7 +631,8 @@ Definition LoopStruct__forLoopWait: val :=
       then Break
       else
         struct.get LoopStruct "loopNext" "ls" <-[uint64T] ![uint64T] (struct.get LoopStruct "loopNext" "ls") + #1;;
-        Continue)).
+        Continue));;
+    #().
 Theorem LoopStruct__forLoopWait_t: ⊢ LoopStruct__forLoopWait : (struct.t LoopStruct -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve LoopStruct__forLoopWait_t : types.
@@ -684,14 +685,16 @@ Definition testBreakFromLoopNoContinue: val :=
       then
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Break
-      else "i" <-[uint64T] ![uint64T] "i" + #2));;
+      else
+        "i" <-[uint64T] ![uint64T] "i" + #2;;
+        Continue));;
     (![uint64T] "i" = #1).
 Theorem testBreakFromLoopNoContinue_t: ⊢ testBreakFromLoopNoContinue : (unitT -> boolT).
 Proof. typecheck. Qed.
 Hint Resolve testBreakFromLoopNoContinue_t : types.
 
-Definition failing_testBreakFromLoopNoContinueDouble: val :=
-  rec: "failing_testBreakFromLoopNoContinueDouble" <> :=
+Definition testBreakFromLoopNoContinueDouble: val :=
+  rec: "testBreakFromLoopNoContinueDouble" <> :=
     let: "i" := ref_to uint64T #0 in
     Skip;;
     (for: (λ: <>, ![uint64T] "i" < #3); (λ: <>, Skip) := λ: <>,
@@ -701,11 +704,12 @@ Definition failing_testBreakFromLoopNoContinueDouble: val :=
         Break
       else
         "i" <-[uint64T] ![uint64T] "i" + #2;;
-        "i" <-[uint64T] ![uint64T] "i" + #2));;
+        "i" <-[uint64T] ![uint64T] "i" + #2;;
+        Continue));;
     (![uint64T] "i" = #4).
-Theorem failing_testBreakFromLoopNoContinueDouble_t: ⊢ failing_testBreakFromLoopNoContinueDouble : (unitT -> boolT).
+Theorem testBreakFromLoopNoContinueDouble_t: ⊢ testBreakFromLoopNoContinueDouble : (unitT -> boolT).
 Proof. typecheck. Qed.
-Hint Resolve failing_testBreakFromLoopNoContinueDouble_t : types.
+Hint Resolve testBreakFromLoopNoContinueDouble_t : types.
 
 Definition testBreakFromLoopForOnly: val :=
   rec: "testBreakFromLoopForOnly" <> :=
@@ -1100,9 +1104,7 @@ Definition testOrCompare: val :=
   rec: "testOrCompare" <> :=
     let: "ok" := ref_to boolT #true in
     (if: ~ (#3 > #4) || (#4 > #3)
-    then
-      "ok" <-[boolT] #false;;
-      #()
+    then "ok" <-[boolT] #false
     else #());;
     (if: (#4 < #3) || (#2 > #3)
     then "ok" <-[boolT] #false
@@ -1116,9 +1118,7 @@ Definition testAndCompare: val :=
   rec: "testAndCompare" <> :=
     let: "ok" := ref_to boolT #true in
     (if: (#3 > #4) && (#4 > #3)
-    then
-      "ok" <-[boolT] #false;;
-      #()
+    then "ok" <-[boolT] #false
     else #());;
     (if: (#4 > #3) || (#2 < #3)
     then #()
@@ -1248,7 +1248,8 @@ Definition ArrayEditor__Advance: val :=
     SliceSet uint64T "arr" #0 (SliceGet uint64T "arr" #0 + #1);;
     SliceSet uint64T (struct.loadF ArrayEditor "s" "ae") #0 (struct.loadF ArrayEditor "next_val" "ae");;
     struct.storeF ArrayEditor "next_val" "ae" "next";;
-    struct.storeF ArrayEditor "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor "s" "ae") #1).
+    struct.storeF ArrayEditor "s" "ae" (SliceSkip uint64T (struct.loadF ArrayEditor "s" "ae") #1);;
+    #().
 Theorem ArrayEditor__Advance_t: ⊢ ArrayEditor__Advance : (struct.ptrT ArrayEditor -> slice.T uint64T -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve ArrayEditor__Advance_t : types.
@@ -1360,14 +1361,16 @@ Definition Foo := struct.decl [
 Definition Bar__mutate: val :=
   rec: "Bar__mutate" "bar" :=
     struct.storeF Bar "a" "bar" #2;;
-    struct.storeF Bar "b" "bar" #3.
+    struct.storeF Bar "b" "bar" #3;;
+    #().
 Theorem Bar__mutate_t: ⊢ Bar__mutate : (struct.ptrT Bar -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Bar__mutate_t : types.
 
 Definition Foo__mutateBar: val :=
   rec: "Foo__mutateBar" "foo" :=
-    Bar__mutate (struct.loadF Foo "bar" "foo").
+    Bar__mutate (struct.loadF Foo "bar" "foo");;
+    #().
 Theorem Foo__mutateBar_t: ⊢ Foo__mutateBar : (struct.ptrT Foo -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Foo__mutateBar_t : types.
@@ -1436,14 +1439,16 @@ Hint Resolve S__readBVal_t : types.
 
 Definition S__updateBValX: val :=
   rec: "S__updateBValX" "s" "i" :=
-    struct.storeF TwoInts "x" (struct.fieldRef S "b" "s") "i".
+    struct.storeF TwoInts "x" (struct.fieldRef S "b" "s") "i";;
+    #().
 Theorem S__updateBValX_t: ⊢ S__updateBValX : (struct.ptrT S -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve S__updateBValX_t : types.
 
 Definition S__negateC: val :=
   rec: "S__negateC" "s" :=
-    struct.storeF S "c" "s" (~ (struct.loadF S "c" "s")).
+    struct.storeF S "c" "s" (~ (struct.loadF S "c" "s"));;
+    #().
 Theorem S__negateC_t: ⊢ S__negateC : (struct.ptrT S -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve S__negateC_t : types.
@@ -1649,9 +1654,7 @@ Definition New: val :=
     let: "d" := disk.Get #() in
     let: "diskSize" := disk.Size #() in
     (if: "diskSize" ≤ logLength
-    then
-      Panic ("disk is too small to host log");;
-      #()
+    then Panic ("disk is too small to host log")
     else #());;
     let: "cache" := NewMap disk.blockT in
     let: "header" := intToBlock #0 in
@@ -1671,14 +1674,16 @@ Hint Resolve New_t : types.
 
 Definition Log__lock: val :=
   rec: "Log__lock" "l" :=
-    lock.acquire (struct.get Log "l" "l").
+    lock.acquire (struct.get Log "l" "l");;
+    #().
 Theorem Log__lock_t: ⊢ Log__lock : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__lock_t : types.
 
 Definition Log__unlock: val :=
   rec: "Log__unlock" "l" :=
-    lock.release (struct.get Log "l" "l").
+    lock.release (struct.get Log "l" "l");;
+    #().
 Theorem Log__unlock_t: ⊢ Log__unlock : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__unlock_t : types.
@@ -1734,9 +1739,7 @@ Definition Log__Write: val :=
     Log__lock "l";;
     let: "length" := ![uint64T] (struct.get Log "length" "l") in
     (if: "length" ≥ MaxTxnWrites
-    then
-      Panic ("transaction is at capacity");;
-      #()
+    then Panic ("transaction is at capacity")
     else #());;
     let: "aBlock" := intToBlock "a" in
     let: "nextAddr" := #1 + #2 * "length" in
@@ -1744,7 +1747,8 @@ Definition Log__Write: val :=
     disk.Write ("nextAddr" + #1) "v";;
     MapInsert (struct.get Log "cache" "l") "a" "v";;
     struct.get Log "length" "l" <-[uint64T] "length" + #1;;
-    Log__unlock "l".
+    Log__unlock "l";;
+    #().
 Theorem Log__Write_t: ⊢ Log__Write : (struct.t Log -> uint64T -> disk.blockT -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Write_t : types.
@@ -1756,7 +1760,8 @@ Definition Log__Commit: val :=
     let: "length" := ![uint64T] (struct.get Log "length" "l") in
     Log__unlock "l";;
     let: "header" := intToBlock "length" in
-    disk.Write #0 "header".
+    disk.Write #0 "header";;
+    #().
 Theorem Log__Commit_t: ⊢ Log__Commit : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Commit_t : types.
@@ -1783,7 +1788,8 @@ Definition applyLog: val :=
         disk.Write (logLength + "a") "v";;
         "i" <-[uint64T] ![uint64T] "i" + #1;;
         Continue
-      else Break)).
+      else Break));;
+    #().
 Theorem applyLog_t: ⊢ applyLog : (disk.Disk -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve applyLog_t : types.
@@ -1791,7 +1797,8 @@ Hint Resolve applyLog_t : types.
 Definition clearLog: val :=
   rec: "clearLog" "d" :=
     let: "header" := intToBlock #0 in
-    disk.Write #0 "header".
+    disk.Write #0 "header";;
+    #().
 Theorem clearLog_t: ⊢ clearLog : (disk.Disk -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve clearLog_t : types.
@@ -1806,7 +1813,8 @@ Definition Log__Apply: val :=
     applyLog (struct.get Log "d" "l") "length";;
     clearLog (struct.get Log "d" "l");;
     struct.get Log "length" "l" <-[uint64T] #0;;
-    Log__unlock "l".
+    Log__unlock "l";;
+    #().
 Theorem Log__Apply_t: ⊢ Log__Apply : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Apply_t : types.
@@ -1839,9 +1847,7 @@ Definition disabled_testWal: val :=
     let: "ok" := ref_to boolT #true in
     let: "lg" := New #() in
     (if: Log__BeginTxn "lg"
-    then
-      Log__Write "lg" #2 (intToBlock #11);;
-      #()
+    then Log__Write "lg" #2 (intToBlock #11)
     else #());;
     "ok" <-[boolT] (![boolT] "ok") && (blockToInt (Log__Read "lg" #2) = #11);;
     "ok" <-[boolT] (![boolT] "ok") && (blockToInt (disk.Read #0) = #0);;

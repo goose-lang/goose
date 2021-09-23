@@ -34,7 +34,8 @@ Definition Log__writeHdr: val :=
   rec: "Log__writeHdr" "log" "len" :=
     let: "hdr" := NewSlice byteT #4096 in
     UInt64Put "hdr" "len";;
-    disk.Write LOGCOMMIT "hdr".
+    disk.Write LOGCOMMIT "hdr";;
+    #().
 Theorem Log__writeHdr_t: ⊢ Log__writeHdr : (struct.t Log -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__writeHdr_t : types.
@@ -95,7 +96,8 @@ Definition Log__memWrite: val :=
     let: "i" := ref_to uint64T #0 in
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       struct.get Log "memLog" "log" <-[slice.T (slice.T byteT)] SliceAppend (slice.T byteT) (![slice.T (slice.T byteT)] (struct.get Log "memLog" "log")) (SliceGet (slice.T byteT) "l" (![uint64T] "i"));;
-      Continue).
+      Continue);;
+    #().
 Theorem Log__memWrite_t: ⊢ Log__memWrite : (struct.t Log -> slice.T disk.blockT -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__memWrite_t : types.
@@ -136,7 +138,8 @@ Definition Log__diskAppendWait: val :=
       let: "logtxn" := Log__readLogTxnNxt "log" in
       (if: "txn" < "logtxn"
       then Break
-      else Continue)).
+      else Continue));;
+    #().
 Theorem Log__diskAppendWait_t: ⊢ Log__diskAppendWait : (struct.t Log -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__diskAppendWait_t : types.
@@ -145,9 +148,7 @@ Definition Log__Append: val :=
   rec: "Log__Append" "log" "l" :=
     let: ("ok", "txn") := Log__memAppend "log" "l" in
     (if: "ok"
-    then
-      Log__diskAppendWait "log" "txn";;
-      #()
+    then Log__diskAppendWait "log" "txn"
     else #());;
     "ok".
 Theorem Log__Append_t: ⊢ Log__Append : (struct.t Log -> slice.T disk.blockT -> boolT).
@@ -161,7 +162,8 @@ Definition Log__writeBlocks: val :=
     (for: (λ: <>, ![uint64T] "i" < "n"); (λ: <>, "i" <-[uint64T] ![uint64T] "i" + #1) := λ: <>,
       let: "bk" := SliceGet (slice.T byteT) "l" (![uint64T] "i") in
       disk.Write ("pos" + ![uint64T] "i") "bk";;
-      Continue).
+      Continue);;
+    #().
 Theorem Log__writeBlocks_t: ⊢ Log__writeBlocks : (struct.t Log -> slice.T disk.blockT -> uint64T -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__writeBlocks_t : types.
@@ -179,7 +181,8 @@ Definition Log__diskAppend: val :=
     Log__writeBlocks "log" "blks" "disklen";;
     Log__writeHdr "log" "memlen";;
     struct.get Log "logTxnNxt" "log" <-[uint64T] "memnxt";;
-    lock.release (struct.get Log "logLock" "log").
+    lock.release (struct.get Log "logLock" "log");;
+    #().
 Theorem Log__diskAppend_t: ⊢ Log__diskAppend : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__diskAppend_t : types.
@@ -189,7 +192,8 @@ Definition Log__Logger: val :=
     Skip;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       Log__diskAppend "log";;
-      Continue).
+      Continue);;
+    #().
 Theorem Log__Logger_t: ⊢ Log__Logger : (struct.t Log -> unitT).
 Proof. typecheck. Qed.
 Hint Resolve Log__Logger_t : types.
@@ -218,16 +222,13 @@ Definition Txn__Write: val :=
     let: "ret" := ref_to boolT #true in
     let: (<>, "ok") := MapGet (struct.get Txn "blks" "txn") "addr" in
     (if: "ok"
-    then
-      MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk");;
-      #()
+    then MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk")
     else #());;
     (if: ~ "ok"
     then
       (if: ("addr" = LOGMAXBLK)
       then "ret" <-[boolT] #false
-      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"));;
-      #()
+      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"))
     else #());;
     ![boolT] "ret".
 Theorem Txn__Write_t: ⊢ Txn__Write : (struct.t Txn -> uint64T -> refT disk.blockT -> boolT).

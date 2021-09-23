@@ -194,7 +194,7 @@ func (suite *GoTestSuite) TestBreakFromLoopNoContinue() {
 func (suite *GoTestSuite) TestBreakFromLoopNoContinueDouble() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testBreakFromLoopNoContinueDouble())
+	suite.Equal(true, testBreakFromLoopNoContinueDouble())
 }
 
 func (suite *GoTestSuite) TestBreakFromLoopForOnly() {
