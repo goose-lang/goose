@@ -210,7 +210,7 @@ Definition Begin: val :=
   rec: "Begin" "log" :=
     let: "txn" := struct.mk Txn [
       "log" ::= "log";
-      "blks" ::= NewMap disk.blockT
+      "blks" ::= NewMap disk.blockT #()
     ] in
     "txn".
 Theorem Begin_t: ⊢ Begin : (struct.ptrT Log -> struct.t Txn).
