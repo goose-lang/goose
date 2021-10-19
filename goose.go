@@ -1862,6 +1862,7 @@ var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine/filesys": true,
 	"github.com/mit-pdos/gokv/grove_ffi":       true,
 	"github.com/tchajed/goose/machine/disk":    true,
+	"github.com/mit-pdos/gokv/time":            true,
 	"sync":                                     true,
 	"log":                                      true,
 	"fmt":                                      true,
