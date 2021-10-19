@@ -531,7 +531,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			ctx.expr(args[1]))
 	case *types.Map:
 		return coq.NewCallExpr("NewMap",
-			ctx.coqTypeOfType(args[0], ty.Elem()))
+			ctx.coqTypeOfType(args[0], ty.Elem()), coq.UnitLiteral{})
 	default:
 		ctx.unsupported(args[0],
 			"make of should be slice or map, got %v", ty)
