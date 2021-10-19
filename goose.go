@@ -516,7 +516,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr("NewMap", mapTy.Value)
+		return coq.NewCallExpr("NewMap", mapTy.Value, coq.UnitLiteral{})
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
