@@ -10,7 +10,9 @@ import (
 
 // Block is a 4096-byte buffer
 type Block = disk.Block
+
 const BlockSize uint64 = disk.BlockSize
+
 type Disk = disk.Disk
 
 /*

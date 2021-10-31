@@ -12,7 +12,7 @@ func NewMemDisk(numBlocks uint64) MemDisk {
 
 var _ Disk = MemDisk{}
 
-/* 
+/*
 func (d MemDisk) ReadTo(a uint64, buf Block) {
 	d.disk.ReadTo(a, buf)
 }
