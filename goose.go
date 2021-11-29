@@ -901,8 +901,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.AND {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
 			// e is &a[b] where x is a.b
-			if _, ok := ctx.typeOf(x.X).(*types.Slice); ok {
+			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
 				return coq.NewCallExpr("SliceRef",
+					ctx.coqTypeOfType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
