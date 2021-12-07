@@ -85,6 +85,11 @@ func getFfi(pkg *packages.Package) string {
 	seenFfis := make(map[string]struct{})
 	packages.Visit([]*packages.Package{pkg},
 		func(pkg *packages.Package) bool {
+			// the dependencies of an FFI are not considered as being used; this
+			// allows one FFI to be built on top of another
+			if _, ok := ffiMapping[pkg.PkgPath]; ok {
+				return false
+			}
 			return true
 		},
 		func(pkg *packages.Package) {
@@ -1859,19 +1864,21 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 // TODO: put this in another file
 var builtinImports = map[string]bool{
-	"github.com/tchajed/goose/machine":         true,
-	"github.com/tchajed/goose/machine/filesys": true,
-	"github.com/mit-pdos/gokv/grove_ffi":       true,
-	"github.com/tchajed/goose/machine/disk":    true,
-	"github.com/mit-pdos/gokv/time":            true,
-	"sync":                                     true,
-	"log":                                      true,
-	"fmt":                                      true,
+	"github.com/tchajed/goose/machine":            true,
+	"github.com/tchajed/goose/machine/filesys":    true,
+	"github.com/mit-pdos/gokv/grove_ffi":          true,
+	"github.com/tchajed/goose/machine/disk":       true,
+	"github.com/tchajed/goose/machine/async_disk": true,
+	"github.com/mit-pdos/gokv/time":               true,
+	"sync":                                        true,
+	"log":                                         true,
+	"fmt":                                         true,
 }
 
 var ffiMapping = map[string]string{
-	"github.com/mit-pdos/gokv/grove_ffi":    "grove",
-	"github.com/tchajed/goose/machine/disk": "disk",
+	"github.com/mit-pdos/gokv/grove_ffi":          "grove",
+	"github.com/tchajed/goose/machine/disk":       "disk",
+	"github.com/tchajed/goose/machine/async_disk": "async_disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {

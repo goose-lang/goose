@@ -183,6 +183,10 @@ func TestWal(t *testing.T) {
 	testExample(t, "wal", goose.Translator{TypeCheck: true})
 }
 
+func TestAsync(t *testing.T) {
+	testExample(t, "async", goose.Translator{TypeCheck: false})
+}
+
 func TestLogging2(t *testing.T) {
 	testExample(t, "logging2", goose.Translator{TypeCheck: true})
 }
