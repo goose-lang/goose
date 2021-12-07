@@ -5,28 +5,16 @@ Context `{ext_ty: ext_types}.
 Local Coercion Var' s: expr := Var s.
 
 Definition PROGRAM : expr := #(U32 100003).
-Theorem PROGRAM_t Γ : Γ ⊢ PROGRAM : uint32T.
-Proof. typecheck. Qed.
 
 Definition VERSION : expr := #(U32 3).
-Theorem VERSION_t Γ : Γ ⊢ VERSION : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFS3_FHSIZE : expr := #(U32 64).
-Theorem NFS3_FHSIZE_t Γ : Γ ⊢ NFS3_FHSIZE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFS3_COOKIEVERFSIZE : expr := #(U32 8).
-Theorem NFS3_COOKIEVERFSIZE_t Γ : Γ ⊢ NFS3_COOKIEVERFSIZE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFS3_CREATEVERFSIZE : expr := #(U32 8).
-Theorem NFS3_CREATEVERFSIZE_t Γ : Γ ⊢ NFS3_CREATEVERFSIZE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFS3_WRITEVERFSIZE : expr := #(U32 8).
-Theorem NFS3_WRITEVERFSIZE_t Γ : Γ ⊢ NFS3_WRITEVERFSIZE : uint32T.
-Proof. typecheck. Qed.
 
 Definition Uint64: ty := uint64T.
 
@@ -61,150 +49,78 @@ Definition Count3: ty := Uint32.
 Definition Nfsstat3: ty := uint32T.
 
 Definition NFS3_OK : expr := #(U32 0).
-Theorem NFS3_OK_t Γ : Γ ⊢ NFS3_OK : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_PERM : expr := #(U32 1).
-Theorem NFS3ERR_PERM_t Γ : Γ ⊢ NFS3ERR_PERM : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOENT : expr := #(U32 2).
-Theorem NFS3ERR_NOENT_t Γ : Γ ⊢ NFS3ERR_NOENT : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_IO : expr := #(U32 5).
-Theorem NFS3ERR_IO_t Γ : Γ ⊢ NFS3ERR_IO : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NXIO : expr := #(U32 6).
-Theorem NFS3ERR_NXIO_t Γ : Γ ⊢ NFS3ERR_NXIO : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_ACCES : expr := #(U32 13).
-Theorem NFS3ERR_ACCES_t Γ : Γ ⊢ NFS3ERR_ACCES : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_EXIST : expr := #(U32 17).
-Theorem NFS3ERR_EXIST_t Γ : Γ ⊢ NFS3ERR_EXIST : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_XDEV : expr := #(U32 18).
-Theorem NFS3ERR_XDEV_t Γ : Γ ⊢ NFS3ERR_XDEV : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NODEV : expr := #(U32 19).
-Theorem NFS3ERR_NODEV_t Γ : Γ ⊢ NFS3ERR_NODEV : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOTDIR : expr := #(U32 20).
-Theorem NFS3ERR_NOTDIR_t Γ : Γ ⊢ NFS3ERR_NOTDIR : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_ISDIR : expr := #(U32 21).
-Theorem NFS3ERR_ISDIR_t Γ : Γ ⊢ NFS3ERR_ISDIR : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_INVAL : expr := #(U32 22).
-Theorem NFS3ERR_INVAL_t Γ : Γ ⊢ NFS3ERR_INVAL : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_FBIG : expr := #(U32 27).
-Theorem NFS3ERR_FBIG_t Γ : Γ ⊢ NFS3ERR_FBIG : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOSPC : expr := #(U32 28).
-Theorem NFS3ERR_NOSPC_t Γ : Γ ⊢ NFS3ERR_NOSPC : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_ROFS : expr := #(U32 30).
-Theorem NFS3ERR_ROFS_t Γ : Γ ⊢ NFS3ERR_ROFS : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_MLINK : expr := #(U32 31).
-Theorem NFS3ERR_MLINK_t Γ : Γ ⊢ NFS3ERR_MLINK : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NAMETOOLONG : expr := #(U32 63).
-Theorem NFS3ERR_NAMETOOLONG_t Γ : Γ ⊢ NFS3ERR_NAMETOOLONG : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOTEMPTY : expr := #(U32 66).
-Theorem NFS3ERR_NOTEMPTY_t Γ : Γ ⊢ NFS3ERR_NOTEMPTY : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_DQUOT : expr := #(U32 69).
-Theorem NFS3ERR_DQUOT_t Γ : Γ ⊢ NFS3ERR_DQUOT : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_STALE : expr := #(U32 70).
-Theorem NFS3ERR_STALE_t Γ : Γ ⊢ NFS3ERR_STALE : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_REMOTE : expr := #(U32 71).
-Theorem NFS3ERR_REMOTE_t Γ : Γ ⊢ NFS3ERR_REMOTE : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_BADHANDLE : expr := #(U32 10001).
-Theorem NFS3ERR_BADHANDLE_t Γ : Γ ⊢ NFS3ERR_BADHANDLE : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOT_SYNC : expr := #(U32 10002).
-Theorem NFS3ERR_NOT_SYNC_t Γ : Γ ⊢ NFS3ERR_NOT_SYNC : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_BAD_COOKIE : expr := #(U32 10003).
-Theorem NFS3ERR_BAD_COOKIE_t Γ : Γ ⊢ NFS3ERR_BAD_COOKIE : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_NOTSUPP : expr := #(U32 10004).
-Theorem NFS3ERR_NOTSUPP_t Γ : Γ ⊢ NFS3ERR_NOTSUPP : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_TOOSMALL : expr := #(U32 10005).
-Theorem NFS3ERR_TOOSMALL_t Γ : Γ ⊢ NFS3ERR_TOOSMALL : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_SERVERFAULT : expr := #(U32 10006).
-Theorem NFS3ERR_SERVERFAULT_t Γ : Γ ⊢ NFS3ERR_SERVERFAULT : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_BADTYPE : expr := #(U32 10007).
-Theorem NFS3ERR_BADTYPE_t Γ : Γ ⊢ NFS3ERR_BADTYPE : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition NFS3ERR_JUKEBOX : expr := #(U32 10008).
-Theorem NFS3ERR_JUKEBOX_t Γ : Γ ⊢ NFS3ERR_JUKEBOX : Nfsstat3.
-Proof. typecheck. Qed.
 
 Definition Ftype3: ty := uint32T.
 
 Definition NF3REG : expr := #(U32 1).
-Theorem NF3REG_t Γ : Γ ⊢ NF3REG : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3DIR : expr := #(U32 2).
-Theorem NF3DIR_t Γ : Γ ⊢ NF3DIR : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3BLK : expr := #(U32 3).
-Theorem NF3BLK_t Γ : Γ ⊢ NF3BLK : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3CHR : expr := #(U32 4).
-Theorem NF3CHR_t Γ : Γ ⊢ NF3CHR : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3LNK : expr := #(U32 5).
-Theorem NF3LNK_t Γ : Γ ⊢ NF3LNK : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3SOCK : expr := #(U32 6).
-Theorem NF3SOCK_t Γ : Γ ⊢ NF3SOCK : Ftype3.
-Proof. typecheck. Qed.
 
 Definition NF3FIFO : expr := #(U32 7).
-Theorem NF3FIFO_t Γ : Γ ⊢ NF3FIFO : Ftype3.
-Proof. typecheck. Qed.
 
 Definition Specdata3 := struct.decl [
   "Specdata1" :: Uint32;
@@ -265,16 +181,10 @@ Definition Post_op_fh3 := struct.decl [
 Definition Time_how: ty := uint32T.
 
 Definition DONT_CHANGE : expr := #(U32 0).
-Theorem DONT_CHANGE_t Γ : Γ ⊢ DONT_CHANGE : Time_how.
-Proof. typecheck. Qed.
 
 Definition SET_TO_SERVER_TIME : expr := #(U32 1).
-Theorem SET_TO_SERVER_TIME_t Γ : Γ ⊢ SET_TO_SERVER_TIME : Time_how.
-Proof. typecheck. Qed.
 
 Definition SET_TO_CLIENT_TIME : expr := #(U32 2).
-Theorem SET_TO_CLIENT_TIME_t Γ : Γ ⊢ SET_TO_CLIENT_TIME : Time_how.
-Proof. typecheck. Qed.
 
 Definition Set_mode3 := struct.decl [
   "Set_it" :: boolT;
@@ -321,100 +231,52 @@ Definition Diropargs3 := struct.decl [
 ].
 
 Definition NFS_PROGRAM : expr := #(U32 100003).
-Theorem NFS_PROGRAM_t Γ : Γ ⊢ NFS_PROGRAM : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFS_V3 : expr := #(U32 3).
-Theorem NFS_V3_t Γ : Γ ⊢ NFS_V3 : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_NULL : expr := #(U32 0).
-Theorem NFSPROC3_NULL_t Γ : Γ ⊢ NFSPROC3_NULL : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_GETATTR : expr := #(U32 1).
-Theorem NFSPROC3_GETATTR_t Γ : Γ ⊢ NFSPROC3_GETATTR : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_SETATTR : expr := #(U32 2).
-Theorem NFSPROC3_SETATTR_t Γ : Γ ⊢ NFSPROC3_SETATTR : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_LOOKUP : expr := #(U32 3).
-Theorem NFSPROC3_LOOKUP_t Γ : Γ ⊢ NFSPROC3_LOOKUP : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_ACCESS : expr := #(U32 4).
-Theorem NFSPROC3_ACCESS_t Γ : Γ ⊢ NFSPROC3_ACCESS : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_READLINK : expr := #(U32 5).
-Theorem NFSPROC3_READLINK_t Γ : Γ ⊢ NFSPROC3_READLINK : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_READ : expr := #(U32 6).
-Theorem NFSPROC3_READ_t Γ : Γ ⊢ NFSPROC3_READ : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_WRITE : expr := #(U32 7).
-Theorem NFSPROC3_WRITE_t Γ : Γ ⊢ NFSPROC3_WRITE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_CREATE : expr := #(U32 8).
-Theorem NFSPROC3_CREATE_t Γ : Γ ⊢ NFSPROC3_CREATE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_MKDIR : expr := #(U32 9).
-Theorem NFSPROC3_MKDIR_t Γ : Γ ⊢ NFSPROC3_MKDIR : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_SYMLINK : expr := #(U32 10).
-Theorem NFSPROC3_SYMLINK_t Γ : Γ ⊢ NFSPROC3_SYMLINK : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_MKNOD : expr := #(U32 11).
-Theorem NFSPROC3_MKNOD_t Γ : Γ ⊢ NFSPROC3_MKNOD : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_REMOVE : expr := #(U32 12).
-Theorem NFSPROC3_REMOVE_t Γ : Γ ⊢ NFSPROC3_REMOVE : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_RMDIR : expr := #(U32 13).
-Theorem NFSPROC3_RMDIR_t Γ : Γ ⊢ NFSPROC3_RMDIR : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_RENAME : expr := #(U32 14).
-Theorem NFSPROC3_RENAME_t Γ : Γ ⊢ NFSPROC3_RENAME : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_LINK : expr := #(U32 15).
-Theorem NFSPROC3_LINK_t Γ : Γ ⊢ NFSPROC3_LINK : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_READDIR : expr := #(U32 16).
-Theorem NFSPROC3_READDIR_t Γ : Γ ⊢ NFSPROC3_READDIR : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_READDIRPLUS : expr := #(U32 17).
-Theorem NFSPROC3_READDIRPLUS_t Γ : Γ ⊢ NFSPROC3_READDIRPLUS : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_FSSTAT : expr := #(U32 18).
-Theorem NFSPROC3_FSSTAT_t Γ : Γ ⊢ NFSPROC3_FSSTAT : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_FSINFO : expr := #(U32 19).
-Theorem NFSPROC3_FSINFO_t Γ : Γ ⊢ NFSPROC3_FSINFO : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_PATHCONF : expr := #(U32 20).
-Theorem NFSPROC3_PATHCONF_t Γ : Γ ⊢ NFSPROC3_PATHCONF : uint32T.
-Proof. typecheck. Qed.
 
 Definition NFSPROC3_COMMIT : expr := #(U32 21).
-Theorem NFSPROC3_COMMIT_t Γ : Γ ⊢ NFSPROC3_COMMIT : uint32T.
-Proof. typecheck. Qed.
 
 Definition GETATTR3args := struct.decl [
   "Object" :: struct.t Nfs_fh3
@@ -475,28 +337,16 @@ Definition LOOKUP3res := struct.decl [
 ].
 
 Definition ACCESS3_READ : expr := #(U32 1).
-Theorem ACCESS3_READ_t Γ : Γ ⊢ ACCESS3_READ : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3_LOOKUP : expr := #(U32 2).
-Theorem ACCESS3_LOOKUP_t Γ : Γ ⊢ ACCESS3_LOOKUP : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3_MODIFY : expr := #(U32 4).
-Theorem ACCESS3_MODIFY_t Γ : Γ ⊢ ACCESS3_MODIFY : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3_EXTEND : expr := #(U32 8).
-Theorem ACCESS3_EXTEND_t Γ : Γ ⊢ ACCESS3_EXTEND : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3_DELETE : expr := #(U32 16).
-Theorem ACCESS3_DELETE_t Γ : Γ ⊢ ACCESS3_DELETE : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3_EXECUTE : expr := #(U32 32).
-Theorem ACCESS3_EXECUTE_t Γ : Γ ⊢ ACCESS3_EXECUTE : uint32T.
-Proof. typecheck. Qed.
 
 Definition ACCESS3args := struct.decl [
   "Object" :: struct.t Nfs_fh3;
@@ -563,16 +413,10 @@ Definition READ3res := struct.decl [
 Definition Stable_how: ty := uint32T.
 
 Definition UNSTABLE : expr := #(U32 0).
-Theorem UNSTABLE_t Γ : Γ ⊢ UNSTABLE : Stable_how.
-Proof. typecheck. Qed.
 
 Definition DATA_SYNC : expr := #(U32 1).
-Theorem DATA_SYNC_t Γ : Γ ⊢ DATA_SYNC : Stable_how.
-Proof. typecheck. Qed.
 
 Definition FILE_SYNC : expr := #(U32 2).
-Theorem FILE_SYNC_t Γ : Γ ⊢ FILE_SYNC : Stable_how.
-Proof. typecheck. Qed.
 
 Definition WRITE3args := struct.decl [
   "File" :: struct.t Nfs_fh3;
@@ -602,16 +446,10 @@ Definition WRITE3res := struct.decl [
 Definition Createmode3: ty := uint32T.
 
 Definition UNCHECKED : expr := #(U32 0).
-Theorem UNCHECKED_t Γ : Γ ⊢ UNCHECKED : Createmode3.
-Proof. typecheck. Qed.
 
 Definition GUARDED : expr := #(U32 1).
-Theorem GUARDED_t Γ : Γ ⊢ GUARDED : Createmode3.
-Proof. typecheck. Qed.
 
 Definition EXCLUSIVE : expr := #(U32 2).
-Theorem EXCLUSIVE_t Γ : Γ ⊢ EXCLUSIVE : Createmode3.
-Proof. typecheck. Qed.
 
 Definition Createhow3 := struct.decl [
   "Mode" :: Createmode3;
@@ -808,11 +646,11 @@ Definition Entry3 := struct.decl [
   "Fileid" :: Fileid3;
   "Name" :: Filename3;
   "Cookie" :: Cookie3;
-  "Nextentry" :: refT anyT
+  "Nextentry" :: ptrT
 ].
 
 Definition Dirlist3 := struct.decl [
-  "Entries" :: struct.ptrT Entry3;
+  "Entries" :: ptrT;
   "Eof" :: boolT
 ].
 
@@ -846,11 +684,11 @@ Definition Entryplus3 := struct.decl [
   "Cookie" :: Cookie3;
   "Name_attributes" :: struct.t Post_op_attr;
   "Name_handle" :: struct.t Post_op_fh3;
-  "Nextentry" :: refT anyT
+  "Nextentry" :: ptrT
 ].
 
 Definition Dirlistplus3 := struct.decl [
-  "Entries" :: struct.ptrT Entryplus3;
+  "Entries" :: ptrT;
   "Eof" :: boolT
 ].
 
@@ -896,20 +734,12 @@ Definition FSSTAT3res := struct.decl [
 ].
 
 Definition FSF3_LINK : expr := #(U32 1).
-Theorem FSF3_LINK_t Γ : Γ ⊢ FSF3_LINK : uint32T.
-Proof. typecheck. Qed.
 
 Definition FSF3_SYMLINK : expr := #(U32 2).
-Theorem FSF3_SYMLINK_t Γ : Γ ⊢ FSF3_SYMLINK : uint32T.
-Proof. typecheck. Qed.
 
 Definition FSF3_HOMOGENEOUS : expr := #(U32 8).
-Theorem FSF3_HOMOGENEOUS_t Γ : Γ ⊢ FSF3_HOMOGENEOUS : uint32T.
-Proof. typecheck. Qed.
 
 Definition FSF3_CANSETTIME : expr := #(U32 16).
-Theorem FSF3_CANSETTIME_t Γ : Γ ⊢ FSF3_CANSETTIME : uint32T.
-Proof. typecheck. Qed.
 
 Definition FSINFO3args := struct.decl [
   "Fsroot" :: struct.t Nfs_fh3
@@ -985,16 +815,10 @@ Definition COMMIT3res := struct.decl [
 ].
 
 Definition MNTPATHLEN3 : expr := #(U32 1024).
-Theorem MNTPATHLEN3_t Γ : Γ ⊢ MNTPATHLEN3 : uint32T.
-Proof. typecheck. Qed.
 
 Definition MNTNAMLEN3 : expr := #(U32 255).
-Theorem MNTNAMLEN3_t Γ : Γ ⊢ MNTNAMLEN3 : uint32T.
-Proof. typecheck. Qed.
 
 Definition FHSIZE3 : expr := #(U32 64).
-Theorem FHSIZE3_t Γ : Γ ⊢ FHSIZE3 : uint32T.
-Proof. typecheck. Qed.
 
 Definition Fhandle3: ty := slice.T byteT.
 
@@ -1005,76 +829,40 @@ Definition Name3: ty := stringT.
 Definition Mountstat3: ty := uint32T.
 
 Definition MNT3_OK : expr := #(U32 0).
-Theorem MNT3_OK_t Γ : Γ ⊢ MNT3_OK : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_PERM : expr := #(U32 1).
-Theorem MNT3ERR_PERM_t Γ : Γ ⊢ MNT3ERR_PERM : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_NOENT : expr := #(U32 2).
-Theorem MNT3ERR_NOENT_t Γ : Γ ⊢ MNT3ERR_NOENT : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_IO : expr := #(U32 5).
-Theorem MNT3ERR_IO_t Γ : Γ ⊢ MNT3ERR_IO : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_ACCES : expr := #(U32 13).
-Theorem MNT3ERR_ACCES_t Γ : Γ ⊢ MNT3ERR_ACCES : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_NOTDIR : expr := #(U32 20).
-Theorem MNT3ERR_NOTDIR_t Γ : Γ ⊢ MNT3ERR_NOTDIR : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_INVAL : expr := #(U32 22).
-Theorem MNT3ERR_INVAL_t Γ : Γ ⊢ MNT3ERR_INVAL : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_NAMETOOLONG : expr := #(U32 63).
-Theorem MNT3ERR_NAMETOOLONG_t Γ : Γ ⊢ MNT3ERR_NAMETOOLONG : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_NOTSUPP : expr := #(U32 10004).
-Theorem MNT3ERR_NOTSUPP_t Γ : Γ ⊢ MNT3ERR_NOTSUPP : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MNT3ERR_SERVERFAULT : expr := #(U32 10006).
-Theorem MNT3ERR_SERVERFAULT_t Γ : Γ ⊢ MNT3ERR_SERVERFAULT : Mountstat3.
-Proof. typecheck. Qed.
 
 Definition MOUNT_PROGRAM : expr := #(U32 100005).
-Theorem MOUNT_PROGRAM_t Γ : Γ ⊢ MOUNT_PROGRAM : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNT_V3 : expr := #(U32 3).
-Theorem MOUNT_V3_t Γ : Γ ⊢ MOUNT_V3 : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_NULL : expr := #(U32 0).
-Theorem MOUNTPROC3_NULL_t Γ : Γ ⊢ MOUNTPROC3_NULL : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_MNT : expr := #(U32 1).
-Theorem MOUNTPROC3_MNT_t Γ : Γ ⊢ MOUNTPROC3_MNT : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_DUMP : expr := #(U32 2).
-Theorem MOUNTPROC3_DUMP_t Γ : Γ ⊢ MOUNTPROC3_DUMP : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_UMNT : expr := #(U32 3).
-Theorem MOUNTPROC3_UMNT_t Γ : Γ ⊢ MOUNTPROC3_UMNT : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_UMNTALL : expr := #(U32 4).
-Theorem MOUNTPROC3_UMNTALL_t Γ : Γ ⊢ MOUNTPROC3_UMNTALL : uint32T.
-Proof. typecheck. Qed.
 
 Definition MOUNTPROC3_EXPORT : expr := #(U32 5).
-Theorem MOUNTPROC3_EXPORT_t Γ : Γ ⊢ MOUNTPROC3_EXPORT : uint32T.
-Proof. typecheck. Qed.
 
 Definition Mountres3_ok := struct.decl [
   "Fhandle" :: Fhandle3;
@@ -1089,26 +877,26 @@ Definition Mountres3 := struct.decl [
 Definition Mount3 := struct.decl [
   "Ml_hostname" :: Name3;
   "Ml_directory" :: Dirpath3;
-  "Ml_next" :: refT anyT
+  "Ml_next" :: ptrT
 ].
 
 Definition Mountopt3 := struct.decl [
-  "P" :: struct.ptrT Mount3
+  "P" :: ptrT
 ].
 
 Definition Groups3 := struct.decl [
   "Gr_name" :: Name3;
-  "Gr_next" :: refT anyT
+  "Gr_next" :: ptrT
 ].
 
 Definition Exports3 := struct.decl [
   "Ex_dir" :: Dirpath3;
-  "Ex_groups" :: struct.ptrT Groups3;
-  "Ex_next" :: refT anyT
+  "Ex_groups" :: ptrT;
+  "Ex_next" :: ptrT
 ].
 
 Definition Exportsopt3 := struct.decl [
-  "P" :: struct.ptrT Exports3
+  "P" :: ptrT
 ].
 
 End code.

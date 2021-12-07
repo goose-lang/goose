@@ -224,11 +224,6 @@ func (ctx Ctx) structFields(structName string,
 			return nil
 		}
 		ty := ctx.coqType(f.Type)
-		info, ok := ctx.getStructInfo(ctx.typeOf(f.Type))
-		if ok && info.name == structName && info.throughPointer {
-			// TODO: Remove reference to refT, use indirection in coq.go
-			ty = coq.NewCallExpr("refT", coq.TypeIdent("anyT"))
-		}
 		decls = append(decls, coq.FieldDecl{
 			Name: f.Names[0].Name,
 			Type: ty,
@@ -558,7 +553,7 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	}
 	e := coq.NewCallExpr("zero_val", ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
-	// (new(*T) should be translated to ref (zero_val (ptrT ...)) as usual,
+	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
 		return coq.NewCallExpr("struct.alloc", coq.StructDesc(info.name), e)

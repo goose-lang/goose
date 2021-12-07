@@ -73,13 +73,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
 	case *types.Pointer:
-		if isTimerRef(t) {
-			return coq.TypeIdent("timerRefT")
-		}
-		if isLockRef(t) {
-			return coq.TypeIdent("lockRefT")
-		}
-		return coq.PtrType{ctx.coqTypeOfType(n, t.Elem())}
+		return coq.PtrType{}
 	case *types.Named:
 		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
 			return coq.TypeIdent("fileT")
@@ -125,29 +119,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
-
-	// NOTE: the above approach using e.X doesn't work for timer, because
-	// we want to look for full package name github.com/mit-pdos/...., not
-	// just the last name
-	if isTimerRef(ctx.typeOf(e)) {
-		return coq.TypeIdent("timerRefT")
-	}
-	// check for *sync.Mutex
-	if e, ok := e.X.(*ast.SelectorExpr); ok {
-
-		if isIdent(e.X, "sync") && isIdent(e.Sel, "Mutex") {
-			return coq.TypeIdent("lockRefT")
-		}
-		if isIdent(e.X, "sync") && isIdent(e.Sel, "Cond") {
-			return coq.TypeIdent("condvarRefT")
-		}
-
-	}
-	info, ok := ctx.getStructInfo(ctx.typeOf(e.X))
-	if ok {
-		return coq.NewCallExpr("struct.ptrT", coq.StructDesc(info.name))
-	}
-	return coq.PtrType{ctx.coqType(e.X)}
+	return coq.PtrType{}
 }
 
 func isEmptyInterface(e *ast.InterfaceType) bool {
@@ -245,17 +217,6 @@ func isDisk(t types.Type) bool {
 		if obj.Pkg().Path() == "github.com/tchajed/goose/machine/disk" &&
 			obj.Name() == "Disk" {
 			return true
-		}
-	}
-	return false
-}
-
-func isTimerRef(t types.Type) bool {
-	if t, ok := t.(*types.Pointer); ok {
-		if t, ok := t.Elem().(*types.Named); ok {
-			name := t.Obj()
-			return name.Pkg().Path() == "github.com/mit-pdos/gokv/time" &&
-				name.Name() == "Timer"
 		}
 	}
 	return false

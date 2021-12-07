@@ -1081,11 +1081,10 @@ func (tt TupleType) Coq() string {
 }
 
 type PtrType struct {
-	Value Type
 }
 
 func (t PtrType) Coq() string {
-	return NewCallExpr("refT", t.Value).Coq()
+	return "ptrT"
 }
 
 func StructMethod(structName string, methodName string) string {

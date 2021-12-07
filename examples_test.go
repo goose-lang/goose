@@ -180,7 +180,7 @@ func TestSimpleDb(t *testing.T) {
 }
 
 func TestWal(t *testing.T) {
-	testExample(t, "wal", goose.Translator{TypeCheck: true})
+	testExample(t, "wal", goose.Translator{})
 }
 
 func TestAsync(t *testing.T) {
@@ -188,19 +188,19 @@ func TestAsync(t *testing.T) {
 }
 
 func TestLogging2(t *testing.T) {
-	testExample(t, "logging2", goose.Translator{TypeCheck: true})
+	testExample(t, "logging2", goose.Translator{})
 }
 
 func TestAppendLog(t *testing.T) {
-	testExample(t, "append_log", goose.Translator{TypeCheck: true})
+	testExample(t, "append_log", goose.Translator{})
 }
 
 func TestRfc1813(t *testing.T) {
-	testExample(t, "rfc1813", goose.Translator{TypeCheck: true})
+	testExample(t, "rfc1813", goose.Translator{})
 }
 
 func TestSemantics(t *testing.T) {
-	testExample(t, "semantics", goose.Translator{TypeCheck: true})
+	testExample(t, "semantics", goose.Translator{})
 }
 
 func TestComments(t *testing.T) {
