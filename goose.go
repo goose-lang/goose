@@ -408,6 +408,12 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("lock.newCond", args)
 		}
 	}
+	if isIdent(f.X, "tsc") {
+		switch f.Sel.Name {
+		case "GetTSC":
+			return ctx.newCoqCall("tsc.GetTSC", nil)
+		}
+	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCall(
 		coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(),
@@ -1865,6 +1871,7 @@ var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine/disk":       true,
 	"github.com/tchajed/goose/machine/async_disk": true,
 	"github.com/mit-pdos/gokv/time":               true,
+	"github.com/mit-pdos/go-mvcc/tsc":             true,
 	"sync":                                        true,
 	"log":                                         true,
 	"fmt":                                         true,
