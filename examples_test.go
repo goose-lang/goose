@@ -296,11 +296,13 @@ func TestNegativeExamples(testingT *testing.T) {
 			}
 			assert.Regexp(`(unsupported|future)`, tt.Err.Category)
 			if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
-				assert.FailNowf(`%s: error message "%s" does not contain "%s"`,
+				assert.FailNowf("incorrect error message",
+					`%s: error message "%s" does not contain "%s"`,
 					t.name, tt.Err.Message, tt.Expected.Error)
 			}
 			if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
-				assert.FailNowf("%s: error is incorrectly attributed to %s",
+				assert.FailNowf("incorrect error message line",
+					"%s: error is incorrectly attributed to %s",
 					t.name, tt.Err.GoSrcFile)
 			}
 		})
