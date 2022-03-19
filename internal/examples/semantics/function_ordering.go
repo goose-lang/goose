@@ -70,3 +70,18 @@ func failing_testFunctionOrdering() bool {
 	}
 	return p.x+q.x == 109
 }
+
+func storeAndReturn(x *uint64, v uint64) uint64 {
+	*x = v
+	return v
+}
+
+// Goose has a right-to-left evaluation order for function arguments,
+// which is incorrect.
+func failing_testArgumentOrder() bool {
+	var x = uint64(0)
+	addFour64(storeAndReturn(&x, 1), storeAndReturn(&x, 2),
+		storeAndReturn(&x, 3), storeAndReturn(&x, 4))
+	ok := x == 4
+	return ok
+}
