@@ -54,6 +54,9 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	// also useful because there are some situations where there is no
 	// syntactic type and we need to operate on the output of type inference
 	// anyway.
+	if isProphId(t) {
+		return coq.TypeIdent("ProphIdT")
+	}
 	switch t := t.(type) {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
@@ -190,6 +193,17 @@ func isCondVar(t types.Type) bool {
 			name := t.Obj()
 			return name.Pkg().Name() == "sync" &&
 				name.Name() == "Cond"
+		}
+	}
+	return false
+}
+
+func isProphId(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
+			return name.Pkg().Name() == "machine" &&
+				name.Name() == "prophId"
 		}
 	}
 	return false

@@ -345,8 +345,19 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
 		return coq.CallExpr{}
 	}
-
 }
+
+func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr {
+	callArgs := append([]ast.Expr{f.X}, args...)
+	switch f.Sel.Name {
+	case "ResolveBool", "ResolveU64":
+		return ctx.newCoqCall("ResolveProph", callArgs)
+	default:
+		ctx.unsupported(f, "method %s of machine.ProphId", f.Sel.Name)
+		return coq.CallExpr{}
+	}
+}
+
 func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	call *ast.CallExpr) coq.Expr {
 	args := call.Args
@@ -372,6 +383,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("control.impl.Assert", args)
 		case "WaitTimeout":
 			return ctx.newCoqCall("lock.condWaitTimeout", args)
+		case "NewProph":
+			return ctx.newCoqCall("NewProph", args)
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
 			return coq.CallExpr{}
@@ -432,6 +445,9 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	}
 	if isCondVar(selectorType) {
 		return ctx.condVarMethod(f)
+	}
+	if isProphId(selectorType) {
+		return ctx.prophIdMethod(f, args)
 	}
 	if isDisk(selectorType) {
 		method := fmt.Sprintf("disk.%s", f.Sel)
