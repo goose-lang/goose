@@ -1,0 +1,13 @@
+package unittest
+
+import "github.com/tchajed/goose/machine"
+
+func Oracle() {
+	p := machine.NewProph()
+	p.ResolveBool(false)
+	p.ResolveU64(0)
+}
+
+type typing struct {
+	proph machine.ProphId
+}
