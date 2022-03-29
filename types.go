@@ -78,6 +78,9 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Pointer:
 		return coq.PtrType{}
 	case *types.Named:
+		if t.Obj().Pkg() == nil {
+			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
+		}
 		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
 			return coq.TypeIdent("fileT")
 		}

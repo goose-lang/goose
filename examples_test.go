@@ -248,28 +248,28 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		assert.FailNowf("test code for %s does not parse", filePath)
+		assert.FailNowf("test code does not parse", "file: %s", filePath)
 		return nil
 	}
 
 	err = ctx.TypeCheck([]*ast.File{f})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		assert.FailNowf("test code for %s does not type check", filePath)
+		assert.FailNowf("test code does not type check", "file: %s", filePath)
 		return nil
 	}
 
 	_, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
 	if len(errs) == 0 {
-		assert.FailNowf("expected error while translating %s", filePath)
+		assert.FailNowf("expected error", "file: %s", filePath)
 		return nil
 	}
 	cerr := errs[0].(*goose.ConversionError)
 
 	expectedErr := getExpectedError(fset, f.Comments)
 	if expectedErr == nil {
-		assert.FailNowf("test code for %s does not have an error expectation",
-			filePath)
+		assert.FailNowf("test code does not have an error expectation",
+			"file: %s", filePath)
 		return nil
 	}
 

@@ -20,9 +20,10 @@ import (
 func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []coq.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if r, ok := r.(gooseError); ok {
-				err = r.err
+			if gooseErr, ok := r.(gooseError); ok {
+				err = gooseErr.err
 			} else {
+				// r is an error from a non-goose error, indicating a bug
 				panic(r)
 			}
 		}
