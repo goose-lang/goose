@@ -64,6 +64,8 @@ func Linearize() {}
 
 // Assume lets the proof assume that `c` is true.
 // *Use with care*, assumptions are trusted and should be justified!
+// Note that these are *runtime-checked* assumptions, i.e., the worst-case here
+// is having the program panic in unexpected ways.
 //
 // The Go implementation will panic (quit the process in a controlled manner) if
 // `c` is not true. (Not to be confused with GooseLang `Panic` which is UB.)
