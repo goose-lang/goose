@@ -319,6 +319,17 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 	return coq.CallExpr{}
 }
 
+func (ctx Ctx) capExpr(e *ast.CallExpr) coq.CallExpr {
+	x := e.Args[0]
+	xTy := ctx.typeOf(x)
+	switch xTy.Underlying().(type) {
+	case *types.Slice:
+		return coq.NewCallExpr("slice.cap", ctx.expr(x))
+	}
+	ctx.unsupported(e, "capacity of object of type %v", xTy)
+	return coq.CallExpr{}
+}
+
 func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
@@ -619,6 +630,9 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	}
 	if isIdent(s.Fun, "len") {
 		return ctx.lenExpr(s)
+	}
+	if isIdent(s.Fun, "cap") {
+		return ctx.capExpr(s)
 	}
 	if isIdent(s.Fun, "append") {
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))

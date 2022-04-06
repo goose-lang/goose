@@ -8,7 +8,7 @@ func sliceOps() uint64 {
 	v2 := x[2:3]
 	v3 := x[:3]
 	v4 := &x[2]
-	return v1 + v2[0] + v3[1] + *v4
+	return v1 + v2[0] + v3[1] + *v4 + uint64(len(x)) + uint64(cap(x))
 }
 
 func makeSingletonSlice(x uint64) []uint64 {
