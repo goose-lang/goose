@@ -259,7 +259,7 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 		return nil
 	}
 
-	_, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
+	_, _, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
 	if len(errs) == 0 {
 		assert.FailNowf("expected error", "file: %s", filePath)
 		return nil

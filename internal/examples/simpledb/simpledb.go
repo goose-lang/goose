@@ -13,7 +13,13 @@ import (
 
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/filesys"
+
+	"github.com/tchajed/marshal" // to test these imports
 )
+
+func UseMarshal() {
+	marshal.NewEnc(0)
+}
 
 // A Table provides access to an immutable copy of data on the filesystem,
 // along with an index for fast random access.
