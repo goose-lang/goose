@@ -1178,11 +1178,14 @@ func (f File) Write(w io.Writer) {
 	fmt.Fprintln(w, strings.Trim(importHeader, "\n"))
 	fmt.Fprintln(w, f.ImportHeader)
 	fmt.Fprintln(w)
-	decls := []string{}
+	decls := make(map[string]bool)
 	for i, d := range f.Decls {
-		if !stringInSlice(d.CoqDecl(), decls) {
-			fmt.Fprintln(w, d.CoqDecl())
-			decls = append(decls, d.CoqDecl())
+		decl := d.CoqDecl()
+		// don't translate the same thing twice (which the interface translation
+		// can currently do)
+		if !decls[decl] {
+			fmt.Fprintln(w, decl)
+			decls[decl] = true
 
 			if i != len(f.Decls)-1 {
 				fmt.Fprintln(w)
