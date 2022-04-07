@@ -1005,7 +1005,7 @@ Definition testSliceOps: val :=
 
 Definition testSliceCapacityOps: val :=
   rec: "testSliceCapacityOps" <> :=
-    let: "x" := NewSlice uint64T #0 in
+    let: "x" := NewSliceWithCap uint64T #0 #10 in
     let: "sub1" := SliceTake "x" #6 in
     SliceSet uint64T "sub1" #0 #1;;
     let: "sub2" := SliceSubslice uint64T "x" #2 #4 in

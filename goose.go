@@ -544,6 +544,17 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	return coq.CallExpr{}
 }
 
+func (ctx Ctx) makeSliceExpr(elt coq.Type, args []ast.Expr) coq.CallExpr {
+	if len(args) == 2 {
+		return coq.NewCallExpr("NewSlice", elt, ctx.expr(args[1]))
+	} else if len(args) == 3 {
+		return coq.NewCallExpr("NewSliceWithCap", elt, ctx.expr(args[1]), ctx.expr(args[2]))
+	} else {
+		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
+		return coq.CallExpr{}
+	}
+}
+
 // makeExpr parses a call to make() into the appropriate data-structure Call
 func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
@@ -555,13 +566,12 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
 		}
 		elt := ctx.coqType(typeArg.Elt)
-		return coq.NewCallExpr("NewSlice", elt, ctx.expr(args[1]))
+		return ctx.makeSliceExpr(elt, args)
 	}
 	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
 	case *types.Slice:
-		return coq.NewCallExpr("NewSlice",
-			ctx.coqTypeOfType(args[0], ty.Elem()),
-			ctx.expr(args[1]))
+		elt := ctx.coqTypeOfType(args[0], ty.Elem())
+		return ctx.makeSliceExpr(elt, args)
 	case *types.Map:
 		return coq.NewCallExpr("NewMap",
 			ctx.coqTypeOfType(args[0], ty.Elem()), coq.UnitLiteral{})
