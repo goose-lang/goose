@@ -1003,6 +1003,11 @@ Definition testSliceOps: val :=
     "ok" <-[boolT] (![boolT] "ok") && (![uint64T] "v4" = #10);;
     ![boolT] "ok".
 
+Definition testSliceCapacityOps: val :=
+  rec: "testSliceCapacityOps" <> :=
+    let: "ok" := ref_to boolT #false in
+    ![boolT] "ok".
+
 Definition testOverwriteArray: val :=
   rec: "testOverwriteArray" <> :=
     let: "arr" := ref_to (slice.T uint64T) (NewSlice uint64T #4) in

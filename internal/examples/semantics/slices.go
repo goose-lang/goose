@@ -37,6 +37,13 @@ func testSliceOps() bool {
 	return ok
 }
 
+func testSliceCapacityOps() bool {
+	//_x := make([]uint64, 0, 10)
+
+	var ok = false
+	return ok
+}
+
 func testOverwriteArray() bool {
 	var arr = make([]uint64, 4)
 
