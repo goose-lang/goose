@@ -887,6 +887,10 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 		ctx.unsupported(e, "3-index slice")
 		return nil
 	}
+	if e.Max != nil {
+		ctx.unsupported(e, "setting the max capacity in a slice expression is not supported")
+		return nil
+	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
 		return coq.NewCallExpr("SliceSkip",
