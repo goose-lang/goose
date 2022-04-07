@@ -44,8 +44,7 @@ func filterImports(decls []coq.Decl) (nonImports []coq.Decl, imports coq.ImportD
 }
 
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, errs []error) {
-	var imports coq.ImportDecls
+func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl, errs []error) {
 	for _, f := range fs {
 		if len(fs) > 1 {
 			decls = append(decls,
@@ -63,9 +62,6 @@ func (ctx Ctx) Decls(fs ...NamedFile) (decls []coq.Decl, errs []error) {
 			decls = append(decls, newDecls...)
 			imports = append(imports, newImports...)
 		}
-	}
-	if len(imports) > 0 {
-		decls = append([]coq.Decl{imports}, decls...)
 	}
 	return
 }
@@ -146,7 +142,8 @@ func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
 	}
 	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.Config.Ffi)
 
-	decls, errs := ctx.Decls(files...)
+	imports, decls, errs := ctx.Decls(files...)
+	coqFile.Imports = imports
 	coqFile.Decls = decls
 	if len(errs) != 0 {
 		return coqFile, errors.Wrap(MultipleErrors(errs),
