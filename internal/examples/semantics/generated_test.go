@@ -407,6 +407,12 @@ func (suite *GoTestSuite) TestSliceOps() {
 	suite.Equal(true, testSliceOps())
 }
 
+func (suite *GoTestSuite) TestSliceCapacityOps() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSliceCapacityOps())
+}
+
 func (suite *GoTestSuite) TestOverwriteArray() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

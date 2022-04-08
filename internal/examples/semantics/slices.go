@@ -37,6 +37,25 @@ func testSliceOps() bool {
 	return ok
 }
 
+func testSliceCapacityOps() bool {
+	x := make([]uint64, 0, 10)
+
+	sub1 := x[:6]
+	sub1[0] = 1
+	sub2 := x[2:4]
+	sub2[0] = 2
+	// Doing something like `x[2:]` panics
+
+	var ok = true
+	ok = ok && (len(sub1) == 6)
+	ok = ok && (cap(sub1) == 10)
+	ok = ok && (x[:10][0] == 1) // affected by the sub1[0] assignment above
+	ok = ok && (len(sub2) == 2)
+	ok = ok && (cap(sub2) == 8)
+	ok = ok && (x[:10][2] == 2) // affected by the sub2[0] assignment above
+	return ok
+}
+
 func testOverwriteArray() bool {
 	var arr = make([]uint64, 4)
 
