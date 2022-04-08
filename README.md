@@ -185,3 +185,13 @@ where to write the output, and finally the path to the semantics package. For
 example, `go run ./cmd/test_gen -coq -out ~/code/perennial/src/goose_lang/interpreter/generated_test.v ./internal/examples/semantics` generates the Coq file of semantics tests.
 (You'll probably need to adjust the path to Perennial.) To re-generate the Go
 test file you can just run `go generate ./...`.
+
+### Running tests
+
+To run all the tests, first make sure you have submodules initialized (`git submodule update --init --recursive`).
+Then run:
+```
+make ci
+```
+You can do `make fix` to automatically fix all the formatting and update generated files.
+If the 'gold' files need updating, run `go test -update-gold`.
