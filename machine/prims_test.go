@@ -1,6 +1,7 @@
 package machine
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,4 +71,13 @@ func TestRandomDoesNotPanic(t *testing.T) {
 func TestLinearizeDoesNothing(t *testing.T) {
 	// not much we can test here
 	Linearize()
+}
+
+func TestWaitTimeout(t *testing.T) {
+	var m sync.Mutex
+	c := sync.NewCond(&m)
+
+	m.Lock()
+	WaitTimeout(c, 10)
+	m.Unlock()
 }
