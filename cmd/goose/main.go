@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +12,28 @@ import (
 	"github.com/tchajed/goose"
 	"github.com/tchajed/goose/internal/coq"
 )
+
+// write data to file name, first checking if it already has those contents
+//
+// like os.WriteFile, creates name if it doesn't exist and doesn't set perm if
+// the file does exist
+func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
+	contents, err := os.ReadFile(name)
+	if err != nil {
+		return os.WriteFile(name, data, perm)
+	}
+	// file has correct contents, return
+	if bytes.Compare(contents, data) == 0 {
+		return nil
+	}
+	return os.WriteFile(name, data, perm)
+}
+
+func coqFileContents(f coq.File) []byte {
+	var b bytes.Buffer
+	f.Write(&b)
+	return b.Bytes()
+}
 
 func translate(pkgPatterns []string, outRootDir string, modDir string,
 	ignoreErrors bool, tr goose.Translator) {
@@ -39,9 +62,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, red("could not create output directory"))
 		}
-		out, err := os.Create(outFile)
-		defer out.Close()
-		f.Write(out)
+		err = writeFileIfChanged(outFile, coqFileContents(f), 0666)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, red("could not write output"))

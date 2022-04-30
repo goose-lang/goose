@@ -130,7 +130,6 @@ assert_file_not_exist() {
     assert_file_not_exist "$OUT"/m/use_disk.v
 }
 
-
 @test "goose -ignore-errors" {
     run goose -out Goose -ignore-errors ./errors/not_goose
     # even -ignore-errors sets an error status
@@ -141,4 +140,13 @@ assert_file_not_exist() {
     assert_output --partial "Definition Number"
     refute_output --partial "Bad"
     assert_output --partial "Definition Ok"
+}
+
+@test "goose after change" {
+  run goose -out Goose
+  sed -i~ 's/UseMarshal/ExampleFunc/' m.go
+  run goose -out Goose
+  run cat "$OUT"/m.v
+  assert_output --partial "ExampleFunc"
+  sed -i~ 's/ExampleFunc/UseMarshal/' m.go
 }
