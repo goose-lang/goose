@@ -1640,12 +1640,50 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	return coq.Binding{}
 }
 
+func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
+	// Translates a, b, c = SomeCall(args)
+	// into
+	//
+	// {
+	//   ret1, ret2, ret3 := SomeCall(args)
+	//   a = ret1
+	//   b = ret2
+	//   c = ret3
+	// }
+	//
+	// Returns multiple bindings, since there are multiple statements
+
+	if len(s.Rhs) > 1 {
+		ctx.unsupported(s, "multiple assignments on right hand side")
+	}
+	rhs := ctx.expr(s.Rhs[0])
+
+	if s.Tok != token.ASSIGN {
+		// This should be invalid Go syntax anyways
+		ctx.unsupported(s, "%v multiple assignment", s.Tok)
+	}
+
+	names := make([]string, len(s.Lhs))
+	for i := 0; i < len(names); i += 1 {
+		names[i] = fmt.Sprintf("%d_ret", i)
+	}
+	multipleRetBinding := coq.Binding{Names: names, Expr: rhs}
+
+	coqStmts := make([]coq.Binding, len(s.Lhs)+1)
+	coqStmts[0] = multipleRetBinding
+
+	for i, name := range names {
+		coqStmts[i+1] = ctx.assignFromTo(s, s.Lhs[i], coq.IdentExpr(name))
+	}
+	return coq.Binding{Names: make([]string, 0), Expr: coq.BlockExpr{Bindings: coqStmts}}
+}
+
 func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
 	}
-	if len(s.Lhs) > 1 || len(s.Rhs) > 1 {
-		ctx.unsupported(s, "multiple assignment")
+	if len(s.Lhs) > 1 {
+		return ctx.multipleAssignStmt(s)
 	}
 	lhs := s.Lhs[0]
 	rhs := ctx.expr(s.Rhs[0])

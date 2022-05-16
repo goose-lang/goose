@@ -245,6 +245,24 @@ func (suite *GoTestSuite) TestMapSize() {
 	suite.Equal(true, testMapSize())
 }
 
+func (suite *GoTestSuite) TestAssignTwo() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignTwo())
+}
+
+func (suite *GoTestSuite) TestAssignThree() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignThree())
+}
+
+func (suite *GoTestSuite) TestMultipleAssignToMap() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testMultipleAssignToMap())
+}
+
 func (suite *GoTestSuite) TestReturnTwo() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
