@@ -681,6 +681,45 @@ Definition testMapSize: val :=
     "ok" <-[boolT] (![boolT] "ok") && (MapLen "m" = #3);;
     ![boolT] "ok".
 
+(* multiple_assign.go *)
+
+Definition multReturnTwo: val :=
+  rec: "multReturnTwo" <> :=
+    (#2, #3).
+
+Definition testAssignTwo: val :=
+  rec: "testAssignTwo" <> :=
+    let: "x" := ref_to uint64T #10 in
+    let: "y" := ref_to uint64T #15 in
+    let: ("ret0", "ret1") := multReturnTwo #() in
+    "x" <-[uint64T] "ret0";;
+    "y" <-[uint64T] "ret1";;
+    (![uint64T] "x" = #2) && (![uint64T] "y" = #3).
+
+Definition multReturnThree: val :=
+  rec: "multReturnThree" <> :=
+    (#2, #true, #(U32 1)).
+
+Definition testAssignThree: val :=
+  rec: "testAssignThree" <> :=
+    let: "x" := ref_to uint64T #10 in
+    let: "y" := ref_to boolT #false in
+    let: "z" := ref_to uint32T (#(U32 15)) in
+    let: (("ret0", "ret1"), "ret2") := multReturnThree #() in
+    "x" <-[uint64T] "ret0";;
+    "y" <-[boolT] "ret1";;
+    "z" <-[uint32T] "ret2";;
+    (![uint64T] "x" = #2) && (![boolT] "y" = #true) && (![uint32T] "z" = #(U32 1)).
+
+Definition testMultipleAssignToMap: val :=
+  rec: "testMultipleAssignToMap" <> :=
+    let: "x" := ref_to uint64T #10 in
+    let: "m" := ref_to (mapT uint64T) (NewMap uint64T #()) in
+    let: ("ret0", "ret1") := multReturnTwo #() in
+    "x" <-[uint64T] "ret0";;
+    MapInsert (![mapT uint64T] "m") #0 "ret1";;
+    (![uint64T] "x" = #2) && (Fst (MapGet (![mapT uint64T] "m") #0) = #3).
+
 (* multiple_return.go *)
 
 Definition returnTwo: val :=
