@@ -1665,7 +1665,7 @@ func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
 
 	names := make([]string, len(s.Lhs))
 	for i := 0; i < len(names); i += 1 {
-		names[i] = fmt.Sprintf("ret%d", i)
+		names[i] = fmt.Sprintf("%d_ret", i)
 	}
 	multipleRetBinding := coq.Binding{Names: names, Expr: rhs}
 
