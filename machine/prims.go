@@ -1,8 +1,6 @@
-// Package machine is a support library for operations on integers.
+// Package machine is a support library for generic Go primitives.
 //
-// Goose code can use these additional functions. They have corresponding
-// primitives and a model in the Goose `Heap.v` model of Go's built-in heap data
-// structures, under the `Data` module.
+// GooseLang provides models for all of these operations.
 package machine
 
 import (
@@ -59,7 +57,7 @@ func UInt64ToString(x uint64) string {
 //
 // Translates to an atomic step that supports opening invariants conveniently for
 // the sake of executing a simulation fancy update at the linearization point of
-// a procedure..
+// a procedure.
 func Linearize() {}
 
 // Assume lets the proof assume that `c` is true.
@@ -86,9 +84,12 @@ func Assert(c bool) {
 	}
 }
 
-// Go's "sync" is very limited, so we have to (inefficiently) implement this ourselves.
-// Timeout is in milliseconds.
-func WaitTimeout(cond *sync.Cond, timeout_ms uint64) {
+// WaitTimeout is like cond.Wait(),
+// but waits for a maximum time of timeoutMs milliseconds.
+//
+// Not provided by sync.Cond, so we have to (inefficiently) implement this
+// ourselves.
+func WaitTimeout(cond *sync.Cond, timeoutMs uint64) {
 	done := make(chan struct{})
 	go func() {
 		cond.Wait()
@@ -96,7 +97,7 @@ func WaitTimeout(cond *sync.Cond, timeout_ms uint64) {
 		close(done)
 	}()
 	select {
-	case <-time.After(time.Duration(timeout_ms) * time.Millisecond):
+	case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
 		// timed out
 		cond.L.Lock()
 		return
@@ -109,9 +110,10 @@ func WaitTimeout(cond *sync.Cond, timeout_ms uint64) {
 
 // Prophecy variables.
 //
-// We represent the name of a prophecy variable via an opaque type.
-// In Go it does not actually carry any data, but in GooseLang we store the ProphId.
-// However, making a type opaque in Go seems to be tricky. Let's hope adding a private field helps.
+// We represent the name of a prophecy variable via an opaque type. In Go, it
+// does not actually carry any data, but in GooseLang we store the ProphId.
+// However, making a type opaque in Go seems to be tricky. Let's hope adding a
+// private field helps.
 type prophId struct{ p struct{} }
 type ProphId = *prophId
 

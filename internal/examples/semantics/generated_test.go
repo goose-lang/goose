@@ -2,9 +2,10 @@
 package semantics
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/disk"
-	"testing"
 )
 
 type GoTestSuite struct {

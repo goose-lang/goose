@@ -37,14 +37,12 @@ type Ctx struct {
 	Config
 }
 
-// Implement flag.Value for a "set" of strings; used by Config
-type StringSet map[string]bool
-
 // Says how the result of the currently generated expression will be used
 type ExprValUsage int
 
 const (
-	// The result of this expression will only be used locally, or entirelz discarded
+	// The result of this expression will only be used locally,
+	// or entirely discarded
 	ExprValLocal ExprValUsage = iota
 	// The result of this expression will be returned from the current function
 	// (i.e., the "early return" control effect is available here)
@@ -54,31 +52,11 @@ const (
 	ExprValLoop
 )
 
-func (s *StringSet) String() string {
-	r := ""
-	for k := range *s {
-		r += k
-	}
-	return r
-}
-
-func (s *StringSet) Set(value string) error {
-	(*s)[value] = true
-	return nil
-}
-
 // Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
 	TypeCheck             bool
 	Ffi                   string
-}
-
-// Returns the default config
-func MakeDefaultConfig() Config {
-	var config Config
-	config.Ffi = "none"
-	return config
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -211,8 +189,7 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
-func (ctx Ctx) structFields(structName string,
-	fs *ast.FieldList) []coq.FieldDecl {
+func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
 		if len(f.Names) > 1 {
@@ -264,7 +241,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		}
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Fields = ctx.structFields(spec.Name.Name, goTy.Fields)
+		ty.Fields = ctx.structFields(goTy.Fields)
 		return ty
 	case *ast.InterfaceType:
 		ctx.addDef(spec.Name, identInfo{
@@ -276,7 +253,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		}
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Methods = ctx.structFields(spec.Name.Name, goTy.Methods)
+		ty.Methods = ctx.structFields(goTy.Methods)
 		return ty
 	default:
 		ctx.addDef(spec.Name, identInfo{
@@ -1339,7 +1316,7 @@ func (ctx Ctx) getMapClearIdiom(s *ast.RangeStmt) coq.Expr {
 	if !(ok && isIdent(callExpr.Fun, "delete") && len(callExpr.Args) == 2) {
 		return nil
 	}
-	// we have a single call to a delete
+	// we have a single call to delete
 	mapName, ok := getIdent(s.X)
 	if !ok {
 		ctx.unsupported(s.X, "clearing a complex map expression")
@@ -1659,7 +1636,7 @@ func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
 	rhs := ctx.expr(s.Rhs[0])
 
 	if s.Tok != token.ASSIGN {
-		// This should be invalid Go syntax anyways
+		// This should be invalid Go syntax anyway
 		ctx.unsupported(s, "%v multiple assignment", s.Tok)
 	}
 
@@ -1753,7 +1730,7 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
 	return ctx.spawnExpr(e.Call.Fun)
 }
 
-// This function also returns wether the expression has been "finalized",
+// This function also returns whether the expression has been "finalized",
 // which means the usage has been taken care of. If it is not finalized,
 // the caller is responsible for adding a trailing "return unit"/"continue".
 func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {

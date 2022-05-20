@@ -1,8 +1,9 @@
 package semantics
 
 import (
-	"github.com/tchajed/goose/machine"
 	"sync"
+
+	"github.com/tchajed/goose/machine"
 )
 
 func testLinearize() bool {
