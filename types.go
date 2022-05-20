@@ -61,7 +61,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
 	case *types.TypeParam:
-		ctx.unsupported(n, "generic type parameter")
+		return coq.TypeIdent(t.Obj().Name())
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":

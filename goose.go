@@ -110,10 +110,13 @@ func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
 // rather than loaded from a packages.
 func NewCtx(pkgPath string, conf Config) Ctx {
 	info := &types.Info{
-		Defs:   make(map[*ast.Ident]types.Object),
-		Uses:   make(map[*ast.Ident]types.Object),
-		Types:  make(map[ast.Expr]types.TypeAndValue),
-		Scopes: make(map[ast.Node]*types.Scope),
+		Defs: make(map[*ast.Ident]types.Object),
+		Uses: make(map[*ast.Ident]types.Object),
+		// TODO: these instances give the generic arguments of function
+		//  calls, use those
+		Instances: make(map[*ast.Ident]types.Instance),
+		Types:     make(map[ast.Expr]types.TypeAndValue),
+		Scopes:    make(map[ast.Node]*types.Scope),
 	}
 	fset := token.NewFileSet()
 	return Ctx{
@@ -517,8 +520,11 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		return ctx.newCoqCall(name, args)
 	case *ast.SelectorExpr:
 		return ctx.selectorMethod(f, call)
+	case *ast.IndexExpr:
+		// generic type instantiation f[T]
+		ctx.unsupported(call, "function call with generic type argument")
 	}
-	ctx.unsupported(call, "call to unexpected function")
+	ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
 	return coq.CallExpr{}
 }
 

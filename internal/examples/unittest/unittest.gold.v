@@ -295,6 +295,26 @@ Definition Dec__UInt32: val :=
 
 (* generics.go *)
 
+Definition genericId: val :=
+  rec: "genericId" "x" :=
+    "x".
+
+Definition useGenericAtConcrete: val :=
+  rec: "useGenericAtConcrete" "x" :=
+    genericId "x".
+
+Definition useGenericAtTypeParam: val :=
+  rec: "useGenericAtTypeParam" "x" :=
+    genericId "x".
+
+Definition loadGeneric: val :=
+  rec: "loadGeneric" "x" :=
+    ![T] "x".
+
+Definition allocateGeneric: val :=
+  rec: "allocateGeneric" <> :=
+    ref (zero_val T).
+
 (* higher_order.go *)
 
 Definition TakesFunctionType: val :=
