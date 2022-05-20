@@ -123,3 +123,9 @@ func NewProph() ProphId {
 
 func (p ProphId) ResolveBool(b bool)  {}
 func (p ProphId) ResolveU64(i uint64) {}
+
+func MapClear[M ~map[K]V, K comparable, V any](m M) {
+	for k := range m {
+		delete(m, k)
+	}
+}

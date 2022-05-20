@@ -1,9 +1,9 @@
 package unittest
 
+import "github.com/tchajed/goose/machine"
+
 func clearMap(m map[uint64]uint64) {
-	for k := range m {
-		delete(m, k)
-	}
+	machine.MapClear(m)
 }
 
 func IterateMapKeys(m map[uint64]uint64, sum *uint64) {
