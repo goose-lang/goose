@@ -293,6 +293,15 @@ Definition Dec__UInt32: val :=
   rec: "Dec__UInt32" "d" :=
     UInt32Get (Dec__consume "d" #4).
 
+(* generics.go *)
+
+(* higher_order.go *)
+
+Definition TakesFunctionType: val :=
+  rec: "TakesFunctionType" "f" :=
+    "f" #();;
+    #().
+
 (* ints.go *)
 
 Definition useInts: val :=

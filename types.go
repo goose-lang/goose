@@ -60,6 +60,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	switch t := t.(type) {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
+	case *types.TypeParam:
+		ctx.unsupported(n, "generic type parameter")
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":
@@ -95,11 +97,13 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
-		// TODO: to support pointers to function types, need to add case *types.Signature:
+	case *types.Signature:
+		ctx.unsupported(n, "function type")
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
 	}
-	panic(fmt.Errorf("unhandled type %v", t))
+	ctx.nope(n, "unknown type %v", t)
+	return nil // unreachable
 }
 
 func sliceElem(t types.Type) types.Type {

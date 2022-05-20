@@ -108,7 +108,6 @@ func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
 
 // NewCtx loads a context for files passed directly,
 // rather than loaded from a packages.
-// Errors from this function are errors during type-checking.
 func NewCtx(pkgPath string, conf Config) Ctx {
 	info := &types.Info{
 		Defs:   make(map[*ast.Ident]types.Object),
