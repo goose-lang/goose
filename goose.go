@@ -439,8 +439,9 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		}
 	}
 	pkg := f.X.(*ast.Ident)
-	return ctx.newCoqCall(
+	return ctx.newCoqCallTypeArgs(
 		coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(),
+		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
 
@@ -487,12 +488,19 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	return nil
 }
 
-func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+func (ctx Ctx) newCoqCallTypeArgs(method string, typeArgs []coq.Expr,
+	es []ast.Expr) coq.CallExpr {
 	var args []coq.Expr
 	for _, e := range es {
 		args = append(args, ctx.expr(e))
 	}
-	return coq.NewCallExpr(method, args...)
+	call := coq.NewCallExpr(method, args...)
+	call.TypeArgs = typeArgs
+	return call
+}
+
+func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
 func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
@@ -530,7 +538,6 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	}
 
 	var retExpr coq.Expr
-	var typeArgs []coq.Expr
 
 	f := call.Fun
 
@@ -539,23 +546,23 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	// ctx.info.Instances thing like we would need to for implicit type
 	// arguments
 	switch indexF := f.(type) {
-	case (*ast.IndexExpr):
+	case *ast.IndexExpr:
 		f = indexF.X
-	case (*ast.IndexListExpr):
+	case *ast.IndexListExpr:
 		f = indexF.X
 	}
 
 	switch f := f.(type) {
 	case *ast.Ident:
 		name := f.Name
-		typeArgs = ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
+		typeArgs := ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
 
 		// If the identifier name is actually a variable, need to output
 		// "\"" + name "\"" instead of name
 		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
 			name = fmt.Sprintf("\"%s\"", name)
 		}
-		retExpr = ctx.newCoqCall(name, args)
+		retExpr = ctx.newCoqCallTypeArgs(name, typeArgs, args)
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
 	case *ast.IndexExpr:
@@ -566,12 +573,6 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		ctx.nope(call, "double explicit generic type instantiation with multiple arguments")
 	default:
 		ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
-	}
-
-	if callExpr, ok := retExpr.(coq.CallExpr); ok {
-		callExpr.TypeArgs = typeArgs
-		retExpr = callExpr // XXX: necessary because callExpr is not a pointer
-		// to the original retExpr, so this the type switch makes a clone
 	}
 
 	return retExpr

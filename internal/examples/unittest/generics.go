@@ -1,5 +1,7 @@
 package unittest
 
+import "github.com/tchajed/goose/internal/examples/unittest/generic"
+
 func genericId[T any](x T) T {
 	return x
 }
@@ -40,6 +42,14 @@ func callWithPartialInstantiation() {
 	multipleTypes[bool](false, uint64(2))
 }
 
-// type Box[T any] struct {
-// v T
-// }
+func useGenericImported() bool {
+	return generic.Id(true)
+}
+
+type void struct{}
+
+func useMapClear() uint64 {
+	m := make(map[uint64]void)
+	m[1] = void{}
+	return generic.MapLen(m)
+}
