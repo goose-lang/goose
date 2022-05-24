@@ -248,6 +248,9 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
+	if spec.TypeParams != nil {
+		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
+	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
 		ctx.addDef(spec.Name, identInfo{
