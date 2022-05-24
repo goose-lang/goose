@@ -295,25 +295,48 @@ Definition Dec__UInt32: val :=
 
 (* generics.go *)
 
-Definition genericId: val :=
+Definition genericId (T:ty): val :=
   rec: "genericId" "x" :=
     "x".
 
-Definition useGenericAtConcrete: val :=
-  rec: "useGenericAtConcrete" "x" :=
-    genericId "x".
+Definition useGenericImplicitly: val :=
+  rec: "useGenericImplicitly" "x" :=
+    genericId uint64T "x".
 
-Definition useGenericAtTypeParam: val :=
+Definition useGenericAtTypeParam (T:ty): val :=
   rec: "useGenericAtTypeParam" "x" :=
-    genericId "x".
+    genericId T "x".
 
-Definition loadGeneric: val :=
+Definition useGenericExplicitly (T:ty): val :=
+  rec: "useGenericExplicitly" "x" :=
+    genericId T "x".
+
+Definition loadGeneric (T:ty): val :=
   rec: "loadGeneric" "x" :=
     ![T] "x".
 
-Definition allocateGeneric: val :=
+Definition allocateGeneric (T:ty): val :=
   rec: "allocateGeneric" <> :=
     ref (zero_val T).
+
+Definition multipleTypes (T:ty) (V:ty): val :=
+  rec: "multipleTypes" "x" "v" :=
+    "v".
+
+Definition callWithMultipleTypes: val :=
+  rec: "callWithMultipleTypes" <> :=
+    multipleTypes uint64T boolT #3 #true;;
+    #().
+
+Definition callWithMultipleTypesImplicit: val :=
+  rec: "callWithMultipleTypesImplicit" <> :=
+    multipleTypes boolT uint64T #false #2;;
+    #().
+
+Definition callWithPartialInstantiation: val :=
+  rec: "callWithPartialInstantiation" <> :=
+    multipleTypes boolT uint64T #false #2;;
+    #().
 
 (* higher_order.go *)
 

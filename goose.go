@@ -191,6 +191,22 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
+func (ctx Ctx) typeParamList(fs *ast.FieldList) []coq.TypeIdent {
+	var typeParams []coq.TypeIdent
+	if fs == nil {
+		return nil
+	}
+	for _, f := range fs.List {
+		for _, name := range f.Names {
+			typeParams = append(typeParams, coq.TypeIdent(name.Name))
+		}
+		if len(f.Names) == 0 { // Unnamed parameter
+			ctx.unsupported(fs, "unnamed type parameters")
+		}
+	}
+	return typeParams
+}
+
 func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
@@ -509,23 +525,53 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		//  type; see https://github.com/tchajed/goose/issues/14
 		return ctx.expr(args[0])
 	}
-	switch f := call.Fun.(type) {
+
+	var retExpr coq.Expr
+	var typeArgs []coq.Expr
+
+	f := call.Fun
+
+	// IndexExpr and IndexListExpr represent calls like `f[T](x)`;
+	// we get rid of the `[T]` since we can figure that out from the
+	// ctx.info.Instances thing like we would need to for implicit type
+	// arguments
+	switch indexF := f.(type) {
+	case (*ast.IndexExpr):
+		f = indexF.X
+	case (*ast.IndexListExpr):
+		f = indexF.X
+	}
+
+	switch f := f.(type) {
 	case *ast.Ident:
 		name := f.Name
+		typeArgs = ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
+
 		// If the identifier name is actually a variable, need to output
 		// "\"" + name "\"" instead of name
 		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
 			name = fmt.Sprintf("\"%s\"", name)
 		}
-		return ctx.newCoqCall(name, args)
+		retExpr = ctx.newCoqCall(name, args)
 	case *ast.SelectorExpr:
-		return ctx.selectorMethod(f, call)
+		retExpr = ctx.selectorMethod(f, call)
 	case *ast.IndexExpr:
 		// generic type instantiation f[T]
-		ctx.unsupported(call, "function call with generic type argument")
+		ctx.nope(call, "double explicit generic type instantiation")
+	case *ast.IndexListExpr:
+		// generic type instantiation f[T, V]
+		ctx.nope(call, "double explicit generic type instantiation with multiple arguments")
+	default:
+		ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
 	}
-	ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
-	return coq.CallExpr{}
+
+	if callExpr, ok := retExpr.(coq.CallExpr); ok {
+		callExpr.TypeArgs = typeArgs
+		retExpr = callExpr // XXX: necessary because callExpr is not a pointer
+		// to the original retExpr, so this the type switch makes a clone
+	}
+
+	return retExpr
 }
 
 func (ctx Ctx) makeSliceExpr(elt coq.Type, args []ast.Expr) coq.CallExpr {
@@ -1811,7 +1857,10 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
-	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
+
+	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
+		TypeParams: ctx.typeParamList(d.Type.TypeParams),
+	}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
@@ -1832,7 +1881,9 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		fd.Name = coq.StructMethod(structInfo.name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
+
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
+
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
 	return fd

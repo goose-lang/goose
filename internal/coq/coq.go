@@ -426,6 +426,7 @@ func (s GallinaString) Coq() string {
 // CallExpr includes primitives and references to other functions.
 type CallExpr struct {
 	MethodName string
+	TypeArgs   []Expr
 	Args       []Expr
 }
 
@@ -440,6 +441,11 @@ func NewCallExpr(name string, args ...Expr) CallExpr {
 
 func (s CallExpr) Coq() string {
 	comps := []string{s.MethodName}
+
+	for _, a := range s.TypeArgs {
+		comps = append(comps, addParens(a.Coq()))
+	}
+
 	for _, a := range s.Args {
 		comps = append(comps, addParens(a.Coq()))
 	}
@@ -960,6 +966,7 @@ func (e FuncLit) Coq() string {
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
+	TypeParams []TypeIdent
 	Args       []FieldDecl
 	ReturnType Type
 	Body       Expr
@@ -980,6 +987,7 @@ func (d FuncDecl) Signature() string {
 }
 
 func (d FuncDecl) Type() string {
+	// FIXME: doesn't deal with type parameters
 	types := []string{}
 	for _, a := range d.Args {
 		types = append(types, a.Type.Coq())
@@ -998,7 +1006,13 @@ func (d FuncDecl) Type() string {
 func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Definition %s: val :=", d.Name)
+
+	typeParams := make([]string, 0)
+	for _, tp := range d.TypeParams {
+		typeParams = append(typeParams, fmt.Sprintf(" (%s:ty)", string(tp)))
+	}
+
+	pp.Add("Definition %s%s: val :=", d.Name, strings.Join(typeParams, ""))
 	func() {
 		pp.Indent(2)
 		defer pp.Indent(-2)

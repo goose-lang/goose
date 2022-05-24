@@ -334,3 +334,14 @@ func (info structTypeInfo) fields() []string {
 	}
 	return fields
 }
+
+func (ctx Ctx) typeList(n ast.Node, ts *types.TypeList) []coq.Expr {
+	var typeArgs []coq.Expr
+	if ts == nil {
+		return nil
+	}
+	for i := 0; i < ts.Len(); i++ {
+		typeArgs = append(typeArgs, ctx.coqTypeOfType(n, ts.At(i)))
+	}
+	return typeArgs
+}
