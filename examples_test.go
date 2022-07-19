@@ -40,7 +40,7 @@ type test struct {
 }
 
 func newTest(dir string, name string) test {
-	return test{name: name, path: path.Join(dir, name)}
+	return test{name: path.Base(name), path: path.Join(dir, name)}
 }
 
 func loadTests(dir string) []test {
@@ -173,6 +173,10 @@ func testExample(testingT *testing.T, name string, tr goose.Translator) {
 
 func TestUnitTests(t *testing.T) {
 	testExample(t, "unittest", goose.Translator{})
+}
+
+func TestUnitTestGeneric(t *testing.T) {
+	testExample(t, "unittest/generic", goose.Translator{})
 }
 
 func TestSimpleDb(t *testing.T) {

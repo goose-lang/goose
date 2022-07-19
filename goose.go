@@ -108,13 +108,15 @@ func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
 
 // NewCtx loads a context for files passed directly,
 // rather than loaded from a packages.
-// Errors from this function are errors during type-checking.
 func NewCtx(pkgPath string, conf Config) Ctx {
 	info := &types.Info{
-		Defs:   make(map[*ast.Ident]types.Object),
-		Uses:   make(map[*ast.Ident]types.Object),
-		Types:  make(map[ast.Expr]types.TypeAndValue),
-		Scopes: make(map[ast.Node]*types.Scope),
+		Defs: make(map[*ast.Ident]types.Object),
+		Uses: make(map[*ast.Ident]types.Object),
+		// TODO: these instances give the generic arguments of function
+		//  calls, use those
+		Instances: make(map[*ast.Ident]types.Instance),
+		Types:     make(map[ast.Expr]types.TypeAndValue),
+		Scopes:    make(map[ast.Node]*types.Scope),
 	}
 	fset := token.NewFileSet()
 	return Ctx{
@@ -189,6 +191,22 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
+func (ctx Ctx) typeParamList(fs *ast.FieldList) []coq.TypeIdent {
+	var typeParams []coq.TypeIdent
+	if fs == nil {
+		return nil
+	}
+	for _, f := range fs.List {
+		for _, name := range f.Names {
+			typeParams = append(typeParams, coq.TypeIdent(name.Name))
+		}
+		if len(f.Names) == 0 { // Unnamed parameter
+			ctx.unsupported(fs, "unnamed type parameters")
+		}
+	}
+	return typeParams
+}
+
 func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 	var decls []coq.FieldDecl
 	for _, f := range fs.List {
@@ -230,6 +248,9 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
+	if spec.TypeParams != nil {
+		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
+	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
 		ctx.addDef(spec.Name, identInfo{
@@ -371,6 +392,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("control.impl.Assert", args)
 		case "WaitTimeout":
 			return ctx.newCoqCall("lock.condWaitTimeout", args)
+		case "MapClear":
+			return ctx.newCoqCall("MapClear", args)
 		case "NewProph":
 			return ctx.newCoqCall("NewProph", args)
 		default:
@@ -416,8 +439,9 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		}
 	}
 	pkg := f.X.(*ast.Ident)
-	return ctx.newCoqCall(
+	return ctx.newCoqCallTypeArgs(
 		coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(),
+		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
 
@@ -464,12 +488,19 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	return nil
 }
 
-func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+func (ctx Ctx) newCoqCallTypeArgs(method string, typeArgs []coq.Expr,
+	es []ast.Expr) coq.CallExpr {
 	var args []coq.Expr
 	for _, e := range es {
 		args = append(args, ctx.expr(e))
 	}
-	return coq.NewCallExpr(method, args...)
+	call := coq.NewCallExpr(method, args...)
+	call.TypeArgs = typeArgs
+	return call
+}
+
+func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
 func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
@@ -505,20 +536,46 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		//  type; see https://github.com/tchajed/goose/issues/14
 		return ctx.expr(args[0])
 	}
-	switch f := call.Fun.(type) {
+
+	var retExpr coq.Expr
+
+	f := call.Fun
+
+	// IndexExpr and IndexListExpr represent calls like `f[T](x)`;
+	// we get rid of the `[T]` since we can figure that out from the
+	// ctx.info.Instances thing like we would need to for implicit type
+	// arguments
+	switch indexF := f.(type) {
+	case *ast.IndexExpr:
+		f = indexF.X
+	case *ast.IndexListExpr:
+		f = indexF.X
+	}
+
+	switch f := f.(type) {
 	case *ast.Ident:
 		name := f.Name
+		typeArgs := ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
+
 		// If the identifier name is actually a variable, need to output
 		// "\"" + name "\"" instead of name
 		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
 			name = fmt.Sprintf("\"%s\"", name)
 		}
-		return ctx.newCoqCall(name, args)
+		retExpr = ctx.newCoqCallTypeArgs(name, typeArgs, args)
 	case *ast.SelectorExpr:
-		return ctx.selectorMethod(f, call)
+		retExpr = ctx.selectorMethod(f, call)
+	case *ast.IndexExpr:
+		// generic type instantiation f[T]
+		ctx.nope(call, "double explicit generic type instantiation")
+	case *ast.IndexListExpr:
+		// generic type instantiation f[T, V]
+		ctx.nope(call, "double explicit generic type instantiation with multiple arguments")
+	default:
+		ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
 	}
-	ctx.unsupported(call, "call to unexpected function")
-	return coq.CallExpr{}
+
+	return retExpr
 }
 
 func (ctx Ctx) makeSliceExpr(elt coq.Type, args []ast.Expr) coq.CallExpr {
@@ -1293,45 +1350,7 @@ func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
 	return getIdent(e)
 }
 
-func (ctx Ctx) getMapClearIdiom(s *ast.RangeStmt) coq.Expr {
-	if _, ok := ctx.typeOf(s.X).(*types.Map); !ok {
-		return nil
-	}
-	key, ok := getIdent(s.Key)
-	if !ok {
-		ctx.nope(s.Key, "range with non-ident key")
-		return nil
-	}
-	if s.Value != nil {
-		return nil
-	}
-	if len(s.Body.List) != 1 {
-		return nil
-	}
-	exprStmt, ok := s.Body.List[0].(*ast.ExprStmt)
-	if !ok {
-		return nil
-	}
-	callExpr, ok := exprStmt.X.(*ast.CallExpr)
-	if !(ok && isIdent(callExpr.Fun, "delete") && len(callExpr.Args) == 2) {
-		return nil
-	}
-	// we have a single call to delete
-	mapName, ok := getIdent(s.X)
-	if !ok {
-		ctx.unsupported(s.X, "clearing a complex map expression")
-	}
-	if !(isIdent(callExpr.Args[0], mapName) &&
-		isIdent(callExpr.Args[1], key)) {
-		return nil
-	}
-	return coq.NewCallExpr("MapClear", coq.IdentExpr(mapName))
-}
-
 func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) coq.Expr {
-	if expr := ctx.getMapClearIdiom(s); expr != nil {
-		return expr
-	}
 	key, ok := getIdentOrAnonymous(s.Key)
 	if !ok {
 		ctx.nope(s.Key, "range with non-ident key")
@@ -1842,7 +1861,10 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
-	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
+
+	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
+		TypeParams: ctx.typeParamList(d.Type.TypeParams),
+	}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
@@ -1863,7 +1885,9 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		fd.Name = coq.StructMethod(structInfo.name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
+
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
+
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
 	return fd

@@ -73,6 +73,12 @@ func TestLinearizeDoesNothing(t *testing.T) {
 	Linearize()
 }
 
+func TestMapClear(t *testing.T) {
+	m := map[uint64]bool{1: true, 2: false, 3: true, 4: true, 6: false}
+	MapClear(m)
+	assert.Equal(t, 0, len(m))
+}
+
 func TestWaitTimeout(t *testing.T) {
 	var m sync.Mutex
 	c := sync.NewCond(&m)
