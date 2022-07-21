@@ -205,6 +205,17 @@ func isCondVar(t types.Type) bool {
 	return false
 }
 
+func isWaitGroup(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
+			return name.Pkg().Name() == "sync" &&
+				name.Name() == "WaitGroup"
+		}
+	}
+	return false
+}
+
 func isProphId(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {

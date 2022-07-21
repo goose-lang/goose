@@ -356,6 +356,21 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	}
 }
 
+func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr) coq.CallExpr {
+	l := ctx.expr(f.X)
+	switch f.Sel.Name {
+	case "Add":
+		return coq.NewCallExpr("waitgroup.Add", l)
+	case "Done":
+		return coq.NewCallExpr("waitgroup.Done", l)
+	case "Wait":
+		return coq.NewCallExpr("waitgroup.Wait", l)
+	default:
+		ctx.unsupported(f, "method %s of sync.WaitGroup", f.Sel.Name)
+		return coq.CallExpr{}
+	}
+}
+
 func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr {
 	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
@@ -457,6 +472,9 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	}
 	if isCondVar(selectorType) {
 		return ctx.condVarMethod(f)
+	}
+	if isWaitGroup(selectorType) {
+		return ctx.waitGroupMethod(f)
 	}
 	if isProphId(selectorType) {
 		return ctx.prophIdMethod(f, args)
@@ -621,6 +639,9 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
 			return coq.NewCallExpr("lock.new")
+		}
+		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
+			return coq.NewCallExpr("waitgroup.New")
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
