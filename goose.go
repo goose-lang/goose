@@ -2017,7 +2017,14 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 			// import, but Go packages can contain a different name than their
 			// path. We can get this information by using the *types.Package
 			// returned by Check (or the pkg.Types field from *packages.Package).
-			decls = append(decls, coq.ImportDecl{importPath})
+			pkgNameIndex := strings.LastIndex(importPath, "/") + 1
+			pkgName := importPath[pkgNameIndex:]
+
+			if strings.HasPrefix(pkgName, "trusted_") {
+				decls = append(decls, coq.ImportDecl{Path: importPath, Trusted: true})
+			} else {
+				decls = append(decls, coq.ImportDecl{Path: importPath, Trusted: false})
+			}
 		}
 	}
 	return decls
