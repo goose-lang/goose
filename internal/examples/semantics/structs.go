@@ -146,3 +146,15 @@ func testStoreSlice() bool {
 	*p = s
 	return uint64(len(*p)) == uint64(3)
 }
+
+type StructWithFunc struct {
+	fn func(uint64) uint64
+}
+
+func testStructFieldFunc() bool {
+	a := new(StructWithFunc)
+	a.fn = func(arg uint64) uint64 {
+		return arg * 2
+	}
+	return (a.fn(10) == 20)
+}

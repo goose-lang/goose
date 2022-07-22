@@ -304,7 +304,7 @@ func (t TypeIdent) Coq() string {
 type StructName string
 
 func (t StructName) Coq() string {
-	return NewCallExpr("struct.t", StructDesc(string(t))).Coq()
+	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq()
 }
 
 type MapType struct {
@@ -312,7 +312,7 @@ type MapType struct {
 }
 
 func (t MapType) Coq() string {
-	return NewCallExpr("mapT", t.Value).Coq()
+	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq()
 }
 
 type FuncType struct {
@@ -425,14 +425,14 @@ func (s GallinaString) Coq() string {
 
 // CallExpr includes primitives and references to other functions.
 type CallExpr struct {
-	MethodName string
+	MethodName Expr
 	TypeArgs   []Expr
 	Args       []Expr
 }
 
 // NewCallExpr is a convenience to construct a CallExpr statically, especially
 // for a fixed number of arguments.
-func NewCallExpr(name string, args ...Expr) CallExpr {
+func NewCallExpr(name Expr, args ...Expr) CallExpr {
 	if len(args) == 0 {
 		args = []Expr{Tt}
 	}
@@ -440,7 +440,7 @@ func NewCallExpr(name string, args ...Expr) CallExpr {
 }
 
 func (s CallExpr) Coq() string {
-	comps := []string{s.MethodName}
+	comps := []string{s.MethodName.Coq()}
 
 	for _, a := range s.TypeArgs {
 		comps = append(comps, addParens(a.Coq()))
@@ -467,10 +467,10 @@ func StructDesc(name string) Expr {
 
 func (e StructFieldAccessExpr) Coq() string {
 	if e.ThroughPointer {
-		return NewCallExpr("struct.loadF",
+		return NewCallExpr(GallinaIdent("struct.loadF"),
 			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq()
 	}
-	return NewCallExpr("struct.get", StructDesc(e.Struct),
+	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
 		GallinaString(e.Field), e.X).Coq()
 }
 
@@ -795,7 +795,7 @@ type RefExpr struct {
 }
 
 func (e RefExpr) Coq() string {
-	return NewCallExpr("ref_to", e.Ty, e.X).Coq()
+	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq()
 }
 
 type StoreStmt struct {

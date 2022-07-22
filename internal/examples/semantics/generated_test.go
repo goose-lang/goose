@@ -510,6 +510,12 @@ func (suite *GoTestSuite) TestStoreSlice() {
 	suite.Equal(true, testStoreSlice())
 }
 
+func (suite *GoTestSuite) TestStructFieldFunc() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testStructFieldFunc())
+}
+
 func (suite *GoTestSuite) TestPointerAssignment() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
