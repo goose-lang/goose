@@ -305,12 +305,12 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 	xTy := ctx.typeOf(x)
 	switch ty := xTy.Underlying().(type) {
 	case *types.Slice:
-		return coq.NewCallExpr("slice.len", ctx.expr(x))
+		return coq.NewCallExpr(coq.GallinaIdent("slice.len"), ctx.expr(x))
 	case *types.Map:
-		return coq.NewCallExpr("MapLen", ctx.expr(x))
+		return coq.NewCallExpr(coq.GallinaIdent("MapLen"), ctx.expr(x))
 	case *types.Basic:
 		if ty.Kind() == types.String {
-			return coq.NewCallExpr("strLen", ctx.expr(x))
+			return coq.NewCallExpr(coq.GallinaIdent("strLen"), ctx.expr(x))
 		}
 	}
 	ctx.unsupported(e, "length of object of type %v", xTy)
@@ -322,7 +322,7 @@ func (ctx Ctx) capExpr(e *ast.CallExpr) coq.CallExpr {
 	xTy := ctx.typeOf(x)
 	switch xTy.Underlying().(type) {
 	case *types.Slice:
-		return coq.NewCallExpr("slice.cap", ctx.expr(x))
+		return coq.NewCallExpr(coq.GallinaIdent("slice.cap"), ctx.expr(x))
 	}
 	ctx.unsupported(e, "capacity of object of type %v", xTy)
 	return coq.CallExpr{}
@@ -332,9 +332,9 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Lock":
-		return coq.NewCallExpr("lock.acquire", l)
+		return coq.NewCallExpr(coq.GallinaIdent("lock.acquire"), l)
 	case "Unlock":
-		return coq.NewCallExpr("lock.release", l)
+		return coq.NewCallExpr(coq.GallinaIdent("lock.release"), l)
 	default:
 		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
 		return coq.CallExpr{}
@@ -345,11 +345,11 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Signal":
-		return coq.NewCallExpr("lock.condSignal", l)
+		return coq.NewCallExpr(coq.GallinaIdent("lock.condSignal"), l)
 	case "Broadcast":
-		return coq.NewCallExpr("lock.condBroadcast", l)
+		return coq.NewCallExpr(coq.GallinaIdent("lock.condBroadcast"), l)
 	case "Wait":
-		return coq.NewCallExpr("lock.condWait", l)
+		return coq.NewCallExpr(coq.GallinaIdent("lock.condWait"), l)
 	default:
 		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
 		return coq.CallExpr{}
@@ -360,11 +360,11 @@ func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Add":
-		return coq.NewCallExpr("waitgroup.Add", l)
+		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Add"), l)
 	case "Done":
-		return coq.NewCallExpr("waitgroup.Done", l)
+		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Done"), l)
 	case "Wait":
-		return coq.NewCallExpr("waitgroup.Wait", l)
+		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Wait"), l)
 	default:
 		ctx.unsupported(f, "method %s of sync.WaitGroup", f.Sel.Name)
 		return coq.CallExpr{}
@@ -430,7 +430,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	//
 	// See https://github.com/mit-pdos/goose-nfsd/blob/master/util/util.go
 	if isIdent(f.X, "util") && f.Sel.Name == "DPrintf" {
-		return coq.NewCallExpr("util.DPrintf",
+		return coq.NewCallExpr(coq.GallinaIdent("util.DPrintf"),
 			ctx.expr(args[0]),
 			ctx.expr(args[1]),
 			coq.UnitLiteral{})
@@ -455,7 +455,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
-		coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(),
+		coq.GallinaIdent(coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq()),
 		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
@@ -495,6 +495,16 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		}
 	default:
 		structInfo, ok := ctx.getStructInfo(selectorType)
+
+		// see if f.Sel.Name is a struct field, and translate accordingly if so
+		for _, name := range structInfo.fields() {
+			if f.Sel.Name == name {
+				return ctx.newCoqCallWithExpr(
+					ctx.structSelector(structInfo, f),
+					args)
+			}
+		}
+
 		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
 			return ctx.newCoqCall(
@@ -506,7 +516,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	return nil
 }
 
-func (ctx Ctx) newCoqCallTypeArgs(method string, typeArgs []coq.Expr,
+func (ctx Ctx) newCoqCallTypeArgs(method coq.Expr, typeArgs []coq.Expr,
 	es []ast.Expr) coq.CallExpr {
 	var args []coq.Expr
 	for _, e := range es {
@@ -518,6 +528,10 @@ func (ctx Ctx) newCoqCallTypeArgs(method string, typeArgs []coq.Expr,
 }
 
 func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
+	return ctx.newCoqCallTypeArgs(coq.GallinaIdent(method), nil, es)
+}
+
+func (ctx Ctx) newCoqCallWithExpr(method coq.Expr, es []ast.Expr) coq.CallExpr {
 	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
@@ -580,7 +594,10 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
 			name = fmt.Sprintf("\"%s\"", name)
 		}
-		retExpr = ctx.newCoqCallTypeArgs(name, typeArgs, args)
+		// XXX: this could be a struct field of type `func()`; right now we
+		// don't support generic structs, so code with a generic function field
+		// will be rejected. But, in the future, that might change.
+		retExpr = ctx.newCoqCallTypeArgs(coq.GallinaIdent(name), typeArgs, args)
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
 	case *ast.IndexExpr:
@@ -598,9 +615,9 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 
 func (ctx Ctx) makeSliceExpr(elt coq.Type, args []ast.Expr) coq.CallExpr {
 	if len(args) == 2 {
-		return coq.NewCallExpr("NewSlice", elt, ctx.expr(args[1]))
+		return coq.NewCallExpr(coq.GallinaIdent("NewSlice"), elt, ctx.expr(args[1]))
 	} else if len(args) == 3 {
-		return coq.NewCallExpr("NewSliceWithCap", elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		return coq.NewCallExpr(coq.GallinaIdent("NewSliceWithCap"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
 	} else {
 		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
 		return coq.CallExpr{}
@@ -612,7 +629,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr("NewMap", mapTy.Value, coq.UnitLiteral{})
+		return coq.NewCallExpr(coq.GallinaIdent("NewMap"), mapTy.Value, coq.UnitLiteral{})
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
@@ -625,7 +642,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		elt := ctx.coqTypeOfType(args[0], ty.Elem())
 		return ctx.makeSliceExpr(elt, args)
 	case *types.Map:
-		return coq.NewCallExpr("NewMap",
+		return coq.NewCallExpr(coq.GallinaIdent("NewMap"),
 			ctx.coqTypeOfType(args[0], ty.Elem()), coq.UnitLiteral{})
 	default:
 		ctx.unsupported(args[0],
@@ -638,25 +655,25 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
-			return coq.NewCallExpr("lock.new")
+			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
 		}
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
-			return coq.NewCallExpr("waitgroup.New")
+			return coq.NewCallExpr(coq.GallinaIdent("waitgroup.New"))
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
-		return coq.NewCallExpr("zero_array",
+		return coq.NewCallExpr(coq.GallinaIdent("zero_array"),
 			ctx.coqTypeOfType(ty, t.Elem()),
 			coq.IntLiteral{uint64(t.Len())})
 	}
-	e := coq.NewCallExpr("zero_val", ctx.coqType(ty))
+	e := coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
 	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return coq.NewCallExpr("struct.alloc", coq.StructDesc(info.name), e)
+		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.name), e)
 	}
-	return coq.NewCallExpr("ref", e)
+	return coq.NewCallExpr(coq.GallinaIdent("ref"), e)
 }
 
 // integerConversion generates an expression for converting x to an integer
@@ -671,7 +688,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
 		if info.width == width {
 			return ctx.expr(x)
 		}
-		return coq.NewCallExpr(fmt.Sprintf("to_u%d", width),
+		return coq.NewCallExpr(coq.GallinaIdent(fmt.Sprintf("to_u%d", width)),
 			ctx.expr(x))
 	}
 	ctx.unsupported(s, "casts from unsupported type %v to uint%d",
@@ -681,7 +698,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
 
 func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
 	e := sliceElem(ctx.typeOf(dst))
-	return coq.NewCallExpr("SliceCopy",
+	return coq.NewCallExpr(coq.GallinaIdent("SliceCopy"),
 		ctx.coqTypeOfType(n, e),
 		ctx.expr(dst), ctx.expr(src))
 }
@@ -702,13 +719,13 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	if isIdent(s.Fun, "append") {
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
 		if s.Ellipsis == token.NoPos {
-			return coq.NewCallExpr("SliceAppend",
+			return coq.NewCallExpr(coq.GallinaIdent("SliceAppend"),
 				ctx.coqTypeOfType(s, elemTy),
 				ctx.expr(s.Args[0]),
 				ctx.expr(s.Args[1]))
 		}
 		// append(s1, s2...)
-		return coq.NewCallExpr("SliceAppendSlice",
+		return coq.NewCallExpr(coq.GallinaIdent("SliceAppendSlice"),
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
 			ctx.expr(s.Args[1]))
@@ -720,7 +737,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
 			ctx.unsupported(s, "delete on non-map")
 		}
-		return coq.NewCallExpr("MapDelete", ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+		return coq.NewCallExpr(coq.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 	}
 	if isIdent(s.Fun, "uint64") {
 		return ctx.integerConversion(s, s.Args[0], 64)
@@ -739,7 +756,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 				msg = constant.StringVal(v)
 			}
 		}
-		return coq.NewCallExpr("Panic", coq.GallinaString(msg))
+		return coq.NewCallExpr(coq.GallinaIdent("Panic"), coq.GallinaString(msg))
 	}
 	// Special case for *sync.NewCond
 	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
@@ -763,7 +780,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 								conversion += " " + ctx.expr(arg).Coq()
 							}
 						}
-						return coq.CallExpr{MethodName: conversion}
+						return coq.CallExpr{MethodName: coq.GallinaIdent(conversion)}
 					}
 				}
 			}
@@ -805,7 +822,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
 		return coq.NewCallExpr(
-			coq.StructMethod(structInfo.name, e.Sel.Name), ctx.expr(e.X))
+			coq.GallinaIdent(coq.StructMethod(structInfo.name, e.Sel.Name)), ctx.expr(e.X))
 	}
 	if ok {
 		return ctx.structSelector(structInfo, e)
@@ -826,7 +843,7 @@ func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.Stru
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
 		if len(e.Elts) == 0 {
-			return coq.NewCallExpr("nil")
+			return coq.NewCallExpr(coq.GallinaIdent("nil"))
 		}
 		if len(e.Elts) == 1 {
 			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})
@@ -958,16 +975,16 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
-		return coq.NewCallExpr("SliceSkip",
+		return coq.NewCallExpr(coq.GallinaIdent("SliceSkip"),
 			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low))
 	}
 	if e.Low == nil && e.High != nil {
-		return coq.NewCallExpr("SliceTake",
+		return coq.NewCallExpr(coq.GallinaIdent("SliceTake"),
 			x, ctx.expr(e.High))
 	}
 	if e.Low != nil && e.High != nil {
-		return coq.NewCallExpr("SliceSubslice",
+		return coq.NewCallExpr(coq.GallinaIdent("SliceSubslice"),
 			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low), ctx.expr(e.High))
 	}
@@ -1007,7 +1024,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
 			// e is &a[b] where x is a.b
 			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
-				return coq.NewCallExpr("SliceRef",
+				return coq.NewCallExpr(coq.GallinaIdent("SliceRef"),
 					ctx.coqTypeOfType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
@@ -1067,13 +1084,13 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) coq.CallExpr {
 	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy := xTy.(type) {
 	case *types.Map:
-		e := coq.NewCallExpr("MapGet", ctx.expr(e.X), ctx.expr(e.Index))
+		e := coq.NewCallExpr(coq.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
 		if !isSpecial {
-			e = coq.NewCallExpr("Fst", e)
+			e = coq.NewCallExpr(coq.GallinaIdent("Fst"), e)
 		}
 		return e
 	case *types.Slice:
-		return coq.NewCallExpr("SliceGet",
+		return coq.NewCallExpr(coq.GallinaIdent("SliceGet"),
 			ctx.coqTypeOfType(e, xTy.Elem()),
 			ctx.expr(e.X), ctx.expr(e.Index))
 	}
@@ -1084,7 +1101,7 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) coq.CallExpr {
 func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok && info.throughPointer {
-		return coq.NewCallExpr("struct.load",
+		return coq.NewCallExpr(coq.GallinaIdent("struct.load"),
 			coq.StructDesc(info.name),
 			ctx.expr(e))
 	}
@@ -1502,8 +1519,8 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 	var rhs coq.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
-		rhs = coq.NewCallExpr("ref",
-			coq.NewCallExpr("zero_val", ctx.coqTypeOfType(s, ty)))
+		rhs = coq.NewCallExpr(coq.GallinaIdent("ref"),
+			coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
@@ -1560,7 +1577,7 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		} else {
 			structExpr = ctx.refExpr(s.X)
 		}
-		return coq.NewCallExpr("struct.fieldRef", coq.StructDesc(info.name),
+		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.name),
 			coq.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
@@ -1596,7 +1613,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		case *types.Slice:
 			value := rhs
 			return coq.NewAnon(coq.NewCallExpr(
-				"SliceSet",
+				coq.GallinaIdent("SliceSet"),
 				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
@@ -1604,7 +1621,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		case *types.Map:
 			value := rhs
 			return coq.NewAnon(coq.NewCallExpr(
-				"MapInsert",
+				coq.GallinaIdent("MapInsert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
@@ -1614,7 +1631,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	case *ast.StarExpr:
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
-			return coq.NewAnon(coq.NewCallExpr("struct.store",
+			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.store"),
 				coq.StructDesc(info.name),
 				ctx.expr(lhs.X),
 				rhs))
@@ -1643,7 +1660,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		}
 		if ok {
 			fieldName := lhs.Sel.Name
-			return coq.NewAnon(coq.NewCallExpr("struct.storeF",
+			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.storeF"),
 				coq.StructDesc(info.name),
 				coq.GallinaString(fieldName),
 				structExpr,
