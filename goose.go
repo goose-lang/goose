@@ -1057,6 +1057,10 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	return e
 }
 
+func (ctx Ctx) function(s *ast.Ident) coq.Expr {
+	return coq.GallinaIdent(s.Name)
+}
+
 func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
 	s, ok := ctx.info.Uses[e]
 	if !ok {
@@ -1077,7 +1081,23 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 		}
 		ctx.unsupported(e, "special identifier")
 	}
-	return ctx.variable(e)
+
+	// check if e refers to a variable,
+	obj := ctx.info.ObjectOf(e)
+	if _, ok := obj.(*types.Const); ok {
+		// is a variable
+		return ctx.variable(e)
+	}
+	if _, ok := obj.(*types.Var); ok {
+		// is a variable
+		return ctx.variable(e)
+	}
+	if _, ok := obj.(*types.Func); ok {
+		// is a function
+		return ctx.function(e)
+	}
+	ctx.unsupported(e, "unrecognized kind of identifier; not local variable or global function")
+	panic("")
 }
 
 func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) coq.CallExpr {

@@ -108,6 +108,12 @@ func (suite *GoTestSuite) TestEncDec64() {
 	suite.Equal(true, testEncDec64())
 }
 
+func (suite *GoTestSuite) TestFirstClassFunction() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testFirstClassFunction())
+}
+
 func (suite *GoTestSuite) TestFunctionOrdering() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

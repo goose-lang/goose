@@ -265,7 +265,7 @@ type StructToInterfaceDecl struct {
 
 func (d StructToInterfaceDecl) Coq() string {
 	var pp buffer
-	pp.Add("%s (%s__to__%s %s)", d.Fun[1:len(d.Fun)-1], d.Struct, d.Interface, d.Arg)
+	pp.Add("%s (%s__to__%s %s)", d.Fun, d.Struct, d.Interface, d.Arg)
 	return pp.Build()
 }
 
