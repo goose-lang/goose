@@ -11,3 +11,7 @@ func ApplyF(a uint64, f func(uint64) uint64) uint64 {
 func testFirstClassFunction() bool {
 	return ApplyF(1, FirstClassFunction) == 11
 }
+
+func Recursive() {
+	Recursive()
+}

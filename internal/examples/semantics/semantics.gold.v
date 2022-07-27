@@ -290,6 +290,11 @@ Definition testFirstClassFunction: val :=
   rec: "testFirstClassFunction" <> :=
     (ApplyF #1 FirstClassFunction = #11).
 
+Definition Recursive: val :=
+  rec: "Recursive" <> :=
+    Recursive #();;
+    #().
+
 (* function_ordering.go *)
 
 (* helpers *)
