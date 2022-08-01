@@ -356,15 +356,15 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	}
 }
 
-func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr) coq.CallExpr {
-	l := ctx.expr(f.X)
+func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr {
+	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
 	case "Add":
-		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Add"), l)
+		return ctx.newCoqCall("waitgroup.Add", callArgs)
 	case "Done":
-		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Done"), l)
+		return ctx.newCoqCall("waitgroup.Done", callArgs)
 	case "Wait":
-		return coq.NewCallExpr(coq.GallinaIdent("waitgroup.Wait"), l)
+		return ctx.newCoqCall("waitgroup.Wait", callArgs)
 	default:
 		ctx.unsupported(f, "method %s of sync.WaitGroup", f.Sel.Name)
 		return coq.CallExpr{}
@@ -474,7 +474,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		return ctx.condVarMethod(f)
 	}
 	if isWaitGroup(selectorType) {
-		return ctx.waitGroupMethod(f)
+		return ctx.waitGroupMethod(f, args)
 	}
 	if isProphId(selectorType) {
 		return ctx.prophIdMethod(f, args)
@@ -586,18 +586,12 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 
 	switch f := f.(type) {
 	case *ast.Ident:
-		name := f.Name
 		typeArgs := ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
 
-		// If the identifier name is actually a variable, need to output
-		// "\"" + name "\"" instead of name
-		if _, ok := ctx.info.ObjectOf(f).(*types.Var); ok {
-			name = fmt.Sprintf("\"%s\"", name)
-		}
 		// XXX: this could be a struct field of type `func()`; right now we
 		// don't support generic structs, so code with a generic function field
 		// will be rejected. But, in the future, that might change.
-		retExpr = ctx.newCoqCallTypeArgs(coq.GallinaIdent(name), typeArgs, args)
+		retExpr = ctx.newCoqCallTypeArgs(ctx.identExpr(f), typeArgs, args)
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
 	case *ast.IndexExpr:
