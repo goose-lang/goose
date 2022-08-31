@@ -1019,7 +1019,7 @@ Definition makeLock: val :=
 
 Definition sleep: val :=
   rec: "sleep" <> :=
-    time.Sleep (#1 * #1000000000);;
+    time.Sleep #1000;;
     #().
 
 (* trailing_call.go *)
