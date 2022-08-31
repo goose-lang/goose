@@ -108,6 +108,10 @@ func WaitTimeout(cond *sync.Cond, timeoutMs uint64) {
 	}
 }
 
+func Sleep(ns uint64) {
+	time.Sleep(time.Duration(ns) * time.Nanosecond)
+}
+
 func MapClear[M ~map[K]V, K comparable, V any](m M) {
 	for k := range m {
 		delete(m, k)

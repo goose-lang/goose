@@ -1015,6 +1015,13 @@ Definition makeLock: val :=
     DoSomeLocking "l";;
     #().
 
+(* time.go *)
+
+Definition sleep: val :=
+  rec: "sleep" <> :=
+    time.Sleep (#1 * #1000000000);;
+    #().
+
 (* trailing_call.go *)
 
 Definition mkInt: val :=
