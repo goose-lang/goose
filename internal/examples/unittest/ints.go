@@ -9,8 +9,8 @@ func useInts(x uint64, y uint32) (uint64, uint32) {
 	return z, y2
 }
 
-type u32 uint32
+type my_u32 uint32
 
-type also_u32 u32
+type also_u32 my_u32
 
 const ConstWithAbbrevType also_u32 = 3

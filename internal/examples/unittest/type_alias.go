@@ -1,10 +1,10 @@
 package unittest
 
-type u64 = uint64
+type my_u64 = uint64
 
 type Timestamp uint64
 
-type UseTypeAbbrev u64
+type UseTypeAbbrev my_u64
 
 type UseNamedType Timestamp
 
