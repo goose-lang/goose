@@ -118,5 +118,5 @@ func testBitAddAnd() bool {
 }
 
 func testManyParentheses() bool {
-	return ((1%2) | (3%4))*6 == 3*6
+	return ((1%2)|(3%4))*6 == 3*6
 }
