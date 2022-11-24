@@ -11,7 +11,12 @@ import (
 
 func isWellBalanced(s string, lDelim string, rDelim string) bool {
 	if strings.HasPrefix(s, lDelim) && strings.HasSuffix(s, rDelim) {
-		return true
+		// Make sure this does not look like `(a + b) + (c + d)`
+		// TODO: we could avoid false negatives by actually walking the string and checking whether the starting and ending parenthesis are matching up
+		sub := s[len(lDelim):len(s)-len(rDelim)];
+		if !strings.Contains(sub, lDelim) && !strings.Contains(sub, rDelim) {
+			return true
+		}
 	}
 	return false
 }

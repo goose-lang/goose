@@ -165,7 +165,7 @@ Definition testCopyDifferentLengths: val :=
     SliceSet byteT "x" #12 (#(U8 2));;
     let: "y" := NewSlice byteT #10 in
     let: "n" := SliceCopy byteT "y" "x" in
-    ("n" = #10) && (SliceGet byteT "y" #3 = #(U8 1)).
+    ("n" = #10) && ((SliceGet byteT "y" #3 = #(U8 1))).
 
 (* data_structures.go *)
 

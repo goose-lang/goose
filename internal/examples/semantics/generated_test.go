@@ -384,6 +384,12 @@ func (suite *GoTestSuite) TestBitAddAnd() {
 	suite.Equal(true, testBitAddAnd())
 }
 
+func (suite *GoTestSuite) TestManyParentheses() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testManyParentheses())
+}
+
 func (suite *GoTestSuite) TestOrCompareSimple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

@@ -116,3 +116,7 @@ func testBitAddAnd() bool {
 	n := 16
 	return ((tid + n) & ^(n - 1)) == 32
 }
+
+func testManyParentheses() bool {
+	return ((1%2) | (3%4))*6 == 3*6
+}
