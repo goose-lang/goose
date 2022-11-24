@@ -913,9 +913,9 @@ Definition testBitwiseOpsPrecedence: val :=
   rec: "testBitwiseOpsPrecedence" <> :=
     let: "ok" := ref_to boolT #true in
     "ok" <-[boolT] (![boolT] "ok") && (#222 `or` #327 = #479);;
-    "ok" <-[boolT] (![boolT] "ok") && ((#468 `and` #1191) = #132);;
+    "ok" <-[boolT] (![boolT] "ok") && (#468 `and` #1191 = #132);;
     "ok" <-[boolT] (![boolT] "ok") && (#453 `xor` #761 = #828);;
-    "ok" <-[boolT] (![boolT] "ok") && (#453 `xor` #761 `or` #121 = #893);;
+    "ok" <-[boolT] (![boolT] "ok") && ((#453 `xor` #761) `or` #121 = #893);;
     "ok" <-[boolT] (![boolT] "ok") && ((#468 `and` #1191) `or` #333 = #461);;
     "ok" <-[boolT] (![boolT] "ok") && (#222 `or` (#327 `and` #421) ≠ #389);;
     ![boolT] "ok".
@@ -934,7 +934,7 @@ Definition testBitAddAnd: val :=
   rec: "testBitAddAnd" <> :=
     let: "tid" := #17 in
     let: "n" := #16 in
-    (("tid" + "n" `and` ~ ("n" - #1)) = #32).
+    (("tid" + "n") `and` (~ ("n" - #1)) = #32).
 
 (* precedence.go *)
 
