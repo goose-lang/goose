@@ -930,6 +930,12 @@ Definition testArithmeticShifts: val :=
     "ok" <-[boolT] (![boolT] "ok") && ((#672 ≫ #4) ≪ #4 = #672);;
     ![boolT] "ok".
 
+Definition testBitAddAnd: val :=
+  rec: "testBitAddAnd" <> :=
+    let: "tid" := #17 in
+    let: "n" := #16 in
+    (("tid" + "n" `and` ~ ("n" - #1)) = #32).
+
 (* precedence.go *)
 
 Definition testOrCompareSimple: val :=

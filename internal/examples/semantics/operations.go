@@ -110,3 +110,9 @@ func testArithmeticShifts() bool {
 	ok = ok && (672>>4<<4 == 672)
 	return ok
 }
+
+func testBitAddAnd() bool {
+	tid := 17
+	n := 16
+	return ((tid + n) & ^(n - 1)) == 32
+}

@@ -378,6 +378,12 @@ func (suite *GoTestSuite) TestArithmeticShifts() {
 	suite.Equal(true, testArithmeticShifts())
 }
 
+func (suite *GoTestSuite) TestBitAddAnd() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testBitAddAnd())
+}
+
 func (suite *GoTestSuite) TestOrCompareSimple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
