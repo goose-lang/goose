@@ -120,3 +120,7 @@ func testBitAddAnd() bool {
 func testManyParentheses() bool {
 	return ((1%2)|(3%4))*6 == 3*6
 }
+
+func testPlusTimes() bool {
+	return (2+5)*2 == 14
+}

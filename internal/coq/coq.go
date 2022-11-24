@@ -9,16 +9,12 @@ import (
 	"strings"
 )
 
-func isWellBalanced(s string, lDelim string, rDelim string) bool {
-	if strings.HasPrefix(s, lDelim) && strings.HasSuffix(s, rDelim) {
-		// Make sure this does not look like `(a + b) + (c + d)`
-		// TODO: we could avoid false negatives by actually walking the string and checking whether the starting and ending parenthesis are matching up
-		sub := s[len(lDelim) : len(s)-len(rDelim)]
-		if !strings.Contains(sub, lDelim) && !strings.Contains(sub, rDelim) {
-			return true
-		}
+func addParens(needs_paren bool, expr string) string {
+	if needs_paren {
+		return "(" + expr + ")"
+	} else {
+		return expr
 	}
-	return false
 }
 
 // buffer is a simple indenting pretty printer
@@ -66,16 +62,6 @@ func (pp buffer) Build() string {
 	return strings.Join(pp.lines, "\n")
 }
 
-func addParens(s string) string {
-	// conservative avoidance of parentheses
-	if !strings.Contains(s, " ") ||
-		isWellBalanced(s, "(", ")") ||
-		isWellBalanced(s, "{|", "|}") {
-		return s
-	}
-	return fmt.Sprintf("(%s)", s)
-}
-
 func indent(spaces int, s string) string {
 	lines := strings.Split(s, "\n")
 	indentation := strings.Repeat(" ", spaces)
@@ -120,7 +106,7 @@ func (d FieldDecl) CoqBinder() string {
 	return binder(d.Name)
 }
 
-func (d FieldDecl) Coq() string {
+func (d FieldDecl) Coq(needs_paren bool) string {
 	return binder(d.Name)
 }
 
@@ -146,7 +132,7 @@ func (d StructDecl) CoqDecl() string {
 		if i == len(d.Fields)-1 {
 			sep = ""
 		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
+		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
@@ -169,14 +155,14 @@ func (d InterfaceDecl) CoqDecl() string {
 		if i == len(d.Methods)-1 {
 			sep = ""
 		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
+		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
 	return pp.Build()
 }
 
-func (d InterfaceDecl) Coq() string {
+func (d InterfaceDecl) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 	pp.Add("Definition %s := struct.decl [", d.Name)
@@ -186,7 +172,7 @@ func (d InterfaceDecl) Coq() string {
 		if i == len(d.Methods)-1 {
 			sep = ""
 		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(), sep)
+		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
 	pp.AddLine("].")
@@ -199,7 +185,7 @@ type StructToInterface struct {
 	Methods   []string
 }
 
-func (d StructToInterface) Coq() string {
+func (d StructToInterface) Coq(needs_paren bool) string {
 	var pp buffer
 	if len(d.Struct) > 0 && len(d.Interface) > 0 {
 		pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
@@ -268,9 +254,9 @@ type StructToInterfaceDecl struct {
 	Arg       string
 }
 
-func (d StructToInterfaceDecl) Coq() string {
+func (d StructToInterfaceDecl) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("%s (%s__to__%s %s)", d.Fun, d.Struct, d.Interface, d.Arg)
+	pp.Add("(%s (%s__to__%s %s))", d.Fun, d.Struct, d.Interface, d.Arg)
 	return pp.Build()
 }
 
@@ -281,7 +267,7 @@ type TypeDecl struct {
 
 func (d TypeDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s: ty := %s.", d.Name, d.Body.Coq())
+	pp.Add("Definition %s: ty := %s.", d.Name, d.Body.Coq(false))
 	return pp.Build()
 }
 
@@ -290,7 +276,8 @@ func (d TypeDecl) CoqDecl() string {
 // Structurally identical to Expr but serves as a nice annotation in the type
 // system for where types are expected.
 type Type interface {
-	Coq() string
+	// If needs_paren is true, this should be generated with parentheses.
+	Coq(needs_paren bool) string
 }
 
 // TypeIdent is an identifier referencing a type.
@@ -299,7 +286,7 @@ type Type interface {
 // type rather than a value is being referenced.
 type TypeIdent string
 
-func (t TypeIdent) Coq() string {
+func (t TypeIdent) Coq(needs_paren bool) string {
 	return string(t)
 }
 
@@ -308,8 +295,8 @@ func (t TypeIdent) Coq() string {
 // This is Type rather than an Expr.
 type StructName string
 
-func (t StructName) Coq() string {
-	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq()
+func (t StructName) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq(needs_paren)
 }
 
 type MapType struct {
@@ -317,8 +304,8 @@ type MapType struct {
 	Value Type
 }
 
-func (t MapType) Coq() string {
-	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq()
+func (t MapType) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq(needs_paren)
 }
 
 type FuncType struct {
@@ -326,7 +313,7 @@ type FuncType struct {
 	Results []string
 }
 
-func (t FuncType) Coq() string {
+func (t FuncType) Coq(needs_paren bool) string {
 	var args []string
 	for _, a := range t.Params {
 		args = append(args, a)
@@ -340,15 +327,15 @@ func (t FuncType) Coq() string {
 	if len(args) == 0 {
 		args = []string{"<>"}
 	}
-	return fmt.Sprintf("arrowT %s", strings.Join(args, " "))
+	return fmt.Sprintf("(arrowT %s)", strings.Join(args, " "))
 }
 
 type SliceType struct {
 	Value Type
 }
 
-func (t SliceType) Coq() string {
-	return fmt.Sprintf("slice.T %s", addParens(t.Value.Coq()))
+func (t SliceType) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("slice.T"), t.Value).Coq(needs_paren)
 }
 
 type ArrayType struct {
@@ -356,8 +343,8 @@ type ArrayType struct {
 	Elt Type
 }
 
-func (t ArrayType) Coq() string {
-	return fmt.Sprintf("arrayT %s", t.Elt.Coq())
+func (t ArrayType) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("arrayT"), t.Elt).Coq(needs_paren)
 }
 
 type ArrowType struct {
@@ -365,17 +352,18 @@ type ArrowType struct {
 	ReturnType Type
 }
 
-func (t ArrowType) Coq() string {
+func (t ArrowType) Coq(needs_paren bool) string {
 	types := []string{}
 	for _, a := range t.ArgTypes {
-		types = append(types, a.Coq())
+		types = append(types, a.Coq(true))
 	}
-	types = append(types, t.ReturnType.Coq())
+	types = append(types, t.ReturnType.Coq(true))
 	return "(" + strings.Join(types, " -> ") + ")%ht"
 }
 
 type Expr interface {
-	Coq() string
+	// If needs_paren is true, this should be generated with parentheses.
+	Coq(needs_paren bool) string
 }
 
 // GallinaIdent is a identifier in Gallina (and not a variable)
@@ -383,7 +371,7 @@ type Expr interface {
 // A GallinaIdent is translated literally to Coq.
 type GallinaIdent string
 
-func (e GallinaIdent) Coq() string {
+func (e GallinaIdent) Coq(needs_paren bool) string {
 	return string(e)
 }
 
@@ -394,7 +382,7 @@ type PackageIdent struct {
 	Ident   string
 }
 
-func (e PackageIdent) Coq() string {
+func (e PackageIdent) Coq(needs_paren bool) string {
 	return fmt.Sprintf("%s.%s", e.Package, e.Ident)
 }
 
@@ -404,7 +392,7 @@ type LoggingStmt struct {
 	GoCall string
 }
 
-func (s LoggingStmt) Coq() string {
+func (s LoggingStmt) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.AddComment(s.GoCall)
 	return pp.Build()
@@ -415,7 +403,7 @@ func (s LoggingStmt) Coq() string {
 // An IdentExpr is quoted in Coq.
 type IdentExpr string
 
-func (e IdentExpr) Coq() string {
+func (e IdentExpr) Coq(needs_paren bool) string {
 	return quote(string(e))
 }
 
@@ -425,7 +413,7 @@ func (e IdentExpr) Coq() string {
 // different.
 type GallinaString string
 
-func (s GallinaString) Coq() string {
+func (s GallinaString) Coq(needs_paren bool) string {
 	return quote(string(s))
 }
 
@@ -445,17 +433,17 @@ func NewCallExpr(name Expr, args ...Expr) CallExpr {
 	return CallExpr{MethodName: name, Args: args}
 }
 
-func (s CallExpr) Coq() string {
-	comps := []string{s.MethodName.Coq()}
+func (s CallExpr) Coq(needs_paren bool) string {
+	comps := []string{s.MethodName.Coq(true)}
 
 	for _, a := range s.TypeArgs {
-		comps = append(comps, addParens(a.Coq()))
+		comps = append(comps, a.Coq(true))
 	}
 
 	for _, a := range s.Args {
-		comps = append(comps, addParens(a.Coq()))
+		comps = append(comps, a.Coq(true))
 	}
-	return strings.Join(comps, " ")
+	return addParens(needs_paren, strings.Join(comps, " "))
 }
 
 type StructFieldAccessExpr struct {
@@ -471,21 +459,21 @@ func StructDesc(name string) Expr {
 	return GallinaIdent(name)
 }
 
-func (e StructFieldAccessExpr) Coq() string {
+func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
 	if e.ThroughPointer {
 		return NewCallExpr(GallinaIdent("struct.loadF"),
-			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq()
+			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq(needs_paren)
 	}
 	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
-		GallinaString(e.Field), e.X).Coq()
+		GallinaString(e.Field), e.X).Coq(needs_paren)
 }
 
 type ReturnExpr struct {
 	Value Expr
 }
 
-func (e ReturnExpr) Coq() string {
-	return e.Value.Coq()
+func (e ReturnExpr) Coq(needs_paren bool) string {
+	return e.Value.Coq(needs_paren)
 }
 
 // Binding is a Coq binding (a part of a Bind expression)
@@ -538,24 +526,24 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 	sl.elts = append(sl.elts, fieldVal{field, value})
 }
 
-func (sl StructLiteral) Coq() string {
+func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.mk"
 	if sl.Allocation {
 		method = "struct.new"
 	}
-	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq())
+	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
 		if i == len(sl.elts)-1 {
 			terminator = ""
 		}
-		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(), terminator)
+		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(false), terminator)
 	}
 	pp.Indent(-2)
 	pp.Add("]")
-	return pp.Build()
+	return addParens(needs_paren, pp.Build())
 }
 
 type BoolLiteral bool
@@ -565,7 +553,7 @@ var (
 	True  BoolLiteral = true
 )
 
-func (b BoolLiteral) Coq() string {
+func (b BoolLiteral) Coq(needs_paren bool) string {
 	if b {
 		return "#true"
 	} else {
@@ -577,7 +565,7 @@ type UnitLiteral struct{}
 
 var Tt UnitLiteral = struct{}{}
 
-func (tt UnitLiteral) Coq() string {
+func (tt UnitLiteral) Coq(needs_paren bool) string {
 	return "#()"
 }
 
@@ -585,7 +573,7 @@ type IntLiteral struct {
 	Value uint64
 }
 
-func (l IntLiteral) Coq() string {
+func (l IntLiteral) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#%d", l.Value)
 }
 
@@ -593,7 +581,7 @@ type Int32Literal struct {
 	Value uint32
 }
 
-func (l Int32Literal) Coq() string {
+func (l Int32Literal) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#(U32 %d)", l.Value)
 }
 
@@ -601,7 +589,7 @@ type ByteLiteral struct {
 	Value uint8
 }
 
-func (l ByteLiteral) Coq() string {
+func (l ByteLiteral) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#(U8 %v)", l.Value)
 }
 
@@ -609,13 +597,13 @@ type StringLiteral struct {
 	Value string
 }
 
-func (l StringLiteral) Coq() string {
+func (l StringLiteral) Coq(needs_paren bool) string {
 	return fmt.Sprintf(`#(str"%s")`, l.Value)
 }
 
 type nullLiteral struct{}
 
-func (l nullLiteral) Coq() string {
+func (l nullLiteral) Coq(needs_paren bool) string {
 	return "#null"
 }
 
@@ -654,7 +642,7 @@ type BinaryExpr struct {
 	Y  Expr
 }
 
-func (be BinaryExpr) Coq() string {
+func (be BinaryExpr) Coq(needs_paren bool) string {
 	coqBinOp := map[BinOp]string{
 		OpPlus:        "+",
 		OpMinus:       "-",
@@ -677,29 +665,9 @@ func (be BinaryExpr) Coq() string {
 		OpShr:         "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
-		// these operators bind too tightly, so we wrap their arguments in parentheses
-		//
-		// TODO: it would really be better to add more parentheses to avoid
-		// semantic mismatches
-		badPrecedence := map[BinOp]bool{
-			OpQuot: true,
-			OpRem:  true,
-			OpLOr:  true,
-			OpLAnd: true,
-			OpAnd:  true,
-			OpOr:   true,
-			OpShl:  true,
-			OpShr:  true,
-		}
-		if badPrecedence[be.Op] {
-			return fmt.Sprintf("%s %s %s",
-				addParens(be.X.Coq()), binop, addParens(be.Y.Coq()))
-		}
-		s := fmt.Sprintf("%s %s %s", be.X.Coq(), binop, be.Y.Coq())
-		if be.Op == OpEquals {
-			s = addParens(s)
-		}
-		return s
+		expr := fmt.Sprintf("%s %s %s",
+			be.X.Coq(true), binop, be.Y.Coq(true))
+		return addParens(needs_paren, expr)
 	}
 
 	panic(fmt.Sprintf("unknown binop %d", be.Op))
@@ -709,16 +677,16 @@ type NotExpr struct {
 	X Expr
 }
 
-func (e NotExpr) Coq() string {
-	return fmt.Sprintf("~ %s", addParens(e.X.Coq()))
+func (e NotExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("(~ %s)", e.X.Coq(true))
 }
 
 type TupleExpr []Expr
 
-func (te TupleExpr) Coq() string {
+func (te TupleExpr) Coq(needs_paren bool) string {
 	var comps []string
 	for _, t := range te {
-		comps = append(comps, t.Coq())
+		comps = append(comps, t.Coq(false))
 	}
 	return fmt.Sprintf("(%s)",
 		indent(1, strings.Join(comps, ", ")))
@@ -740,52 +708,52 @@ type BlockExpr struct {
 // AddTo adds a binding as a non-terminal line to a block
 func (b Binding) AddTo(pp *buffer) {
 	if e, ok := b.Expr.(LoggingStmt); ok {
-		pp.Add("%s", e.Coq())
+		pp.Add("%s", e.Coq(true))
 		return
 	}
 	// Printing for anonymous and multiple return values
 	if b.isAnonymous() {
-		pp.Add("%s;;", b.Expr.Coq())
+		pp.Add("%s;;", b.Expr.Coq(false))
 	} else if len(b.Names) == 1 {
-		pp.Add("let: %s := %s in", binder(b.Names[0]), b.Expr.Coq())
+		pp.Add("let: %s := %s in", binder(b.Names[0]), b.Expr.Coq(false))
 	} else if len(b.Names) == 2 {
 		pp.Add("let: (%s, %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
-			b.Expr.Coq())
+			b.Expr.Coq(false))
 	} else if len(b.Names) == 3 {
 		pp.Add("let: ((%s, %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),
-			b.Expr.Coq())
+			b.Expr.Coq(false))
 	} else if len(b.Names) == 4 {
 		pp.Add("let: (((%s, %s), %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),
 			binder(b.Names[3]),
-			b.Expr.Coq())
+			b.Expr.Coq(false))
 	} else {
 		panic("no support for destructuring more than 4 return values")
 	}
 }
 
-func (be BlockExpr) Coq() string {
+func (be BlockExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	for n, b := range be.Bindings {
 		if n == len(be.Bindings)-1 {
 			if _, ok := b.Expr.(LoggingStmt); ok {
-				pp.AddLine(b.Expr.Coq())
-				pp.AddLine(UnitLiteral{}.Coq())
+				pp.AddLine(b.Expr.Coq(false))
+				pp.AddLine(UnitLiteral{}.Coq(true))
 			} else {
-				pp.AddLine(b.Expr.Coq())
+				pp.AddLine(b.Expr.Coq(false))
 			}
 			continue
 		}
 		b.AddTo(&pp)
 	}
-	return pp.Build()
+	return addParens(needs_paren, pp.Build())
 }
 
 type DerefExpr struct {
@@ -793,8 +761,9 @@ type DerefExpr struct {
 	Ty Expr
 }
 
-func (e DerefExpr) Coq() string {
-	return fmt.Sprintf("![%s] %s", e.Ty.Coq(), addParens(e.X.Coq()))
+func (e DerefExpr) Coq(needs_paren bool) string {
+	expr := fmt.Sprintf("![%s] %s", e.Ty.Coq(false), e.X.Coq(true))
+	return addParens(needs_paren, expr)
 }
 
 type RefExpr struct {
@@ -802,8 +771,8 @@ type RefExpr struct {
 	Ty Expr
 }
 
-func (e RefExpr) Coq() string {
-	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq()
+func (e RefExpr) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq(needs_paren)
 }
 
 type StoreStmt struct {
@@ -812,8 +781,9 @@ type StoreStmt struct {
 	X   Expr
 }
 
-func (e StoreStmt) Coq() string {
-	return fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(), e.Ty.Coq(), e.X.Coq())
+func (e StoreStmt) Coq(needs_paren bool) string {
+	expr := fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(true), e.Ty.Coq(false), e.X.Coq(true))
+	return addParens(needs_paren, expr)
 }
 
 type IfExpr struct {
@@ -823,7 +793,7 @@ type IfExpr struct {
 }
 
 func flowBranch(pp *buffer, prefix string, e Expr, suffix string) {
-	code := e.Coq() + suffix
+	code := e.Coq(false) + suffix
 	if !strings.ContainsRune(code, '\n') {
 		// compact, single-line form
 		indent := pp.Block(prefix+" ", "%s", code)
@@ -837,9 +807,10 @@ func flowBranch(pp *buffer, prefix string, e Expr, suffix string) {
 	pp.Indent(-2)
 }
 
-func (ife IfExpr) Coq() string {
+func (ife IfExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("(if: %s", ife.Cond.Coq())
+	// Since we are parenthesesizing all if, we don't need to parenthesize the things inside the if
+	pp.Add("(if: %s", ife.Cond.Coq(false))
 	flowBranch(&pp, "then", ife.Then, "")
 	flowBranch(&pp, "else", ife.Else, ")")
 	return pp.Build()
@@ -857,8 +828,8 @@ type HashTableInsert struct {
 	Value Expr
 }
 
-func (e HashTableInsert) Coq() string {
-	return fmt.Sprintf("(fun _ => Some %s)", addParens(e.Value.Coq()))
+func (e HashTableInsert) Coq(needs_paren bool) string {
+	return fmt.Sprintf("(fun _ => Some %s)", e.Value.Coq(true))
 }
 
 var LoopContinue = GallinaIdent("Continue")
@@ -872,12 +843,12 @@ type ForLoopExpr struct {
 	Body BlockExpr
 }
 
-func (e ForLoopExpr) Coq() string {
+func (e ForLoopExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	e.Init.AddTo(&pp)
-	pp.Add("(for: (λ: <>, %s); (λ: <>, %s) := λ: <>,", e.Cond.Coq(), e.Post.Coq())
+	pp.Add("(for: (λ: <>, %s); (λ: <>, %s) := λ: <>,", e.Cond.Coq(false), e.Post.Coq(false))
 	pp.Indent(2)
-	pp.Add("%s)", e.Body.Coq())
+	pp.Add("%s)", e.Body.Coq(false))
 	return pp.Build()
 }
 
@@ -898,15 +869,15 @@ type SliceLoopExpr struct {
 	Body  BlockExpr
 }
 
-func (e SliceLoopExpr) Coq() string {
+func (e SliceLoopExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.Add("ForSlice %v %s %s %s",
-		addParens(e.Ty.Coq()),
+		e.Ty.Coq(true),
 		binderToCoq(e.Key), binderToCoq(e.Val),
-		addParens(e.Slice.Coq()))
+		e.Slice.Coq(true))
 	pp.Indent(2)
-	pp.Add("%s", addParens(e.Body.Coq()))
-	return pp.Build()
+	pp.Add("%s", e.Body.Coq(true))
+	return addParens(needs_paren, pp.Build())
 }
 
 // MapIterExpr is a call to the map iteration helper.
@@ -919,14 +890,14 @@ type MapIterExpr struct {
 	Body BlockExpr
 }
 
-func (e MapIterExpr) Coq() string {
+func (e MapIterExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.Add("MapIter %s (λ: %s %s,",
-		addParens(e.Map.Coq()),
+		e.Map.Coq(true),
 		binder(e.KeyIdent), binder(e.ValueIdent))
 	pp.Indent(2)
-	pp.Add("%s)", e.Body.Coq())
-	return pp.Build()
+	pp.Add("%s)", e.Body.Coq(false))
+	return addParens(needs_paren, pp.Build())
 }
 
 // SpawnExpr is a call to Spawn a thread running a procedure.
@@ -936,10 +907,10 @@ type SpawnExpr struct {
 	Body BlockExpr
 }
 
-func (e SpawnExpr) Coq() string {
+func (e SpawnExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Block("Fork (", "%s)", e.Body.Coq())
-	return pp.Build()
+	pp.Block("Fork (", "%s)", e.Body.Coq(false))
+	return addParens(needs_paren, pp.Build())
 }
 
 // FuncLit is an unnamed function literal, consisting of its parameters and body.
@@ -950,7 +921,7 @@ type FuncLit struct {
 	// TODO: AddTypes   bool
 }
 
-func (e FuncLit) Coq() string {
+func (e FuncLit) Coq(needs_paren bool) string {
 	var pp buffer
 
 	var args []string
@@ -965,7 +936,7 @@ func (e FuncLit) Coq() string {
 	pp.Add("(λ: %s,", sig)
 	pp.Indent(2)
 	defer pp.Indent(-2)
-	pp.AddLine(e.Body.Coq())
+	pp.AddLine(e.Body.Coq(false))
 	pp.Add(")")
 
 	return pp.Build()
@@ -998,12 +969,12 @@ func (d FuncDecl) Type() string {
 	// FIXME: doesn't deal with type parameters
 	types := []string{}
 	for _, a := range d.Args {
-		types = append(types, a.Type.Coq())
+		types = append(types, a.Type.Coq(true))
 	}
 	if len(d.Args) == 0 {
-		types = append(types, TypeIdent("unitT").Coq())
+		types = append(types, TypeIdent("unitT").Coq(true))
 	}
-	types = append(types, d.ReturnType.Coq())
+	types = append(types, d.ReturnType.Coq(true))
 	return strings.Join(types, " -> ")
 }
 
@@ -1027,7 +998,7 @@ func (d FuncDecl) CoqDecl() string {
 		pp.Add("rec: \"%s\" %s :=", d.Name, d.Signature())
 		pp.Indent(2)
 		defer pp.Indent(-2)
-		pp.AddLine(d.Body.Coq() + ".")
+		pp.AddLine(d.Body.Coq(false) + ".")
 	}()
 	if d.AddTypes {
 		pp.Add("Theorem %s_t: ⊢ %s : (%s).", d.Name, d.Name, d.Type())
@@ -1069,11 +1040,11 @@ func (d ConstDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 	indent := pp.Block("Definition ", "%s : expr := %s.",
-		d.Name, d.Val.Coq())
+		d.Name, d.Val.Coq(false))
 	pp.Indent(-indent)
 	if d.AddTypes {
 		pp.Add("Theorem %s_t Γ : Γ ⊢ %s : %s.",
-			d.Name, d.Name, addParens(d.Type.Coq()))
+			d.Name, d.Name, d.Type.Coq(true))
 		pp.AddLine("Proof. typecheck. Qed.")
 	}
 	return pp.Build()
@@ -1094,10 +1065,10 @@ func NewTupleType(types []Type) Type {
 	return TupleType(types)
 }
 
-func (tt TupleType) Coq() string {
+func (tt TupleType) Coq(needs_paren bool) string {
 	var comps []string
 	for _, t := range tt {
-		comps = append(comps, t.Coq())
+		comps = append(comps, t.Coq(true))
 	}
 	return fmt.Sprintf("(%s)", strings.Join(comps, " * "))
 }
@@ -1105,7 +1076,7 @@ func (tt TupleType) Coq() string {
 type PtrType struct {
 }
 
-func (t PtrType) Coq() string {
+func (t PtrType) Coq(needs_paren bool) string {
 	return "ptrT"
 }
 
@@ -1114,7 +1085,7 @@ func StructMethod(structName string, methodName string) string {
 }
 
 func InterfaceMethod(interfaceName string, methodName string) string {
-	return fmt.Sprintf("struct.get %s \"%s\"", interfaceName, methodName)
+	return fmt.Sprintf("(struct.get %s \"%s\")", interfaceName, methodName)
 }
 
 const importHeader string = `

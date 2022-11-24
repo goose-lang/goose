@@ -457,7 +457,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
-		coq.GallinaIdent(coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq()),
+		coq.GallinaIdent(coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
 		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
@@ -774,14 +774,14 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 					structName = unqualifyName(structName)
 					if interfaceName != structName && interfaceName != "" && structName != "" {
 						conversion := coq.StructToInterfaceDecl{
-							Fun:       ctx.expr(s.Fun).Coq(),
+							Fun:       ctx.expr(s.Fun).Coq(true),
 							Struct:    structName,
 							Interface: interfaceName,
-							Arg:       ctx.expr(s.Args[0]).Coq(),
-						}.Coq()
+							Arg:       ctx.expr(s.Args[0]).Coq(true),
+						}.Coq(true)
 						for i, arg := range s.Args {
 							if i > 0 {
-								conversion += " " + ctx.expr(arg).Coq()
+								conversion += " " + ctx.expr(arg).Coq(true)
 							}
 						}
 						return coq.CallExpr{MethodName: coq.GallinaIdent(conversion)}
@@ -2146,7 +2146,7 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDec
 			structName = unqualifyName(structName)
 			if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
 				cv := coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
-				if len(cv.Coq()) > 1 && len(cv.MethodList()) > 0 {
+				if len(cv.Coq(true)) > 1 && len(cv.MethodList()) > 0 {
 					cvs = append(cvs, cv)
 				}
 			}
