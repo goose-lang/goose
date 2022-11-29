@@ -194,6 +194,17 @@ func isLockRef(t types.Type) bool {
 	return false
 }
 
+func isCFMutexRef(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
+			return name.Pkg().Name() == "cfmutex" &&
+				name.Name() == "CFMutex"
+		}
+	}
+	return false
+}
+
 func isCondVar(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {

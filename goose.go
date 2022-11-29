@@ -449,12 +449,6 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("lock.newCond", args)
 		}
 	}
-	if isIdent(f.X, "tsc") {
-		switch f.Sel.Name {
-		case "GetTSC":
-			return ctx.newCoqCall("tsc.GetTSC", nil)
-		}
-	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
 		coq.GallinaIdent(coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq()),
@@ -470,6 +464,9 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		return ctx.packageMethod(f, call)
 	}
 	if isLockRef(selectorType) {
+		return ctx.lockMethod(f)
+	}
+	if isCFMutexRef(selectorType) {
 		return ctx.lockMethod(f)
 	}
 	if isCondVar(selectorType) {
@@ -655,6 +652,9 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 		}
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
 			return coq.NewCallExpr(coq.GallinaIdent("waitgroup.New"))
+		}
+		if isIdent(sel.X, "cfmutex") && isIdent(sel.Sel, "CFMutex") {
+			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
@@ -2009,7 +2009,7 @@ var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine/disk":       true,
 	"github.com/tchajed/goose/machine/async_disk": true,
 	"github.com/mit-pdos/gokv/time":               true,
-	"github.com/mit-pdos/go-mvcc/tsc":             true,
+	"github.com/mit-pdos/go-mvcc/cfmutex":         true,
 	"sync":                                        true,
 	"log":                                         true,
 	"fmt":                                         true,
