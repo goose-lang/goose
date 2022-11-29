@@ -1569,10 +1569,11 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
 // expr for the pointer itself (whereas ordinarily it would be implicitly loaded)
 //
 // TODO: integrate this into the reference-of, store, and load code
-//   note that we will no longer special-case when the reference is to a
-//   basic value and will use generic type-based support in Coq,
-//   hence on the Coq side we'll always have to reduce type-based loads and
-//   stores when they end up loading single-word values.
+//
+//	note that we will no longer special-case when the reference is to a
+//	basic value and will use generic type-based support in Coq,
+//	hence on the Coq side we'll always have to reduce type-based loads and
+//	stores when they end up loading single-word values.
 func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 	switch s := s.(type) {
 	case *ast.Ident:

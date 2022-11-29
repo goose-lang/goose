@@ -108,6 +108,10 @@ func WaitTimeout(cond *sync.Cond, timeoutMs uint64) {
 	}
 }
 
+func TimeNow() uint64 {
+	return uint64(time.Now().UnixNano())
+}
+
 func Sleep(ns uint64) {
 	time.Sleep(time.Duration(ns) * time.Nanosecond)
 }

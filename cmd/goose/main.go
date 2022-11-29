@@ -74,7 +74,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 	}
 }
 
-//noinspection GoUnhandledErrorResult
+// noinspection GoUnhandledErrorResult
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")
