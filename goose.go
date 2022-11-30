@@ -409,6 +409,8 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("lock.condWaitTimeout", args)
 		case "Sleep":
 			return ctx.newCoqCall("time.Sleep", args)
+		case "TimeNow":
+			return ctx.newCoqCall("time.TimeNow", args)
 		case "MapClear":
 			return ctx.newCoqCall("MapClear", args)
 		case "NewProph":
