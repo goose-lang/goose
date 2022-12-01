@@ -84,6 +84,11 @@ func Assert(c bool) {
 	}
 }
 
+// Stop the program with the given exit code.
+func Exit(n uint64) {
+	os.Exit(int(n))
+}
+
 // WaitTimeout is like cond.Wait(),
 // but waits for a maximum time of timeoutMs milliseconds.
 //
