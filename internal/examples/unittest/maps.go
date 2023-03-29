@@ -24,3 +24,7 @@ type MapWrapper map[uint64]bool
 func MapTypeAliases(m1 map[IntWrapper]bool, m2 MapWrapper) {
 	m1[4] = m2[uint64(0)]
 }
+
+func StringMap(m map[string]uint64) uint64 {
+	return m["foo"]
+}

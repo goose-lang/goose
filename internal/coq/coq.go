@@ -313,6 +313,7 @@ func (t StructName) Coq() string {
 }
 
 type MapType struct {
+	Key   Type
 	Value Type
 }
 

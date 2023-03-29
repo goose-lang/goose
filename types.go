@@ -20,14 +20,26 @@ func (ctx Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
 	return
 }
 
+// for now only string and uint64 are supported
+//
+// literals structs with literals should also be fine
+func supportedMapKey(keyTy types.Type) bool {
+	if isString(keyTy) {
+		return true
+	}
+	info, ok := getIntegerType(keyTy)
+	if ok && info.isUint64() {
+		return true
+	}
+	return false
+}
+
 func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 	ty := ctx.typeOf(e).Underlying().(*types.Map)
-	info, ok := getIntegerType(ty.Key())
-	if ok && info.isUint64() {
-		return coq.MapType{ctx.coqType(e.Value)}
+	if !supportedMapKey(ty.Key()) {
+		ctx.unsupported(e, "maps must be from uint64 or string (not %v)", e.Key)
 	}
-	ctx.unsupported(e, "maps must be from uint64 (not %v)", e.Key)
-	return coq.MapType{}
+	return coq.MapType{Key: ctx.coqType(e.Key), Value: ctx.coqType(e.Value)}
 }
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
@@ -96,7 +108,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Slice:
 		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
-		return coq.MapType{ctx.coqTypeOfType(n, t.Elem())}
+		return coq.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
