@@ -396,7 +396,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		case "UInt64Get", "UInt64Put", "UInt32Get", "UInt32Put":
 			return ctx.newCoqCall(f.Sel.Name, args)
 		case "RandomUint64":
-			return ctx.newCoqCall("Data.randomUint64", nil)
+			return ctx.newCoqCall("rand.RandomUint64", args)
 		case "UInt64ToString":
 			return ctx.newCoqCall("uint64_to_string", args)
 		case "Linearize":
