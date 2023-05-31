@@ -43,9 +43,79 @@ func filterImports(decls []coq.Decl) (nonImports []coq.Decl, imports coq.ImportD
 	return
 }
 
+type declId struct {
+	fileIdx int
+	declIdx int
+}
+
 // Decls converts an entire package (possibly multiple files) to a list of decls
 func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl, errs []error) {
-	for _, f := range fs {
+	nameDecls := make(map[string]declId)
+	generated := make(map[declId]bool)
+
+	for fi, f := range fs {
+		for di, d := range f.Ast.Decls {
+			switch x := d.(type) {
+			case *ast.FuncDecl:
+				nameDecls[x.Name.Name] = declId{fi, di}
+			case *ast.GenDecl:
+				for _, s := range x.Specs {
+					switch y := s.(type) {
+					case *ast.ValueSpec:
+						for _, n := range y.Names {
+							nameDecls[n.Name] = declId{fi, di}
+						}
+					case *ast.TypeSpec:
+						nameDecls[y.Name.Name] = declId{fi, di}
+					}
+				}
+			}
+		}
+	}
+
+	var lastFile int
+	var processDecl func(id declId)
+
+	processDecl = func(id declId) {
+		if generated[id] {
+			return
+		}
+		generated[id] = true
+
+		f := fs[id.fileIdx]
+		d := f.Ast.Decls[id.declIdx]
+
+		idents := make(map[string]bool)
+		ast.Inspect(d, func (n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.Ident:
+				idents[x.Name] = true
+			}
+			return true
+		})
+		for dep := range(idents) {
+			depid, ok := nameDecls[dep]
+			if ok {
+				processDecl(depid)
+			}
+		}
+
+		if lastFile != id.fileIdx {
+			decls = append(decls,
+				coq.NewComment(fmt.Sprintf("%s", f.Name())))
+			lastFile = id.fileIdx
+		}
+
+		newDecls, err := ctx.declsOrError(d)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		newDecls, newImports := filterImports(newDecls)
+		decls = append(decls, newDecls...)
+		imports = append(imports, newImports...)
+	}
+
+	for fi, f := range fs {
 		if len(fs) > 1 {
 			decls = append(decls,
 				coq.NewComment(fmt.Sprintf("%s", f.Name())))
@@ -53,14 +123,9 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		if f.Ast.Doc != nil {
 			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))
 		}
-		for _, d := range f.Ast.Decls {
-			newDecls, err := ctx.declsOrError(d)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			newDecls, newImports := filterImports(newDecls)
-			decls = append(decls, newDecls...)
-			imports = append(imports, newImports...)
+		lastFile = fi
+		for di, _ := range f.Ast.Decls {
+			processDecl(declId{fi, di})
 		}
 	}
 	return
