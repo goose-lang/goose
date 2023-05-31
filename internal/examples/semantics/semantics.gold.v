@@ -195,12 +195,6 @@ Definition Enc := struct.decl [
   "p" :: slice.T byteT
 ].
 
-Definition Enc__consume: val :=
-  rec: "Enc__consume" "e" "n" :=
-    let: "b" := SliceTake (struct.loadF Enc "p" "e") "n" in
-    struct.storeF Enc "p" "e" (SliceSkip byteT (struct.loadF Enc "p" "e") "n");;
-    "b".
-
 Definition Dec := struct.decl [
   "p" :: slice.T byteT
 ].
@@ -209,6 +203,12 @@ Definition Dec__consume: val :=
   rec: "Dec__consume" "d" "n" :=
     let: "b" := SliceTake (struct.loadF Dec "p" "d") "n" in
     struct.storeF Dec "p" "d" (SliceSkip byteT (struct.loadF Dec "p" "d") "n");;
+    "b".
+
+Definition Enc__consume: val :=
+  rec: "Enc__consume" "e" "n" :=
+    let: "b" := SliceTake (struct.loadF Enc "p" "e") "n" in
+    struct.storeF Enc "p" "e" (SliceSkip byteT (struct.loadF Enc "p" "e") "n");;
     "b".
 
 Definition roundtripEncDec32: val :=
@@ -426,6 +426,18 @@ Definition failing_testU32NewtypeLen: val :=
 
 (* interfaces.go *)
 
+Definition SquareStruct := struct.decl [
+  "Side" :: uint64T
+].
+
+Definition SquareStruct__Square: val :=
+  rec: "SquareStruct__Square" "t" :=
+    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
+
+Definition SquareStruct__Volume: val :=
+  rec: "SquareStruct__Volume" "t" :=
+    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
+
 Definition geometryInterface := struct.decl [
   "Square" :: (unitT -> uint64T)%ht;
   "Volume" :: (unitT -> uint64T)%ht
@@ -442,18 +454,6 @@ Definition measureVolumePlusNM: val :=
 Definition measureVolume: val :=
   rec: "measureVolume" "t" :=
     struct.get geometryInterface "Volume" "t".
-
-Definition SquareStruct := struct.decl [
-  "Side" :: uint64T
-].
-
-Definition SquareStruct__Square: val :=
-  rec: "SquareStruct__Square" "t" :=
-    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
-
-Definition SquareStruct__Volume: val :=
-  rec: "SquareStruct__Volume" "t" :=
-    struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t" * struct.get SquareStruct "Side" "t".
 
 Definition SquareStruct__to__geometryInterface: val :=
   rec: "SquareStruct_to_geometryInterface" "t" :=
@@ -1403,6 +1403,38 @@ Definition blockToInt: val :=
     let: "a" := UInt64Get "v" in
     "a".
 
+Definition Log__Size: val :=
+  rec: "Log__Size" "l" :=
+    let: "sz" := disk.Size #() in
+    "sz" - logLength.
+
+Definition Log__lock: val :=
+  rec: "Log__lock" "l" :=
+    lock.acquire (struct.get Log "l" "l");;
+    #().
+
+Definition Log__unlock: val :=
+  rec: "Log__unlock" "l" :=
+    lock.release (struct.get Log "l" "l");;
+    #().
+
+(* Write to the disk through the log. *)
+Definition Log__Write: val :=
+  rec: "Log__Write" "l" "a" "v" :=
+    Log__lock "l";;
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
+    (if: "length" ≥ MaxTxnWrites
+    then Panic ("transaction is at capacity")
+    else #());;
+    let: "aBlock" := intToBlock "a" in
+    let: "nextAddr" := #1 + #2 * "length" in
+    disk.Write "nextAddr" "aBlock";;
+    disk.Write ("nextAddr" + #1) "v";;
+    MapInsert (struct.get Log "cache" "l") "a" "v";;
+    struct.get Log "length" "l" <-[uint64T] "length" + #1;;
+    Log__unlock "l";;
+    #().
+
 (* New initializes a fresh log *)
 Definition New: val :=
   rec: "New" <> :=
@@ -1423,16 +1455,6 @@ Definition New: val :=
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
-
-Definition Log__lock: val :=
-  rec: "Log__lock" "l" :=
-    lock.acquire (struct.get Log "l" "l");;
-    #().
-
-Definition Log__unlock: val :=
-  rec: "Log__unlock" "l" :=
-    lock.release (struct.get Log "l" "l");;
-    #().
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -1464,28 +1486,6 @@ Definition Log__Read: val :=
       Log__unlock "l";;
       let: "dv" := disk.Read (logLength + "a") in
       "dv").
-
-Definition Log__Size: val :=
-  rec: "Log__Size" "l" :=
-    let: "sz" := disk.Size #() in
-    "sz" - logLength.
-
-(* Write to the disk through the log. *)
-Definition Log__Write: val :=
-  rec: "Log__Write" "l" "a" "v" :=
-    Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log "length" "l") in
-    (if: "length" ≥ MaxTxnWrites
-    then Panic ("transaction is at capacity")
-    else #());;
-    let: "aBlock" := intToBlock "a" in
-    let: "nextAddr" := #1 + #2 * "length" in
-    disk.Write "nextAddr" "aBlock";;
-    disk.Write ("nextAddr" + #1) "v";;
-    MapInsert (struct.get Log "cache" "l") "a" "v";;
-    struct.get Log "length" "l" <-[uint64T] "length" + #1;;
-    Log__unlock "l";;
-    #().
 
 (* Commit the current transaction. *)
 Definition Log__Commit: val :=

@@ -23,6 +23,28 @@ Definition Log := struct.decl [
   "logTxnNxt" :: ptrT
 ].
 
+(* txn.go *)
+
+Definition Txn := struct.decl [
+  "log" :: ptrT;
+  "blks" :: mapT disk.blockT
+].
+
+Definition Txn__Write: val :=
+  rec: "Txn__Write" "txn" "addr" "blk" :=
+    let: "ret" := ref_to boolT #true in
+    let: (<>, "ok") := MapGet (struct.get Txn "blks" "txn") "addr" in
+    (if: "ok"
+    then MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk")
+    else #());;
+    (if: ~ "ok"
+    then
+      (if: ("addr" = LOGMAXBLK)
+      then "ret" <-[boolT] #false
+      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"))
+    else #());;
+    ![boolT] "ret".
+
 Definition Log__writeHdr: val :=
   rec: "Log__writeHdr" "log" "len" :=
     let: "hdr" := NewSlice byteT #4096 in
@@ -43,6 +65,13 @@ Definition Init: val :=
     ] in
     Log__writeHdr "log" #0;;
     "log".
+
+Definition Txn__Read: val :=
+  rec: "Txn__Read" "txn" "addr" :=
+    let: ("v", "ok") := MapGet (struct.get Txn "blks" "txn") "addr" in
+    (if: "ok"
+    then "v"
+    else disk.Read ("addr" + LOGEND)).
 
 Definition Log__readHdr: val :=
   rec: "Log__readHdr" "log" :=
@@ -152,13 +181,6 @@ Definition Log__Logger: val :=
       Continue);;
     #().
 
-(* txn.go *)
-
-Definition Txn := struct.decl [
-  "log" :: ptrT;
-  "blks" :: mapT disk.blockT
-].
-
 (* XXX wait if cannot reserve space in log *)
 Definition Begin: val :=
   rec: "Begin" "log" :=
@@ -167,28 +189,6 @@ Definition Begin: val :=
       "blks" ::= NewMap disk.blockT #()
     ] in
     "txn".
-
-Definition Txn__Write: val :=
-  rec: "Txn__Write" "txn" "addr" "blk" :=
-    let: "ret" := ref_to boolT #true in
-    let: (<>, "ok") := MapGet (struct.get Txn "blks" "txn") "addr" in
-    (if: "ok"
-    then MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk")
-    else #());;
-    (if: ~ "ok"
-    then
-      (if: ("addr" = LOGMAXBLK)
-      then "ret" <-[boolT] #false
-      else MapInsert (struct.get Txn "blks" "txn") "addr" (![slice.T byteT] "blk"))
-    else #());;
-    ![boolT] "ret".
-
-Definition Txn__Read: val :=
-  rec: "Txn__Read" "txn" "addr" :=
-    let: ("v", "ok") := MapGet (struct.get Txn "blks" "txn") "addr" in
-    (if: "ok"
-    then "v"
-    else disk.Read ("addr" + LOGEND)).
 
 Definition Txn__Commit: val :=
   rec: "Txn__Commit" "txn" :=
