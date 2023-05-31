@@ -85,15 +85,15 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		f := fs[id.fileIdx]
 		d := f.Ast.Decls[id.declIdx]
 
-		idents := make(map[string]bool)
+		var idents []string
 		ast.Inspect(d, func(n ast.Node) bool {
 			switch x := n.(type) {
 			case *ast.Ident:
-				idents[x.Name] = true
+				idents = append(idents, x.Name)
 			}
 			return true
 		})
-		for dep := range idents {
+		for _, dep := range idents {
 			depid, ok := nameDecls[dep]
 			if ok {
 				processDecl(depid)
