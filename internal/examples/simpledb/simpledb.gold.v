@@ -45,15 +45,16 @@ Definition freshTable: val :=
       then #(str"table.0")
       else "p")).
 
-(* CloseTable frees up the fd held by a table. *)
-Definition CloseTable: val :=
-  rec: "CloseTable" "t" :=
-    FS.close (struct.get Table "File" "t");;
-    #().
-
 Definition bufFile := struct.decl [
   "file" :: fileT;
   "buf" :: ptrT
+].
+
+Definition tableWriter := struct.decl [
+  "index" :: mapT uint64T;
+  "name" :: stringT;
+  "file" :: struct.t bufFile;
+  "offset" :: ptrT
 ].
 
 Definition newBuf: val :=
@@ -64,51 +65,18 @@ Definition newBuf: val :=
       "buf" ::= "buf"
     ].
 
-(* EncodeUInt64 is an Encoder(uint64) *)
-Definition EncodeUInt64: val :=
-  rec: "EncodeUInt64" "x" "p" :=
-    let: "tmp" := NewSlice byteT #8 in
-    UInt64Put "tmp" "x";;
-    let: "p2" := SliceAppendSlice byteT "p" "tmp" in
-    "p2".
-
-(* EncodeSlice is an Encoder([]byte) *)
-Definition EncodeSlice: val :=
-  rec: "EncodeSlice" "data" "p" :=
-    let: "p2" := EncodeUInt64 (slice.len "data") "p" in
-    let: "p3" := SliceAppendSlice byteT "p2" "data" in
-    "p3".
-
-Definition tableWriter := struct.decl [
-  "index" :: mapT uint64T;
-  "name" :: stringT;
-  "file" :: struct.t bufFile;
-  "offset" :: ptrT
-].
-
-Definition bufAppend: val :=
-  rec: "bufAppend" "f" "p" :=
-    let: "buf" := ![slice.T byteT] (struct.get bufFile "buf" "f") in
-    let: "buf2" := SliceAppendSlice byteT "buf" "p" in
-    struct.get bufFile "buf" "f" <-[slice.T byteT] "buf2";;
-    #().
-
-Definition tableWriterAppend: val :=
-  rec: "tableWriterAppend" "w" "p" :=
-    bufAppend (struct.get tableWriter "file" "w") "p";;
-    let: "off" := ![uint64T] (struct.get tableWriter "offset" "w") in
-    struct.get tableWriter "offset" "w" <-[uint64T] "off" + slice.len "p";;
-    #().
-
-Definition tablePut: val :=
-  rec: "tablePut" "w" "k" "v" :=
-    let: "tmp" := NewSlice byteT #0 in
-    let: "tmp2" := EncodeUInt64 "k" "tmp" in
-    let: "tmp3" := EncodeSlice "v" "tmp2" in
-    let: "off" := ![uint64T] (struct.get tableWriter "offset" "w") in
-    MapInsert (struct.get tableWriter "index" "w") "k" ("off" + slice.len "tmp2");;
-    tableWriterAppend "w" "tmp3";;
-    #().
+Definition newTableWriter: val :=
+  rec: "newTableWriter" "p" :=
+    let: "index" := NewMap uint64T #() in
+    let: ("f", <>) := FS.create #(str"db") "p" in
+    let: "buf" := newBuf "f" in
+    let: "off" := ref (zero_val uint64T) in
+    struct.mk tableWriter [
+      "index" ::= "index";
+      "name" ::= "p";
+      "file" ::= "buf";
+      "offset" ::= "off"
+    ].
 
 Definition lazyFileBuf := struct.decl [
   "offset" :: uint64T;
@@ -167,6 +135,45 @@ Definition DecodeEntry: val :=
              "Value" ::= "value"
            ], "l1" + "l2" + "valueLen")))).
 
+(* EncodeUInt64 is an Encoder(uint64) *)
+Definition EncodeUInt64: val :=
+  rec: "EncodeUInt64" "x" "p" :=
+    let: "tmp" := NewSlice byteT #8 in
+    UInt64Put "tmp" "x";;
+    let: "p2" := SliceAppendSlice byteT "p" "tmp" in
+    "p2".
+
+(* EncodeSlice is an Encoder([]byte) *)
+Definition EncodeSlice: val :=
+  rec: "EncodeSlice" "data" "p" :=
+    let: "p2" := EncodeUInt64 (slice.len "data") "p" in
+    let: "p3" := SliceAppendSlice byteT "p2" "data" in
+    "p3".
+
+Definition bufAppend: val :=
+  rec: "bufAppend" "f" "p" :=
+    let: "buf" := ![slice.T byteT] (struct.get bufFile "buf" "f") in
+    let: "buf2" := SliceAppendSlice byteT "buf" "p" in
+    struct.get bufFile "buf" "f" <-[slice.T byteT] "buf2";;
+    #().
+
+Definition tableWriterAppend: val :=
+  rec: "tableWriterAppend" "w" "p" :=
+    bufAppend (struct.get tableWriter "file" "w") "p";;
+    let: "off" := ![uint64T] (struct.get tableWriter "offset" "w") in
+    struct.get tableWriter "offset" "w" <-[uint64T] "off" + slice.len "p";;
+    #().
+
+Definition tablePut: val :=
+  rec: "tablePut" "w" "k" "v" :=
+    let: "tmp" := NewSlice byteT #0 in
+    let: "tmp2" := EncodeUInt64 "k" "tmp" in
+    let: "tmp3" := EncodeSlice "v" "tmp2" in
+    let: "off" := ![uint64T] (struct.get tableWriter "offset" "w") in
+    MapInsert (struct.get tableWriter "index" "w") "k" ("off" + slice.len "tmp2");;
+    tableWriterAppend "w" "tmp3";;
+    #().
+
 (* add all of table t to the table w being created; skip any keys in the (read)
    buffer b since those writes overwrite old ones *)
 Definition tablePutOldTable: val :=
@@ -201,6 +208,12 @@ Definition tablePutOldTable: val :=
           Continue)));;
     #().
 
+Definition tablePutBuffer: val :=
+  rec: "tablePutBuffer" "w" "buf" :=
+    MapIter "buf" (λ: "k" "v",
+      tablePut "w" "k" "v");;
+    #().
+
 Definition bufFlush: val :=
   rec: "bufFlush" "f" :=
     let: "buf" := ![slice.T byteT] (struct.get bufFile "buf" "f") in
@@ -226,25 +239,6 @@ Definition tableWriterClose: val :=
       "File" ::= "f"
     ].
 
-Definition newTableWriter: val :=
-  rec: "newTableWriter" "p" :=
-    let: "index" := NewMap uint64T #() in
-    let: ("f", <>) := FS.create #(str"db") "p" in
-    let: "buf" := newBuf "f" in
-    let: "off" := ref (zero_val uint64T) in
-    struct.mk tableWriter [
-      "index" ::= "index";
-      "name" ::= "p";
-      "file" ::= "buf";
-      "offset" ::= "off"
-    ].
-
-Definition tablePutBuffer: val :=
-  rec: "tablePutBuffer" "w" "buf" :=
-    MapIter "buf" (λ: "k" "v",
-      tablePut "w" "k" "v");;
-    #().
-
 (* Build a new shadow table that incorporates the current table and a
    (write) buffer wbuf.
 
@@ -261,6 +255,12 @@ Definition constructNewTable: val :=
     tablePutBuffer "w" "wbuf";;
     let: "newTable" := tableWriterClose "w" in
     ("oldTable", "newTable").
+
+(* CloseTable frees up the fd held by a table. *)
+Definition CloseTable: val :=
+  rec: "CloseTable" "t" :=
+    FS.close (struct.get Table "File" "t");;
+    #().
 
 (* Compact persists in-memory writes to a new table.
 

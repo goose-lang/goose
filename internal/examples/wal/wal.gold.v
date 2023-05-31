@@ -26,14 +26,19 @@ Definition blockToInt: val :=
     let: "a" := UInt64Get "v" in
     "a".
 
-Definition Log__unlock: val :=
-  rec: "Log__unlock" "l" :=
-    lock.release (struct.get Log "l" "l");;
-    #().
+Definition Log__Size: val :=
+  rec: "Log__Size" "l" :=
+    let: "sz" := disk.Size #() in
+    "sz" - logLength.
 
 Definition Log__lock: val :=
   rec: "Log__lock" "l" :=
     lock.acquire (struct.get Log "l" "l");;
+    #().
+
+Definition Log__unlock: val :=
+  rec: "Log__unlock" "l" :=
+    lock.release (struct.get Log "l" "l");;
     #().
 
 (* Write to the disk through the log. *)
@@ -52,11 +57,6 @@ Definition Log__Write: val :=
     struct.get Log "length" "l" <-[uint64T] "length" + #1;;
     Log__unlock "l";;
     #().
-
-Definition Log__Size: val :=
-  rec: "Log__Size" "l" :=
-    let: "sz" := disk.Size #() in
-    "sz" - logLength.
 
 (* New initializes a fresh log *)
 Definition New: val :=

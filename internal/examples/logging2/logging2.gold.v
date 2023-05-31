@@ -23,7 +23,7 @@ Definition Log := struct.decl [
   "logTxnNxt" :: ptrT
 ].
 
-(* txn.go *)
+(* Txn from txn.go *)
 
 Definition Txn := struct.decl [
   "log" :: ptrT;
@@ -180,6 +180,8 @@ Definition Log__Logger: val :=
       Log__diskAppend "log";;
       Continue);;
     #().
+
+(* txn.go *)
 
 (* XXX wait if cannot reserve space in log *)
 Definition Begin: val :=
