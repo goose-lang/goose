@@ -1214,7 +1214,8 @@ func (f File) Write(w io.Writer) {
 		decl := d.CoqDecl()
 		// don't translate the same thing twice (which the interface translation
 		// can currently do)
-		if !decls[decl] {
+		_, isComment := d.(CommentDecl)
+		if isComment || !decls[decl] {
 			fmt.Fprintln(w, decl)
 			decls[decl] = true
 

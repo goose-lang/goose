@@ -74,9 +74,9 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 	}
 
 	var lastFile int
-	var processDecl func(id declId)
+	var processDecl func(id declId, ident string)
 
-	processDecl = func(id declId) {
+	processDecl = func(id declId, ident string) {
 		if generated[id] {
 			return
 		}
@@ -96,13 +96,13 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		for _, dep := range idents {
 			depid, ok := nameDecls[dep]
 			if ok {
-				processDecl(depid)
+				processDecl(depid, dep)
 			}
 		}
 
-		if lastFile != id.fileIdx {
+		if lastFile != id.fileIdx && ident != "" {
 			decls = append(decls,
-				coq.NewComment(fmt.Sprintf("%s", f.Name())))
+				coq.NewComment(fmt.Sprintf("%s from %s", ident, f.Name())))
 			lastFile = id.fileIdx
 		}
 
@@ -125,7 +125,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		}
 		lastFile = fi
 		for di := range f.Ast.Decls {
-			processDecl(declId{fi, di})
+			processDecl(declId{fi, di}, "")
 		}
 	}
 	return
