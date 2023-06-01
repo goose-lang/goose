@@ -86,13 +86,21 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		d := f.Ast.Decls[id.declIdx]
 
 		var idents []string
-		ast.Inspect(d, func(n ast.Node) bool {
+		var collectRefs func(n ast.Node) bool
+
+		collectRefs = func(n ast.Node) bool {
 			switch x := n.(type) {
+			case *ast.Field:
+				// Skip the field names
+				ast.Inspect(x.Type, collectRefs)
+				return false
 			case *ast.Ident:
 				idents = append(idents, x.Name)
 			}
 			return true
-		})
+		}
+
+		ast.Inspect(d, collectRefs)
 		for _, dep := range idents {
 			depid, ok := nameDecls[dep]
 			if ok {
