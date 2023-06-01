@@ -48,27 +48,42 @@ type declId struct {
 	declIdx int
 }
 
+type depTracker struct {
+	names []string
+	deps  []string
+}
+
+func (dt *depTracker) addName(s string) {
+	dt.names = append(dt.names, s)
+}
+
+func (dt *depTracker) addDep(s string) {
+	dt.deps = append(dt.deps, s)
+}
+
 // Decls converts an entire package (possibly multiple files) to a list of decls
 func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl, errs []error) {
+	declGroups := make(map[declId][]coq.Decl)
+	declDeps := make(map[declId][]string)
 	nameDecls := make(map[string]declId)
 	generated := make(map[declId]bool)
 
 	for fi, f := range fs {
 		for di, d := range f.Ast.Decls {
-			switch x := d.(type) {
-			case *ast.FuncDecl:
-				nameDecls[x.Name.Name] = declId{fi, di}
-			case *ast.GenDecl:
-				for _, s := range x.Specs {
-					switch y := s.(type) {
-					case *ast.ValueSpec:
-						for _, n := range y.Names {
-							nameDecls[n.Name] = declId{fi, di}
-						}
-					case *ast.TypeSpec:
-						nameDecls[y.Name.Name] = declId{fi, di}
-					}
-				}
+			ctx.dep = &depTracker{}
+
+			id := declId{fi, di}
+			newDecls, err := ctx.declsOrError(d)
+			if err != nil {
+				errs = append(errs, err)
+			}
+
+			// fmt.Printf("Generated %s, depends on %s\n", ctx.dep.names, ctx.dep.deps)
+
+			declGroups[id] = newDecls
+			declDeps[id] = ctx.dep.deps
+			for _, n := range ctx.dep.names {
+				nameDecls[n] = id
 			}
 		}
 	}
@@ -82,26 +97,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		}
 		generated[id] = true
 
-		f := fs[id.fileIdx]
-		d := f.Ast.Decls[id.declIdx]
-
-		var idents []string
-		var collectRefs func(n ast.Node) bool
-
-		collectRefs = func(n ast.Node) bool {
-			switch x := n.(type) {
-			case *ast.Field:
-				// Skip the field names
-				ast.Inspect(x.Type, collectRefs)
-				return false
-			case *ast.Ident:
-				idents = append(idents, x.Name)
-			}
-			return true
-		}
-
-		ast.Inspect(d, collectRefs)
-		for _, dep := range idents {
+		for _, dep := range declDeps[id] {
 			depid, ok := nameDecls[dep]
 			if ok {
 				processDecl(depid, dep)
@@ -109,16 +105,13 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		}
 
 		if lastFile != id.fileIdx && ident != "" {
+			f := fs[id.fileIdx]
 			decls = append(decls,
 				coq.NewComment(fmt.Sprintf("%s from %s", ident, f.Name())))
 			lastFile = id.fileIdx
 		}
 
-		newDecls, err := ctx.declsOrError(d)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		newDecls, newImports := filterImports(newDecls)
+		newDecls, newImports := filterImports(declGroups[id])
 		decls = append(decls, newDecls...)
 		imports = append(imports, newImports...)
 	}

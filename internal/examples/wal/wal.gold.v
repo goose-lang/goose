@@ -26,38 +26,6 @@ Definition blockToInt: val :=
     let: "a" := UInt64Get "v" in
     "a".
 
-Definition Log__Size: val :=
-  rec: "Log__Size" "l" :=
-    let: "sz" := disk.Size #() in
-    "sz" - logLength.
-
-Definition Log__lock: val :=
-  rec: "Log__lock" "l" :=
-    lock.acquire (struct.get Log "l" "l");;
-    #().
-
-Definition Log__unlock: val :=
-  rec: "Log__unlock" "l" :=
-    lock.release (struct.get Log "l" "l");;
-    #().
-
-(* Write to the disk through the log. *)
-Definition Log__Write: val :=
-  rec: "Log__Write" "l" "a" "v" :=
-    Log__lock "l";;
-    let: "length" := ![uint64T] (struct.get Log "length" "l") in
-    (if: "length" ≥ MaxTxnWrites
-    then Panic ("transaction is at capacity")
-    else #());;
-    let: "aBlock" := intToBlock "a" in
-    let: "nextAddr" := #1 + #2 * "length" in
-    disk.Write "nextAddr" "aBlock";;
-    disk.Write ("nextAddr" + #1) "v";;
-    MapInsert (struct.get Log "cache" "l") "a" "v";;
-    struct.get Log "length" "l" <-[uint64T] "length" + #1;;
-    Log__unlock "l";;
-    #().
-
 (* New initializes a fresh log *)
 Definition New: val :=
   rec: "New" <> :=
@@ -78,6 +46,16 @@ Definition New: val :=
       "length" ::= "lengthPtr";
       "l" ::= "l"
     ].
+
+Definition Log__lock: val :=
+  rec: "Log__lock" "l" :=
+    lock.acquire (struct.get Log "l" "l");;
+    #().
+
+Definition Log__unlock: val :=
+  rec: "Log__unlock" "l" :=
+    lock.release (struct.get Log "l" "l");;
+    #().
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -109,6 +87,28 @@ Definition Log__Read: val :=
       Log__unlock "l";;
       let: "dv" := disk.Read (logLength + "a") in
       "dv").
+
+Definition Log__Size: val :=
+  rec: "Log__Size" "l" :=
+    let: "sz" := disk.Size #() in
+    "sz" - logLength.
+
+(* Write to the disk through the log. *)
+Definition Log__Write: val :=
+  rec: "Log__Write" "l" "a" "v" :=
+    Log__lock "l";;
+    let: "length" := ![uint64T] (struct.get Log "length" "l") in
+    (if: "length" ≥ MaxTxnWrites
+    then Panic ("transaction is at capacity")
+    else #());;
+    let: "aBlock" := intToBlock "a" in
+    let: "nextAddr" := #1 + #2 * "length" in
+    disk.Write "nextAddr" "aBlock";;
+    disk.Write ("nextAddr" + #1) "v";;
+    MapInsert (struct.get Log "cache" "l") "a" "v";;
+    struct.get Log "length" "l" <-[uint64T] "length" + #1;;
+    Log__unlock "l";;
+    #().
 
 (* Commit the current transaction. *)
 Definition Log__Commit: val :=

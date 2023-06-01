@@ -260,6 +260,22 @@ Definition Enc := struct.decl [
   "p" :: slice.T byteT
 ].
 
+Definition Enc__consume: val :=
+  rec: "Enc__consume" "e" "n" :=
+    let: "b" := SliceTake (struct.loadF Enc "p" "e") "n" in
+    struct.storeF Enc "p" "e" (SliceSkip byteT (struct.loadF Enc "p" "e") "n");;
+    "b".
+
+Definition Enc__UInt64: val :=
+  rec: "Enc__UInt64" "e" "x" :=
+    UInt64Put (Enc__consume "e" #8) "x";;
+    #().
+
+Definition Enc__UInt32: val :=
+  rec: "Enc__UInt32" "e" "x" :=
+    UInt32Put (Enc__consume "e" #4) "x";;
+    #().
+
 Definition Dec := struct.decl [
   "p" :: slice.T byteT
 ].
@@ -270,29 +286,13 @@ Definition Dec__consume: val :=
     struct.storeF Dec "p" "d" (SliceSkip byteT (struct.loadF Dec "p" "d") "n");;
     "b".
 
-Definition Enc__consume: val :=
-  rec: "Enc__consume" "e" "n" :=
-    let: "b" := SliceTake (struct.loadF Enc "p" "e") "n" in
-    struct.storeF Enc "p" "e" (SliceSkip byteT (struct.loadF Enc "p" "e") "n");;
-    "b".
-
 Definition Dec__UInt64: val :=
   rec: "Dec__UInt64" "d" :=
     UInt64Get (Dec__consume "d" #8).
 
-Definition Enc__UInt64: val :=
-  rec: "Enc__UInt64" "e" "x" :=
-    UInt64Put (Enc__consume "e" #8) "x";;
-    #().
-
 Definition Dec__UInt32: val :=
   rec: "Dec__UInt32" "d" :=
     UInt32Get (Dec__consume "d" #4).
-
-Definition Enc__UInt32: val :=
-  rec: "Enc__UInt32" "e" "x" :=
-    UInt32Put (Enc__consume "e" #4) "x";;
-    #().
 
 (* generics.go *)
 

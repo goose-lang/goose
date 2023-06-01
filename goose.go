@@ -35,6 +35,8 @@ type Ctx struct {
 	pkgPath string
 	errorReporter
 	Config
+
+	dep *depTracker
 }
 
 // Says how the result of the currently generated expression will be used
@@ -510,9 +512,9 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 
 		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
-			return ctx.newCoqCall(
-				coq.StructMethod(structInfo.name, f.Sel.Name),
-				callArgs)
+			m := coq.StructMethod(structInfo.name, f.Sel.Name)
+			ctx.dep.addDep(m)
+			return ctx.newCoqCall(m, callArgs)
 		}
 	}
 	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
@@ -821,8 +823,9 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		return coq.NewCallExpr(
-			coq.GallinaIdent(coq.StructMethod(structInfo.name, e.Sel.Name)), ctx.expr(e.X))
+		m := coq.StructMethod(structInfo.name, e.Sel.Name)
+		ctx.dep.addDep(m)
+		return coq.NewCallExpr(coq.GallinaIdent(m), ctx.expr(e.X))
 	}
 	if ok {
 		return ctx.structSelector(structInfo, e)
@@ -832,6 +835,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.StructFieldAccessExpr {
+	ctx.dep.addDep(info.name)
 	return coq.StructFieldAccessExpr{
 		Struct:         info.name,
 		Field:          e.Sel.Name,
@@ -861,6 +865,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 
 func (ctx Ctx) structLiteral(info structTypeInfo,
 	e *ast.CompositeLit) coq.StructLiteral {
+	ctx.dep.addDep(info.name)
 	lit := coq.NewStructLiteral(info.name)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
@@ -1048,6 +1053,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	info := ctx.identInfo(s)
 	if info.IsMacro {
+		ctx.dep.addDep(s.Name)
 		return coq.GallinaIdent(s.Name)
 	}
 	e := coq.IdentExpr(s.Name)
@@ -1058,6 +1064,7 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 }
 
 func (ctx Ctx) function(s *ast.Ident) coq.Expr {
+	ctx.dep.addDep(s.Name)
 	return coq.GallinaIdent(s.Name)
 }
 
@@ -1949,6 +1956,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
+	ctx.dep.addName(fd.Name)
 	return fd
 }
 
@@ -1977,7 +1985,9 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 func (ctx Ctx) constDecl(d *ast.GenDecl) []coq.Decl {
 	var specs []coq.Decl
 	for _, spec := range d.Specs {
-		specs = append(specs, ctx.constSpec(spec.(*ast.ValueSpec)))
+		vs := spec.(*ast.ValueSpec)
+		ctx.dep.addName(vs.Names[0].Name)
+		specs = append(specs, ctx.constSpec(vs))
 	}
 	return specs
 }
@@ -1989,7 +1999,9 @@ func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []coq.Decl {
 	// changed after startup.
 	var specs []coq.Decl
 	for _, spec := range d.Specs {
-		specs = append(specs, ctx.constSpec(spec.(*ast.ValueSpec)))
+		vs := spec.(*ast.ValueSpec)
+		ctx.dep.addName(vs.Names[0].Name)
+		specs = append(specs, ctx.constSpec(vs))
 	}
 	return specs
 }
@@ -2169,6 +2181,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 				ctx.noExample(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
+			ctx.dep.addName(spec.Name.Name)
 			ty := ctx.typeDecl(d.Doc, spec)
 			return []coq.Decl{ty}
 		default:
