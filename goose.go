@@ -628,7 +628,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr(coq.GallinaIdent("NewMap"), mapTy.Value, coq.UnitLiteral{})
+		return coq.NewCallExpr(coq.GallinaIdent("NewMap"), mapTy.Key, mapTy.Value, coq.UnitLiteral{})
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
@@ -642,7 +642,9 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		return ctx.makeSliceExpr(elt, args)
 	case *types.Map:
 		return coq.NewCallExpr(coq.GallinaIdent("NewMap"),
-			ctx.coqTypeOfType(args[0], ty.Elem()), coq.UnitLiteral{})
+			ctx.coqTypeOfType(args[0], ty.Key()),
+			ctx.coqTypeOfType(args[0], ty.Elem()),
+			coq.UnitLiteral{})
 	default:
 		ctx.unsupported(args[0],
 			"make of should be slice or map, got %v", ty)
