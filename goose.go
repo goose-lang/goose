@@ -2027,7 +2027,7 @@ var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine/disk":       true,
 	"github.com/tchajed/goose/machine/async_disk": true,
 	"github.com/mit-pdos/gokv/time":               true,
-	"github.com/mit-pdos/go-mvcc/cfmutex":         true,
+	"github.com/mit-pdos/vmvcc/cfmutex":           true,
 	"sync":                                        true,
 	"log":                                         true,
 	"fmt":                                         true,
