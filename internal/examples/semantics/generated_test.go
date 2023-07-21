@@ -390,6 +390,12 @@ func (suite *GoTestSuite) TestManyParentheses() {
 	suite.Equal(true, testManyParentheses())
 }
 
+func (suite *GoTestSuite) TestPlusTimes() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testPlusTimes())
+}
+
 func (suite *GoTestSuite) TestOrCompareSimple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
