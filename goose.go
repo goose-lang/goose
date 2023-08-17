@@ -312,7 +312,7 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
 		return coq.NewCallExpr(coq.GallinaIdent("MapLen"), ctx.expr(x))
 	case *types.Basic:
 		if ty.Kind() == types.String {
-			return coq.NewCallExpr(coq.GallinaIdent("strLen"), ctx.expr(x))
+			return coq.NewCallExpr(coq.GallinaIdent("StringLength"), ctx.expr(x))
 		}
 	}
 	ctx.unsupported(e, "length of object of type %v", xTy)
@@ -550,7 +550,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 			if f.Len == nil && isIdent(f.Elt, "byte") {
 				arg := args[0]
 				if isString(ctx.typeOf(arg)) {
-					return ctx.newCoqCall("Data.stringToBytes", args)
+					return ctx.newCoqCall("StringToBytes", args)
 				}
 			}
 		}
@@ -565,7 +565,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 					"conversion from type %v to string", ctx.typeOf(arg))
 				return coq.CallExpr{}
 			}
-			return ctx.newCoqCall("Data.bytesToString", args)
+			return ctx.newCoqCall("StringFromBytes", args)
 		}
 		// a different type conversion, which is a noop in GooseLang (which is
 		// untyped)
