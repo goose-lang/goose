@@ -164,6 +164,7 @@ func (ctx Ctx) coqFuncType(e *ast.FuncType) coq.Type {
 func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
+		ctx.dep.addDep(e.Name)
 		if ctx.identInfo(e).IsMacro {
 			return coq.TypeIdent(e.Name)
 		}
