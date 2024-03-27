@@ -10,7 +10,7 @@ import (
 	"github.com/fatih/color"
 
 	"github.com/tchajed/goose"
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/tchajed/goose/internal/glang"
 )
 
 // write data to file name, first checking if it already has those contents
@@ -29,7 +29,7 @@ func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
-func coqFileContents(f coq.File) []byte {
+func coqFileContents(f glang.File) []byte {
 	var b bytes.Buffer
 	f.Write(&b)
 	return b.Bytes()
@@ -55,7 +55,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 			}
 		}
 		outFile := path.Join(outRootDir,
-			coq.ImportToPath(f.PkgPath, f.GoPackage))
+			glang.ImportToPath(f.PkgPath, f.GoPackage))
 		outDir := path.Dir(outFile)
 		err = os.MkdirAll(outDir, 0777)
 		if err != nil {

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/tchajed/goose/internal/glang"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -154,27 +154,27 @@ func (ctx Ctx) printGo(node ast.Node) string {
 	return what.String()
 }
 
-func (ctx Ctx) field(f *ast.Field) coq.FieldDecl {
+func (ctx Ctx) field(f *ast.Field) glang.FieldDecl {
 	if len(f.Names) > 1 {
 		ctx.futureWork(f, "multiple fields for same type (split them up)")
-		return coq.FieldDecl{}
+		return glang.FieldDecl{}
 	}
 	if len(f.Names) == 0 {
 		ctx.unsupported(f, "unnamed field/parameter")
-		return coq.FieldDecl{}
+		return glang.FieldDecl{}
 	}
-	return coq.FieldDecl{
+	return glang.FieldDecl{
 		Name: f.Names[0].Name,
 		Type: ctx.coqType(f.Type),
 	}
 }
 
-func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
-	var decls []coq.FieldDecl
+func (ctx Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
+	var decls []glang.FieldDecl
 	for _, f := range fs.List {
 		ty := ctx.coqType(f.Type)
 		for _, name := range f.Names {
-			decls = append(decls, coq.FieldDecl{
+			decls = append(decls, glang.FieldDecl{
 				Name: name.Name,
 				Type: ty,
 			})
@@ -184,7 +184,7 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 			})
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
-			decls = append(decls, coq.FieldDecl{
+			decls = append(decls, glang.FieldDecl{
 				Name: "",
 				Type: ty,
 			})
@@ -193,14 +193,14 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
-func (ctx Ctx) typeParamList(fs *ast.FieldList) []coq.TypeIdent {
-	var typeParams []coq.TypeIdent
+func (ctx Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
+	var typeParams []glang.TypeIdent
 	if fs == nil {
 		return nil
 	}
 	for _, f := range fs.List {
 		for _, name := range f.Names {
-			typeParams = append(typeParams, coq.TypeIdent(name.Name))
+			typeParams = append(typeParams, glang.TypeIdent(name.Name))
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
 			ctx.unsupported(fs, "unnamed type parameters")
@@ -209,8 +209,8 @@ func (ctx Ctx) typeParamList(fs *ast.FieldList) []coq.TypeIdent {
 	return typeParams
 }
 
-func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
-	var decls []coq.FieldDecl
+func (ctx Ctx) structFields(fs *ast.FieldList) []glang.FieldDecl {
+	var decls []glang.FieldDecl
 	for _, f := range fs.List {
 		if len(f.Names) > 1 {
 			ctx.futureWork(f, "multiple fields for same type (split them up)")
@@ -221,7 +221,7 @@ func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 			return nil
 		}
 		ty := ctx.coqType(f.Type)
-		decls = append(decls, coq.FieldDecl{
+		decls = append(decls, glang.FieldDecl{
 			Name: f.Names[0].Name,
 			Type: ty,
 		})
@@ -249,7 +249,7 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
-func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
+func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) glang.Decl {
 	if spec.TypeParams != nil {
 		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
 	}
@@ -259,7 +259,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 			IsPtrWrapped: false,
 			IsMacro:      false,
 		})
-		ty := coq.StructDecl{
+		ty := glang.StructDecl{
 			Name: spec.Name.Name,
 		}
 		addSourceDoc(doc, &ty.Comment)
@@ -271,7 +271,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 			IsPtrWrapped: false,
 			IsMacro:      false,
 		})
-		ty := coq.InterfaceDecl{
+		ty := glang.InterfaceDecl{
 			Name: spec.Name.Name,
 		}
 		addSourceDoc(doc, &ty.Comment)
@@ -283,7 +283,7 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 			IsPtrWrapped: false,
 			IsMacro:      true,
 		})
-		return coq.TypeDecl{
+		return glang.TypeDecl{
 			Name: spec.Name.Name,
 			Body: ctx.coqType(spec.Type),
 		}
@@ -302,63 +302,63 @@ func toInitialLower(s string) string {
 	}, s)
 }
 
-func (ctx Ctx) lenExpr(e *ast.CallExpr) coq.CallExpr {
+func (ctx Ctx) lenExpr(e *ast.CallExpr) glang.CallExpr {
 	x := e.Args[0]
 	xTy := ctx.typeOf(x)
 	switch ty := xTy.Underlying().(type) {
 	case *types.Slice:
-		return coq.NewCallExpr(coq.GallinaIdent("slice.len"), ctx.expr(x))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.len"), ctx.expr(x))
 	case *types.Map:
-		return coq.NewCallExpr(coq.GallinaIdent("MapLen"), ctx.expr(x))
+		return glang.NewCallExpr(glang.GallinaIdent("MapLen"), ctx.expr(x))
 	case *types.Basic:
 		if ty.Kind() == types.String {
-			return coq.NewCallExpr(coq.GallinaIdent("StringLength"), ctx.expr(x))
+			return glang.NewCallExpr(glang.GallinaIdent("StringLength"), ctx.expr(x))
 		}
 	}
 	ctx.unsupported(e, "length of object of type %v", xTy)
-	return coq.CallExpr{}
+	return glang.CallExpr{}
 }
 
-func (ctx Ctx) capExpr(e *ast.CallExpr) coq.CallExpr {
+func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
 	x := e.Args[0]
 	xTy := ctx.typeOf(x)
 	switch xTy.Underlying().(type) {
 	case *types.Slice:
-		return coq.NewCallExpr(coq.GallinaIdent("slice.cap"), ctx.expr(x))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.cap"), ctx.expr(x))
 	}
 	ctx.unsupported(e, "capacity of object of type %v", xTy)
-	return coq.CallExpr{}
+	return glang.CallExpr{}
 }
 
-func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
+func (ctx Ctx) lockMethod(f *ast.SelectorExpr) glang.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Lock":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.acquire"), l)
+		return glang.NewCallExpr(glang.GallinaIdent("lock.acquire"), l)
 	case "Unlock":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.release"), l)
+		return glang.NewCallExpr(glang.GallinaIdent("lock.release"), l)
 	default:
 		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
-		return coq.CallExpr{}
+		return glang.CallExpr{}
 	}
 }
 
-func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
+func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) glang.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Signal":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condSignal"), l)
+		return glang.NewCallExpr(glang.GallinaIdent("lock.condSignal"), l)
 	case "Broadcast":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condBroadcast"), l)
+		return glang.NewCallExpr(glang.GallinaIdent("lock.condBroadcast"), l)
 	case "Wait":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condWait"), l)
+		return glang.NewCallExpr(glang.GallinaIdent("lock.condWait"), l)
 	default:
 		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
-		return coq.CallExpr{}
+		return glang.CallExpr{}
 	}
 }
 
-func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr {
+func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExpr {
 	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
 	case "Add":
@@ -369,23 +369,23 @@ func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExp
 		return ctx.newCoqCall("waitgroup.Wait", callArgs)
 	default:
 		ctx.unsupported(f, "method %s of sync.WaitGroup", f.Sel.Name)
-		return coq.CallExpr{}
+		return glang.CallExpr{}
 	}
 }
 
-func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr {
+func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExpr {
 	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
 	case "ResolveBool", "ResolveU64":
 		return ctx.newCoqCall("ResolveProph", callArgs)
 	default:
 		ctx.unsupported(f, "method %s of machine.ProphId", f.Sel.Name)
-		return coq.CallExpr{}
+		return glang.CallExpr{}
 	}
 }
 
 func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
-	call *ast.CallExpr) coq.Expr {
+	call *ast.CallExpr) glang.Expr {
 	args := call.Args
 	if isIdent(f.X, "filesys") {
 		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
@@ -402,7 +402,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		case "UInt64ToString":
 			return ctx.newCoqCall("uint64_to_string", args)
 		case "Linearize":
-			return coq.GallinaIdent("Linearize")
+			return glang.GallinaIdent("Linearize")
 		case "Assume":
 			return ctx.newCoqCall("control.impl.Assume", args)
 		case "Assert":
@@ -421,13 +421,13 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return ctx.newCoqCall("NewProph", args)
 		default:
 			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
-			return coq.CallExpr{}
+			return glang.CallExpr{}
 		}
 	}
 	if isIdent(f.X, "log") {
 		switch f.Sel.Name {
 		case "Print", "Printf", "Println":
-			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
+			return glang.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
 	// FIXME: this hack ensures util.DPrintf runs correctly in goose-nfsd.
@@ -438,15 +438,15 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	//
 	// See https://github.com/mit-pdos/goose-nfsd/blob/master/util/util.go
 	if isIdent(f.X, "util") && f.Sel.Name == "DPrintf" {
-		return coq.NewCallExpr(coq.GallinaIdent("util.DPrintf"),
+		return glang.NewCallExpr(glang.GallinaIdent("util.DPrintf"),
 			ctx.expr(args[0]),
 			ctx.expr(args[1]),
-			coq.UnitLiteral{})
+			glang.UnitLiteral{})
 	}
 	if isIdent(f.X, "fmt") {
 		switch f.Sel.Name {
 		case "Println", "Printf":
-			return coq.LoggingStmt{GoCall: ctx.printGo(call)}
+			return glang.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
 	if isIdent(f.X, "sync") {
@@ -457,13 +457,13 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
-		coq.GallinaIdent(coq.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
+		glang.GallinaIdent(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
 		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
 
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
-	call *ast.CallExpr) coq.Expr {
+	call *ast.CallExpr) glang.Expr {
 	args := call.Args
 	selectorType, ok := ctx.getType(f.X)
 	if !ok {
@@ -495,7 +495,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
 			return ctx.newCoqCall(
-				coq.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
+				glang.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
 				callArgs)
 		}
 	default:
@@ -512,7 +512,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 
 		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
-			m := coq.StructMethod(structInfo.name, f.Sel.Name)
+			m := glang.StructMethod(structInfo.name, f.Sel.Name)
 			ctx.dep.addDep(m)
 			return ctx.newCoqCall(m, callArgs)
 		}
@@ -521,26 +521,26 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	return nil
 }
 
-func (ctx Ctx) newCoqCallTypeArgs(method coq.Expr, typeArgs []coq.Expr,
-	es []ast.Expr) coq.CallExpr {
-	var args []coq.Expr
+func (ctx Ctx) newCoqCallTypeArgs(method glang.Expr, typeArgs []glang.Expr,
+	es []ast.Expr) glang.CallExpr {
+	var args []glang.Expr
 	for _, e := range es {
 		args = append(args, ctx.expr(e))
 	}
-	call := coq.NewCallExpr(method, args...)
+	call := glang.NewCallExpr(method, args...)
 	call.TypeArgs = typeArgs
 	return call
 }
 
-func (ctx Ctx) newCoqCall(method string, es []ast.Expr) coq.CallExpr {
-	return ctx.newCoqCallTypeArgs(coq.GallinaIdent(method), nil, es)
+func (ctx Ctx) newCoqCall(method string, es []ast.Expr) glang.CallExpr {
+	return ctx.newCoqCallTypeArgs(glang.GallinaIdent(method), nil, es)
 }
 
-func (ctx Ctx) newCoqCallWithExpr(method coq.Expr, es []ast.Expr) coq.CallExpr {
+func (ctx Ctx) newCoqCallWithExpr(method glang.Expr, es []ast.Expr) glang.CallExpr {
 	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
-func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
+func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	args := call.Args
 	// discovered this API via
 	// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
@@ -563,7 +563,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 			if !isByteSlice(ctx.typeOf(arg)) {
 				ctx.unsupported(call,
 					"conversion from type %v to string", ctx.typeOf(arg))
-				return coq.CallExpr{}
+				return glang.CallExpr{}
 			}
 			return ctx.newCoqCall("StringFromBytes", args)
 		}
@@ -574,7 +574,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		return ctx.expr(args[0])
 	}
 
-	var retExpr coq.Expr
+	var retExpr glang.Expr
 
 	f := call.Fun
 
@@ -612,23 +612,23 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 	return retExpr
 }
 
-func (ctx Ctx) makeSliceExpr(elt coq.Type, args []ast.Expr) coq.CallExpr {
+func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 	if len(args) == 2 {
-		return coq.NewCallExpr(coq.GallinaIdent("NewSlice"), elt, ctx.expr(args[1]))
+		return glang.NewCallExpr(glang.GallinaIdent("NewSlice"), elt, ctx.expr(args[1]))
 	} else if len(args) == 3 {
-		return coq.NewCallExpr(coq.GallinaIdent("NewSliceWithCap"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		return glang.NewCallExpr(glang.GallinaIdent("NewSliceWithCap"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
 	} else {
 		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
-		return coq.CallExpr{}
+		return glang.CallExpr{}
 	}
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
-func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
+func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
 	switch typeArg := args[0].(type) {
 	case *ast.MapType:
 		mapTy := ctx.mapType(typeArg)
-		return coq.NewCallExpr(coq.GallinaIdent("NewMap"), mapTy.Key, mapTy.Value, coq.UnitLiteral{})
+		return glang.NewCallExpr(glang.GallinaIdent("NewMap"), mapTy.Key, mapTy.Value, glang.UnitLiteral{})
 	case *ast.ArrayType:
 		if typeArg.Len != nil {
 			ctx.nope(typeArg, "can't make() arrays (only slices)")
@@ -641,50 +641,50 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 		elt := ctx.coqTypeOfType(args[0], ty.Elem())
 		return ctx.makeSliceExpr(elt, args)
 	case *types.Map:
-		return coq.NewCallExpr(coq.GallinaIdent("NewMap"),
+		return glang.NewCallExpr(glang.GallinaIdent("NewMap"),
 			ctx.coqTypeOfType(args[0], ty.Key()),
 			ctx.coqTypeOfType(args[0], ty.Elem()),
-			coq.UnitLiteral{})
+			glang.UnitLiteral{})
 	default:
 		ctx.unsupported(args[0],
 			"make of should be slice or map, got %v", ty)
 	}
-	return coq.CallExpr{}
+	return glang.CallExpr{}
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
+func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
-			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
+			return glang.NewCallExpr(glang.GallinaIdent("lock.new"))
 		}
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
-			return coq.NewCallExpr(coq.GallinaIdent("waitgroup.New"))
+			return glang.NewCallExpr(glang.GallinaIdent("waitgroup.New"))
 		}
 		if isIdent(sel.X, "cfmutex") && isIdent(sel.Sel, "CFMutex") {
-			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
+			return glang.NewCallExpr(glang.GallinaIdent("lock.new"))
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
-		return coq.NewCallExpr(coq.GallinaIdent("zero_array"),
+		return glang.NewCallExpr(glang.GallinaIdent("zero_array"),
 			ctx.coqTypeOfType(ty, t.Elem()),
-			coq.IntLiteral{uint64(t.Len())})
+			glang.IntLiteral{uint64(t.Len())})
 	}
-	e := coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqType(ty))
+	e := glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
 	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.name), e)
+		return glang.NewCallExpr(glang.GallinaIdent("struct.alloc"), glang.StructDesc(info.name), e)
 	}
-	return coq.NewCallExpr(coq.GallinaIdent("ref"), e)
+	return glang.NewCallExpr(glang.GallinaIdent("ref"), e)
 }
 
 // integerConversion generates an expression for converting x to an integer
 // of a specific width
 //
 // s is only used for error reporting
-func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
+func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 	if info, ok := getIntegerType(ctx.typeOf(x)); ok {
 		if info.isUntyped {
 			ctx.todo(s, "conversion from untyped int to uint64")
@@ -692,7 +692,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
 		if info.width == width {
 			return ctx.expr(x)
 		}
-		return coq.NewCallExpr(coq.GallinaIdent(fmt.Sprintf("to_u%d", width)),
+		return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("to_u%d", width)),
 			ctx.expr(x))
 	}
 	ctx.unsupported(s, "casts from unsupported type %v to uint%d",
@@ -700,14 +700,14 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) coq.Expr {
+func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) glang.Expr {
 	e := sliceElem(ctx.typeOf(dst))
-	return coq.NewCallExpr(coq.GallinaIdent("SliceCopy"),
+	return glang.NewCallExpr(glang.GallinaIdent("SliceCopy"),
 		ctx.coqTypeOfType(n, e),
 		ctx.expr(dst), ctx.expr(src))
 }
 
-func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
+func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if isIdent(s.Fun, "make") {
 		return ctx.makeExpr(s.Args)
 	}
@@ -723,13 +723,13 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	if isIdent(s.Fun, "append") {
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
 		if s.Ellipsis == token.NoPos {
-			return coq.NewCallExpr(coq.GallinaIdent("SliceAppend"),
+			return glang.NewCallExpr(glang.GallinaIdent("SliceAppend"),
 				ctx.coqTypeOfType(s, elemTy),
 				ctx.expr(s.Args[0]),
 				ctx.expr(s.Args[1]))
 		}
 		// append(s1, s2...)
-		return coq.NewCallExpr(coq.GallinaIdent("SliceAppendSlice"),
+		return glang.NewCallExpr(glang.GallinaIdent("SliceAppendSlice"),
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
 			ctx.expr(s.Args[1]))
@@ -741,7 +741,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
 			ctx.unsupported(s, "delete on non-map")
 		}
-		return coq.NewCallExpr(coq.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+		return glang.NewCallExpr(glang.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 	}
 	if isIdent(s.Fun, "uint64") {
 		return ctx.integerConversion(s, s.Args[0], 64)
@@ -760,7 +760,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 				msg = constant.StringVal(v)
 			}
 		}
-		return coq.NewCallExpr(coq.GallinaIdent("Panic"), coq.GallinaString(msg))
+		return glang.NewCallExpr(glang.GallinaIdent("Panic"), glang.GallinaString(msg))
 	}
 	// Special case for *sync.NewCond
 	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
@@ -773,7 +773,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 					interfaceName = unqualifyName(interfaceName)
 					structName = unqualifyName(structName)
 					if interfaceName != structName && interfaceName != "" && structName != "" {
-						conversion := coq.StructToInterfaceDecl{
+						conversion := glang.StructToInterfaceDecl{
 							Fun:       ctx.expr(s.Fun).Coq(true),
 							Struct:    structName,
 							Interface: interfaceName,
@@ -784,7 +784,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 								conversion += " " + ctx.expr(arg).Coq(true)
 							}
 						}
-						return coq.CallExpr{MethodName: coq.GallinaIdent(conversion)}
+						return glang.CallExpr{MethodName: glang.GallinaIdent(conversion)}
 					}
 				}
 			}
@@ -802,17 +802,17 @@ func (ctx Ctx) qualifiedName(obj types.Object) string {
 	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
 }
 
-func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
+func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
 	selectorType, ok := ctx.getType(e.X)
 	if !ok {
 		if isIdent(e.X, "filesys") {
-			return coq.GallinaIdent("FS." + e.Sel.Name)
+			return glang.GallinaIdent("FS." + e.Sel.Name)
 		}
 		if isIdent(e.X, "disk") {
-			return coq.GallinaIdent("disk." + e.Sel.Name)
+			return glang.GallinaIdent("disk." + e.Sel.Name)
 		}
 		if pkg, ok := getIdent(e.X); ok {
-			return coq.PackageIdent{
+			return glang.PackageIdent{
 				Package: pkg,
 				Ident:   e.Sel.Name,
 			}
@@ -825,9 +825,9 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		m := coq.StructMethod(structInfo.name, e.Sel.Name)
+		m := glang.StructMethod(structInfo.name, e.Sel.Name)
 		ctx.dep.addDep(m)
-		return coq.NewCallExpr(coq.GallinaIdent(m), ctx.expr(e.X))
+		return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
 	}
 	if ok {
 		return ctx.structSelector(structInfo, e)
@@ -836,9 +836,9 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.StructFieldAccessExpr {
+func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.StructFieldAccessExpr {
 	ctx.dep.addDep(info.name)
-	return coq.StructFieldAccessExpr{
+	return glang.StructFieldAccessExpr{
 		Struct:         info.name,
 		Field:          e.Sel.Name,
 		X:              ctx.expr(e.X),
@@ -846,10 +846,10 @@ func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.Stru
 	}
 }
 
-func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
+func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
 		if len(e.Elts) == 0 {
-			return coq.NewCallExpr(coq.GallinaIdent("nil"))
+			return glang.NewCallExpr(glang.GallinaIdent("nil"))
 		}
 		if len(e.Elts) == 1 {
 			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})
@@ -866,16 +866,16 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 }
 
 func (ctx Ctx) structLiteral(info structTypeInfo,
-	e *ast.CompositeLit) coq.StructLiteral {
+	e *ast.CompositeLit) glang.StructLiteral {
 	ctx.dep.addDep(info.name)
-	lit := coq.NewStructLiteral(info.name)
+	lit := glang.NewStructLiteral(info.name)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
 			ident, ok := getIdent(el.Key)
 			if !ok {
 				ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
-				return coq.StructLiteral{}
+				return glang.StructLiteral{}
 			}
 			lit.AddField(ident, ctx.expr(el.Value))
 		default:
@@ -889,14 +889,14 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 // basicLiteral parses a basic literal
 //
 // (unsigned) ints, strings, and booleans are supported
-func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
+func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 	if e.Kind == token.STRING {
 		v := ctx.info.Types[e].Value
 		s := constant.StringVal(v)
 		if strings.ContainsRune(s, '"') {
 			ctx.unsupported(e, "string literals with quotes")
 		}
-		return coq.StringLiteral{s}
+		return glang.StringLiteral{s}
 	}
 	if e.Kind == token.INT {
 		info, ok := getIntegerType(ctx.typeOf(e))
@@ -908,11 +908,11 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 			return nil
 		}
 		if info.isUint64() {
-			return coq.IntLiteral{n}
+			return glang.IntLiteral{n}
 		} else if info.isUint32() {
-			return coq.Int32Literal{uint32(n)}
+			return glang.Int32Literal{uint32(n)}
 		} else if info.isUint8() {
-			return coq.ByteLiteral{uint8(n)}
+			return glang.ByteLiteral{uint8(n)}
 		}
 	}
 	ctx.unsupported(e, "literal with kind %s", e.Kind)
@@ -926,43 +926,43 @@ func (ctx Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
 	return ctx.info.Types[e.Y].IsNil()
 }
 
-func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
-	op, ok := map[token.Token]coq.BinOp{
-		token.LSS:  coq.OpLessThan,
-		token.GTR:  coq.OpGreaterThan,
-		token.SUB:  coq.OpMinus,
-		token.EQL:  coq.OpEquals,
-		token.NEQ:  coq.OpNotEquals,
-		token.MUL:  coq.OpMul,
-		token.QUO:  coq.OpQuot,
-		token.REM:  coq.OpRem,
-		token.LEQ:  coq.OpLessEq,
-		token.GEQ:  coq.OpGreaterEq,
-		token.AND:  coq.OpAnd,
-		token.LAND: coq.OpLAnd,
-		token.OR:   coq.OpOr,
-		token.LOR:  coq.OpLOr,
-		token.XOR:  coq.OpXor,
-		token.SHL:  coq.OpShl,
-		token.SHR:  coq.OpShr,
+func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
+	op, ok := map[token.Token]glang.BinOp{
+		token.LSS:  glang.OpLessThan,
+		token.GTR:  glang.OpGreaterThan,
+		token.SUB:  glang.OpMinus,
+		token.EQL:  glang.OpEquals,
+		token.NEQ:  glang.OpNotEquals,
+		token.MUL:  glang.OpMul,
+		token.QUO:  glang.OpQuot,
+		token.REM:  glang.OpRem,
+		token.LEQ:  glang.OpLessEq,
+		token.GEQ:  glang.OpGreaterEq,
+		token.AND:  glang.OpAnd,
+		token.LAND: glang.OpLAnd,
+		token.OR:   glang.OpOr,
+		token.LOR:  glang.OpLOr,
+		token.XOR:  glang.OpXor,
+		token.SHL:  glang.OpShl,
+		token.SHR:  glang.OpShr,
 	}[e.Op]
 	if e.Op == token.ADD {
 		if isString(ctx.typeOf(e.X)) {
-			op = coq.OpAppend
+			op = glang.OpAppend
 		} else {
-			op = coq.OpPlus
+			op = glang.OpPlus
 		}
 		ok = true
 	}
 	if ok {
-		expr := coq.BinaryExpr{
+		expr := glang.BinaryExpr{
 			X:  ctx.expr(e.X),
 			Op: op,
 			Y:  ctx.expr(e.Y),
 		}
 		if ctx.isNilCompareExpr(e) {
 			if _, ok := ctx.typeOf(e.X).(*types.Pointer); ok {
-				expr.Y = coq.Null
+				expr.Y = glang.Null
 			}
 		}
 		return expr
@@ -971,7 +971,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
+func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	if e.Slice3 {
 		ctx.unsupported(e, "3-index slice")
 		return nil
@@ -982,16 +982,16 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	}
 	x := ctx.expr(e.X)
 	if e.Low != nil && e.High == nil {
-		return coq.NewCallExpr(coq.GallinaIdent("SliceSkip"),
+		return glang.NewCallExpr(glang.GallinaIdent("SliceSkip"),
 			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low))
 	}
 	if e.Low == nil && e.High != nil {
-		return coq.NewCallExpr(coq.GallinaIdent("SliceTake"),
+		return glang.NewCallExpr(glang.GallinaIdent("SliceTake"),
 			x, ctx.expr(e.High))
 	}
 	if e.Low != nil && e.High != nil {
-		return coq.NewCallExpr(coq.GallinaIdent("SliceSubslice"),
+		return glang.NewCallExpr(glang.GallinaIdent("SliceSubslice"),
 			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
 			x, ctx.expr(e.Low), ctx.expr(e.High))
 	}
@@ -1001,37 +1001,37 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
+func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	t := ctx.typeOf(e)
 	switch t.(type) {
 	case *types.Pointer:
-		return coq.GallinaIdent("null")
+		return glang.GallinaIdent("null")
 	case *types.Slice:
-		return coq.GallinaIdent("slice.nil")
+		return glang.GallinaIdent("slice.nil")
 	case *types.Basic:
 		// TODO: this gets triggered for all of our unit tests because the
 		//  nil identifier is mapped to an untyped nil object.
 		//  This seems wrong; the runtime representation of each of these
 		//  uses depends on the type, so Go must know how they're being used.
-		return coq.GallinaIdent("slice.nil")
+		return glang.GallinaIdent("slice.nil")
 	default:
 		ctx.unsupported(e, "nil of type %v (not pointer or slice)", t)
 		return nil
 	}
 }
 
-func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
+func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 	if e.Op == token.NOT {
-		return coq.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{ctx.expr(e.X)}
 	}
 	if e.Op == token.XOR {
-		return coq.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
 			// e is &a[b] where x is a.b
 			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
-				return coq.NewCallExpr(coq.GallinaIdent("SliceRef"),
+				return glang.NewCallExpr(glang.GallinaIdent("SliceRef"),
 					ctx.coqTypeOfType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
@@ -1052,22 +1052,22 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
+func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 	info := ctx.identInfo(s)
 	if info.IsMacro {
 		ctx.dep.addDep(s.Name)
-		return coq.GallinaIdent(s.Name)
+		return glang.GallinaIdent(s.Name)
 	}
-	e := coq.IdentExpr(s.Name)
+	e := glang.IdentExpr(s.Name)
 	if info.IsPtrWrapped {
-		return coq.DerefExpr{X: e, Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
+		return glang.DerefExpr{X: e, Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
 	}
 	return e
 }
 
-func (ctx Ctx) function(s *ast.Ident) coq.Expr {
+func (ctx Ctx) function(s *ast.Ident) glang.Expr {
 	ctx.dep.addDep(s.Name)
-	return coq.GallinaIdent(s.Name)
+	return glang.GallinaIdent(s.Name)
 }
 
 func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
@@ -1078,15 +1078,15 @@ func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
 	return s.Parent() == types.Universe
 }
 
-func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
+func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
 	if ctx.goBuiltin(e) {
 		switch e.Name {
 		case "nil":
 			return ctx.nilExpr(e)
 		case "true":
-			return coq.True
+			return glang.True
 		case "false":
-			return coq.False
+			return glang.False
 		}
 		ctx.unsupported(e, "special identifier")
 	}
@@ -1109,43 +1109,43 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 	panic("")
 }
 
-func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) coq.CallExpr {
+func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
 	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy := xTy.(type) {
 	case *types.Map:
-		e := coq.NewCallExpr(coq.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
+		e := glang.NewCallExpr(glang.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
 		if !isSpecial {
-			e = coq.NewCallExpr(coq.GallinaIdent("Fst"), e)
+			e = glang.NewCallExpr(glang.GallinaIdent("Fst"), e)
 		}
 		return e
 	case *types.Slice:
-		return coq.NewCallExpr(coq.GallinaIdent("SliceGet"),
+		return glang.NewCallExpr(glang.GallinaIdent("SliceGet"),
 			ctx.coqTypeOfType(e, xTy.Elem()),
 			ctx.expr(e.X), ctx.expr(e.Index))
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
-	return coq.CallExpr{}
+	return glang.CallExpr{}
 }
 
-func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
+func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok && info.throughPointer {
-		return coq.NewCallExpr(coq.GallinaIdent("struct.load"),
-			coq.StructDesc(info.name),
+		return glang.NewCallExpr(glang.GallinaIdent("struct.load"),
+			glang.StructDesc(info.name),
 			ctx.expr(e))
 	}
-	return coq.DerefExpr{
+	return glang.DerefExpr{
 		X:  ctx.expr(e),
 		Ty: ctx.coqTypeOfType(e, ptrElem(ctx.typeOf(e))),
 	}
 }
 
-func (ctx Ctx) expr(e ast.Expr) coq.Expr {
+func (ctx Ctx) expr(e ast.Expr) glang.Expr {
 	return ctx.exprSpecial(e, false)
 }
 
-func (ctx Ctx) funcLit(e *ast.FuncLit) coq.FuncLit {
-	fl := coq.FuncLit{}
+func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
+	fl := glang.FuncLit{}
 
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
@@ -1153,7 +1153,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) coq.FuncLit {
 	return fl
 }
 
-func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
+func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
 		return ctx.callExpr(e)
@@ -1190,7 +1190,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	return nil
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt, usage ExprValUsage) coq.BlockExpr {
+func (ctx Ctx) blockStmt(s *ast.BlockStmt, usage ExprValUsage) glang.BlockExpr {
 	return ctx.stmts(s.List, usage)
 }
 
@@ -1245,9 +1245,9 @@ func (ctx Ctx) stmtsEndWithReturn(ss []ast.Stmt) bool {
 	return false
 }
 
-func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
+func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) glang.BlockExpr {
 	c := &cursor{ss}
-	var bindings []coq.Binding
+	var bindings []glang.Binding
 	var finalized bool
 	for c.HasNext() {
 		s := c.Next()
@@ -1274,35 +1274,35 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 	if !finalized {
 		switch usage {
 		case ExprValReturned:
-			bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+			bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{glang.Tt}))
 		case ExprValLoop:
-			bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
+			bindings = append(bindings, glang.NewAnon(glang.LoopContinue))
 		case ExprValLocal:
 			// Make sure the list of bindings is not empty -- translate empty blocks to unit
 			if len(bindings) == 0 {
-				bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+				bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{glang.Tt}))
 			}
 		default:
 			panic("bad ExprValUsage")
 		}
 	}
-	return coq.BlockExpr{bindings}
+	return glang.BlockExpr{bindings}
 }
 
 // ifStmt has special support for an early-return "then" branch; to achieve that
 // it is responsible for generating the if *together with* all the statements that
 // follow it in the same block.
 // It is also responsible for "finalizing" the expression according to the usage.
-func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) coq.Binding {
+func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) glang.Binding {
 	// TODO: be more careful about nested if statements; if the then branch has
 	//  an if statement with early return, this is probably not handled correctly.
 	//  We should conservatively disallow such returns until they're properly analyzed.
 	if s.Init != nil {
 		ctx.unsupported(s.Init, "if statement initializations")
-		return coq.Binding{}
+		return glang.Binding{}
 	}
 	condExpr := ctx.expr(s.Cond)
-	ife := coq.IfExpr{
+	ife := glang.IfExpr{
 		Cond: condExpr,
 	}
 	// Extract (possibly empty) block in Else
@@ -1328,7 +1328,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 		// The remainder is empty, so just propagate the usage to both branches.
 		ife.Then = ctx.blockStmt(s.Body, usage)
 		ife.Else = ctx.blockStmt(Else, usage)
-		return coq.NewAnon(ife)
+		return glang.NewAnon(ife)
 	}
 
 	// There is code after the conditional -- merging control flow. Let us see what we can do.
@@ -1340,13 +1340,13 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 		// "else" must be empty.
 		if len(Else.List) > 0 {
 			ctx.futureWork(s.Else, "early return in if with an else branch")
-			return coq.Binding{}
+			return glang.Binding{}
 		}
 		// We can propagate the usage here since the return value of this part
 		// will become the return value of the entire conditional (that's why we
 		// put the remainder *inside* the conditional).
 		ife.Else = ctx.stmts(remainder, usage)
-		return coq.NewAnon(ife)
+		return glang.NewAnon(ife)
 	}
 
 	// No early return in "then" branch; translate this as a conditional in the middle of
@@ -1357,11 +1357,11 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) c
 	// And translate the remainder with our usage.
 	tailExpr := ctx.stmts(remainder, usage)
 	// Prepend the if-then-else before the tail.
-	bindings := append([]coq.Binding{coq.NewAnon(ife)}, tailExpr.Bindings...)
-	return coq.NewAnon(coq.BlockExpr{Bindings: bindings})
+	bindings := append([]glang.Binding{glang.NewAnon(ife)}, tailExpr.Bindings...)
+	return glang.NewAnon(glang.BlockExpr{Bindings: bindings})
 }
 
-func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init coq.Expr) {
+func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
 	initAssign, ok := s.(*ast.AssignStmt)
 	if !ok ||
 		len(initAssign.Lhs) > 1 ||
@@ -1378,8 +1378,8 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init coq.Expr) {
 	return lhs, ctx.expr(rhs)
 }
 
-func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
-	var init = coq.NewAnon(coq.Skip)
+func (ctx Ctx) forStmt(s *ast.ForStmt) glang.ForLoopExpr {
+	var init = glang.NewAnon(glang.Skip)
 	var ident *ast.Ident
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
@@ -1388,11 +1388,11 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 		})
 		init = ctx.stmt(s.Init)
 	}
-	var cond coq.Expr = coq.True
+	var cond glang.Expr = glang.True
 	if s.Cond != nil {
 		cond = ctx.expr(s.Cond)
 	}
-	var post coq.Expr = coq.Skip
+	var post glang.Expr = glang.Skip
 	if s.Post != nil {
 		postBlock := ctx.stmt(s.Post)
 		if len(postBlock.Names) > 0 {
@@ -1402,7 +1402,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	}
 
 	body := ctx.blockStmt(s.Body, ExprValLoop)
-	return coq.ForLoopExpr{
+	return glang.ForLoopExpr{
 		Init: init,
 		Cond: cond,
 		Post: post,
@@ -1417,7 +1417,7 @@ func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
 	return getIdent(e)
 }
 
-func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) coq.Expr {
+func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 	key, ok := getIdentOrAnonymous(s.Key)
 	if !ok {
 		ctx.nope(s.Key, "range with non-ident key")
@@ -1428,7 +1428,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) coq.Expr {
 		ctx.nope(s.Value, "range with non-ident value")
 		return nil
 	}
-	return coq.MapIterExpr{
+	return glang.MapIterExpr{
 		KeyIdent:   key,
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
@@ -1443,15 +1443,15 @@ func getIdentOrNil(e ast.Expr) *ast.Ident {
 	return nil
 }
 
-func (ctx Ctx) identBinder(id *ast.Ident) coq.Binder {
+func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
 	if id == nil {
-		return coq.Binder(nil)
+		return glang.Binder(nil)
 	}
-	e := coq.IdentExpr(id.Name)
+	e := glang.IdentExpr(id.Name)
 	return &e
 }
 
-func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
+func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	key := getIdentOrNil(s.Key)
 	val := getIdentOrNil(s.Value)
 	if key != nil {
@@ -1466,7 +1466,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 			IsMacro:      false,
 		})
 	}
-	return coq.SliceLoopExpr{
+	return glang.SliceLoopExpr{
 		Key:   ctx.identBinder(key),
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
@@ -1475,7 +1475,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 	}
 }
 
-func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
+func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	switch ctx.typeOf(s.X).(type) {
 	case *types.Map:
 		return ctx.mapRangeStmt(s)
@@ -1489,14 +1489,14 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 	}
 }
 
-func (ctx Ctx) referenceTo(rhs ast.Expr) coq.Expr {
-	return coq.RefExpr{
+func (ctx Ctx) referenceTo(rhs ast.Expr) glang.Expr {
+	return glang.RefExpr{
 		X:  ctx.expr(rhs),
 		Ty: ctx.coqTypeOfType(rhs, ctx.typeOf(rhs)),
 	}
 }
 
-func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
+func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 	if len(s.Rhs) > 1 {
 		ctx.futureWork(s, "multiple defines (split them up)")
 	}
@@ -1530,13 +1530,13 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	// 	pointer wrapped, so to work correctly the caller must set this identInfo
 	// 	before processing the defining expression.
 	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
-		return coq.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
+		return glang.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 	} else {
-		return coq.Binding{Names: names, Expr: ctx.exprSpecial(rhs, len(idents) == 2)}
+		return glang.Binding{Names: names, Expr: ctx.exprSpecial(rhs, len(idents) == 2)}
 	}
 }
 
-func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
+func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
 	if len(s.Names) > 1 {
 		ctx.unsupported(s, "multiple declarations in one block")
 	}
@@ -1545,22 +1545,22 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 		IsPtrWrapped: true,
 		IsMacro:      false,
 	})
-	var rhs coq.Expr
+	var rhs glang.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
-		rhs = coq.NewCallExpr(coq.GallinaIdent("ref"),
-			coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
+		rhs = glang.NewCallExpr(glang.GallinaIdent("ref"),
+			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
-	return coq.Binding{
+	return glang.Binding{
 		Names: []string{lhs.Name},
 		Expr:  rhs,
 	}
 }
 
 // varDeclStmt translates declarations within functions
-func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
+func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) glang.Binding {
 	decl, ok := s.Decl.(*ast.GenDecl)
 	if !ok {
 		ctx.noExample(s, "declaration that is not a GenDecl")
@@ -1587,11 +1587,11 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) coq.Binding {
 //	basic value and will use generic type-based support in Coq,
 //	hence on the Coq side we'll always have to reduce type-based loads and
 //	stores when they end up loading single-word values.
-func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
+func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.Ident:
 		// this is the intended translation even if s is pointer-wrapped
-		return coq.IdentExpr(s.Name)
+		return glang.IdentExpr(s.Name)
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(s.X)
 		info, ok := ctx.getStructInfo(ty)
@@ -1601,14 +1601,14 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		}
 		fieldName := s.Sel.Name
 
-		var structExpr coq.Expr
+		var structExpr glang.Expr
 		if info.throughPointer {
 			structExpr = ctx.expr(s.X)
 		} else {
 			structExpr = ctx.refExpr(s.X)
 		}
-		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.name),
-			coq.GallinaString(fieldName), structExpr)
+		return glang.NewCallExpr(glang.GallinaIdent("struct.fieldRef"), glang.StructDesc(info.name),
+			glang.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
 		ctx.futureWork(s, "reference to other types of expressions")
@@ -1616,22 +1616,22 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 	}
 }
 
-func (ctx Ctx) pointerAssign(dst *ast.Ident, x coq.Expr) coq.Binding {
+func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr) glang.Binding {
 	ty := ctx.typeOf(dst)
-	return coq.NewAnon(coq.StoreStmt{
-		Dst: coq.IdentExpr(dst.Name),
+	return glang.NewAnon(glang.StoreStmt{
+		Dst: glang.IdentExpr(dst.Name),
 		X:   x,
 		Ty:  ctx.coqTypeOfType(dst, ty),
 	})
 }
 
 func (ctx Ctx) assignFromTo(s ast.Node,
-	lhs ast.Expr, rhs coq.Expr) coq.Binding {
+	lhs ast.Expr, rhs glang.Expr) glang.Binding {
 	// assignments can mean various things
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
-			return coq.NewAnon(rhs)
+			return glang.NewAnon(rhs)
 		}
 		if ctx.identInfo(lhs).IsPtrWrapped {
 			return ctx.pointerAssign(lhs, rhs)
@@ -1642,16 +1642,16 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		switch targetTy := targetTy.(type) {
 		case *types.Slice:
 			value := rhs
-			return coq.NewAnon(coq.NewCallExpr(
-				coq.GallinaIdent("SliceSet"),
+			return glang.NewAnon(glang.NewCallExpr(
+				glang.GallinaIdent("SliceSet"),
 				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
 		case *types.Map:
 			value := rhs
-			return coq.NewAnon(coq.NewCallExpr(
-				coq.GallinaIdent("MapInsert"),
+			return glang.NewAnon(glang.NewCallExpr(
+				glang.GallinaIdent("MapInsert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
 				value))
@@ -1661,8 +1661,8 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	case *ast.StarExpr:
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
-			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.store"),
-				coq.StructDesc(info.name),
+			return glang.NewAnon(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
+				glang.StructDesc(info.name),
 				ctx.expr(lhs.X),
 				rhs))
 		}
@@ -1671,7 +1671,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 			ctx.unsupported(s,
 				"could not identify element type of assignment through pointer")
 		}
-		return coq.NewAnon(coq.StoreStmt{
+		return glang.NewAnon(glang.StoreStmt{
 			Dst: ctx.expr(lhs.X),
 			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
 			X:   rhs,
@@ -1679,7 +1679,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
 		info, ok := ctx.getStructInfo(ty)
-		var structExpr coq.Expr
+		var structExpr glang.Expr
 		// TODO: this adjusts for pointer-wrapping in refExpr, but there should
 		//  be a more systematic way to think about this (perhaps in terms of
 		//  distinguishing between translating for lvalues and rvalue)
@@ -1690,9 +1690,9 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		}
 		if ok {
 			fieldName := lhs.Sel.Name
-			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.storeF"),
-				coq.StructDesc(info.name),
-				coq.GallinaString(fieldName),
+			return glang.NewAnon(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
+				glang.StructDesc(info.name),
+				glang.GallinaString(fieldName),
 				structExpr,
 				rhs))
 		}
@@ -1701,10 +1701,10 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	default:
 		ctx.unsupported(s, "assigning to complex expression")
 	}
-	return coq.Binding{}
+	return glang.Binding{}
 }
 
-func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
+func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) glang.Binding {
 	// Translates a, b, c = SomeCall(args)
 	// into
 	//
@@ -1731,18 +1731,18 @@ func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
 	for i := 0; i < len(names); i += 1 {
 		names[i] = fmt.Sprintf("%d_ret", i)
 	}
-	multipleRetBinding := coq.Binding{Names: names, Expr: rhs}
+	multipleRetBinding := glang.Binding{Names: names, Expr: rhs}
 
-	coqStmts := make([]coq.Binding, len(s.Lhs)+1)
+	coqStmts := make([]glang.Binding, len(s.Lhs)+1)
 	coqStmts[0] = multipleRetBinding
 
 	for i, name := range names {
-		coqStmts[i+1] = ctx.assignFromTo(s, s.Lhs[i], coq.IdentExpr(name))
+		coqStmts[i+1] = ctx.assignFromTo(s, s.Lhs[i], glang.IdentExpr(name))
 	}
-	return coq.Binding{Names: make([]string, 0), Expr: coq.BlockExpr{Bindings: coqStmts}}
+	return glang.Binding{Names: make([]string, 0), Expr: glang.BlockExpr{Bindings: coqStmts}}
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
+func (ctx Ctx) assignStmt(s *ast.AssignStmt) glang.Binding {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
 	}
@@ -1751,12 +1751,12 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	}
 	lhs := s.Lhs[0]
 	rhs := ctx.expr(s.Rhs[0])
-	assignOps := map[token.Token]coq.BinOp{
-		token.ADD_ASSIGN: coq.OpPlus,
-		token.SUB_ASSIGN: coq.OpMinus,
+	assignOps := map[token.Token]glang.BinOp{
+		token.ADD_ASSIGN: glang.OpPlus,
+		token.SUB_ASSIGN: glang.OpMinus,
 	}
 	if op, ok := assignOps[s.Tok]; ok {
-		rhs = coq.BinaryExpr{
+		rhs = glang.BinaryExpr{
 			X:  ctx.expr(lhs),
 			Op: op,
 			Y:  rhs,
@@ -1767,50 +1767,50 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	return ctx.assignFromTo(s, lhs, rhs)
 }
 
-func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
+func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) glang.Binding {
 	ident := getIdentOrNil(stmt.X)
 	if ident == nil {
 		ctx.todo(stmt, "cannot inc/dec non-var")
-		return coq.Binding{}
+		return glang.Binding{}
 	}
 	if !ctx.identInfo(ident).IsPtrWrapped {
 		// should also be able to support variables that are of pointer type
 		ctx.todo(stmt, "can only inc/dec pointer-wrapped variables")
 	}
-	op := coq.OpPlus
+	op := glang.OpPlus
 	if stmt.Tok == token.DEC {
-		op = coq.OpMinus
+		op = glang.OpMinus
 	}
-	return ctx.pointerAssign(ident, coq.BinaryExpr{
+	return ctx.pointerAssign(ident, glang.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
-		Y:  coq.IntLiteral{1},
+		Y:  glang.IntLiteral{1},
 	})
 }
 
-func (ctx Ctx) spawnExpr(thread ast.Expr) coq.SpawnExpr {
+func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
 	f, ok := thread.(*ast.FuncLit)
 	if !ok {
 		ctx.futureWork(thread,
 			"only function literal spawns are supported")
-		return coq.SpawnExpr{}
+		return glang.SpawnExpr{}
 	}
-	return coq.SpawnExpr{Body: ctx.blockStmt(f.Body, ExprValLocal)}
+	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body, ExprValLocal)}
 }
 
-func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.Expr {
+func (ctx Ctx) branchStmt(s *ast.BranchStmt) glang.Expr {
 	if s.Tok == token.CONTINUE {
-		return coq.LoopContinue
+		return glang.LoopContinue
 	}
 	if s.Tok == token.BREAK {
-		return coq.LoopBreak
+		return glang.LoopBreak
 	}
 	ctx.noExample(s, "unexpected control flow %v in loop", s.Tok)
 	return nil
 }
 
 // getSpawn returns a non-nil spawned thread if the expression is a go call
-func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
+func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 	if len(e.Call.Args) > 0 {
 		ctx.unsupported(e, "go statement with parameters")
 	}
@@ -1820,19 +1820,19 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
 // This function also returns whether the expression has been "finalized",
 // which means the usage has been taken care of. If it is not finalized,
 // the caller is responsible for adding a trailing "return unit"/"continue".
-func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
+func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (glang.Binding, bool) {
 	// First the case where the statement matches the usage, i.e. the necessary
 	// control effect is actually available.
 	switch usage {
 	case ExprValReturned:
 		s, ok := s.(*ast.ReturnStmt)
 		if ok {
-			return coq.NewAnon(ctx.returnExpr(s.Results)), true
+			return glang.NewAnon(ctx.returnExpr(s.Results)), true
 		}
 	case ExprValLoop:
 		s, ok := s.(*ast.BranchStmt)
 		if ok {
-			return coq.NewAnon(ctx.branchStmt(s)), true
+			return glang.NewAnon(ctx.branchStmt(s)), true
 		}
 	}
 	// Some statements can handle the usage themselves, and they make sure to finalize it, too
@@ -1840,20 +1840,20 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	case *ast.IfStmt:
 		return ctx.ifStmt(s, []ast.Stmt{}, usage), true
 	case *ast.BlockStmt:
-		return coq.NewAnon(ctx.blockStmt(s, usage)), true
+		return glang.NewAnon(ctx.blockStmt(s, usage)), true
 	}
 	// For everything else, we generate the statement and possibly tell the caller
 	// that this is not yet finalized.
-	var binding coq.Binding = coq.Binding{}
+	var binding glang.Binding = glang.Binding{}
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		ctx.futureWork(s, "return in unsupported position")
 	case *ast.BranchStmt:
 		ctx.futureWork(s, "break/continue in unsupported position")
 	case *ast.GoStmt:
-		binding = coq.NewAnon(ctx.goStmt(s))
+		binding = glang.NewAnon(ctx.goStmt(s))
 	case *ast.ExprStmt:
-		binding = coq.NewAnon(ctx.expr(s.X))
+		binding = glang.NewAnon(ctx.expr(s.X))
 	case *ast.AssignStmt:
 		binding = ctx.assignStmt(s)
 	case *ast.DeclStmt:
@@ -1863,9 +1863,9 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	case *ast.ForStmt:
 		// note that this might be a nested loop,
 		// in which case the loop var gets replaced by the inner loop.
-		binding = coq.NewAnon(ctx.forStmt(s))
+		binding = glang.NewAnon(ctx.forStmt(s))
 	case *ast.RangeStmt:
-		binding = coq.NewAnon(ctx.rangeStmt(s))
+		binding = glang.NewAnon(ctx.rangeStmt(s))
 	case *ast.SwitchStmt:
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
@@ -1884,7 +1884,7 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 }
 
 // Translate a single statement without usage (i.e., no control effects available)
-func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
+func (ctx Ctx) stmt(s ast.Stmt) glang.Binding {
 	// stmts takes care of finalization...
 	binding, finalized := ctx.stmtInBlock(s, ExprValLocal)
 	if !finalized {
@@ -1893,44 +1893,44 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 	return binding
 }
 
-func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
+func (ctx Ctx) returnExpr(es []ast.Expr) glang.Expr {
 	if len(es) == 0 {
 		// named returns are not supported, so this must return unit
-		return coq.ReturnExpr{coq.UnitLiteral{}}
+		return glang.ReturnExpr{glang.UnitLiteral{}}
 	}
-	var exprs coq.TupleExpr
+	var exprs glang.TupleExpr
 	for _, r := range es {
 		exprs = append(exprs, ctx.expr(r))
 	}
-	return coq.ReturnExpr{coq.NewTuple(exprs)}
+	return glang.ReturnExpr{glang.NewTuple(exprs)}
 }
 
 // returnType converts an Ast.FuncType's Results to a Coq return type
-func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
+func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 	if results == nil {
-		return coq.TypeIdent("unitT")
+		return glang.TypeIdent("unitT")
 	}
 	rs := results.List
 	for _, r := range rs {
 		if len(r.Names) > 0 {
 			ctx.unsupported(r, "named returned value")
-			return coq.TypeIdent("<invalid>")
+			return glang.TypeIdent("<invalid>")
 		}
 	}
-	var ts []coq.Type
+	var ts []glang.Type
 	for _, r := range rs {
 		if len(r.Names) > 0 {
 			ctx.unsupported(r, "named returned value")
-			return coq.TypeIdent("<invalid>")
+			return glang.TypeIdent("<invalid>")
 		}
 		ts = append(ts, ctx.coqType(r.Type))
 	}
-	return coq.NewTupleType(ts)
+	return glang.NewTupleType(ts)
 }
 
-func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
+func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 
-	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
+	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
 		TypeParams: ctx.typeParamList(d.Type.TypeParams),
 	}
 	addSourceDoc(d.Doc, &fd.Comment)
@@ -1950,7 +1950,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		if !ok {
 			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
 		}
-		fd.Name = coq.StructMethod(structInfo.name, d.Name.Name)
+		fd.Name = glang.StructMethod(structInfo.name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
 
@@ -1962,9 +1962,9 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 	return fd
 }
 
-func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
+func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 	ident := spec.Names[0]
-	cd := coq.ConstDecl{
+	cd := glang.ConstDecl{
 		Name:     ident.Name,
 		AddTypes: ctx.Config.TypeCheck,
 	}
@@ -1984,8 +1984,8 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 	return cd
 }
 
-func (ctx Ctx) constDecl(d *ast.GenDecl) []coq.Decl {
-	var specs []coq.Decl
+func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
+	var specs []glang.Decl
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
 		ctx.dep.addName(vs.Names[0].Name)
@@ -1994,12 +1994,12 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []coq.Decl {
 	return specs
 }
 
-func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []coq.Decl {
+func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	// NOTE: this treats globals as constants, which is unsound but used for a
 	// configurable Debug level in goose-nfsd. Configuration variables should
 	// instead be treated as a non-deterministic constant, assuming they aren't
 	// changed after startup.
-	var specs []coq.Decl
+	var specs []glang.Decl
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
 		ctx.dep.addName(vs.Names[0].Name)
@@ -2039,8 +2039,8 @@ var ffiMapping = map[string]string{
 	"github.com/tchajed/goose/machine/async_disk": "async_disk",
 }
 
-func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
-	var decls []coq.Decl
+func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
+	var decls []glang.Decl
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
 		if s.Name != nil {
@@ -2056,16 +2056,16 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 			pkgName := importPath[pkgNameIndex:]
 
 			if strings.HasPrefix(pkgName, "trusted_") {
-				decls = append(decls, coq.ImportDecl{Path: importPath, Trusted: true})
+				decls = append(decls, glang.ImportDecl{Path: importPath, Trusted: true})
 			} else {
-				decls = append(decls, coq.ImportDecl{Path: importPath, Trusted: false})
+				decls = append(decls, glang.ImportDecl{Path: importPath, Trusted: false})
 			}
 		}
 	}
 	return decls
 }
 
-func (ctx Ctx) exprInterface(cvs []coq.Decl, expr ast.Expr, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) exprInterface(cvs []glang.Decl, expr ast.Expr, d *ast.FuncDecl) []glang.Decl {
 	switch f := expr.(type) {
 	case *ast.UnaryExpr:
 		if left, ok := f.X.(*ast.BinaryExpr); ok {
@@ -2090,7 +2090,7 @@ func (ctx Ctx) exprInterface(cvs []coq.Decl, expr ast.Expr, d *ast.FuncDecl) []c
 	return cvs
 }
 
-func (ctx Ctx) stmtInterface(cvs []coq.Decl, stmt ast.Stmt, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) stmtInterface(cvs []glang.Decl, stmt ast.Stmt, d *ast.FuncDecl) []glang.Decl {
 	switch f := stmt.(type) {
 	case *ast.ReturnStmt:
 		for _, result := range f.Results {
@@ -2127,7 +2127,7 @@ func unqualifyName(name string) string {
 	return components[len(components)-1]
 }
 
-func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) callExprInterface(cvs []glang.Decl, r *ast.CallExpr, d *ast.FuncDecl) []glang.Decl {
 	interfaceName := ""
 	methods := []string{}
 	if signature, ok := ctx.typeOf(r.Fun).(*types.Signature); ok {
@@ -2145,7 +2145,7 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDec
 			structName := ctx.typeOf(arg).String()
 			structName = unqualifyName(structName)
 			if _, ok := ctx.typeOf(arg).Underlying().(*types.Struct); ok {
-				cv := coq.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
+				cv := glang.StructToInterface{Struct: structName, Interface: interfaceName, Methods: methods}
 				if len(cv.Coq(true)) > 1 && len(cv.MethodList()) > 0 {
 					cvs = append(cvs, cv)
 				}
@@ -2155,19 +2155,19 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDec
 	return cvs
 }
 
-func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
+func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		cvs := []coq.Decl{}
+		cvs := []glang.Decl{}
 		for _, stmt := range d.Body.List {
 			cvs = ctx.stmtInterface(cvs, stmt, d)
 		}
 		fd := ctx.funcDecl(d)
-		results := []coq.Decl{}
+		results := []glang.Decl{}
 		if len(cvs) > 0 {
 			results = append(cvs, fd)
 		} else {
-			results = []coq.Decl{fd}
+			results = []glang.Decl{fd}
 		}
 		return results
 	case *ast.GenDecl:
@@ -2185,7 +2185,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 			spec := d.Specs[0].(*ast.TypeSpec)
 			ctx.dep.addName(spec.Name.Name)
 			ty := ctx.typeDecl(d.Doc, spec)
-			return []coq.Decl{ty}
+			return []glang.Decl{ty}
 		default:
 			ctx.nope(d, "unknown token type in decl")
 		}

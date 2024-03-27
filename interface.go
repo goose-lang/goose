@@ -11,13 +11,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/tchajed/goose/internal/glang"
 	"golang.org/x/tools/go/packages"
 )
 
 // declsOrError translates one top-level declaration,
 // catching Goose translation errors and returning them as a regular Go error
-func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []coq.Decl, err error) {
+func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if gooseErr, ok := r.(gooseError); ok {
@@ -31,10 +31,10 @@ func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []coq.Decl, err error) {
 	return ctx.maybeDecls(stmt), nil
 }
 
-func filterImports(decls []coq.Decl) (nonImports []coq.Decl, imports coq.ImportDecls) {
+func filterImports(decls []glang.Decl) (nonImports []glang.Decl, imports glang.ImportDecls) {
 	for _, d := range decls {
 		switch d := d.(type) {
-		case coq.ImportDecl:
+		case glang.ImportDecl:
 			imports = append(imports, d)
 		default:
 			nonImports = append(nonImports, d)
@@ -62,12 +62,14 @@ func (dt *depTracker) addDep(s string) {
 }
 
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl, errs []error) {
-	declGroups := make(map[declId][]coq.Decl)
+func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.Decl, errs []error) {
+	declGroups := make(map[declId][]glang.Decl)
 	declDeps := make(map[declId][]string)
 	nameDecls := make(map[string]declId)
 	generated := make(map[declId]bool)
 
+	// Translate every Go decl into a Glang decl and build up dependencies for
+	// each of them.
 	for fi, f := range fs {
 		for di, d := range f.Ast.Decls {
 			ctx.dep = &depTracker{}
@@ -78,8 +80,6 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 				errs = append(errs, err)
 			}
 
-			// fmt.Printf("Generated %s, depends on %s\n", ctx.dep.names, ctx.dep.deps)
-
 			declGroups[id] = newDecls
 			declDeps[id] = ctx.dep.deps
 			for _, n := range ctx.dep.names {
@@ -88,6 +88,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		}
 	}
 
+	// Sort Glang decls based on dependencies
 	var lastFile int
 	var processDecl func(id declId, ident string)
 
@@ -107,7 +108,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 		if lastFile != id.fileIdx && ident != "" {
 			f := fs[id.fileIdx]
 			decls = append(decls,
-				coq.NewComment(fmt.Sprintf("%s from %s", ident, f.Name())))
+				glang.NewComment(fmt.Sprintf("%s from %s", ident, f.Name())))
 			lastFile = id.fileIdx
 		}
 
@@ -119,10 +120,10 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 	for fi, f := range fs {
 		if len(fs) > 1 {
 			decls = append(decls,
-				coq.NewComment(fmt.Sprintf("%s", f.Name())))
+				glang.NewComment(fmt.Sprintf("%s", f.Name())))
 		}
 		if f.Ast.Doc != nil {
-			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))
+			decls = append(decls, glang.NewComment(f.Ast.Doc.Text()))
 		}
 		lastFile = fi
 		for di := range f.Ast.Decls {
@@ -193,16 +194,16 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
+func (tr Translator) translatePackage(pkg *packages.Package) (glang.File, error) {
 	if len(pkg.Errors) > 0 {
-		return coq.File{}, errors.Errorf(
+		return glang.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
 	ctx := NewPkgCtx(pkg, tr)
 	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
-	coqFile := coq.File{
+	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
@@ -252,7 +253,7 @@ func newPackageConfig(modDir string) *packages.Config {
 // the files list). patternErr is only non-nil if the patterns themselves have
 // a syntax error.
 func (tr Translator) TranslatePackages(modDir string,
-	pkgPattern ...string) (files []coq.File, errs []error, patternErr error) {
+	pkgPattern ...string) (files []glang.File, errs []error, patternErr error) {
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {
 		return nil, nil, err
@@ -262,7 +263,7 @@ func (tr Translator) TranslatePackages(modDir string,
 		return nil, nil,
 			errors.New("patterns matched no packages")
 	}
-	files = make([]coq.File, len(pkgs))
+	files = make([]glang.File, len(pkgs))
 	errs = make([]error, len(pkgs))
 	var wg sync.WaitGroup
 	wg.Add(len(pkgs))

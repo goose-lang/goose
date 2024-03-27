@@ -1,4 +1,4 @@
-package coq
+package glang
 
 import (
 	"testing"

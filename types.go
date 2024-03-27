@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/tchajed/goose/internal/glang"
 )
 
 // this file has the translations for types themselves
@@ -34,20 +34,20 @@ func supportedMapKey(keyTy types.Type) bool {
 	return false
 }
 
-func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
+func (ctx Ctx) mapType(e *ast.MapType) glang.MapType {
 	ty := ctx.typeOf(e).Underlying().(*types.Map)
 	if !supportedMapKey(ty.Key()) {
 		ctx.unsupported(e, "maps must be from uint64 or string (not %v)", e.Key)
 	}
-	return coq.MapType{Key: ctx.coqType(e.Key), Value: ctx.coqType(e.Value)}
+	return glang.MapType{Key: ctx.coqType(e.Key), Value: ctx.coqType(e.Value)}
 }
 
-func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
+func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) glang.Expr {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return coq.TypeIdent("fileT")
+		return glang.TypeIdent("fileT")
 	}
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return coq.TypeIdent("disk.blockT")
+		return glang.TypeIdent("disk.blockT")
 	}
 	if isIdent(e.X, "sync") &&
 		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
@@ -56,7 +56,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
 	return ctx.coqTypeOfType(e, ctx.typeOf(e))
 }
 
-func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
+func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 	// TODO: move support for various types in ctx.coqType with this function
 	//
 	// ctx.coqType operates syntactically whereas this function uses type
@@ -67,52 +67,52 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	// syntactic type and we need to operate on the output of type inference
 	// anyway.
 	if isProphId(t) {
-		return coq.TypeIdent("ProphIdT")
+		return glang.TypeIdent("ProphIdT")
 	}
 	switch t := t.(type) {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
 	case *types.TypeParam:
-		return coq.TypeIdent(t.Obj().Name())
+		return glang.TypeIdent(t.Obj().Name())
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":
-			return coq.TypeIdent("uint64T")
+			return glang.TypeIdent("uint64T")
 		case "uint32":
-			return coq.TypeIdent("uint32T")
+			return glang.TypeIdent("uint32T")
 		case "byte":
-			return coq.TypeIdent("byteT")
+			return glang.TypeIdent("byteT")
 		case "bool":
-			return coq.TypeIdent("boolT")
+			return glang.TypeIdent("boolT")
 		case "string", "untyped string":
-			return coq.TypeIdent("stringT")
+			return glang.TypeIdent("stringT")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
 	case *types.Pointer:
-		return coq.PtrType{}
+		return glang.PtrType{}
 	case *types.Named:
 		if t.Obj().Pkg() == nil {
 			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
 		}
 		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
-			return coq.TypeIdent("fileT")
+			return glang.TypeIdent("fileT")
 		}
 		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
-			return coq.TypeIdent("disk.Disk")
+			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			return coq.StructName(info.name)
+			return glang.StructName(info.name)
 		}
-		return coq.TypeIdent(ctx.qualifiedName(t.Obj()))
+		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
-		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
+		return glang.SliceType{ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
-		return coq.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
+		return glang.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
-		return coq.InterfaceDecl{Name: ""}
+		ctx.unsupported(n, "interface type")
 	}
 	ctx.nope(n, "unknown type %v", t)
 	return nil // unreachable
@@ -132,41 +132,41 @@ func ptrElem(t types.Type) types.Type {
 	panic(fmt.Errorf("expected pointer type, got %v", t))
 }
 
-func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
+func (ctx Ctx) arrayType(e *ast.ArrayType) glang.Type {
 	if e.Len != nil {
 		t := ctx.typeOf(e).(*types.Array)
-		return coq.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
+		return glang.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
 	}
-	return coq.SliceType{ctx.coqType(e.Elt)}
+	return glang.SliceType{ctx.coqType(e.Elt)}
 }
 
-func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
-	return coq.PtrType{}
+func (ctx Ctx) ptrType(e *ast.StarExpr) glang.Type {
+	return glang.PtrType{}
 }
 
 func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
 }
 
-func (ctx Ctx) coqFuncType(e *ast.FuncType) coq.Type {
-	types := []coq.Type{}
+func (ctx Ctx) coqFuncType(e *ast.FuncType) glang.Type {
+	types := []glang.Type{}
 	args := ctx.paramList(e.Params)
 	for _, a := range args {
 		types = append(types, a.Type)
 	}
 	if len(args) == 0 {
-		types = append(types, coq.TypeIdent("unitT"))
+		types = append(types, glang.TypeIdent("unitT"))
 	}
 	resType := ctx.returnType(e.Results)
-	return coq.ArrowType{ArgTypes: types, ReturnType: resType}
+	return glang.ArrowType{ArgTypes: types, ReturnType: resType}
 }
 
-func (ctx Ctx) coqType(e ast.Expr) coq.Type {
+func (ctx Ctx) coqType(e ast.Expr) glang.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
 		ctx.dep.addDep(e.Name)
 		if ctx.identInfo(e).IsMacro {
-			return coq.TypeIdent(e.Name)
+			return glang.TypeIdent(e.Name)
 		}
 		return ctx.coqTypeOfType(e, ctx.typeOf(e))
 	case *ast.MapType:
@@ -179,7 +179,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.ptrType(e)
 	case *ast.InterfaceType:
 		if isEmptyInterface(e) {
-			return coq.TypeIdent("anyT")
+			return glang.TypeIdent("anyT")
 		} else {
 			ctx.unsupported(e, "non-empty interface")
 		}
@@ -187,13 +187,13 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		// NOTE: ellipsis types are not fully supported
 		// we emit the right type here but Goose doesn't know how to call a method
 		// which takes variadic parameters (it'll pass them as separate arguments)
-		return coq.SliceType{ctx.coqType(e.Elt)}
+		return glang.SliceType{ctx.coqType(e.Elt)}
 	case *ast.FuncType:
 		return ctx.coqFuncType(e)
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
-	return coq.TypeIdent("<type>")
+	return glang.TypeIdent("<type>")
 }
 
 func isLockRef(t types.Type) bool {
@@ -370,8 +370,8 @@ func (info structTypeInfo) fields() []string {
 	return fields
 }
 
-func (ctx Ctx) typeList(n ast.Node, ts *types.TypeList) []coq.Expr {
-	var typeArgs []coq.Expr
+func (ctx Ctx) typeList(n ast.Node, ts *types.TypeList) []glang.Expr {
+	var typeArgs []glang.Expr
 	if ts == nil {
 		return nil
 	}

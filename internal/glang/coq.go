@@ -1,4 +1,4 @@
-package coq
+package glang
 
 import (
 	"fmt"
@@ -120,8 +120,6 @@ type StructDecl struct {
 // CoqDecl implements the Decl interface
 //
 // A struct declaration simply consists of the struct descriptor
-// (wrapped in a module in case we eventually want to add more things related
-// to the struct).
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
@@ -146,23 +144,6 @@ type InterfaceDecl struct {
 }
 
 func (d InterfaceDecl) CoqDecl() string {
-	var pp buffer
-	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := struct.decl [", d.Name)
-	pp.Indent(2)
-	for i, fd := range d.Methods {
-		sep := ";"
-		if i == len(d.Methods)-1 {
-			sep = ""
-		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
-	}
-	pp.Indent(-2)
-	pp.AddLine("].")
-	return pp.Build()
-}
-
-func (d InterfaceDecl) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 	pp.Add("Definition %s := struct.decl [", d.Name)
