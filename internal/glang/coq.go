@@ -1079,8 +1079,10 @@ type ImportDecl struct {
 	Trusted bool
 }
 
-func pathToCoqPath(p string) string {
-	p = strings.ReplaceAll(p, ".", "_")
+// This is an injective mapping
+func goPathToCoqPath(p string) string {
+	p = strings.ReplaceAll(p, "_", "__")
+	p = strings.ReplaceAll(p, ".", "_dot_")
 	p = strings.ReplaceAll(p, "-", "_")
 	return p
 }
@@ -1091,20 +1093,18 @@ func pathToCoqPath(p string) string {
 //
 //	statement in Go) differing from the basename of its parent directory
 func ImportToPath(pkgPath, pkgName string) string {
-	coqPath := pathToCoqPath(pkgPath)
+	coqPath := goPathToCoqPath(pkgPath)
 	p := path.Dir(coqPath)
 	filename := path.Base(coqPath) + ".v"
 	return filepath.Join(p, filename)
 }
 
 func (decl ImportDecl) CoqDecl() string {
-	coqPath := pathToCoqPath(decl.Path)
-	coqImportPath := strings.ReplaceAll(path.Dir(coqPath), "/", ".")
-	name := path.Base(decl.Path)
+	coqImportQualid := strings.ReplaceAll(goPathToCoqPath(decl.Path), "/", ".")
 	if decl.Trusted {
-		return fmt.Sprintf("From Perennial.goose_lang.trusted Require Import %s.%s.", coqImportPath, name)
+		return fmt.Sprintf("From Perennial.goose_lang.trusted Require Import %s.", coqImportQualid)
 	} else {
-		return fmt.Sprintf("From Goose Require %s.%s.", coqImportPath, name)
+		return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
 	}
 }
 

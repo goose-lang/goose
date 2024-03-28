@@ -49,10 +49,6 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) glang.Expr {
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
 		return glang.TypeIdent("disk.blockT")
 	}
-	if isIdent(e.X, "sync") &&
-		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
-		ctx.unsupported(e, "%s without pointer indirection", ctx.printGo(e))
-	}
 	return ctx.coqTypeOfType(e, ctx.typeOf(e))
 }
 

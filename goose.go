@@ -330,49 +330,6 @@ func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
 	return glang.CallExpr{}
 }
 
-func (ctx Ctx) lockMethod(f *ast.SelectorExpr) glang.CallExpr {
-	l := ctx.expr(f.X)
-	switch f.Sel.Name {
-	case "Lock":
-		return glang.NewCallExpr(glang.GallinaIdent("lock.acquire"), l)
-	case "Unlock":
-		return glang.NewCallExpr(glang.GallinaIdent("lock.release"), l)
-	default:
-		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
-		return glang.CallExpr{}
-	}
-}
-
-func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) glang.CallExpr {
-	l := ctx.expr(f.X)
-	switch f.Sel.Name {
-	case "Signal":
-		return glang.NewCallExpr(glang.GallinaIdent("lock.condSignal"), l)
-	case "Broadcast":
-		return glang.NewCallExpr(glang.GallinaIdent("lock.condBroadcast"), l)
-	case "Wait":
-		return glang.NewCallExpr(glang.GallinaIdent("lock.condWait"), l)
-	default:
-		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
-		return glang.CallExpr{}
-	}
-}
-
-func (ctx Ctx) waitGroupMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExpr {
-	callArgs := append([]ast.Expr{f.X}, args...)
-	switch f.Sel.Name {
-	case "Add":
-		return ctx.newCoqCall("waitgroup.Add", callArgs)
-	case "Done":
-		return ctx.newCoqCall("waitgroup.Done", callArgs)
-	case "Wait":
-		return ctx.newCoqCall("waitgroup.Wait", callArgs)
-	default:
-		ctx.unsupported(f, "method %s of sync.WaitGroup", f.Sel.Name)
-		return glang.CallExpr{}
-	}
-}
-
 func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExpr {
 	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
@@ -449,12 +406,6 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 			return glang.LoggingStmt{GoCall: ctx.printGo(call)}
 		}
 	}
-	if isIdent(f.X, "sync") {
-		switch f.Sel.Name {
-		case "NewCond":
-			return ctx.newCoqCall("lock.newCond", args)
-		}
-	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
 		glang.GallinaIdent(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
@@ -468,18 +419,6 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	selectorType, ok := ctx.getType(f.X)
 	if !ok {
 		return ctx.packageMethod(f, call)
-	}
-	if isLockRef(selectorType) {
-		return ctx.lockMethod(f)
-	}
-	if isCFMutexRef(selectorType) {
-		return ctx.lockMethod(f)
-	}
-	if isCondVar(selectorType) {
-		return ctx.condVarMethod(f)
-	}
-	if isWaitGroup(selectorType) {
-		return ctx.waitGroupMethod(f, args)
 	}
 	if isProphId(selectorType) {
 		return ctx.prophIdMethod(f, args)
@@ -654,17 +593,6 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
 
 // newExpr parses a call to new() into an appropriate allocation
 func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.CallExpr {
-	if sel, ok := ty.(*ast.SelectorExpr); ok {
-		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
-			return glang.NewCallExpr(glang.GallinaIdent("lock.new"))
-		}
-		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
-			return glang.NewCallExpr(glang.GallinaIdent("waitgroup.New"))
-		}
-		if isIdent(sel.X, "cfmutex") && isIdent(sel.Sel, "CFMutex") {
-			return glang.NewCallExpr(glang.GallinaIdent("lock.new"))
-		}
-	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
 		return glang.NewCallExpr(glang.GallinaIdent("zero_array"),
 			ctx.coqTypeOfType(ty, t.Elem()),
@@ -2028,7 +1956,6 @@ var builtinImports = map[string]bool{
 	"github.com/tchajed/goose/machine/async_disk": true,
 	"github.com/mit-pdos/gokv/time":               true,
 	"github.com/mit-pdos/vmvcc/cfmutex":           true,
-	"sync":                                        true,
 	"log":                                         true,
 	"fmt":                                         true,
 }
@@ -2055,6 +1982,7 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 			pkgNameIndex := strings.LastIndex(importPath, "/") + 1
 			pkgName := importPath[pkgNameIndex:]
 
+			// FIXME: eliminate special case for "trusted"
 			if strings.HasPrefix(pkgName, "trusted_") {
 				decls = append(decls, glang.ImportDecl{Path: importPath, Trusted: true})
 			} else {
