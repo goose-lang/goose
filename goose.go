@@ -350,37 +350,6 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	if isIdent(f.X, "disk") {
 		return ctx.newCoqCall("disk."+f.Sel.Name, args)
 	}
-	if isIdent(f.X, "machine") {
-		switch f.Sel.Name {
-		case "UInt64Get", "UInt64Put", "UInt32Get", "UInt32Put":
-			return ctx.newCoqCall(f.Sel.Name, args)
-		case "RandomUint64":
-			return ctx.newCoqCall("rand.RandomUint64", args)
-		case "UInt64ToString":
-			return ctx.newCoqCall("uint64_to_string", args)
-		case "Linearize":
-			return glang.GallinaIdent("Linearize")
-		case "Assume":
-			return ctx.newCoqCall("control.impl.Assume", args)
-		case "Assert":
-			return ctx.newCoqCall("control.impl.Assert", args)
-		case "Exit":
-			return ctx.newCoqCall("control.impl.Exit", args)
-		case "WaitTimeout":
-			return ctx.newCoqCall("lock.condWaitTimeout", args)
-		case "Sleep":
-			return ctx.newCoqCall("time.Sleep", args)
-		case "TimeNow":
-			return ctx.newCoqCall("time.TimeNow", args)
-		case "MapClear":
-			return ctx.newCoqCall("MapClear", args)
-		case "NewProph":
-			return ctx.newCoqCall("NewProph", args)
-		default:
-			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
-			return glang.CallExpr{}
-		}
-	}
 	if isIdent(f.X, "log") {
 		switch f.Sel.Name {
 		case "Print", "Printf", "Println":
@@ -1949,7 +1918,6 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 // TODO: put this in another file
 var builtinImports = map[string]bool{
-	"github.com/tchajed/goose/machine":            true,
 	"github.com/tchajed/goose/machine/filesys":    true,
 	"github.com/mit-pdos/gokv/grove_ffi":          true,
 	"github.com/tchajed/goose/machine/disk":       true,
