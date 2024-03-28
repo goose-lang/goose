@@ -364,7 +364,7 @@ type PackageIdent struct {
 }
 
 func (e PackageIdent) Coq(needs_paren bool) string {
-	return fmt.Sprintf("%s.%s", e.Package, e.Ident)
+	return fmt.Sprintf("%s.%s", goPathToCoqPath(e.Package), e.Ident)
 }
 
 var Skip Expr = GallinaIdent("Skip")

@@ -2,6 +2,7 @@
 From Perennial.goose_lang Require Import prelude.
 From Goose Require github_dot_com.tchajed.goose.internal.examples.unittest.generic.
 From Goose Require github_dot_com.tchajed.goose.machine.
+From Goose Require github_dot_com.tchajed.goose.machine.disk.
 From Goose Require github_dot_com.tchajed.marshal.
 From Goose Require sync.
 

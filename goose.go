@@ -377,6 +377,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
+		// FIXME: should not call Coq()
 		glang.GallinaIdent(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
 		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
@@ -1918,14 +1919,8 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 // TODO: put this in another file
 var builtinImports = map[string]bool{
-	"github.com/tchajed/goose/machine/filesys":    true,
-	"github.com/mit-pdos/gokv/grove_ffi":          true,
-	"github.com/tchajed/goose/machine/disk":       true,
-	"github.com/tchajed/goose/machine/async_disk": true,
-	"github.com/mit-pdos/gokv/time":               true,
-	"github.com/mit-pdos/vmvcc/cfmutex":           true,
-	"log":                                         true,
-	"fmt":                                         true,
+	"log": true,
+	"fmt": true,
 }
 
 var ffiMapping = map[string]string{
