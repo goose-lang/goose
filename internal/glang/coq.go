@@ -1083,7 +1083,7 @@ type ImportDecl struct {
 func goPathToCoqPath(p string) string {
 	p = strings.ReplaceAll(p, "_", "__")
 	p = strings.ReplaceAll(p, ".", "_dot_")
-	p = strings.ReplaceAll(p, "-", "_")
+	p = strings.ReplaceAll(p, "-", "_dash_")
 	return p
 }
 
