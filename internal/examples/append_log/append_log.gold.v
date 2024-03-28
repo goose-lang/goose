@@ -34,13 +34,13 @@ Definition Init: val :=
     (if: "diskSz" < #1
     then
       (struct.new Log [
-         "m" ::= lock.new #();
+         "m" ::= struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex));
          "sz" ::= #0;
          "diskSz" ::= #0
        ], #false)
     else
       let: "log" := struct.new Log [
-        "m" ::= lock.new #();
+        "m" ::= struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex));
         "sz" ::= #0;
         "diskSz" ::= "diskSz"
       ] in
@@ -54,7 +54,7 @@ Definition Open: val :=
     let: "sz" := marshal.Dec__GetInt "dec" in
     let: "diskSz" := marshal.Dec__GetInt "dec" in
     struct.new Log [
-      "m" ::= lock.new #();
+      "m" ::= struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex));
       "sz" ::= "sz";
       "diskSz" ::= "diskSz"
     ].

@@ -30,6 +30,6 @@ final line`, pp.Build())
 func TestImportToPath(t *testing.T) {
 	// this is the current behavior, which doesn't accurately reflect the
 	// difference between a package's path and its name
-	assert.Equal(t, "github_com/mit_pdos/go_journal.v",
+	assert.Equal(t, "github_dot_com/mit_dash_pdos/go_dash_journal.v",
 		ImportToPath("github.com/mit-pdos/go-journal", "jrnl"))
 }

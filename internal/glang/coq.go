@@ -1075,8 +1075,7 @@ From Perennial.goose_lang Require Import prelude.
 
 // These will not end up in `File.Decls`, they are put into `File.Imports` by `translatePackage`.
 type ImportDecl struct {
-	Path    string
-	Trusted bool
+	Path string
 }
 
 // This is an injective mapping
@@ -1101,11 +1100,7 @@ func ImportToPath(pkgPath, pkgName string) string {
 
 func (decl ImportDecl) CoqDecl() string {
 	coqImportQualid := strings.ReplaceAll(goPathToCoqPath(decl.Path), "/", ".")
-	if decl.Trusted {
-		return fmt.Sprintf("From Perennial.goose_lang.trusted Require Import %s.", coqImportQualid)
-	} else {
-		return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
-	}
+	return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
 }
 
 // ImportDecls groups imports into one declaration so they can be printed

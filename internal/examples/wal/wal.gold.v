@@ -40,7 +40,7 @@ Definition New: val :=
     disk.Write #0 "header";;
     let: "lengthPtr" := ref (zero_val uint64T) in
     "lengthPtr" <-[uint64T] #0;;
-    let: "l" := lock.new #() in
+    let: "l" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     struct.mk Log [
       "d" ::= "d";
       "cache" ::= "cache";
@@ -173,7 +173,7 @@ Definition Open: val :=
     let: "cache" := NewMap uint64T disk.blockT #() in
     let: "lengthPtr" := ref (zero_val uint64T) in
     "lengthPtr" <-[uint64T] #0;;
-    let: "l" := lock.new #() in
+    let: "l" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     struct.mk Log [
       "d" ::= "d";
       "cache" ::= "cache";

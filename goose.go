@@ -1979,15 +1979,7 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 			// import, but Go packages can contain a different name than their
 			// path. We can get this information by using the *types.Package
 			// returned by Check (or the pkg.Types field from *packages.Package).
-			pkgNameIndex := strings.LastIndex(importPath, "/") + 1
-			pkgName := importPath[pkgNameIndex:]
-
-			// FIXME: eliminate special case for "trusted"
-			if strings.HasPrefix(pkgName, "trusted_") {
-				decls = append(decls, glang.ImportDecl{Path: importPath, Trusted: true})
-			} else {
-				decls = append(decls, glang.ImportDecl{Path: importPath, Trusted: false})
-			}
+			decls = append(decls, glang.ImportDecl{Path: importPath})
 		}
 	}
 	return decls

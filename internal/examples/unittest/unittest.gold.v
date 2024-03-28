@@ -38,9 +38,9 @@ Definition hasEndComment: val :=
 Definition condvarWrapping: val :=
   rec: "condvarWrapping" <> :=
     let: "mu" := ref (zero_val ptrT) in
-    "mu" <-[ptrT] (lock.new #());;
-    let: "cond1" := lock.newCond (![ptrT] "mu") in
-    "mu" <-[ptrT] (lock.new #());;
+    "mu" <-[ptrT] (struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)));;
+    let: "cond1" := sync.NewCond (![ptrT] "mu") in
+    "mu" <-[ptrT] (struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)));;
     sync.Cond__Wait "cond1";;
     #().
 
@@ -414,15 +414,15 @@ Definition oddLiterals: val :=
 
 Definition useLocks: val :=
   rec: "useLocks" <> :=
-    let: "m" := lock.new #() in
+    let: "m" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     sync.Mutex__Lock "m";;
     sync.Mutex__Unlock "m";;
     #().
 
 Definition useCondVar: val :=
   rec: "useCondVar" <> :=
-    let: "m" := lock.new #() in
-    let: "c" := lock.newCond "m" in
+    let: "m" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
+    let: "c" := sync.NewCond "m" in
     sync.Mutex__Lock "m";;
     sync.Cond__Signal "c";;
     sync.Cond__Wait "c";;
@@ -869,7 +869,7 @@ Definition Skip: val :=
 
 Definition simpleSpawn: val :=
   rec: "simpleSpawn" <> :=
-    let: "l" := lock.new #() in
+    let: "l" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     let: "v" := ref (zero_val uint64T) in
     Fork (sync.Mutex__Lock "l";;
           let: "x" := ![uint64T] "v" in
@@ -1016,7 +1016,7 @@ Definition DoSomeLocking: val :=
 
 Definition makeLock: val :=
   rec: "makeLock" <> :=
-    let: "l" := lock.new #() in
+    let: "l" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     DoSomeLocking "l";;
     #().
 

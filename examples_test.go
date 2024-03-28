@@ -211,10 +211,6 @@ func TestComments(t *testing.T) {
 	testExample(t, "comments", goose.Translator{})
 }
 
-func TestTrustedImport(t *testing.T) {
-	testExample(t, "trust_import", goose.Translator{})
-}
-
 type errorExpectation struct {
 	Line  int
 	Error string

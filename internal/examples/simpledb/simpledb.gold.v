@@ -284,15 +284,15 @@ Definition NewDb: val :=
   rec: "NewDb" <> :=
     let: "wbuf" := makeValueBuffer #() in
     let: "rbuf" := makeValueBuffer #() in
-    let: "bufferL" := lock.new #() in
+    let: "bufferL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     let: "tableName" := #(str"table.0") in
     let: "tableNameRef" := ref (zero_val stringT) in
     "tableNameRef" <-[stringT] "tableName";;
     let: "table" := CreateTable "tableName" in
     let: "tableRef" := struct.alloc Table (zero_val (struct.t Table)) in
     struct.store Table "tableRef" "table";;
-    let: "tableL" := lock.new #() in
-    let: "compactionL" := lock.new #() in
+    let: "tableL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
+    let: "compactionL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     struct.mk Database [
       "wbuffer" ::= "wbuf";
       "rbuffer" ::= "rbuf";
@@ -487,9 +487,9 @@ Definition Recover: val :=
     deleteOtherFiles "tableName";;
     let: "wbuffer" := makeValueBuffer #() in
     let: "rbuffer" := makeValueBuffer #() in
-    let: "bufferL" := lock.new #() in
-    let: "tableL" := lock.new #() in
-    let: "compactionL" := lock.new #() in
+    let: "bufferL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
+    let: "tableL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
+    let: "compactionL" := struct.alloc sync.Mutex (zero_val (struct.t sync.Mutex)) in
     struct.mk Database [
       "wbuffer" ::= "wbuffer";
       "rbuffer" ::= "rbuffer";
