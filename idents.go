@@ -11,11 +11,6 @@ import (
 // language)
 
 type identInfo struct {
-	// IsPtrWrapped is true when an identifier is a function binding that is
-	// represented as a pointer in the translation, so uses need an extra
-	// dereferencing. When an identifier is declared with var rather than :=,
-	// we make it pointer-wrapped.
-	IsPtrWrapped bool
 	// IsMacro is true when an identifier refers to a Gallina definition in the
 	// translation (as opposed to a GooseLang variable)
 	IsMacro bool
@@ -48,7 +43,6 @@ func (ctx Ctx) lookupIdentScope(ident *ast.Ident) scopedName {
 func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
 	if scope == types.Universe {
 		return identInfo{
-			IsPtrWrapped: false,
 			// TODO: setting this to true triggers too often
 			IsMacro: false,
 		}
@@ -90,13 +84,6 @@ func (ctx Ctx) addDef(ident *ast.Ident, info identInfo) {
 	defScope := obj.Parent()
 	key := scopedName{scope: defScope, name: ident.Name}
 	ctx.idents.info[key] = info
-}
-
-func (ctx Ctx) definesPtrWrapped(ident *ast.Ident) bool {
-	obj := ctx.info.Defs[ident]
-	defScope := obj.Parent()
-	key := scopedName{scope: defScope, name: ident.Name}
-	return ctx.idents.info[key].IsPtrWrapped
 }
 
 func getIdent(e ast.Expr) (ident string, ok bool) {

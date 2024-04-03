@@ -842,25 +842,6 @@ func binderToCoq(b Binder) string {
 	return binder(string(*b))
 }
 
-type SliceLoopExpr struct {
-	Key   Binder
-	Val   Binder
-	Ty    Expr
-	Slice Expr
-	Body  BlockExpr
-}
-
-func (e SliceLoopExpr) Coq(needs_paren bool) string {
-	var pp buffer
-	pp.Add("ForSlice %v %s %s %s",
-		e.Ty.Coq(true),
-		binderToCoq(e.Key), binderToCoq(e.Val),
-		e.Slice.Coq(true))
-	pp.Indent(2)
-	pp.Add("%s", e.Body.Coq(true))
-	return addParens(needs_paren, pp.Build())
-}
-
 // MapIterExpr is a call to the map iteration helper.
 type MapIterExpr struct {
 	// name of key and value identifiers

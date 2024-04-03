@@ -179,8 +179,7 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
 				Type: ty,
 			})
 			ctx.addDef(name, identInfo{
-				IsPtrWrapped: false,
-				IsMacro:      false,
+				IsMacro: false,
 			})
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
@@ -249,39 +248,31 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
-func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) glang.Decl {
+func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 	if spec.TypeParams != nil {
 		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
 	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
-		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-		ty := glang.StructDecl{
+		// FIXME: why was this needed?
+		// ctx.addDef(spec.Name, identInfo{
+		// 	IsPtrWrapped: false,
+		// 	IsMacro:      false,
+		// })
+
+		decl := glang.StructDecl{
 			Name: spec.Name.Name,
 		}
-		addSourceDoc(doc, &ty.Comment)
-		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Fields = ctx.structFields(goTy.Fields)
-		return ty
+		addSourceDoc(spec.Doc, &decl.Comment)
+		ctx.addSourceFile(spec, &decl.Comment)
+		decl.Fields = ctx.structFields(goTy.Fields)
+		return decl
 	case *ast.InterfaceType:
-		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-		ty := glang.InterfaceDecl{
-			Name: spec.Name.Name,
-		}
-		addSourceDoc(doc, &ty.Comment)
-		ctx.addSourceFile(spec, &ty.Comment)
-		ty.Methods = ctx.structFields(goTy.Methods)
-		return ty
+		ctx.futureWork(spec, "interface type declaration")
+		panic("unreachable")
 	default:
 		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      true,
+			IsMacro: true,
 		})
 		return glang.TypeDecl{
 			Name: spec.Name.Name,
@@ -950,17 +941,15 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 	return nil
 }
 
+// XXX: should distinguish between vars on LHS and RHS of assign statements. Not
+// sure if this is being in both places.
 func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 	info := ctx.identInfo(s)
 	if info.IsMacro {
 		ctx.dep.addDep(s.Name)
 		return glang.GallinaIdent(s.Name)
 	}
-	e := glang.IdentExpr(s.Name)
-	if info.IsPtrWrapped {
-		return glang.DerefExpr{X: e, Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
-	}
-	return e
+	return glang.DerefExpr{X: glang.IdentExpr(s.Name), Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
 }
 
 func (ctx Ctx) function(s *ast.Ident) glang.Expr {
@@ -1012,6 +1001,8 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
 	switch xTy := xTy.(type) {
 	case *types.Map:
 		e := glang.NewCallExpr(glang.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
+		// FIXME: this is non-local. Should decide whether to do "Fst" based on
+		// assign statement or parent expression.
 		if !isSpecial {
 			e = glang.NewCallExpr(glang.GallinaIdent("Fst"), e)
 		}
@@ -1172,19 +1163,19 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) glang.BlockExpr {
 	if !finalized {
 		switch usage {
 		case ExprValReturned:
-			bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{glang.Tt}))
+			bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{Value: glang.Tt}))
 		case ExprValLoop:
 			bindings = append(bindings, glang.NewAnon(glang.LoopContinue))
 		case ExprValLocal:
 			// Make sure the list of bindings is not empty -- translate empty blocks to unit
 			if len(bindings) == 0 {
-				bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{glang.Tt}))
+				bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{Value: glang.Tt}))
 			}
 		default:
 			panic("bad ExprValUsage")
 		}
 	}
-	return glang.BlockExpr{bindings}
+	return glang.BlockExpr{Bindings: bindings}
 }
 
 // ifStmt has special support for an early-return "then" branch; to achieve that
@@ -1282,7 +1273,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) glang.ForLoopExpr {
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
 		ctx.addDef(ident, identInfo{
-			IsPtrWrapped: true,
+			IsMacro: false,
 		})
 		init = ctx.stmt(s.Init)
 	}
@@ -1350,27 +1341,8 @@ func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
 }
 
 func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
-	key := getIdentOrNil(s.Key)
-	val := getIdentOrNil(s.Value)
-	if key != nil {
-		ctx.addDef(key, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-	}
-	if val != nil {
-		ctx.addDef(val, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-	}
-	return glang.SliceLoopExpr{
-		Key:   ctx.identBinder(key),
-		Val:   ctx.identBinder(val),
-		Slice: ctx.expr(s.X),
-		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
-		Body:  ctx.blockStmt(s.Body, ExprValLocal),
-	}
+	ctx.futureWork(s, "slice range: heap allocated iteration variable")
+	panic("unreachable")
 }
 
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
@@ -1412,8 +1384,7 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 			idents = append(idents, ident)
 			if !ctx.doesDefHaveInfo(ident) {
 				ctx.addDef(ident, identInfo{
-					IsPtrWrapped: false,
-					IsMacro:      false,
+					IsMacro: false,
 				})
 			}
 		} else {
@@ -1424,14 +1395,10 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 	for _, ident := range idents {
 		names = append(names, ident.Name)
 	}
-	// NOTE: this checks whether the identifier being defined is supposed to be
-	// 	pointer wrapped, so to work correctly the caller must set this identInfo
-	// 	before processing the defining expression.
-	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
-		return glang.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
-	} else {
-		return glang.Binding{Names: names, Expr: ctx.exprSpecial(rhs, len(idents) == 2)}
+	if len(idents) != 1 {
+		ctx.futureWork(idents[1], "should update and not shadow variables that were already in context at a define statement")
 	}
+	return glang.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 }
 
 func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
@@ -1440,8 +1407,7 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
 	}
 	lhs := s.Names[0]
 	ctx.addDef(lhs, identInfo{
-		IsPtrWrapped: true,
-		IsMacro:      false,
+		IsMacro: false,
 	})
 	var rhs glang.Expr
 	if len(s.Values) == 0 {
@@ -1523,18 +1489,14 @@ func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr) glang.Binding {
 	})
 }
 
-func (ctx Ctx) assignFromTo(s ast.Node,
-	lhs ast.Expr, rhs glang.Expr) glang.Binding {
+func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Binding {
 	// assignments can mean various things
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
 			return glang.NewAnon(rhs)
 		}
-		if ctx.identInfo(lhs).IsPtrWrapped {
-			return ctx.pointerAssign(lhs, rhs)
-		}
-		ctx.unsupported(s, "variable %s is not assignable\n\t(declare it with 'var' to pointer-wrap in GooseLang and support re-assignment)", lhs.Name)
+		return ctx.pointerAssign(lhs, rhs)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy := targetTy.(type) {
@@ -1671,10 +1633,6 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) glang.Binding {
 		ctx.todo(stmt, "cannot inc/dec non-var")
 		return glang.Binding{}
 	}
-	if !ctx.identInfo(ident).IsPtrWrapped {
-		// should also be able to support variables that are of pointer type
-		ctx.todo(stmt, "can only inc/dec pointer-wrapped variables")
-	}
 	op := glang.OpPlus
 	if stmt.Tok == token.DEC {
 		op = glang.OpMinus
@@ -1682,7 +1640,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) glang.Binding {
 	return ctx.pointerAssign(ident, glang.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
-		Y:  glang.IntLiteral{1},
+		Y:  glang.IntLiteral{Value: 1},
 	})
 }
 
@@ -1794,13 +1752,13 @@ func (ctx Ctx) stmt(s ast.Stmt) glang.Binding {
 func (ctx Ctx) returnExpr(es []ast.Expr) glang.Expr {
 	if len(es) == 0 {
 		// named returns are not supported, so this must return unit
-		return glang.ReturnExpr{glang.UnitLiteral{}}
+		return glang.ReturnExpr{Value: glang.UnitLiteral{}}
 	}
 	var exprs glang.TupleExpr
 	for _, r := range es {
 		exprs = append(exprs, ctx.expr(r))
 	}
-	return glang.ReturnExpr{glang.NewTuple(exprs)}
+	return glang.ReturnExpr{Value: glang.NewTuple(exprs)}
 }
 
 // returnType converts an Ast.FuncType's Results to a Coq return type
@@ -1867,8 +1825,7 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 		AddTypes: ctx.Config.TypeCheck,
 	}
 	ctx.addDef(ident, identInfo{
-		IsPtrWrapped: false,
-		IsMacro:      true,
+		IsMacro: true,
 	})
 	addSourceDoc(spec.Comment, &cd.Comment)
 	val := spec.Values[0]
@@ -2067,7 +2024,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
 			ctx.dep.addName(spec.Name.Name)
-			ty := ctx.typeDecl(d.Doc, spec)
+			ty := ctx.typeDecl(spec)
 			return []glang.Decl{ty}
 		default:
 			ctx.nope(d, "unknown token type in decl")
