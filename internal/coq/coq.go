@@ -350,6 +350,14 @@ func (t SliceType) Coq() string {
 	return fmt.Sprintf("slice.T %s", addParens(t.Value.Coq()))
 }
 
+type ChanType struct {
+	Value Type
+}
+
+func (t ChanType) Coq() string {
+	return fmt.Sprintf("chanT %s", t.Value.Coq())
+}
+
 type ArrayType struct {
 	Len uint64
 	Elt Type

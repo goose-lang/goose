@@ -641,6 +641,9 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 	case *types.Map:
 		return coq.NewCallExpr(coq.GallinaIdent("NewMap"),
 			ctx.coqTypeOfType(args[0], ty.Elem()), coq.UnitLiteral{})
+	case *types.Chan:
+		return coq.NewCallExpr(coq.GallinaIdent("NewChan"),
+			ctx.coqTypeOfType(args[0], ty.Elem()), ctx.expr(args[1]))
 	default:
 		ctx.unsupported(args[0],
 			"make of should be slice or map, got %v", ty)
@@ -1013,6 +1016,12 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 	}
 }
 
+func (ctx Ctx) receiveExpr(e *ast.UnaryExpr) coq.Expr {
+	return coq.NewCallExpr(
+		coq.GallinaIdent("ChannelReceive"),
+		ctx.expr(e.X))
+}
+
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{ctx.expr(e.X)}
@@ -1040,6 +1049,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		}
 		// e is something else
 		return ctx.refExpr(e.X)
+	}
+	if e.Op == token.ARROW {
+		return ctx.receiveExpr(e)
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
@@ -1695,6 +1707,13 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 	return coq.Binding{}
 }
 
+func (ctx Ctx) channelSend(channel ast.Expr, value coq.Expr) coq.Binding {
+	// assignments can mean various things
+	return coq.NewAnon(coq.NewCallExpr(
+		coq.GallinaIdent("ChannelSend"),
+		ctx.expr(channel), value))
+}
+
 func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
 	// Translates a, b, c = SomeCall(args)
 	// into
@@ -1779,6 +1798,12 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
 	})
 }
 
+func (ctx Ctx) sendStmt(s *ast.SendStmt) coq.Binding {
+	channel := s.Chan
+	value := ctx.expr(s.Value)
+	return ctx.channelSend(channel, value)
+}
+
 func (ctx Ctx) spawnExpr(thread ast.Expr) coq.SpawnExpr {
 	f, ok := thread.(*ast.FuncLit)
 	if !ok {
@@ -1861,6 +1886,8 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "check for type switch statement")
+	case *ast.SendStmt:
+		binding = ctx.sendStmt(s)
 	default:
 		ctx.unsupported(s, "statement")
 	}

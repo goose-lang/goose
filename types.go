@@ -101,6 +101,9 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
+	case *types.Chan:
+		// panic(fmt.Errorf("t.Elem(): %v", n))
+		return coq.ChanType{ctx.coqTypeOfType(n, t.Elem())}
 	}
 	ctx.nope(n, "unknown type %v", t)
 	return nil // unreachable
