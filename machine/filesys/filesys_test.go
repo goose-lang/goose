@@ -2,7 +2,6 @@ package filesys_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"testing"
@@ -23,7 +22,7 @@ func (s *FilesysSuite) SetupTest() {
 		s.fs = filesys.NewMemFs()
 	} else {
 		var err error
-		s.dir, err = ioutil.TempDir("", "test.dir")
+		s.dir, err = os.MkdirTemp("", "test.dir")
 		if err != nil {
 			panic(err)
 		}

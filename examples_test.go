@@ -19,7 +19,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -85,7 +84,7 @@ func (t positiveTest) ActualFile() string {
 
 // Gold returns the contents of the gold Ast as a string
 func (t positiveTest) Gold() string {
-	expected, err := ioutil.ReadFile(t.GoldFile())
+	expected, err := os.ReadFile(t.GoldFile())
 	if err != nil {
 		return ""
 	}
@@ -94,7 +93,7 @@ func (t positiveTest) Gold() string {
 
 // UpdateGold updates the gold output with real results
 func (t positiveTest) UpdateGold(actual string) {
-	err := ioutil.WriteFile(t.GoldFile(), []byte(actual), 0644)
+	err := os.WriteFile(t.GoldFile(), []byte(actual), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +101,7 @@ func (t positiveTest) UpdateGold(actual string) {
 
 // PutActual updates the actual test output with the real results
 func (t positiveTest) PutActual(actual string) {
-	err := ioutil.WriteFile(t.ActualFile(), []byte(actual), 0644)
+	err := os.WriteFile(t.ActualFile(), []byte(actual), 0644)
 	if err != nil {
 		panic(err)
 	}
