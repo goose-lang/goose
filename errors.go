@@ -99,7 +99,7 @@ type ConversionError struct {
 func (e *ConversionError) Error() string {
 	lines := []string{
 		fmt.Sprintf("[%s]: %s", e.Category, e.Message),
-		fmt.Sprintf("%s", e.GoCode),
+		e.GoCode,
 		fmt.Sprintf("  %s", e.GooseCaller),
 		fmt.Sprintf("  src: %s", e.GoSrcFile),
 	}

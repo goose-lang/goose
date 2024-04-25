@@ -118,8 +118,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 
 	for fi, f := range fs {
 		if len(fs) > 1 {
-			decls = append(decls,
-				coq.NewComment(fmt.Sprintf("%s", f.Name())))
+			decls = append(decls, coq.NewComment(f.Name()))
 		}
 		if f.Ast.Doc != nil {
 			decls = append(decls, coq.NewComment(f.Ast.Doc.Text()))

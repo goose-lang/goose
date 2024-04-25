@@ -34,17 +34,6 @@ func newIdentCtx() identCtx {
 	return identCtx{info: make(map[scopedName]identInfo)}
 }
 
-func (ctx Ctx) lookupIdentScope(ident *ast.Ident) scopedName {
-	obj, ok := ctx.info.Uses[ident]
-	if !ok {
-		return scopedName{nil, ""}
-	}
-	useScope := obj.Parent()
-	name := ident.Name
-	defScope, _ := useScope.LookupParent(name, ident.Pos())
-	return scopedName{scope: defScope, name: name}
-}
-
 func (idents identCtx) lookupName(scope *types.Scope, name string) identInfo {
 	if scope == types.Universe {
 		return identInfo{

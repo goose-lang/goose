@@ -901,7 +901,7 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 		return coq.StringLiteral{Value: s}
 	}
 	if e.Kind == token.INT {
-		info, ok := getIntegerType(ctx.typeOf(e))
+		info, _ := getIntegerType(ctx.typeOf(e))
 		v := ctx.info.Types[e].Value
 		n, ok := constant.Uint64Val(v)
 		if !ok {
@@ -1259,7 +1259,6 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 		case *ast.IfStmt:
 			bindings = append(bindings, ctx.ifStmt(s, c.Remainder(), usage))
 			finalized = true
-			break // This would happen anyway since we consumed the iterator via "Remainder"
 		default:
 			// All other statements are translated one-by-one
 			if c.HasNext() {
@@ -2165,7 +2164,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 			cvs = ctx.stmtInterface(cvs, stmt, d)
 		}
 		fd := ctx.funcDecl(d)
-		results := []coq.Decl{}
+		var results []coq.Decl
 		if len(cvs) > 0 {
 			results = append(cvs, fd)
 		} else {
