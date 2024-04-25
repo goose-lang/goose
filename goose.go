@@ -849,7 +849,9 @@ func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.Stru
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
 		if len(e.Elts) == 0 {
-			return coq.NewCallExpr(coq.GallinaIdent("nil"))
+			elemTy := ctx.coqType(e.Type).(coq.SliceType).Value
+			zeroLit := coq.IntLiteral{Value: 0}
+			return coq.NewCallExpr(coq.GallinaIdent("NewSlice"), elemTy, zeroLit)
 		}
 		if len(e.Elts) == 1 {
 			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})

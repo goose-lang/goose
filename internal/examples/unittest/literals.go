@@ -29,3 +29,9 @@ func oddLiterals() allTheLiterals {
 		b:   false,
 	}
 }
+
+// From Go spec: "note that the zero value for a slice or map type is not the
+// same as an initialized but empty value of the same type".
+func compositeLitLenZero() []byte {
+	return []byte{}
+}
