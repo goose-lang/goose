@@ -106,7 +106,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		}
 		return coq.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
-		return coq.SliceType{ctx.coqTypeOfType(n, t.Elem())}
+		return coq.SliceType{Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return coq.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
@@ -137,7 +137,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 		t := ctx.typeOf(e).(*types.Array)
 		return coq.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
 	}
-	return coq.SliceType{ctx.coqType(e.Elt)}
+	return coq.SliceType{Value: ctx.coqType(e.Elt)}
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
@@ -187,7 +187,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		// NOTE: ellipsis types are not fully supported
 		// we emit the right type here but Goose doesn't know how to call a method
 		// which takes variadic parameters (it'll pass them as separate arguments)
-		return coq.SliceType{ctx.coqType(e.Elt)}
+		return coq.SliceType{Value: ctx.coqType(e.Elt)}
 	case *ast.FuncType:
 		return ctx.coqFuncType(e)
 	default:

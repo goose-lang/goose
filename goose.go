@@ -668,7 +668,7 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
 		return coq.NewCallExpr(coq.GallinaIdent("zero_array"),
 			ctx.coqTypeOfType(ty, t.Elem()),
-			coq.IntLiteral{uint64(t.Len())})
+			coq.IntLiteral{Value: uint64(t.Len())})
 	}
 	e := coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
@@ -898,7 +898,7 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 		if strings.ContainsRune(s, '"') {
 			ctx.unsupported(e, "string literals with quotes")
 		}
-		return coq.StringLiteral{s}
+		return coq.StringLiteral{Value: s}
 	}
 	if e.Kind == token.INT {
 		info, ok := getIntegerType(ctx.typeOf(e))
@@ -910,11 +910,11 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) coq.Expr {
 			return nil
 		}
 		if info.isUint64() {
-			return coq.IntLiteral{n}
+			return coq.IntLiteral{Value: n}
 		} else if info.isUint32() {
-			return coq.Int32Literal{uint32(n)}
+			return coq.Int32Literal{Value: uint32(n)}
 		} else if info.isUint8() {
-			return coq.ByteLiteral{uint8(n)}
+			return coq.ByteLiteral{Value: uint8(n)}
 		}
 	}
 	ctx.unsupported(e, "literal with kind %s", e.Kind)
@@ -1024,10 +1024,10 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
-		return coq.NotExpr{ctx.expr(e.X)}
+		return coq.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.XOR {
-		return coq.NotExpr{ctx.expr(e.X)}
+		return coq.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
@@ -1276,19 +1276,19 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 	if !finalized {
 		switch usage {
 		case ExprValReturned:
-			bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+			bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{Value: coq.Tt}))
 		case ExprValLoop:
 			bindings = append(bindings, coq.NewAnon(coq.LoopContinue))
 		case ExprValLocal:
 			// Make sure the list of bindings is not empty -- translate empty blocks to unit
 			if len(bindings) == 0 {
-				bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{coq.Tt}))
+				bindings = append(bindings, coq.NewAnon(coq.ReturnExpr{Value: coq.Tt}))
 			}
 		default:
 			panic("bad ExprValUsage")
 		}
 	}
-	return coq.BlockExpr{bindings}
+	return coq.BlockExpr{Bindings: bindings}
 }
 
 // ifStmt has special support for an early-return "then" branch; to achieve that
@@ -1786,7 +1786,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
 	return ctx.pointerAssign(ident, coq.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
-		Y:  coq.IntLiteral{1},
+		Y:  coq.IntLiteral{Value: 1},
 	})
 }
 
@@ -1898,13 +1898,13 @@ func (ctx Ctx) stmt(s ast.Stmt) coq.Binding {
 func (ctx Ctx) returnExpr(es []ast.Expr) coq.Expr {
 	if len(es) == 0 {
 		// named returns are not supported, so this must return unit
-		return coq.ReturnExpr{coq.UnitLiteral{}}
+		return coq.ReturnExpr{Value: coq.UnitLiteral{}}
 	}
 	var exprs coq.TupleExpr
 	for _, r := range es {
 		exprs = append(exprs, ctx.expr(r))
 	}
-	return coq.ReturnExpr{coq.NewTuple(exprs)}
+	return coq.ReturnExpr{Value: coq.NewTuple(exprs)}
 }
 
 // returnType converts an Ast.FuncType's Results to a Coq return type
