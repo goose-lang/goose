@@ -188,10 +188,6 @@ test file you can just run `go generate ./...`.
 
 ### Running tests
 
-To run all the tests, first make sure you have submodules initialized (`git submodule update --init --recursive`).
-Then run:
-```
-make ci
-```
-You can do `make fix` to automatically fix all the formatting and update generated files.
+Use a tool such as [act](https://github.com/nektos/act) to run the CI tests locally.
+To automatically fix all formatting issues and update the generated files, run `make fix`.
 If the 'gold' files need updating, run `go test -update-gold`.
