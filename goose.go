@@ -29,7 +29,6 @@ import (
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	idents  identCtx
 	info    *types.Info
 	Fset    *token.FileSet
 	pkgPath string
@@ -99,7 +98,6 @@ func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
 	config.Ffi = getFfi(pkg)
 
 	return Ctx{
-		idents:        newIdentCtx(),
 		info:          pkg.TypesInfo,
 		Fset:          pkg.Fset,
 		pkgPath:       pkg.PkgPath,
@@ -122,7 +120,6 @@ func NewCtx(pkgPath string, conf Config) Ctx {
 	}
 	fset := token.NewFileSet()
 	return Ctx{
-		idents:        newIdentCtx(),
 		info:          info,
 		Fset:          fset,
 		pkgPath:       pkgPath,
@@ -131,6 +128,7 @@ func NewCtx(pkgPath string, conf Config) Ctx {
 	}
 }
 
+// FIXME: this is currently never called
 // TypeCheck type-checks a set of files and stores the result in the Ctx
 //
 // This is needed before conversion to Coq to disambiguate some methods.
@@ -177,9 +175,6 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
 			decls = append(decls, glang.FieldDecl{
 				Name: name.Name,
 				Type: ty,
-			})
-			ctx.addDef(name, identInfo{
-				IsMacro: false,
 			})
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
@@ -271,9 +266,6 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 		ctx.futureWork(spec, "interface type declaration")
 		panic("unreachable")
 	default:
-		ctx.addDef(spec.Name, identInfo{
-			IsMacro: true,
-		})
 		return glang.TypeDecl{
 			Name: spec.Name.Name,
 			Body: ctx.coqType(spec.Type),
@@ -335,41 +327,9 @@ func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExp
 func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	call *ast.CallExpr) glang.Expr {
 	args := call.Args
-	if isIdent(f.X, "filesys") {
-		return ctx.newCoqCall("FS."+toInitialLower(f.Sel.Name), args)
-	}
-	if isIdent(f.X, "disk") {
-		return ctx.newCoqCall("disk."+f.Sel.Name, args)
-	}
-	if isIdent(f.X, "log") {
-		switch f.Sel.Name {
-		case "Print", "Printf", "Println":
-			return glang.LoggingStmt{GoCall: ctx.printGo(call)}
-		}
-	}
-	// FIXME: this hack ensures util.DPrintf runs correctly in goose-nfsd.
-	//
-	//  We always pass #() instead of a slice with the variadic arguments. The
-	//  function is important to handle but has no observable behavior in
-	//  GooseLang, so it's ok to skip the arguments.
-	//
-	// See https://github.com/mit-pdos/goose-nfsd/blob/master/util/util.go
-	if isIdent(f.X, "util") && f.Sel.Name == "DPrintf" {
-		return glang.NewCallExpr(glang.GallinaIdent("util.DPrintf"),
-			ctx.expr(args[0]),
-			ctx.expr(args[1]),
-			glang.UnitLiteral{})
-	}
-	if isIdent(f.X, "fmt") {
-		switch f.Sel.Name {
-		case "Println", "Printf":
-			return glang.LoggingStmt{GoCall: ctx.printGo(call)}
-		}
-	}
 	pkg := f.X.(*ast.Ident)
 	return ctx.newCoqCallTypeArgs(
-		// FIXME: should not call Coq()
-		glang.GallinaIdent(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}.Coq(true)),
+		glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name},
 		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
 		args)
 }
@@ -440,11 +400,14 @@ func (ctx Ctx) newCoqCallWithExpr(method glang.Expr, es []ast.Expr) glang.CallEx
 	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
+// FIXME: this handles more than "method" calls. It e.g. also handles function
+// calls and string <-> []byte conversions.
 func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	args := call.Args
 	// discovered this API via
 	// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
 	if ctx.info.Types[call.Fun].IsType() {
+		ctx.todo(call, "Types.IsType() == true and ")
 		// string -> []byte conversions are handled specially
 		if f, ok := call.Fun.(*ast.ArrayType); ok {
 			if f.Len == nil && isIdent(f.Elt, "byte") {
@@ -467,11 +430,9 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 			}
 			return ctx.newCoqCall("StringFromBytes", args)
 		}
-		// a different type conversion, which is a noop in GooseLang (which is
-		// untyped)
-		// TODO: handle integer conversions here, checking if call.Fun is an integer
-		//  type; see https://github.com/tchajed/goose/issues/14
-		return ctx.expr(args[0])
+		ctx.unsupported(call, "type conversion via that's not []byte <-> string")
+		//  https://github.com/tchajed/goose/issues/14
+		// return ctx.expr(args[0])
 	}
 
 	var retExpr glang.Expr
@@ -651,34 +612,37 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 		}
 		return glang.NewCallExpr(glang.GallinaIdent("Panic"), glang.GallinaString(msg))
 	}
-	// Special case for *sync.NewCond
-	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
-	} else {
-		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
-			for j := 0; j < signature.Params().Len(); j++ {
-				if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
-					interfaceName := signature.Params().At(j).Type().String()
-					structName := ctx.typeOf(s.Args[0]).String()
-					interfaceName = unqualifyName(interfaceName)
-					structName = unqualifyName(structName)
-					if interfaceName != structName && interfaceName != "" && structName != "" {
-						conversion := glang.StructToInterfaceDecl{
-							Fun:       ctx.expr(s.Fun).Coq(true),
-							Struct:    structName,
-							Interface: interfaceName,
-							Arg:       ctx.expr(s.Args[0]).Coq(true),
-						}.Coq(true)
-						for i, arg := range s.Args {
-							if i > 0 {
-								conversion += " " + ctx.expr(arg).Coq(true)
+	// FIXME: obviate this code
+	/*
+		// Special case for *sync.NewCond
+		if _, ok := s.Fun.(*ast.SelectorExpr); ok {
+		} else {
+			if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
+				for j := 0; j < signature.Params().Len(); j++ {
+					if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
+						interfaceName := signature.Params().At(j).Type().String()
+						structName := ctx.typeOf(s.Args[0]).String()
+						interfaceName = unqualifyName(interfaceName)
+						structName = unqualifyName(structName)
+						if interfaceName != structName && interfaceName != "" && structName != "" {
+							conversion := glang.StructToInterfaceDecl{
+								Fun:       ctx.expr(s.Fun).Coq(true),
+								Struct:    structName,
+								Interface: interfaceName,
+								Arg:       ctx.expr(s.Args[0]).Coq(true),
+							}.Coq(true)
+							for i, arg := range s.Args {
+								if i > 0 {
+									conversion += " " + ctx.expr(arg).Coq(true)
+								}
 							}
+							return glang.CallExpr{MethodName: glang.GallinaIdent(conversion)}
 						}
-						return glang.CallExpr{MethodName: glang.GallinaIdent(conversion)}
 					}
 				}
 			}
 		}
-	}
+	*/
 	return ctx.methodExpr(s)
 }
 
@@ -942,10 +906,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 }
 
 // XXX: should distinguish between vars on LHS and RHS of assign statements. Not
-// sure if this is being in both places.
+// sure if this is being used in both places.
 func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
-	info := ctx.identInfo(s)
-	if info.IsMacro {
+	if _, ok := ctx.info.Uses[s].(*types.Const); ok {
 		ctx.dep.addDep(s.Name)
 		return glang.GallinaIdent(s.Name)
 	}
@@ -1269,12 +1232,8 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) glang.ForLoopExpr {
 	var init = glang.NewAnon(glang.Skip)
-	var ident *ast.Ident
 	if s.Init != nil {
-		ident, _ = ctx.loopVar(s.Init)
-		ctx.addDef(ident, identInfo{
-			IsMacro: false,
-		})
+		_, _ = ctx.loopVar(s.Init)
 		init = ctx.stmt(s.Init)
 	}
 	var cond glang.Expr = glang.True
@@ -1382,11 +1341,6 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			idents = append(idents, ident)
-			if !ctx.doesDefHaveInfo(ident) {
-				ctx.addDef(ident, identInfo{
-					IsMacro: false,
-				})
-			}
 		} else {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
@@ -1394,10 +1348,11 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 	var names []string
 	for _, ident := range idents {
 		names = append(names, ident.Name)
+		if _, ok := ctx.info.Defs[ident]; !ok {
+			ctx.futureWork(ident, "should update and not shadow variables that were already in context at a define statement")
+		}
 	}
-	if len(idents) != 1 {
-		ctx.futureWork(idents[1], "should update and not shadow variables that were already in context at a define statement")
-	}
+	// FIXME: one step for computing, more steps for heap allocation
 	return glang.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 }
 
@@ -1406,9 +1361,6 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
 		ctx.unsupported(s, "multiple declarations in one block")
 	}
 	lhs := s.Names[0]
-	ctx.addDef(lhs, identInfo{
-		IsMacro: false,
-	})
 	var rhs glang.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
@@ -1824,9 +1776,6 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 		Name:     ident.Name,
 		AddTypes: ctx.Config.TypeCheck,
 	}
-	ctx.addDef(ident, identInfo{
-		IsMacro: true,
-	})
 	addSourceDoc(spec.Comment, &cd.Comment)
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)

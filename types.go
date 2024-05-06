@@ -110,8 +110,9 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 	case *types.Interface:
 		ctx.unsupported(n, "interface type")
 	}
-	ctx.nope(n, "unknown type %v", t)
-	return nil // unreachable
+	panic("unknown type")
+	// ctx.nope(n, "unknown type %v", t)
+	// return nil // unreachable
 }
 
 func sliceElem(t types.Type) types.Type {
@@ -160,10 +161,14 @@ func (ctx Ctx) coqFuncType(e *ast.FuncType) glang.Type {
 func (ctx Ctx) coqType(e ast.Expr) glang.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
-		ctx.dep.addDep(e.Name)
-		if ctx.identInfo(e).IsMacro {
-			return glang.TypeIdent(e.Name)
+		// FIXME: this treats "e" as denoting a type name if "IsMacro", but
+		// otherwise treats it as a Go object and returns its type.
+		if _, ok := ctx.info.Uses[e].(*types.Const); ok {
+			ctx.dep.addDep(e.Name)
 		}
+		// if ctx.identInfo(e).IsMacro {
+		// 	return glang.TypeIdent(e.Name)
+		// }
 		return ctx.coqTypeOfType(e, ctx.typeOf(e))
 	case *ast.MapType:
 		return ctx.mapType(e)
