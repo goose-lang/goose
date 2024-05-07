@@ -110,9 +110,9 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 	case *types.Interface:
 		ctx.unsupported(n, "interface type")
 	}
-	panic("unknown type")
-	// ctx.nope(n, "unknown type %v", t)
-	// return nil // unreachable
+	// panic("unknown type")
+	ctx.unsupported(n, "unknown type %v", t)
+	return nil // unreachable
 }
 
 func sliceElem(t types.Type) types.Type {

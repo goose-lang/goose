@@ -44,7 +44,7 @@ Within a package:
 A Go type will be interpreted as follows:
 
 - array types are unsupported
-- struct type: TODO
+- struct type: a struct type is defined by a list of field declarations. TODO
 - pointer type: `*T` is interpreted as an untyped pointer `ptrT : ty`. Untyped
   pointers provide support for mutually recursive data structures that use
   pointers to refer to one another. E.g. `type A struct { x *B }` and 

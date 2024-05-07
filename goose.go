@@ -1300,8 +1300,25 @@ func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
 }
 
 func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
-	ctx.futureWork(s, "slice range: heap allocated iteration variable")
-	panic("unreachable")
+	if s.Tok != token.DEFINE {
+		ctx.unsupported(s.Key, "range with pre-existing variables")
+	}
+	key, ok := s.Key.(*ast.Ident)
+	if !ok {
+		ctx.unsupported(s.Key, "range with non-identifier as iteration variable")
+	}
+	val, ok := s.Value.(*ast.Ident)
+	if !ok {
+		ctx.unsupported(s.Value, "range with non-identifier as iteration variable")
+	}
+
+	return glang.ForRangeSliceExpr{
+		Key:   ctx.identBinder(key),
+		Val:   ctx.identBinder(val),
+		Slice: ctx.expr(s.X),
+		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
+		Body:  ctx.blockStmt(s.Body, ExprValLocal),
+	}
 }
 
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {

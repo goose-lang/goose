@@ -833,6 +833,25 @@ func (e ForLoopExpr) Coq(needs_paren bool) string {
 	return pp.Build()
 }
 
+type ForRangeSliceExpr struct {
+	Key   Binder
+	Val   Binder
+	Ty    Expr
+	Slice Expr
+	Body  BlockExpr
+}
+
+func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
+	var pp buffer
+	pp.Add("ForSlice %v %s %s %s",
+		e.Ty.Coq(true),
+		binderToCoq(e.Key), binderToCoq(e.Val),
+		e.Slice.Coq(true))
+	pp.Indent(2)
+	pp.Add("%s", e.Body.Coq(true))
+	return addParens(needs_paren, pp.Build())
+}
+
 type Binder *IdentExpr
 
 func binderToCoq(b Binder) string {
