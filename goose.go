@@ -1001,7 +1001,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
-	fl.Body = ctx.blockStmt(e.Body, ExprValReturned)
+	fl.Body = ctx.blockStmt(e.Body)
 	return fl
 }
 
@@ -1042,121 +1042,30 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt, usage ExprValUsage) glang.BlockExpr {
-	return ctx.stmts(s.List, usage)
-}
-
-type cursor struct {
-	Stmts []ast.Stmt
-}
-
-// HasNext returns true if the cursor has any remaining statements
-func (c cursor) HasNext() bool {
-	return len(c.Stmts) > 0
-}
-
-// Next returns the next statement. Requires that the cursor is non-empty (check with HasNext()).
-func (c *cursor) Next() ast.Stmt {
-	s := c.Stmts[0]
-	c.Stmts = c.Stmts[1:]
-	return s
-}
-
-// Remainder consumes and returns all remaining statements
-func (c *cursor) Remainder() []ast.Stmt {
-	s := c.Stmts
-	c.Stmts = nil
-	return s
-}
-
-// If this returns true, the body truly *must* always end in an early return or loop control effect.
-func (ctx Ctx) endsWithReturn(s ast.Stmt) bool {
-	if s == nil {
-		return false
+func (ctx Ctx) blockStmt(s *ast.BlockStmt) glang.Expr {
+	ss := s.List
+	var e glang.Expr = glang.Tt
+	for len(ss) > 0 {
+		stmt := ss[len(ss)-1]
+		ss = ss[:len(ss)-1]
+		e = ctx.stmt(stmt, e)
 	}
-	switch s := s.(type) {
-	case *ast.BlockStmt:
-		return ctx.stmtsEndWithReturn(s.List)
-	default:
-		return ctx.stmtsEndWithReturn([]ast.Stmt{s})
-	}
+	return e
 }
 
-func (ctx Ctx) stmtsEndWithReturn(ss []ast.Stmt) bool {
-	if len(ss) == 0 {
-		return false
-	}
-	switch s := ss[len(ss)-1].(type) {
-	case *ast.ReturnStmt, *ast.BranchStmt:
-		return true
-	case *ast.IfStmt:
-		left := ctx.endsWithReturn(s.Body)
-		right := ctx.endsWithReturn(s.Else)
-		return left && right // we can only return true if we *always* end in a control effect
-	}
-	return false
-}
-
-func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) glang.BlockExpr {
-	c := &cursor{ss}
-	var bindings []glang.Binding
-	var finalized bool
-	for c.HasNext() {
-		s := c.Next()
-		// ifStmt is special, it gets a chance to "wrap" the entire remainder
-		// to better support early returns.
-		switch s := s.(type) {
-		case *ast.IfStmt:
-			bindings = append(bindings, ctx.ifStmt(s, c.Remainder(), usage))
-			finalized = true
-			break // This would happen anyway since we consumed the iterator via "Remainder"
-		default:
-			// All other statements are translated one-by-one
-			if c.HasNext() {
-				bindings = append(bindings, ctx.stmt(s))
-			} else {
-				// The last statement is special: we propagate the usage and store "finalized"
-				binding, fin := ctx.stmtInBlock(s, usage)
-				bindings = append(bindings, binding)
-				finalized = fin
-			}
-		}
-	}
-	// Crucially, we also arrive in this branch if the list of statements is empty.
-	if !finalized {
-		switch usage {
-		case ExprValReturned:
-			bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{Value: glang.Tt}))
-		case ExprValLoop:
-			bindings = append(bindings, glang.NewAnon(glang.LoopContinue))
-		case ExprValLocal:
-			// Make sure the list of bindings is not empty -- translate empty blocks to unit
-			if len(bindings) == 0 {
-				bindings = append(bindings, glang.NewAnon(glang.ReturnExpr{Value: glang.Tt}))
-			}
-		default:
-			panic("bad ExprValUsage")
-		}
-	}
-	return glang.BlockExpr{Bindings: bindings}
-}
-
-// ifStmt has special support for an early-return "then" branch; to achieve that
-// it is responsible for generating the if *together with* all the statements that
-// follow it in the same block.
-// It is also responsible for "finalizing" the expression according to the usage.
-func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) glang.Binding {
-	// TODO: be more careful about nested if statements; if the then branch has
-	//  an if statement with early return, this is probably not handled correctly.
-	//  We should conservatively disallow such returns until they're properly analyzed.
+func (ctx Ctx) ifStmt(s *ast.IfStmt) glang.Expr {
+    # FIXME
 	if s.Init != nil {
 		ctx.unsupported(s.Init, "if statement initializations")
-		return glang.Binding{}
 	}
 	condExpr := ctx.expr(s.Cond)
 	ife := glang.IfExpr{
 		Cond: condExpr,
 	}
+
+	ife.Then = ctx.blockStmt(s.Body, usage)
+	ife.Else = ctx.blockStmt(Else, usage)
+	return glang.NewAnonLet(ife)
 	// Extract (possibly empty) block in Else
 	var Else = &ast.BlockStmt{List: []ast.Stmt{}}
 	if s.Else != nil {
@@ -1178,9 +1087,6 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) g
 
 	if len(remainder) == 0 {
 		// The remainder is empty, so just propagate the usage to both branches.
-		ife.Then = ctx.blockStmt(s.Body, usage)
-		ife.Else = ctx.blockStmt(Else, usage)
-		return glang.NewAnon(ife)
 	}
 
 	// There is code after the conditional -- merging control flow. Let us see what we can do.
@@ -1198,7 +1104,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) g
 		// will become the return value of the entire conditional (that's why we
 		// put the remainder *inside* the conditional).
 		ife.Else = ctx.stmts(remainder, usage)
-		return glang.NewAnon(ife)
+		return glang.NewAnonLet(ife)
 	}
 
 	// No early return in "then" branch; translate this as a conditional in the middle of
@@ -1209,8 +1115,8 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) g
 	// And translate the remainder with our usage.
 	tailExpr := ctx.stmts(remainder, usage)
 	// Prepend the if-then-else before the tail.
-	bindings := append([]glang.Binding{glang.NewAnon(ife)}, tailExpr.Bindings...)
-	return glang.NewAnon(glang.BlockExpr{Bindings: bindings})
+	bindings := append([]glang.Binding{glang.NewAnonLet(ife)}, tailExpr.Bindings...)
+	return glang.NewAnonLet(glang.BlockExpr{Bindings: bindings})
 }
 
 func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
@@ -1231,7 +1137,7 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
 }
 
 func (ctx Ctx) forStmt(s *ast.ForStmt) glang.ForLoopExpr {
-	var init = glang.NewAnon(glang.Skip)
+	var init = glang.NewAnonLet(glang.Skip)
 	if s.Init != nil {
 		_, _ = ctx.loopVar(s.Init)
 		init = ctx.stmt(s.Init)
@@ -1276,7 +1182,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 		ctx.nope(s.Value, "range with non-ident value")
 		return nil
 	}
-	return glang.MapIterExpr{
+	return glang.ForRangeMapExpr{
 		KeyIdent:   key,
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
@@ -1451,7 +1357,7 @@ func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
 
 func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr) glang.Binding {
 	ty := ctx.typeOf(dst)
-	return glang.NewAnon(glang.StoreStmt{
+	return glang.NewAnonLet(glang.StoreStmt{
 		Dst: glang.IdentExpr(dst.Name),
 		X:   x,
 		Ty:  ctx.coqTypeOfType(dst, ty),
@@ -1463,7 +1369,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
-			return glang.NewAnon(rhs)
+			return glang.NewAnonLet(rhs)
 		}
 		return ctx.pointerAssign(lhs, rhs)
 	case *ast.IndexExpr:
@@ -1471,7 +1377,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 		switch targetTy := targetTy.(type) {
 		case *types.Slice:
 			value := rhs
-			return glang.NewAnon(glang.NewCallExpr(
+			return glang.NewAnonLet(glang.NewCallExpr(
 				glang.GallinaIdent("SliceSet"),
 				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
@@ -1479,7 +1385,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 				value))
 		case *types.Map:
 			value := rhs
-			return glang.NewAnon(glang.NewCallExpr(
+			return glang.NewAnonLet(glang.NewCallExpr(
 				glang.GallinaIdent("MapInsert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
@@ -1490,7 +1396,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 	case *ast.StarExpr:
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
-			return glang.NewAnon(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
+			return glang.NewAnonLet(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
 				glang.StructDesc(info.name),
 				ctx.expr(lhs.X),
 				rhs))
@@ -1500,7 +1406,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 			ctx.unsupported(s,
 				"could not identify element type of assignment through pointer")
 		}
-		return glang.NewAnon(glang.StoreStmt{
+		return glang.NewAnonLet(glang.StoreStmt{
 			Dst: ctx.expr(lhs.X),
 			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
 			X:   rhs,
@@ -1519,7 +1425,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 		}
 		if ok {
 			fieldName := lhs.Sel.Name
-			return glang.NewAnon(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
+			return glang.NewAnonLet(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
 				glang.StructDesc(info.name),
 				glang.GallinaString(fieldName),
 				structExpr,
@@ -1571,10 +1477,11 @@ func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) glang.Binding {
 	return glang.Binding{Names: make([]string, 0), Expr: glang.BlockExpr{Bindings: coqStmts}}
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt) glang.Binding {
+func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont *glang.Expr) glang.Expr {
 	if s.Tok == token.DEFINE {
 		return ctx.defineStmt(s)
 	}
+	// FIXME: handle multiple assigs uniformly with 1 assign
 	if len(s.Lhs) > 1 {
 		return ctx.multipleAssignStmt(s)
 	}
@@ -1590,6 +1497,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) glang.Binding {
 			Op: op,
 			Y:  rhs,
 		}
+		return ctx.assignFromTo(s, lhs, rhs)
 	} else if s.Tok != token.ASSIGN {
 		ctx.unsupported(s, "%v assignment", s.Tok)
 	}
@@ -1645,52 +1553,28 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 // This function also returns whether the expression has been "finalized",
 // which means the usage has been taken care of. If it is not finalized,
 // the caller is responsible for adding a trailing "return unit"/"continue".
-func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (glang.Binding, bool) {
-	// First the case where the statement matches the usage, i.e. the necessary
-	// control effect is actually available.
-	switch usage {
-	case ExprValReturned:
-		s, ok := s.(*ast.ReturnStmt)
-		if ok {
-			return glang.NewAnon(ctx.returnExpr(s.Results)), true
-		}
-	case ExprValLoop:
-		s, ok := s.(*ast.BranchStmt)
-		if ok {
-			return glang.NewAnon(ctx.branchStmt(s)), true
-		}
-	}
-	// Some statements can handle the usage themselves, and they make sure to finalize it, too
-	switch s := s.(type) {
-	case *ast.IfStmt:
-		return ctx.ifStmt(s, []ast.Stmt{}, usage), true
-	case *ast.BlockStmt:
-		return glang.NewAnon(ctx.blockStmt(s, usage)), true
-	}
-	// For everything else, we generate the statement and possibly tell the caller
-	// that this is not yet finalized.
-	var binding glang.Binding = glang.Binding{}
+func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		ctx.futureWork(s, "return in unsupported position")
 	case *ast.BranchStmt:
 		ctx.futureWork(s, "break/continue in unsupported position")
 	case *ast.GoStmt:
-		binding = glang.NewAnon(ctx.goStmt(s))
+		return glang.NewAnonLet(ctx.goStmt(s), cont)
 	case *ast.ExprStmt:
-		binding = glang.NewAnon(ctx.expr(s.X))
+		return glang.NewAnonLet(ctx.expr(s.X), cont)
 	case *ast.AssignStmt:
-		binding = ctx.assignStmt(s)
+		return ctx.assignStmt(s)
 	case *ast.DeclStmt:
-		binding = ctx.varDeclStmt(s)
+		return ctx.varDeclStmt(s)
 	case *ast.IncDecStmt:
-		binding = ctx.incDecStmt(s)
+		return ctx.incDecStmt(s)
 	case *ast.ForStmt:
 		// note that this might be a nested loop,
 		// in which case the loop var gets replaced by the inner loop.
-		binding = glang.NewAnon(ctx.forStmt(s))
+		return glang.NewAnonLet(ctx.forStmt(s), cont)
 	case *ast.RangeStmt:
-		binding = glang.NewAnon(ctx.rangeStmt(s))
+		return glang.NewAnonLet(ctx.rangeStmt(s), cont)
 	case *ast.SwitchStmt:
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
@@ -1698,24 +1582,6 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (glang.Binding, bool)
 	default:
 		ctx.unsupported(s, "statement")
 	}
-	switch usage {
-	case ExprValLocal:
-		// Nothing to finalize.
-		return binding, true
-	default:
-		// Finalization required
-		return binding, false
-	}
-}
-
-// Translate a single statement without usage (i.e., no control effects available)
-func (ctx Ctx) stmt(s ast.Stmt) glang.Binding {
-	// stmts takes care of finalization...
-	binding, finalized := ctx.stmtInBlock(s, ExprValLocal)
-	if !finalized {
-		panic("ExprValLocal usage should always be finalized")
-	}
-	return binding
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) glang.Expr {

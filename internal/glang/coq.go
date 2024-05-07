@@ -89,6 +89,7 @@ func quote(s string) string {
 	return `"` + s + `"`
 }
 
+// FIXME: why is this needed?
 func binder(s string) string {
 	if s == "_" {
 		return "<>"
@@ -457,29 +458,54 @@ func (e ReturnExpr) Coq(needs_paren bool) string {
 	return e.Value.Coq(needs_paren)
 }
 
-// Binding is a Coq binding (a part of a Bind expression)
-//
-// Note that a Binding is not an Expr. This is because emitting a binding
-// requires knowing if it is the last binding in a sequence (in which case no
-// binder should be written). A more accurate representation would be a cons
-// representation, but this recursive structure is more awkward to work with; in
-// practice delaying handling the special last-binding to printing time is
-// easier.
-type Binding struct {
+type LetExpr struct {
 	// Names is a list to support anonymous and tuple-destructuring bindings.
 	//
 	// If Names is an empty list the binding is anonymous.
-	Names []string
-	Expr  Expr
+	Names   []string
+	ValExpr Expr
+	Cont    Expr
 }
 
-// NewAnon constructs an anonymous binding for an expression.
-func NewAnon(e Expr) Binding {
-	return Binding{Expr: e}
+// NewAnonLet constructs an anonymous binding for an expression.
+func NewAnonLet(e, cont Expr) LetExpr {
+	return LetExpr{ValExpr: e, Cont: cont}
 }
 
-func (b Binding) isAnonymous() bool {
-	return len(b.Names) == 0
+func (e LetExpr) isAnonymous() bool {
+	return len(e.Names) == 0
+}
+
+func (b LetExpr) Coq(needs_paren bool) string {
+	var pp buffer
+	// Printing for anonymous and multiple return values
+	if b.isAnonymous() {
+		pp.Add("%s;;", b.ValExpr.Coq(false))
+	} else if len(b.Names) == 1 {
+		pp.Add("let: %s := %s in", binder(b.Names[0]), b.ValExpr.Coq(false))
+	} else if len(b.Names) == 2 {
+		pp.Add("let: (%s, %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			b.ValExpr.Coq(false))
+	} else if len(b.Names) == 3 {
+		pp.Add("let: ((%s, %s), %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			binder(b.Names[2]),
+			b.ValExpr.Coq(false))
+	} else if len(b.Names) == 4 {
+		pp.Add("let: (((%s, %s), %s), %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			binder(b.Names[2]),
+			binder(b.Names[3]),
+			b.ValExpr.Coq(false))
+	} else {
+		panic("no support for destructuring more than 4 return values")
+	}
+	pp.Add(b.Cont.Coq(false))
+	return addParens(needs_paren, pp.Build())
 }
 
 type fieldVal struct {
@@ -681,62 +707,6 @@ func NewTuple(es []Expr) Expr {
 	return TupleExpr(es)
 }
 
-// A BlockExpr is a sequence of bindings, ending with some expression.
-type BlockExpr struct {
-	Bindings []Binding
-}
-
-// AddTo adds a binding as a non-terminal line to a block
-func (b Binding) AddTo(pp *buffer) {
-	if e, ok := b.Expr.(LoggingStmt); ok {
-		pp.Add("%s", e.Coq(true))
-		return
-	}
-	// Printing for anonymous and multiple return values
-	if b.isAnonymous() {
-		pp.Add("%s;;", b.Expr.Coq(false))
-	} else if len(b.Names) == 1 {
-		pp.Add("let: %s := %s in", binder(b.Names[0]), b.Expr.Coq(false))
-	} else if len(b.Names) == 2 {
-		pp.Add("let: (%s, %s) := %s in",
-			binder(b.Names[0]),
-			binder(b.Names[1]),
-			b.Expr.Coq(false))
-	} else if len(b.Names) == 3 {
-		pp.Add("let: ((%s, %s), %s) := %s in",
-			binder(b.Names[0]),
-			binder(b.Names[1]),
-			binder(b.Names[2]),
-			b.Expr.Coq(false))
-	} else if len(b.Names) == 4 {
-		pp.Add("let: (((%s, %s), %s), %s) := %s in",
-			binder(b.Names[0]),
-			binder(b.Names[1]),
-			binder(b.Names[2]),
-			binder(b.Names[3]),
-			b.Expr.Coq(false))
-	} else {
-		panic("no support for destructuring more than 4 return values")
-	}
-}
-
-func (be BlockExpr) Coq(needs_paren bool) string {
-	var pp buffer
-	for n, b := range be.Bindings {
-		if n == len(be.Bindings)-1 {
-			if _, ok := b.Expr.(LoggingStmt); ok {
-				pp.AddLine(b.Expr.Coq(false))
-				pp.AddLine(UnitLiteral{}.Coq(true))
-			} else {
-				pp.AddLine(b.Expr.Coq(false))
-			}
-			continue
-		}
-		b.AddTo(&pp)
-	}
-	return addParens(needs_paren, pp.Build())
-}
-
 type DerefExpr struct {
 	X  Expr
 	Ty Expr
@@ -797,36 +767,20 @@ func (ife IfExpr) Coq(needs_paren bool) string {
 	return pp.Build()
 }
 
-// Unwrap returns the expression in a Binding expected to be anonymous.
-func (b Binding) Unwrap() (e Expr, ok bool) {
-	if b.isAnonymous() {
-		return b.Expr, true
-	}
-	return nil, false
-}
-
-type HashTableInsert struct {
-	Value Expr
-}
-
-func (e HashTableInsert) Coq(needs_paren bool) string {
-	return fmt.Sprintf("(fun _ => Some %s)", e.Value.Coq(true))
-}
-
 var LoopContinue = GallinaIdent("Continue")
 var LoopBreak = GallinaIdent("Break")
 
+// The init statement must wrap the ForLoopExpr, so it can make use of bindings
+// introduced there.
 type ForLoopExpr struct {
-	Init Binding
 	Cond Expr
 	Post Expr
 	// the body of the loop
-	Body BlockExpr
+	Body Expr
 }
 
 func (e ForLoopExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	e.Init.AddTo(&pp)
 	pp.Add("(for: (λ: <>, %s); (λ: <>, %s) := λ: <>,", e.Cond.Coq(false), e.Post.Coq(false))
 	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq(false))
@@ -838,7 +792,7 @@ type ForRangeSliceExpr struct {
 	Val   Binder
 	Ty    Expr
 	Slice Expr
-	Body  BlockExpr
+	Body  Expr
 }
 
 func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
@@ -861,17 +815,17 @@ func binderToCoq(b Binder) string {
 	return binder(string(*b))
 }
 
-// MapIterExpr is a call to the map iteration helper.
-type MapIterExpr struct {
+// ForRangeMapExpr is a call to the map iteration helper.
+type ForRangeMapExpr struct {
 	// name of key and value identifiers
 	KeyIdent, ValueIdent string
 	// map to iterate over
 	Map Expr
 	// body of loop, with KeyIdent and ValueIdent as free variables
-	Body BlockExpr
+	Body Expr
 }
 
-func (e MapIterExpr) Coq(needs_paren bool) string {
+func (e ForRangeMapExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.Add("MapIter %s (λ: %s %s,",
 		e.Map.Coq(true),
@@ -885,7 +839,7 @@ func (e MapIterExpr) Coq(needs_paren bool) string {
 //
 // The body can capture variables in the environment.
 type SpawnExpr struct {
-	Body BlockExpr
+	Body Expr
 }
 
 func (e SpawnExpr) Coq(needs_paren bool) string {
