@@ -36,6 +36,12 @@ func (suite *GoTestSuite) TestAppendToCapacity() {
 	suite.Equal(true, testAppendToCapacity())
 }
 
+func (suite *GoTestSuite) TestAppendSlice() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAppendSlice())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
