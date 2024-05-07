@@ -24,6 +24,18 @@ func (suite *GoTestSuite) TestAllocateFull() {
 	suite.Equal(true, testAllocateFull())
 }
 
+func (suite *GoTestSuite) TestSingleAppend() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSingleAppend())
+}
+
+func (suite *GoTestSuite) TestAppendToCapacity() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAppendToCapacity())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
