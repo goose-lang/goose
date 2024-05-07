@@ -43,11 +43,6 @@ func (ctx Ctx) mapType(e *ast.MapType) coq.MapType {
 }
 
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
-	pkgIdent, ok := e.X.(*ast.Ident)
-	if !ok {
-		ctx.nope(e, "selector expr type where package name is not identifier")
-	}
-
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return coq.TypeIdent("fileT")
 	}
@@ -58,17 +53,7 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) coq.Expr {
 		(isIdent(e.Sel, "Cond") || isIdent(e.Sel, "Mutex")) {
 		ctx.unsupported(e, "%s without pointer indirection", ctx.printGo(e))
 	}
-
-	// FIXME(HACK): this is to make sure `pkg.Foo` doesn't get unfolded to its
-	// referrring type.
-	t := ctx.typeOf(e)
-	if isProphId(t) {
-		return coq.TypeIdent("ProphIdT")
-	}
-	if _, ok := ctx.getStructInfo(t); ok {
-		return coq.StructName(pkgIdent.Name + "." + e.Sel.Name)
-	}
-	return coq.TypeIdent(pkgIdent.Name + "." + e.Sel.Name)
+	return ctx.coqTypeOfType(e, ctx.typeOf(e))
 }
 
 func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
