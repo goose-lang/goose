@@ -1168,7 +1168,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
 		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
-		Body:  ctx.blockStmt(s.Body, ExprValLocal),
+		Body:  ctx.blockStmt(s.Body),
 	}
 }
 
@@ -1194,17 +1194,7 @@ func (ctx Ctx) referenceTo(rhs ast.Expr) glang.Expr {
 }
 
 func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
-	if len(s.Rhs) > 1 {
-		ctx.futureWork(s, "multiple defines (split them up)")
-	}
 	e := cont
-	rhs := s.Rhs[0]
-	// TODO: go only requires one of the variables being defined to be fresh;
-	//  the rest are assigned. We should probably support re-assignment
-	//  generally. The problem is re-assigning variables in a loop that were
-	//  defined outside the loop, which in Go propagates to subsequent
-	//  iterations, so we can just conservatively disallow assignments within
-	//  loop bodies.
 
 	var idents []*ast.Ident
 	for _, lhsExpr := range s.Lhs {
@@ -1214,15 +1204,43 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
 	}
-	var names []string
-	for _, ident := range idents {
-		names = append(names, ident.Name)
-		if _, ok := ctx.info.Defs[ident]; !ok {
-			ctx.futureWork(ident, "should update and not shadow variables that were already in context at a define statement")
+
+	// do assignments left-to-right
+	intermediates := make([]string, 0, len(idents))
+	for i, ident := range idents {
+		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
+		e = glang.StoreStmt{
+			Dst: glang.IdentExpr(ident.Name),
+			Ty:  ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident)),
+			X:   glang.IdentExpr(intermediates[i]),
 		}
 	}
 
-	// FIXME: one step for computing, more steps for heap allocation
+	// FIXME:(evaluation order)
+	// compute values left-to-right
+	for i := len(s.Rhs); i > 0; i-- {
+		// NOTE: this handles the case that RHS = multiple-return function call
+		e = glang.LetExpr{
+			Names:   intermediates[i-1:],
+			ValExpr: ctx.expr(s.Rhs[i-1]),
+			Cont:    e,
+		}
+		intermediates = intermediates[:i-1]
+	}
+
+	// allocate everything that's new
+	for _, ident := range idents {
+		if _, ok := ctx.info.Defs[ident]; ok {
+			e = glang.LetExpr{
+				Names: []string{ident.Name},
+				ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
+					ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))),
+				Cont: e,
+			}
+		} else {
+			ctx.futureWork(ident, "should update and not shadow variables that were already in context at a define statement")
+		}
+	}
 	return e
 }
 

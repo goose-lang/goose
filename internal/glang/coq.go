@@ -380,9 +380,6 @@ func (s LoggingStmt) Coq(needs_paren bool) string {
 	return pp.Build()
 }
 
-// IdentExpr is a go_lang-level variable
-//
-// An IdentExpr is quoted in Coq.
 type ParenExpr struct {
 	Inner Expr
 }
