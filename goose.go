@@ -1194,57 +1194,28 @@ func (ctx Ctx) referenceTo(rhs ast.Expr) glang.Expr {
 }
 
 func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
-	e := cont
+	e := ctx.assignStmt(s, cont)
 
-	var idents []*ast.Ident
+	// Before the asignStmt "e", allocate everything that's new in this define stmt.
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
-			idents = append(idents, ident)
+			if _, ok := ctx.info.Defs[ident]; ok { // if this identifier is defining something
+				e = glang.LetExpr{
+					Names: []string{ident.Name},
+					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
+						ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))),
+					Cont: e,
+				}
+			}
 		} else {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
 	}
 
-	// do assignments left-to-right
-	intermediates := make([]string, 0, len(idents))
-	for i, ident := range idents {
-		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
-		e = glang.StoreStmt{
-			Dst: glang.IdentExpr(ident.Name),
-			Ty:  ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident)),
-			X:   glang.IdentExpr(intermediates[i]),
-		}
-	}
-
-	// FIXME:(evaluation order)
-	// compute values left-to-right
-	for i := len(s.Rhs); i > 0; i-- {
-		// NOTE: this handles the case that RHS = multiple-return function call
-		e = glang.LetExpr{
-			Names:   intermediates[i-1:],
-			ValExpr: ctx.expr(s.Rhs[i-1]),
-			Cont:    e,
-		}
-		intermediates = intermediates[:i-1]
-	}
-
-	// allocate everything that's new
-	for _, ident := range idents {
-		if _, ok := ctx.info.Defs[ident]; ok {
-			e = glang.LetExpr{
-				Names: []string{ident.Name},
-				ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
-					ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))),
-				Cont: e,
-			}
-		} else {
-			ctx.futureWork(ident, "should update and not shadow variables that were already in context at a define statement")
-		}
-	}
 	return e
 }
 
-func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
+func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 	if len(s.Names) > 1 {
 		ctx.unsupported(s, "multiple declarations in one block")
 	}
@@ -1257,14 +1228,15 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
-	return glang.Binding{
-		Names: []string{lhs.Name},
-		Expr:  rhs,
+	return glang.LetExpr{
+		Names:   []string{lhs.Name},
+		ValExpr: rhs,
+		Cont:    cont,
 	}
 }
 
 // varDeclStmt translates declarations within functions
-func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) glang.Binding {
+func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	decl, ok := s.Decl.(*ast.GenDecl)
 	if !ok {
 		ctx.noExample(s, "declaration that is not a GenDecl")
@@ -1279,7 +1251,7 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt) glang.Binding {
 	//
 	// https://golang.org/pkg/go/ast/#GenDecl
 	// TODO: handle TypeSpec
-	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec))
+	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec), cont)
 }
 
 // refExpr translates an expression which is a pointer in Go to a GooseLang
@@ -1320,23 +1292,22 @@ func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
 	}
 }
 
-func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr) glang.Binding {
-	ty := ctx.typeOf(dst)
+func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr, cont glang.Expr) glang.Expr {
 	return glang.NewAnonLet(glang.StoreStmt{
 		Dst: glang.IdentExpr(dst.Name),
 		X:   x,
-		Ty:  ctx.coqTypeOfType(dst, ty),
-	})
+		Ty:  ctx.coqTypeOfType(dst, ctx.typeOf(dst)),
+	}, cont)
 }
 
-func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Binding {
+func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
 	// assignments can mean various things
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
-			return glang.NewAnonLet(rhs)
+			return glang.NewAnonLet(rhs, cont)
 		}
-		return ctx.pointerAssign(lhs, rhs)
+		return ctx.pointerAssign(lhs, rhs, cont)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
 		switch targetTy := targetTy.(type) {
@@ -1347,14 +1318,14 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
-				value))
+				value), cont)
 		case *types.Map:
 			value := rhs
 			return glang.NewAnonLet(glang.NewCallExpr(
 				glang.GallinaIdent("MapInsert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
-				value))
+				value), cont)
 		default:
 			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
 		}
@@ -1364,7 +1335,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 			return glang.NewAnonLet(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
 				glang.StructDesc(info.name),
 				ctx.expr(lhs.X),
-				rhs))
+				rhs), cont)
 		}
 		dstPtrTy, ok := ctx.typeOf(lhs.X).Underlying().(*types.Pointer)
 		if !ok {
@@ -1375,7 +1346,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 			Dst: ctx.expr(lhs.X),
 			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
 			X:   rhs,
-		})
+		}, cont)
 	case *ast.SelectorExpr:
 		ty := ctx.typeOf(lhs.X)
 		info, ok := ctx.getStructInfo(ty)
@@ -1394,96 +1365,68 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr) glang.Bind
 				glang.StructDesc(info.name),
 				glang.GallinaString(fieldName),
 				structExpr,
-				rhs))
+				rhs), cont)
 		}
 		ctx.unsupported(s,
 			"assigning to field of non-struct type %v", ty)
 	default:
 		ctx.unsupported(s, "assigning to complex expression")
 	}
-	return glang.Binding{}
+	return nil
 }
 
-func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) glang.Binding {
-	// Translates a, b, c = SomeCall(args)
-	// into
-	//
-	// {
-	//   ret1, ret2, ret3 := SomeCall(args)
-	//   a = ret1
-	//   b = ret2
-	//   c = ret3
-	// }
-	//
-	// Returns multiple bindings, since there are multiple statements
+func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
+	e := cont
 
-	if len(s.Rhs) > 1 {
-		ctx.unsupported(s, "multiple assignments on right hand side")
-	}
-	rhs := ctx.expr(s.Rhs[0])
-
-	if s.Tok != token.ASSIGN {
-		// This should be invalid Go syntax anyway
-		ctx.unsupported(s, "%v multiple assignment", s.Tok)
+	// do assignments left-to-right
+	intermediates := make([]string, 0, len(s.Lhs))
+	for i, lhs := range s.Lhs {
+		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
+		e = ctx.assignFromTo(s, lhs, glang.IdentExpr(intermediates[i]), e)
 	}
 
-	names := make([]string, len(s.Lhs))
-	for i := 0; i < len(names); i += 1 {
-		names[i] = fmt.Sprintf("%d_ret", i)
+	// FIXME:(evaluation order)
+	// compute values left-to-right
+	for i := len(s.Rhs); i > 0; i-- {
+		// NOTE: this handles the case that RHS = multiple-return function call
+		e = glang.LetExpr{
+			Names:   intermediates[i-1:],
+			ValExpr: ctx.expr(s.Rhs[i-1]),
+			Cont:    e,
+		}
+		intermediates = intermediates[:i-1]
 	}
-	multipleRetBinding := glang.Binding{Names: names, Expr: rhs}
 
-	coqStmts := make([]glang.Binding, len(s.Lhs)+1)
-	coqStmts[0] = multipleRetBinding
-
-	for i, name := range names {
-		coqStmts[i+1] = ctx.assignFromTo(s, s.Lhs[i], glang.IdentExpr(name))
-	}
-	return glang.Binding{Names: make([]string, 0), Expr: glang.BlockExpr{Bindings: coqStmts}}
+	return e
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont *glang.Expr) glang.Expr {
-	if s.Tok == token.DEFINE {
-		return ctx.defineStmt(s)
-	}
-	// FIXME: handle multiple assigs uniformly with 1 assign
-	if len(s.Lhs) > 1 {
-		return ctx.multipleAssignStmt(s)
-	}
-	lhs := s.Lhs[0]
-	rhs := ctx.expr(s.Rhs[0])
+func (ctx Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	assignOps := map[token.Token]glang.BinOp{
 		token.ADD_ASSIGN: glang.OpPlus,
 		token.SUB_ASSIGN: glang.OpMinus,
 	}
-	if op, ok := assignOps[s.Tok]; ok {
-		rhs = glang.BinaryExpr{
-			X:  ctx.expr(lhs),
-			Op: op,
-			Y:  rhs,
-		}
-		return ctx.assignFromTo(s, lhs, rhs)
-	} else if s.Tok != token.ASSIGN {
-		ctx.unsupported(s, "%v assignment", s.Tok)
+	op, ok := assignOps[s.Tok]
+	if !ok {
+		ctx.unsupported(s, "unsupported assign+update operation %v", s.Tok)
 	}
-	return ctx.assignFromTo(s, lhs, rhs)
+	rhs := glang.BinaryExpr{
+		X:  ctx.expr(s.Lhs[0]),
+		Op: op,
+		Y:  ctx.expr(s.Rhs[0]),
+	}
+	return ctx.assignFromTo(s, s.Lhs[0], rhs, cont)
 }
 
-func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) glang.Binding {
-	ident := getIdentOrNil(stmt.X)
-	if ident == nil {
-		ctx.todo(stmt, "cannot inc/dec non-var")
-		return glang.Binding{}
-	}
+func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	op := glang.OpPlus
 	if stmt.Tok == token.DEC {
 		op = glang.OpMinus
 	}
-	return ctx.pointerAssign(ident, glang.BinaryExpr{
+	return ctx.assignFromTo(stmt, stmt.X, glang.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
 		Y:  glang.IntLiteral{Value: 1},
-	})
+	}, cont)
 }
 
 func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
@@ -1493,10 +1436,14 @@ func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
 			"only function literal spawns are supported")
 		return glang.SpawnExpr{}
 	}
-	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body, ExprValLocal)}
+	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body)}
 }
 
-func (ctx Ctx) branchStmt(s *ast.BranchStmt) glang.Expr {
+// FIXME: should plug into exception monad
+func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
+	if cont != glang.Tt {
+		ctx.todo(s, "non-trivial continuation after branchStmt")
+	}
 	if s.Tok == token.CONTINUE {
 		return glang.LoopContinue
 	}
@@ -1515,38 +1462,57 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 	return ctx.spawnExpr(e.Call.Fun)
 }
 
-// This function also returns whether the expression has been "finalized",
-// which means the usage has been taken care of. If it is not finalized,
-// the caller is responsible for adding a trailing "return unit"/"continue".
+func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
+	if cont != glang.Tt {
+		ctx.todo(s, "non-trivial continuation after return")
+	}
+	exprs := make([]glang.Expr, 0, len(s.Results))
+	for _, result := range s.Results {
+		exprs = append(exprs, ctx.expr(result))
+	}
+	return glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
-		ctx.futureWork(s, "return in unsupported position")
+		return ctx.returnStmt(s, cont)
 	case *ast.BranchStmt:
-		ctx.futureWork(s, "break/continue in unsupported position")
+		return ctx.branchStmt(s, cont)
+	case *ast.IfStmt:
+		return ctx.ifStmt(s, cont)
 	case *ast.GoStmt:
 		return glang.NewAnonLet(ctx.goStmt(s), cont)
 	case *ast.ExprStmt:
 		return glang.NewAnonLet(ctx.expr(s.X), cont)
 	case *ast.AssignStmt:
-		return ctx.assignStmt(s)
+		if s.Tok == token.DEFINE {
+			return ctx.defineStmt(s, cont)
+		} else if s.Tok == token.ASSIGN {
+			return ctx.assignStmt(s, cont)
+		} else {
+			return ctx.assignOpStmt(s, cont)
+		}
 	case *ast.DeclStmt:
-		return ctx.varDeclStmt(s)
+		return ctx.varDeclStmt(s, cont)
 	case *ast.IncDecStmt:
-		return ctx.incDecStmt(s)
+		return ctx.incDecStmt(s, cont)
 	case *ast.ForStmt:
 		// note that this might be a nested loop,
 		// in which case the loop var gets replaced by the inner loop.
-		return glang.NewAnonLet(ctx.forStmt(s), cont)
+		return ctx.forStmt(s, cont)
 	case *ast.RangeStmt:
 		return glang.NewAnonLet(ctx.rangeStmt(s), cont)
+	case *ast.BlockStmt:
+		return ctx.blockStmt(s)
 	case *ast.SwitchStmt:
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "check for type switch statement")
 	default:
-		ctx.unsupported(s, "statement")
+		ctx.unsupported(s, "statement %T", s)
 	}
+	panic("unreachable")
 }
 
 func (ctx Ctx) returnExpr(es []ast.Expr) glang.Expr {
@@ -1613,7 +1579,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
+	fd.Body = ctx.blockStmt(d.Body)
 	ctx.dep.addName(fd.Name)
 	return fd
 }

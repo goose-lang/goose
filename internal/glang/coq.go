@@ -463,7 +463,7 @@ type ReturnExpr struct {
 }
 
 func (e ReturnExpr) Coq(needs_paren bool) string {
-	return e.Value.Coq(needs_paren)
+	return fmt.Sprintf("return: %s", e.Value.Coq(needs_paren))
 }
 
 type LetExpr struct {
