@@ -400,41 +400,8 @@ func (ctx Ctx) newCoqCallWithExpr(method glang.Expr, es []ast.Expr) glang.CallEx
 	return ctx.newCoqCallTypeArgs(method, nil, es)
 }
 
-// FIXME: this handles more than "method" calls. It e.g. also handles function
-// calls and string <-> []byte conversions.
 func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	args := call.Args
-	// discovered this API via
-	// https://go.googlesource.com/example/+/HEAD/gotypes#named-types
-	if ctx.info.Types[call.Fun].IsType() {
-		ctx.todo(call, "Types.IsType() == true and ")
-		// string -> []byte conversions are handled specially
-		if f, ok := call.Fun.(*ast.ArrayType); ok {
-			if f.Len == nil && isIdent(f.Elt, "byte") {
-				arg := args[0]
-				if isString(ctx.typeOf(arg)) {
-					return ctx.newCoqCall("StringToBytes", args)
-				}
-			}
-		}
-		// []byte -> string are handled specially
-		if f, ok := call.Fun.(*ast.Ident); ok && f.Name == "string" {
-			arg := args[0]
-			if isString(ctx.typeOf(arg).Underlying()) {
-				return ctx.expr(args[0])
-			}
-			if !isByteSlice(ctx.typeOf(arg)) {
-				ctx.unsupported(call,
-					"conversion from type %v to string", ctx.typeOf(arg))
-				return glang.CallExpr{}
-			}
-			return ctx.newCoqCall("StringFromBytes", args)
-		}
-		ctx.unsupported(call, "type conversion via that's not []byte <-> string")
-		//  https://github.com/tchajed/goose/issues/14
-		// return ctx.expr(args[0])
-	}
-
 	var retExpr glang.Expr
 
 	f := call.Fun
@@ -557,20 +524,54 @@ func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) glang.Expr {
 		ctx.expr(dst), ctx.expr(src))
 }
 
-func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
-	if isIdent(s.Fun, "make") {
+func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
+	if ctx.info.TypeOf(s.Fun).Underlying() == ctx.info.TypeOf(s.Args[0]).Underlying() {
+		return ctx.expr(s.Args[0])
+	}
+	// FIXME: these should check that the "uintX" ident refers to the builtin uintX
+	if isIdent(s.Fun, "uint64") {
+		return ctx.integerConversion(s, s.Args[0], 64)
+	}
+	if isIdent(s.Fun, "uint32") {
+		return ctx.integerConversion(s, s.Args[0], 32)
+	}
+	if isIdent(s.Fun, "uint8") {
+		return ctx.integerConversion(s, s.Args[0], 8)
+	}
+	if f, ok := s.Fun.(*ast.ArrayType); ok {
+		if f.Len == nil && isIdent(f.Elt, "byte") {
+			arg := s.Args[0]
+			if isString(ctx.typeOf(arg)) {
+				return ctx.newCoqCall("StringToBytes", s.Args)
+			}
+		}
+	}
+	if f, ok := s.Fun.(*ast.Ident); ok && f.Name == "string" {
+		arg := s.Args[0]
+		if !isByteSlice(ctx.typeOf(arg)) {
+			ctx.unsupported(s,
+				"conversion from type %v to string", ctx.typeOf(arg))
+			return glang.CallExpr{}
+		}
+		return ctx.newCoqCall("StringFromBytes", s.Args)
+	}
+
+	ctx.unsupported(s, "conversion from %s to %s", ctx.info.TypeOf(s.Args[0]).Underlying(), s.Fun)
+	return nil
+}
+
+func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
+	funName := s.Fun.(*ast.Ident).Name
+	switch funName {
+	case "make":
 		return ctx.makeExpr(s.Args)
-	}
-	if isIdent(s.Fun, "new") {
+	case "new":
 		return ctx.newExpr(s, s.Args[0])
-	}
-	if isIdent(s.Fun, "len") {
+	case "len":
 		return ctx.lenExpr(s)
-	}
-	if isIdent(s.Fun, "cap") {
+	case "cap":
 		return ctx.capExpr(s)
-	}
-	if isIdent(s.Fun, "append") {
+	case "append":
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
 		if s.Ellipsis == token.NoPos {
 			return glang.NewCallExpr(glang.GallinaIdent("SliceAppend"),
@@ -583,26 +584,14 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
 			ctx.expr(s.Args[1]))
-	}
-	if isIdent(s.Fun, "copy") {
+	case "copy":
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
-	}
-	if isIdent(s.Fun, "delete") {
+	case "delete":
 		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
 			ctx.unsupported(s, "delete on non-map")
 		}
 		return glang.NewCallExpr(glang.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
-	}
-	if isIdent(s.Fun, "uint64") {
-		return ctx.integerConversion(s, s.Args[0], 64)
-	}
-	if isIdent(s.Fun, "uint32") {
-		return ctx.integerConversion(s, s.Args[0], 32)
-	}
-	if isIdent(s.Fun, "uint8") {
-		return ctx.integerConversion(s, s.Args[0], 8)
-	}
-	if isIdent(s.Fun, "panic") {
+	case "panic":
 		msg := "oops"
 		if e, ok := s.Args[0].(*ast.BasicLit); ok {
 			if e.Kind == token.STRING {
@@ -611,7 +600,21 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 			}
 		}
 		return glang.NewCallExpr(glang.GallinaIdent("Panic"), glang.GallinaString(msg))
+	default:
+		ctx.unsupported(s, "builtin %s not supported", funName)
+		return nil
 	}
+}
+
+func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
+	if ctx.info.Types[s.Fun].IsType() {
+		return ctx.conversionExpr(s)
+	} else if ctx.info.Types[s.Fun].IsBuiltin() {
+		return ctx.builtinCallExpr(s)
+	} else {
+		return ctx.methodExpr(s)
+	}
+
 	// FIXME: obviate this code
 	/*
 		// Special case for *sync.NewCond
@@ -643,7 +646,6 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 			}
 		}
 	*/
-	return ctx.methodExpr(s)
 }
 
 func (ctx Ctx) qualifiedName(obj types.Object) string {

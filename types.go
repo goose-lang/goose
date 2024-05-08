@@ -82,6 +82,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 			return glang.TypeIdent("boolT")
 		case "string", "untyped string":
 			return glang.TypeIdent("stringT")
+		case "int":
+			return glang.TypeIdent("intT")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
