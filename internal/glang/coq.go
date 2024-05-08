@@ -383,6 +383,17 @@ func (s LoggingStmt) Coq(needs_paren bool) string {
 // IdentExpr is a go_lang-level variable
 //
 // An IdentExpr is quoted in Coq.
+type ParenExpr struct {
+	Inner Expr
+}
+
+func (e ParenExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("(%s)", e.Inner.Coq(needs_paren))
+}
+
+// IdentExpr is a go_lang-level variable
+//
+// An IdentExpr is quoted in Coq.
 type IdentExpr string
 
 func (e IdentExpr) Coq(needs_paren bool) string {

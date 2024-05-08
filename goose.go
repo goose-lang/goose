@@ -1053,70 +1053,21 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt) glang.Expr {
 	return e
 }
 
-func (ctx Ctx) ifStmt(s *ast.IfStmt) glang.Expr {
-    # FIXME
+func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
+	var elseExpr glang.Expr = glang.Tt
+	if s.Else != nil {
+		elseExpr = ctx.stmt(s.Else, glang.Tt)
+	}
+	ife := glang.IfExpr{
+		Cond: ctx.expr(s.Cond),
+		Then: ctx.blockStmt(s.Body),
+		Else: elseExpr,
+	}
+
 	if s.Init != nil {
 		ctx.unsupported(s.Init, "if statement initializations")
 	}
-	condExpr := ctx.expr(s.Cond)
-	ife := glang.IfExpr{
-		Cond: condExpr,
-	}
-
-	ife.Then = ctx.blockStmt(s.Body, usage)
-	ife.Else = ctx.blockStmt(Else, usage)
-	return glang.NewAnonLet(ife)
-	// Extract (possibly empty) block in Else
-	var Else = &ast.BlockStmt{List: []ast.Stmt{}}
-	if s.Else != nil {
-		switch s := s.Else.(type) {
-		case *ast.BlockStmt:
-			Else = s
-		case *ast.IfStmt:
-			// This is an "else if"
-			Else.List = []ast.Stmt{s}
-		default:
-			panic("if statement with unexpected kind of else branch")
-		}
-	}
-
-	// Supported cases are:
-	// - There is no code after the conditional -- then anything goes.
-	// - The "then" branch always returns, and there is no "else" branch.
-	// - Neither "then" nor "else" ever return.
-
-	if len(remainder) == 0 {
-		// The remainder is empty, so just propagate the usage to both branches.
-	}
-
-	// There is code after the conditional -- merging control flow. Let us see what we can do.
-	// Determine if we want to propagate our usage (i.e. the availability of control effects)
-	// to the conditional or not.
-	if ctx.endsWithReturn(s.Body) {
-		ife.Then = ctx.blockStmt(s.Body, usage)
-		// Put trailing code into "else". This is correct because "then" will always return.
-		// "else" must be empty.
-		if len(Else.List) > 0 {
-			ctx.futureWork(s.Else, "early return in if with an else branch")
-			return glang.Binding{}
-		}
-		// We can propagate the usage here since the return value of this part
-		// will become the return value of the entire conditional (that's why we
-		// put the remainder *inside* the conditional).
-		ife.Else = ctx.stmts(remainder, usage)
-		return glang.NewAnonLet(ife)
-	}
-
-	// No early return in "then" branch; translate this as a conditional in the middle of
-	// a block (not propagating the usage). This will implicitly check that
-	// the two branches do not rely on control effects.
-	ife.Then = ctx.blockStmt(s.Body, ExprValLocal)
-	ife.Else = ctx.blockStmt(Else, ExprValLocal)
-	// And translate the remainder with our usage.
-	tailExpr := ctx.stmts(remainder, usage)
-	// Prepend the if-then-else before the tail.
-	bindings := append([]glang.Binding{glang.NewAnonLet(ife)}, tailExpr.Bindings...)
-	return glang.NewAnonLet(glang.BlockExpr{Bindings: bindings})
+	return glang.NewAnonLet(ife, cont)
 }
 
 func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
@@ -1136,32 +1087,26 @@ func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
 	return lhs, ctx.expr(rhs)
 }
 
-func (ctx Ctx) forStmt(s *ast.ForStmt) glang.ForLoopExpr {
-	var init = glang.NewAnonLet(glang.Skip)
-	if s.Init != nil {
-		_, _ = ctx.loopVar(s.Init)
-		init = ctx.stmt(s.Init)
-	}
+func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	var cond glang.Expr = glang.True
 	if s.Cond != nil {
 		cond = ctx.expr(s.Cond)
 	}
 	var post glang.Expr = glang.Skip
 	if s.Post != nil {
-		postBlock := ctx.stmt(s.Post)
-		if len(postBlock.Names) > 0 {
-			ctx.unsupported(s.Post, "post cannot bind names")
-		}
-		post = postBlock.Expr
+		post = ctx.stmt(s.Post, glang.Tt)
 	}
 
-	body := ctx.blockStmt(s.Body, ExprValLoop)
-	return glang.ForLoopExpr{
-		Init: init,
+	body := ctx.blockStmt(s.Body)
+	var e glang.Expr = glang.ForLoopExpr{
 		Cond: cond,
 		Post: post,
 		Body: body,
 	}
+	if s.Init != nil {
+		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
+	}
+	return e
 }
 
 func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
@@ -1186,7 +1131,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 		KeyIdent:   key,
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
-		Body:       ctx.blockStmt(s.Body, ExprValLocal),
+		Body:       ctx.blockStmt(s.Body),
 	}
 }
 
@@ -1248,10 +1193,11 @@ func (ctx Ctx) referenceTo(rhs ast.Expr) glang.Expr {
 	}
 }
 
-func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
+func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	if len(s.Rhs) > 1 {
 		ctx.futureWork(s, "multiple defines (split them up)")
 	}
+	e := cont
 	rhs := s.Rhs[0]
 	// TODO: go only requires one of the variables being defined to be fresh;
 	//  the rest are assigned. We should probably support re-assignment
@@ -1275,8 +1221,9 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) glang.Binding {
 			ctx.futureWork(ident, "should update and not shadow variables that were already in context at a define statement")
 		}
 	}
+
 	// FIXME: one step for computing, more steps for heap allocation
-	return glang.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
+	return e
 }
 
 func (ctx Ctx) varSpec(s *ast.ValueSpec) glang.Binding {
