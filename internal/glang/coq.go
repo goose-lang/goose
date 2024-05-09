@@ -290,6 +290,8 @@ func (t MapType) Coq(needs_paren bool) string {
 	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq(needs_paren)
 }
 
+// FIXME: no need to have params and results in the type system. Just need to
+// count heap cells.
 type FuncType struct {
 	Params  []string
 	Results []string

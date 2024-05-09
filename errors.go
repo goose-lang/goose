@@ -124,13 +124,13 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 	panic(gooseError{err: err})
 }
 
-// nope reports a situation that I thought was impossible from reading the
+// nope reports a situation that believed to be impossible from reading the
 // documentation.
 func (r errorReporter) nope(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("impossible(go)", n, msg, args...)
 }
 
-// noExample reports a situation I thought was impossible because I couldn't
+// noExample reports a situation believed to be impossible because I couldn't
 // think of how to do it in Go.
 func (r errorReporter) noExample(n ast.Node, msg string, args ...interface{}) {
 	r.prefixed("impossible(no-examples)", n, msg, args...)

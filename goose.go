@@ -1158,11 +1158,12 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	}
 	key, ok := s.Key.(*ast.Ident)
 	if !ok {
-		ctx.unsupported(s.Key, "range with non-identifier as iteration variable")
+		ctx.todo(s.Key, "range with non-identifier as iteration variable")
 	}
+# FIXME s.Value might be nil
 	val, ok := s.Value.(*ast.Ident)
 	if !ok {
-		ctx.unsupported(s.Value, "range with non-identifier as iteration variable")
+		ctx.todo(s.Value, "range with non-identifier as iteration variable")
 	}
 
 	return glang.ForRangeSliceExpr{
