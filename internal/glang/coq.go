@@ -468,6 +468,14 @@ func (e ReturnExpr) Coq(needs_paren bool) string {
 	return fmt.Sprintf("return: %s", e.Value.Coq(needs_paren))
 }
 
+type DoExpr struct {
+	Expr Expr
+}
+
+func (e DoExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("do: %s", e.Expr.Coq(needs_paren))
+}
+
 type LetExpr struct {
 	// Names is a list to support anonymous and tuple-destructuring bindings.
 	//

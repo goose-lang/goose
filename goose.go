@@ -1160,15 +1160,18 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	if !ok {
 		ctx.todo(s.Key, "range with non-identifier as iteration variable")
 	}
-# FIXME s.Value might be nil
-	val, ok := s.Value.(*ast.Ident)
-	if !ok {
-		ctx.todo(s.Value, "range with non-identifier as iteration variable")
+	valExpr := glang.Binder(nil)
+	if s.Value != nil {
+		val, ok := s.Value.(*ast.Ident)
+		if !ok {
+			ctx.todo(s.Value, "range with non-identifier as iteration variable")
+		}
+		valExpr = ctx.identBinder(val)
 	}
 
 	return glang.ForRangeSliceExpr{
 		Key:   ctx.identBinder(key),
-		Val:   ctx.identBinder(val),
+		Val:   valExpr,
 		Slice: ctx.expr(s.X),
 		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
 		Body:  ctx.blockStmt(s.Body),
