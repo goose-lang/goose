@@ -108,7 +108,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 	case *types.Map:
 		return glang.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
-		return glang.FuncType{}
+		// FIXME: arrowT should not mention the underlying types.
+		return glang.FuncType{Results: []string{"unitT"}}
 	case *types.Interface:
 		ctx.unsupported(n, "interface type")
 	}

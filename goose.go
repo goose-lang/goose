@@ -453,17 +453,6 @@ func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
 func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
-	switch typeArg := args[0].(type) {
-	case *ast.MapType:
-		mapTy := ctx.mapType(typeArg)
-		return glang.NewCallExpr(glang.GallinaIdent("NewMap"), mapTy.Key, mapTy.Value, glang.UnitLiteral{})
-	case *ast.ArrayType:
-		if typeArg.Len != nil {
-			ctx.nope(typeArg, "can't make() arrays (only slices)")
-		}
-		elt := ctx.coqType(typeArg.Elt)
-		return ctx.makeSliceExpr(elt, args)
-	}
 	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
 	case *types.Slice:
 		elt := ctx.coqTypeOfType(args[0], ty.Elem())
@@ -1476,6 +1465,9 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	for _, result := range s.Results {
 		exprs = append(exprs, ctx.expr(result))
 	}
+	if len(exprs) == 0 { // return #()
+		exprs = []glang.Expr{glang.Tt}
+	}
 	return glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
 }
 
@@ -1643,12 +1635,6 @@ func stringLitValue(lit *ast.BasicLit) string {
 	return s
 }
 
-// TODO: put this in another file
-var builtinImports = map[string]bool{
-	"log": true,
-	"fmt": true,
-}
-
 var ffiMapping = map[string]string{
 	"github.com/mit-pdos/gokv/grove_ffi":          "grove",
 	"github.com/tchajed/goose/machine/disk":       "disk",
@@ -1663,13 +1649,11 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 			ctx.unsupported(s, "renaming imports")
 		}
 		importPath := stringLitValue(s.Path)
-		if !builtinImports[importPath] {
-			// TODO: this uses the syntax of the Go import to determine the Coq
-			// import, but Go packages can contain a different name than their
-			// path. We can get this information by using the *types.Package
-			// returned by Check (or the pkg.Types field from *packages.Package).
-			decls = append(decls, glang.ImportDecl{Path: importPath})
-		}
+		// TODO: this uses the syntax of the Go import to determine the Coq
+		// import, but Go packages can contain a different name than their
+		// path. We can get this information by using the *types.Package
+		// returned by Check (or the pkg.Types field from *packages.Package).
+		decls = append(decls, glang.ImportDecl{Path: importPath})
 	}
 	return decls
 }
