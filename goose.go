@@ -720,7 +720,7 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 	return lit
 }
 
-// basicLiteral parses a basic literal
+// basicLiteral translates a basic literal
 //
 // (unsigned) ints, strings, and booleans are supported
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
@@ -730,24 +730,50 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 		if strings.ContainsRune(s, '"') {
 			ctx.unsupported(e, "string literals with quotes")
 		}
-		return glang.StringLiteral{s}
+		return glang.StringLiteral{Value: s}
 	}
 	if e.Kind == token.INT {
-		info, ok := getIntegerType(ctx.typeOf(e))
-		v := ctx.info.Types[e].Value
-		n, ok := constant.Uint64Val(v)
-		if !ok {
-			ctx.unsupported(e,
-				"int literals must be positive numbers")
-			return nil
+		tv := ctx.info.Types[e]
+		switch t := tv.Type.Underlying().(type) {
+		case *types.Basic :
+			switch t.Name() {
+			case "uint64":
+				n, ok := constant.Uint64Val(tv.Value)
+				if !ok {
+					ctx.nope(e, "uint64 literal with failed constant.Uint64Val")
+				}
+				return glang.IntLiteral{Value: n}
+			case "uint32":
+				n, ok := constant.Uint64Val(tv.Value)
+				if !ok {
+					ctx.nope(e, "uint32 literal with failed constant.Uint64Val")
+				}
+				return glang.Int32Literal{Value: uint32(n)}
+			case "uint8": fallthrough
+			case "byte":
+				n, ok := constant.Uint64Val(tv.Value)
+				if !ok {
+					ctx.nope(e, "uint8 literal with failed constant.Uint64Val")
+				}
+				return glang.ByteLiteral{Value: uint8(n)}
+			case "int": // FIXME: this case is a temporary hack to support e.g. the int in `make([]byte, 20)`
+				n, ok := constant.Uint64Val(tv.Value)
+				if !ok {
+					ctx.todo(e, "int literal with negative value")
+				}
+				return glang.IntLiteral{Value: n}
+			case "untyped int": // FIXME: this case is a temporary hack to support e.g. the int in `make([]byte, 20)`
+				n, ok := constant.Uint64Val(tv.Value)
+				if !ok {
+					ctx.todo(e, "int literal with negative value")
+				}
+				return glang.IntLiteral{Value: n}
+			default:
+				ctx.todo(e, "%s integer literal", t.Name())
+				return glang.Tt
+			}
 		}
-		if info.isUint64() {
-			return glang.IntLiteral{n}
-		} else if info.isUint32() {
-			return glang.Int32Literal{uint32(n)}
-		} else if info.isUint8() {
-			return glang.ByteLiteral{uint8(n)}
-		}
+		ctx.nope(e, "integer literal with unexpected underlying type that's %T", tv.Type.Underlying())
 	}
 	ctx.unsupported(e, "literal with kind %s", e.Kind)
 	return nil
