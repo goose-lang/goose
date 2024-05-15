@@ -341,14 +341,6 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	if !ok {
 		return ctx.packageMethod(f, call)
 	}
-	if isProphId(selectorType) {
-		return ctx.prophIdMethod(f, args)
-	}
-	if isDisk(selectorType) {
-		method := fmt.Sprintf("disk.%s", f.Sel)
-		// skip disk argument (f.X) and just pass the method arguments
-		return ctx.newCoqCall(method, call.Args)
-	}
 	switch selectorType.Underlying().(type) {
 	case *types.Interface:
 		interfaceInfo, ok := ctx.getInterfaceInfo(selectorType)
@@ -360,24 +352,22 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		}
 	default:
 		structInfo, ok := ctx.getStructInfo(selectorType)
-
-		// see if f.Sel.Name is a struct field, and translate accordingly if so
-		for _, name := range structInfo.fields() {
-			if f.Sel.Name == name {
-				return ctx.newCoqCallWithExpr(
-					ctx.structSelector(structInfo, f),
-					args)
+		if ok  {
+			// see if f.Sel.Name is a struct field, and translate accordingly if so
+			for _, name := range structInfo.fields() {
+				if f.Sel.Name == name {
+					return ctx.newCoqCallWithExpr(
+						ctx.structSelector(structInfo, f),
+						args)
+				}
 			}
-		}
-
-		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
 			m := glang.StructMethod(structInfo.name, f.Sel.Name)
 			ctx.dep.addDep(m)
 			return ctx.newCoqCall(m, callArgs)
 		}
 	}
-	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
+	ctx.todo(f, "unexpected select on type "+selectorType.String())
 	return nil
 }
 

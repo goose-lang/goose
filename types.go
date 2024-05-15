@@ -119,14 +119,14 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 }
 
 func sliceElem(t types.Type) types.Type {
-	if t, ok := t.(*types.Slice); ok {
+	if t, ok := t.Underlying().(*types.Slice); ok {
 		return t.Elem()
 	}
 	panic(fmt.Errorf("expected slice type, got %v", t))
 }
 
 func ptrElem(t types.Type) types.Type {
-	if t, ok := t.(*types.Pointer); ok {
+	if t, ok := t.Underlying().(*types.Pointer); ok {
 		return t.Elem()
 	}
 	panic(fmt.Errorf("expected pointer type, got %v", t))
