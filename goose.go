@@ -1589,6 +1589,9 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 		AddTypes: ctx.Config.TypeCheck,
 	}
 	addSourceDoc(spec.Comment, &cd.Comment)
+	if len(spec.Values) == 0 {
+		ctx.todo(spec, "No values")
+	}
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)
 	if spec.Type == nil {
@@ -1611,7 +1614,7 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 }
 
 func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
-	// NOTE: this treats globals as constants, which is unsound but used for a
+	// FIXME: this treats globals as constants, which is unsound but used for a
 	// configurable Debug level in goose-nfsd. Configuration variables should
 	// instead be treated as a non-deterministic constant, assuming they aren't
 	// changed after startup.
