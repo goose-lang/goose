@@ -464,7 +464,7 @@ func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.CallExpr {
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
 		return glang.NewCallExpr(glang.GallinaIdent("zero_array"),
 			ctx.coqTypeOfType(ty, t.Elem()),
-			glang.IntLiteral{uint64(t.Len())})
+			glang.IntLiteral{Value: uint64(t.Len())})
 	}
 	e := glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty))
 	// check for new(T) where T is a struct, but not a pointer to a struct
@@ -567,7 +567,7 @@ func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	case "delete":
 		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
-			ctx.unsupported(s, "delete on non-map")
+			ctx.nope(s, "delete on non-map")
 		}
 		return glang.NewCallExpr(glang.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 	case "panic":
