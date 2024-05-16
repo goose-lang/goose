@@ -352,7 +352,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		}
 	default:
 		structInfo, ok := ctx.getStructInfo(selectorType)
-		if ok  {
+		if ok {
 			// see if f.Sel.Name is a struct field, and translate accordingly if so
 			for _, name := range structInfo.fields() {
 				if f.Sel.Name == name {
@@ -735,7 +735,7 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 	if e.Kind == token.INT {
 		tv := ctx.info.Types[e]
 		switch t := tv.Type.Underlying().(type) {
-		case *types.Basic :
+		case *types.Basic:
 			switch t.Name() {
 			case "uint64":
 				n, ok := constant.Uint64Val(tv.Value)
@@ -749,7 +749,8 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 					ctx.nope(e, "uint32 literal with failed constant.Uint64Val")
 				}
 				return glang.Int32Literal{Value: uint32(n)}
-			case "uint8": fallthrough
+			case "uint8":
+				fallthrough
 			case "byte":
 				n, ok := constant.Uint64Val(tv.Value)
 				if !ok {
@@ -1594,6 +1595,13 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body)
+	for _, arg := range fd.Args {
+		fd.Body = glang.LetExpr{
+			Names:   []string{arg.Name},
+			ValExpr: glang.RefExpr{Ty: arg.Type, X: glang.IdentExpr(arg.Name)},
+			Cont:    fd.Body,
+		}
+	}
 	ctx.dep.addName(fd.Name)
 	return fd
 }
