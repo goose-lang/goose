@@ -762,6 +762,44 @@ Definition ReassignVars: val :=
 
 (* recursive.go *)
 
+Definition recur1: val :=
+  rec: "recur1" "n" :=
+    let: "out" := ref (zero_val uint64T) in
+    let: "i" := ref_to uint64T #0 in
+    (for: (λ: <>, (![uint64T] "i") < #1); (λ: <>, "i" <-[uint64T] ((![uint64T] "i") + #1)) := λ: <>,
+      (if: (![uint64T] "i") = #0
+      then
+        "out" <-[uint64T] (recur1 ("n" - #1));;
+        Break
+      else Continue));;
+    ![uint64T] "out".
+
+Definition recurStruct1 := struct.decl [
+].
+
+Definition recurStruct1__recur2: val :=
+  rec: "recurStruct1__recur2" "s" "n" :=
+    recurStruct1__recur2 "s" "n".
+
+Definition recur3: val :=
+  rec: "recur3" "n" :=
+    let: "handlers" := NewMap uint64T (uint64T -> uint64T)%ht #() in
+    MapInsert "handlers" #0 (λ: "n",
+      "handlers" "n"
+      );;
+    "handlers" "n".
+
+Definition recurStruct2 := struct.decl [
+  "lam" :: (uint64T -> uint64T)%ht
+].
+
+Definition recurStruct2__recur4: val :=
+  rec: "recurStruct2__recur4" "s" "n" :=
+    struct.storeF recurStruct2 "lam" "s" (λ: "n",
+      (struct.loadF recurStruct2 "lam" "s") "n"
+      );;
+    (struct.loadF recurStruct2 "lam" "s") "n".
+
 (* replicated_disk.go *)
 
 Definition Block := struct.decl [
