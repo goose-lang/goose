@@ -1073,16 +1073,13 @@ func (ctx Ctx) coqRecurFunc(method string, e *ast.Ident) coq.Expr {
 	if !ok {
 		panic("type checker doesn't have func")
 	}
-	fun := obj.(*types.Func)
-
-	scope := fun.Scope()
-	// XXX: this can happen if func defined in diff pkg.
-	// Leave getting the current pkg for another PR.
-	if scope == nil {
+	// Can't get scopes for imported funcs.
+	if ctx.pkgPath != obj.Pkg().Path() {
 		return coq.GallinaIdent(method)
 	}
+	fun := obj.(*types.Func)
 
-	if scope.Contains(e.Pos()) {
+	if fun.Scope().Contains(e.Pos()) {
 		return coq.GallinaString(method)
 	} else {
 		return coq.GallinaIdent(method)
