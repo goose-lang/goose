@@ -514,7 +514,8 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 			callArgs := append([]ast.Expr{f.X}, args...)
 			m := coq.StructMethod(structInfo.name, f.Sel.Name)
 			ctx.dep.addDep(m)
-			return ctx.newCoqCall(m, callArgs)
+			coqCall := ctx.coqRecurFunc(m, f.Sel)
+			return ctx.newCoqCallWithExpr(coqCall, callArgs)
 		}
 	}
 	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
@@ -1067,9 +1068,30 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	return e
 }
 
+func (ctx Ctx) coqRecurFunc(method string, e *ast.Ident) coq.Expr {
+	obj, ok := ctx.info.Uses[e]
+	if !ok {
+		panic("type checker doesn't have func")
+	}
+	fun := obj.(*types.Func)
+
+	scope := fun.Scope()
+	// XXX: this can happen if func defined in diff pkg.
+	// Leave getting the current pkg for another PR.
+	if scope == nil {
+		return coq.GallinaIdent(method)
+	}
+
+	if scope.Contains(e.Pos()) {
+		return coq.GallinaString(method)
+	} else {
+		return coq.GallinaIdent(method)
+	}
+}
+
 func (ctx Ctx) function(s *ast.Ident) coq.Expr {
 	ctx.dep.addDep(s.Name)
-	return coq.GallinaIdent(s.Name)
+	return ctx.coqRecurFunc(s.Name, s)
 }
 
 func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
