@@ -11,10 +11,10 @@ func TestAll(t *testing.T) {
 	if sumBasicNew(5) != 15 {
 		t.Fatal()
 	}
-	if sumIter(5) != 15 {
+	if sumFancy(5) != 15 {
 		t.Fatal()
 	}
-	if sumIterNew(5) != 15 {
+	if sumFancyNew(5) != 15 {
 		t.Fatal()
 	}
 }

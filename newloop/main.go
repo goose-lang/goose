@@ -23,7 +23,6 @@ func basicLoop(body func() bool) {
 goose_lang.lib.loop.For:
 
 Definition For: val :=
-
 λ: "cond" "body" "post",
 (rec: "loop" <> :=
 	let: "continue" :=
@@ -35,7 +34,7 @@ Definition For: val :=
 	else #()) #().
 */
 
-func iterLoop(cond func() bool, body func() bool, post func()) {
+func fancyLoop(cond func() bool, body func() bool, post func()) {
 	// Run cond and body sequentially.
 	if !cond() {
 		return
@@ -44,7 +43,7 @@ func iterLoop(cond func() bool, body func() bool, post func()) {
 		return
 	}
 	post()
-	iterLoop(cond, body, post)
+	fancyLoop(cond, body, post)
 }
 
 func sumBasic(n uint64) uint64 {
@@ -75,7 +74,7 @@ func sumBasicNew(n uint64) uint64 {
 	return sum
 }
 
-func sumIter(n uint64) uint64 {
+func sumFancy(n uint64) uint64 {
 	var sum uint64
 	var i uint64
 	for ; i <= n; i++ {
@@ -84,7 +83,7 @@ func sumIter(n uint64) uint64 {
 	return sum
 }
 
-func sumIterNew(n uint64) uint64 {
+func sumFancyNew(n uint64) uint64 {
 	var sum uint64
 	var i uint64
 	cond := func() bool {
@@ -97,6 +96,6 @@ func sumIterNew(n uint64) uint64 {
 	post := func() {
 		i++
 	}
-	iterLoop(cond, body, post)
+	fancyLoop(cond, body, post)
 	return sum
 }

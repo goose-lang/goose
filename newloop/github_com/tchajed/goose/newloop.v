@@ -13,8 +13,8 @@ Definition basicLoop: val :=
       "basicLoop" "body";;
       #()).
 
-Definition iterLoop: val :=
-  rec: "iterLoop" "cond" "body" "post" :=
+Definition fancyLoop: val :=
+  rec: "fancyLoop" "cond" "body" "post" :=
     (if: (~ ("cond" #()))
     then #()
     else
@@ -22,7 +22,7 @@ Definition iterLoop: val :=
       then #()
       else
         "post" #();;
-        "iterLoop" "cond" "body" "post";;
+        "fancyLoop" "cond" "body" "post";;
         #())).
 
 Definition sumBasic: val :=
@@ -54,8 +54,8 @@ Definition sumBasicNew: val :=
     basicLoop "body";;
     ![uint64T] "sum".
 
-Definition sumIter: val :=
-  rec: "sumIter" "n" :=
+Definition sumFancy: val :=
+  rec: "sumFancy" "n" :=
     let: "sum" := ref (zero_val uint64T) in
     let: "i" := ref (zero_val uint64T) in
     Skip;;
@@ -64,8 +64,8 @@ Definition sumIter: val :=
       Continue);;
     ![uint64T] "sum".
 
-Definition sumIterNew: val :=
-  rec: "sumIterNew" "n" :=
+Definition sumFancyNew: val :=
+  rec: "sumFancyNew" "n" :=
     let: "sum" := ref (zero_val uint64T) in
     let: "i" := ref (zero_val uint64T) in
     let: "cond" := (λ: <>,
@@ -79,7 +79,7 @@ Definition sumIterNew: val :=
       "i" <-[uint64T] ((![uint64T] "i") + #1);;
       #()
       ) in
-    iterLoop "cond" "body" "post";;
+    fancyLoop "cond" "body" "post";;
     ![uint64T] "sum".
 
 End code.
