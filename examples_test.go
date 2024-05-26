@@ -38,10 +38,6 @@ type test struct {
 	path string
 }
 
-func newTest(dir string, name string) test {
-	return test{name: path.Base(name), path: path.Join(dir, name)}
-}
-
 func loadTests(dir string) []test {
 	f, err := os.Open(dir)
 	if err != nil {
@@ -54,7 +50,7 @@ func loadTests(dir string) []test {
 	}
 	var tests []test
 	for _, n := range names {
-		tests = append(tests, newTest(dir, n))
+		tests = append(tests, test{name: n, path: path.Join(dir, n)})
 	}
 	return tests
 }
@@ -72,51 +68,51 @@ type positiveTest struct {
 	test
 }
 
-// GoldFile returns the path to the test's gold Coq output
-func (t positiveTest) GoldFile() string {
+// goldFile returns the path to the test's gold Coq output
+func (t positiveTest) goldFile() string {
 	return path.Join(t.path, t.name+".gold.v")
 }
 
-// ActualFile returns the path to the test's actual output
-func (t positiveTest) ActualFile() string {
+// actualFile returns the path to the test's actual output
+func (t positiveTest) actualFile() string {
 	return path.Join(t.path, t.name+".actual.v")
 }
 
-// Gold returns the contents of the gold Ast as a string
-func (t positiveTest) Gold() string {
-	expected, err := os.ReadFile(t.GoldFile())
+// gold returns the contents of the gold Ast as a string
+func (t positiveTest) gold() string {
+	expected, err := os.ReadFile(t.goldFile())
 	if err != nil {
 		return ""
 	}
 	return string(expected)
 }
 
-// UpdateGold updates the gold output with real results
-func (t positiveTest) UpdateGold(actual string) {
-	err := os.WriteFile(t.GoldFile(), []byte(actual), 0644)
+// updateGold updates the gold output with real results
+func (t positiveTest) updateGold(actual string) {
+	err := os.WriteFile(t.goldFile(), []byte(actual), 0644)
 	if err != nil {
 		panic(err)
 	}
 }
 
-// PutActual updates the actual test output with the real results
-func (t positiveTest) PutActual(actual string) {
-	err := os.WriteFile(t.ActualFile(), []byte(actual), 0644)
+// putActual updates the actual test output with the real results
+func (t positiveTest) putActual(actual string) {
+	err := os.WriteFile(t.actualFile(), []byte(actual), 0644)
 	if err != nil {
 		panic(err)
 	}
 }
 
-// DeleteActual deletes the actual test output, if it exists
-func (t positiveTest) DeleteActual() {
-	_ = os.Remove(t.ActualFile())
+// deleteActual deletes the actual test output, if it exists
+func (t positiveTest) deleteActual() {
+	_ = os.Remove(t.actualFile())
 }
 
-func testExample(testingT *testing.T, name string, tr goose.Translator) {
+func testGold(testingT *testing.T, dir string, tr goose.Translator) {
 	testingT.Parallel()
 	testingT.Helper()
 	assert := assert.New(testingT)
-	t := positiveTest{newTest("internal/examples", name)}
+	t := positiveTest{test{name: path.Base(dir), path: dir}}
 	if !t.isDir() {
 		assert.FailNowf("not a test directory",
 			"path: %s",
@@ -144,74 +140,78 @@ func testExample(testingT *testing.T, name string, tr goose.Translator) {
 	actual := b.String()
 
 	if *updateGold {
-		expected := t.Gold()
+		expected := t.gold()
 		if actual != expected {
-			fmt.Fprintf(os.Stderr, "updated %s\n", t.GoldFile())
+			fmt.Fprintf(os.Stderr, "updated %s\n", t.goldFile())
 		}
-		t.UpdateGold(actual)
-		t.DeleteActual()
+		t.updateGold(actual)
+		t.deleteActual()
 		return
 	}
 
-	expected := t.Gold()
+	expected := t.gold()
 	if expected == "" {
 		assert.FailNowf("could not load gold output",
 			"gold file: %s",
-			t.GoldFile())
+			t.goldFile())
 	}
 	if actual != expected {
-		t.PutActual(actual)
+		t.putActual(actual)
 		assert.FailNowf("actual Coq output != gold output",
 			"see %s",
-			t.ActualFile())
+			t.actualFile())
 		return
 	}
 	// when tests pass, clean up actual output
-	t.DeleteActual()
+	t.deleteActual()
 }
 
 func TestUnitTests(t *testing.T) {
-	testExample(t, "unittest", goose.Translator{})
+	testGold(t, "internal/examples/unittest", goose.Translator{})
 }
 
 func TestUnitTestGeneric(t *testing.T) {
-	testExample(t, "unittest/generic", goose.Translator{})
+	testGold(t, "internal/examples/unittest/generic", goose.Translator{})
 }
 
 func TestSimpleDb(t *testing.T) {
-	testExample(t, "simpledb", goose.Translator{})
+	testGold(t, "internal/examples/simpledb", goose.Translator{})
 }
 
 func TestWal(t *testing.T) {
-	testExample(t, "wal", goose.Translator{})
+	testGold(t, "internal/examples/wal", goose.Translator{})
 }
 
 func TestAsync(t *testing.T) {
-	testExample(t, "async", goose.Translator{TypeCheck: false})
+	testGold(t, "internal/examples/async", goose.Translator{TypeCheck: false})
 }
 
 func TestLogging2(t *testing.T) {
-	testExample(t, "logging2", goose.Translator{})
+	testGold(t, "internal/examples/logging2", goose.Translator{})
 }
 
 func TestAppendLog(t *testing.T) {
-	testExample(t, "append_log", goose.Translator{})
+	testGold(t, "internal/examples/append_log", goose.Translator{})
 }
 
 func TestRfc1813(t *testing.T) {
-	testExample(t, "rfc1813", goose.Translator{})
+	testGold(t, "internal/examples/rfc1813", goose.Translator{})
 }
 
 func TestSemantics(t *testing.T) {
-	testExample(t, "semantics", goose.Translator{})
+	testGold(t, "internal/examples/semantics", goose.Translator{})
 }
 
 func TestComments(t *testing.T) {
-	testExample(t, "comments", goose.Translator{})
+	testGold(t, "internal/examples/comments", goose.Translator{})
 }
 
 func TestTrustedImport(t *testing.T) {
-	testExample(t, "trust_import", goose.Translator{})
+	testGold(t, "internal/examples/trust_import", goose.Translator{})
+}
+
+func TestBadGoose(t *testing.T) {
+	testGold(t, "testdata/badgoose", goose.Translator{})
 }
 
 type errorExpectation struct {
