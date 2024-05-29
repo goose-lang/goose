@@ -1114,7 +1114,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	if s.Init != nil {
 		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
 	}
-	return e
+	return glang.LetExpr{ValExpr: e, Cont: cont}
 }
 
 func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
