@@ -367,7 +367,7 @@ type PackageIdent struct {
 }
 
 func (e PackageIdent) Coq(needs_paren bool) string {
-	return fmt.Sprintf("%s.%s", goPathToCoqPath(e.Package), e.Ident)
+	return fmt.Sprintf("%s.%s", thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(e.Package), e.Ident)
 }
 
 var Skip Expr = GallinaIdent("Skip")
@@ -1055,7 +1055,7 @@ func InterfaceMethod(interfaceName string, methodName string) string {
 }
 
 const importHeader string = `
-From Perennial.goose_lang Require Import prelude.
+From Perennial.goose_lang Require Import new.prelude.
 `
 
 // These will not end up in `File.Decls`, they are put into `File.Imports` by `translatePackage`.
@@ -1064,10 +1064,18 @@ type ImportDecl struct {
 }
 
 // This is an injective mapping
+// FIXME: should really use this
 func goPathToCoqPath(p string) string {
 	p = strings.ReplaceAll(p, "_", "__")
 	p = strings.ReplaceAll(p, ".", "_dot_")
 	p = strings.ReplaceAll(p, "-", "_dash_")
+	return p
+}
+
+func thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(p string) string {
+	p = strings.ReplaceAll(p, "_", "_")
+	p = strings.ReplaceAll(p, ".", "_")
+	p = strings.ReplaceAll(p, "-", "_")
 	return p
 }
 
@@ -1077,14 +1085,14 @@ func goPathToCoqPath(p string) string {
 //
 //	statement in Go) differing from the basename of its parent directory
 func ImportToPath(pkgPath, pkgName string) string {
-	coqPath := goPathToCoqPath(pkgPath)
+	coqPath := thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkgPath)
 	p := path.Dir(coqPath)
 	filename := path.Base(coqPath) + ".v"
 	return filepath.Join(p, filename)
 }
 
 func (decl ImportDecl) CoqDecl() string {
-	coqImportQualid := strings.ReplaceAll(goPathToCoqPath(decl.Path), "/", ".")
+	coqImportQualid := strings.ReplaceAll(thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
 	return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
 }
 
