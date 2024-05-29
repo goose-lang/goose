@@ -1062,7 +1062,7 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt) glang.Expr {
 }
 
 func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
-	var elseExpr glang.Expr = glang.Tt
+	var elseExpr glang.Expr = glang.DoExpr{Expr: glang.Tt}
 	if s.Else != nil {
 		elseExpr = ctx.stmt(s.Else, glang.Tt)
 	}
