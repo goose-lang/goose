@@ -1596,6 +1596,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 			Cont:    fd.Body,
 		}
 	}
+	fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	ctx.dep.addName(fd.Name)
 	return fd
 }
