@@ -1215,7 +1215,9 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
 					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
-						ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))),
+						ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident)),
+						glang.Tt,
+					),
 					Cont: e,
 				}
 			}
