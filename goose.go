@@ -1052,7 +1052,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 
 func (ctx Ctx) blockStmt(s *ast.BlockStmt) glang.Expr {
 	ss := s.List
-	var e glang.Expr = glang.Tt
+	var e glang.Expr = glang.DoExpr{Expr: glang.Tt}
 	for len(ss) > 0 {
 		stmt := ss[len(ss)-1]
 		ss = ss[:len(ss)-1]
@@ -1075,7 +1075,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	if s.Init != nil {
 		ctx.unsupported(s.Init, "if statement initializations")
 	}
-	return glang.NewAnonLet(ife, cont)
+	return glang.LetExpr{ValExpr: ife, Cont: cont}
 }
 
 func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
@@ -1305,7 +1305,7 @@ func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
 }
 
 func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr, cont glang.Expr) glang.Expr {
-	return glang.NewAnonLet(glang.StoreStmt{
+	return glang.NewDoSeq(glang.StoreStmt{
 		Dst: glang.IdentExpr(dst.Name),
 		X:   x,
 		Ty:  ctx.coqTypeOfType(dst, ctx.typeOf(dst)),
@@ -1317,7 +1317,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
-			return glang.NewAnonLet(rhs, cont)
+			return glang.NewDoSeq(rhs, cont)
 		}
 		return ctx.pointerAssign(lhs, rhs, cont)
 	case *ast.IndexExpr:
@@ -1325,7 +1325,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 		switch targetTy := targetTy.(type) {
 		case *types.Slice:
 			value := rhs
-			return glang.NewAnonLet(glang.NewCallExpr(
+			return glang.NewDoSeq(glang.NewCallExpr(
 				glang.GallinaIdent("SliceSet"),
 				ctx.coqTypeOfType(lhs, targetTy.Elem()),
 				ctx.expr(lhs.X),
@@ -1333,7 +1333,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 				value), cont)
 		case *types.Map:
 			value := rhs
-			return glang.NewAnonLet(glang.NewCallExpr(
+			return glang.NewDoSeq(glang.NewCallExpr(
 				glang.GallinaIdent("MapInsert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
@@ -1344,7 +1344,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 	case *ast.StarExpr:
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
-			return glang.NewAnonLet(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
+			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
 				glang.StructDesc(info.name),
 				ctx.expr(lhs.X),
 				rhs), cont)
@@ -1354,7 +1354,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 			ctx.unsupported(s,
 				"could not identify element type of assignment through pointer")
 		}
-		return glang.NewAnonLet(glang.StoreStmt{
+		return glang.NewDoSeq(glang.StoreStmt{
 			Dst: ctx.expr(lhs.X),
 			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
 			X:   rhs,
@@ -1373,7 +1373,7 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 		}
 		if ok {
 			fieldName := lhs.Sel.Name
-			return glang.NewAnonLet(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
+			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
 				glang.StructDesc(info.name),
 				glang.GallinaString(fieldName),
 				structExpr,
@@ -1451,16 +1451,12 @@ func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
 	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body)}
 }
 
-// FIXME: should plug into exception monad
 func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
-	if cont != glang.Tt {
-		ctx.todo(s, "non-trivial continuation after branchStmt")
-	}
 	if s.Tok == token.CONTINUE {
-		return glang.LoopContinue
+		return glang.LetExpr{ValExpr: glang.ContinueExpr{}, Cont: cont}
 	}
 	if s.Tok == token.BREAK {
-		return glang.LoopBreak
+		return glang.LetExpr{ValExpr: glang.BreakExpr{}, Cont: cont}
 	}
 	ctx.noExample(s, "unexpected control flow %v in loop", s.Tok)
 	return nil
@@ -1475,9 +1471,6 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 }
 
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
-	if cont != glang.Tt {
-		ctx.todo(s, "non-trivial continuation after return")
-	}
 	exprs := make([]glang.Expr, 0, len(s.Results))
 	for _, result := range s.Results {
 		exprs = append(exprs, ctx.expr(result))
@@ -1485,7 +1478,8 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	if len(exprs) == 0 { // return #()
 		exprs = []glang.Expr{glang.Tt}
 	}
-	return glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
+	r := glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
+	return glang.LetExpr{ValExpr: r, Cont: cont}
 }
 
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
@@ -1497,9 +1491,9 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.IfStmt:
 		return ctx.ifStmt(s, cont)
 	case *ast.GoStmt:
-		return glang.NewAnonLet(ctx.goStmt(s), cont)
+		return glang.NewDoSeq(ctx.goStmt(s), cont)
 	case *ast.ExprStmt:
-		return glang.NewAnonLet(ctx.expr(s.X), cont)
+		return glang.NewDoSeq(ctx.expr(s.X), cont)
 	case *ast.AssignStmt:
 		if s.Tok == token.DEFINE {
 			return ctx.defineStmt(s, cont)
@@ -1517,7 +1511,7 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 		// in which case the loop var gets replaced by the inner loop.
 		return ctx.forStmt(s, cont)
 	case *ast.RangeStmt:
-		return glang.NewAnonLet(ctx.rangeStmt(s), cont)
+		return glang.NewDoSeq(ctx.rangeStmt(s), cont)
 	case *ast.BlockStmt:
 		return ctx.blockStmt(s)
 	case *ast.SwitchStmt:

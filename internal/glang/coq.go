@@ -460,6 +460,20 @@ func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
 		GallinaString(e.Field), e.X).Coq(needs_paren)
 }
 
+type ContinueExpr struct {
+}
+
+func (e ContinueExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("continue: #()")
+}
+
+type BreakExpr struct {
+}
+
+func (e BreakExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("break: #()")
+}
+
 type ReturnExpr struct {
 	Value Expr
 }
@@ -472,8 +486,10 @@ type DoExpr struct {
 	Expr Expr
 }
 
-func (e DoExpr) Coq(needs_paren bool) string {
-	return fmt.Sprintf("do: %s", e.Expr.Coq(needs_paren))
+func (b DoExpr) Coq(needs_paren bool) string {
+	var pp buffer
+	pp.Add("do:  %s", b.Expr.Coq(false))
+	return pp.Build()
 }
 
 type LetExpr struct {
@@ -485,9 +501,8 @@ type LetExpr struct {
 	Cont    Expr
 }
 
-// NewAnonLet constructs an anonymous binding for an expression.
-func NewAnonLet(e, cont Expr) LetExpr {
-	return LetExpr{ValExpr: e, Cont: cont}
+func NewDoSeq(e, cont Expr) LetExpr {
+	return LetExpr{ValExpr: DoExpr{Expr: e}, Cont: cont}
 }
 
 func (e LetExpr) isAnonymous() bool {
@@ -497,8 +512,9 @@ func (e LetExpr) isAnonymous() bool {
 func (b LetExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	// Printing for anonymous and multiple return values
+	// TODO: exception monad sequencing should be its own thing, not an anonymous let binding.
 	if b.isAnonymous() {
-		pp.Add("%s;;", b.ValExpr.Coq(false))
+		pp.Add("%s;;;", b.ValExpr.Coq(false))
 	} else if len(b.Names) == 1 {
 		pp.Add("let: %s := %s in", binder(b.Names[0]), b.ValExpr.Coq(false))
 	} else if len(b.Names) == 2 {
@@ -623,7 +639,7 @@ type StringLiteral struct {
 }
 
 func (l StringLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf(`#(str"%s")`, l.Value)
+	return fmt.Sprintf(`#(str "%s")`, l.Value)
 }
 
 type nullLiteral struct{}
@@ -784,9 +800,6 @@ func (ife IfExpr) Coq(needs_paren bool) string {
 	flowBranch(&pp, "else", ife.Else, ")")
 	return pp.Build()
 }
-
-var LoopContinue = GallinaIdent("Continue")
-var LoopBreak = GallinaIdent("Break")
 
 // The init statement must wrap the ForLoopExpr, so it can make use of bindings
 // introduced there.
