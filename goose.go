@@ -462,8 +462,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		args)
 }
 
-func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
-	call *ast.CallExpr) coq.Expr {
+func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr {
 	args := call.Args
 	selectorType, ok := ctx.getType(f.X)
 	if !ok {
@@ -503,7 +502,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		if ok {
 			callArgs := append([]ast.Expr{f.X}, args...)
 			return ctx.newCoqCall(
-				coq.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
+				coq.InterfaceMethodName(interfaceInfo.name, f.Sel.Name),
 				callArgs)
 		}
 	case *types.Struct:
@@ -525,7 +524,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 	namedTy := deref.(*types.Named)
 	tyName := ctx.qualifiedName(namedTy.Obj())
 	callArgs := append([]ast.Expr{f.X}, args...)
-	fullName := coq.StructMethod(tyName, f.Sel.Name)
+	fullName := coq.MethodName(tyName, f.Sel.Name)
 	ctx.dep.addDep(fullName)
 	coqCall := ctx.coqRecurFunc(fullName, f.Sel)
 	return ctx.newCoqCallWithExpr(coqCall, callArgs)
@@ -835,7 +834,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		m := coq.StructMethod(structInfo.name, e.Sel.Name)
+		m := coq.MethodName(structInfo.name, e.Sel.Name)
 		ctx.dep.addDep(m)
 		return coq.NewCallExpr(coq.GallinaIdent(m), ctx.expr(e.X))
 	}
@@ -1077,21 +1076,21 @@ func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	return e
 }
 
-func (ctx Ctx) coqRecurFunc(method string, e *ast.Ident) coq.Expr {
+func (ctx Ctx) coqRecurFunc(fullFuncName string, e *ast.Ident) coq.Expr {
 	obj, ok := ctx.info.Uses[e]
 	if !ok {
 		panic("type checker doesn't have func")
 	}
 	// Can't get scopes for imported funcs.
 	if ctx.pkgPath != obj.Pkg().Path() {
-		return coq.GallinaIdent(method)
+		return coq.GallinaIdent(fullFuncName)
 	}
 	fun := obj.(*types.Func)
 
 	if fun.Scope().Contains(e.Pos()) {
-		return coq.GallinaString(method)
+		return coq.GallinaString(fullFuncName)
 	} else {
-		return coq.GallinaIdent(method)
+		return coq.GallinaIdent(fullFuncName)
 	}
 }
 
@@ -1958,29 +1957,27 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
-
 	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
 		TypeParams: ctx.typeParamList(d.Type.TypeParams),
 	}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
+
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
 			ctx.nope(d, "function with multiple receivers")
 		}
-
 		rcvr := d.Recv.List[0]
 		rcvrTy := rcvr.Type
 		if star, ok := rcvrTy.(*ast.StarExpr); ok {
 			rcvrTy = star.X
 		}
 		ident := rcvrTy.(*ast.Ident)
-		fd.Name = coq.StructMethod(ident.Name, d.Name.Name)
+		fd.Name = coq.MethodName(ident.Name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(rcvr))
 	}
 
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
-
 	fd.ReturnType = ctx.returnType(d.Type.Results)
 	fd.Body = ctx.blockStmt(d.Body, ExprValReturned)
 	ctx.dep.addName(fd.Name)

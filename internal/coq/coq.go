@@ -1076,12 +1076,12 @@ func (t PtrType) Coq(needs_paren bool) string {
 	return "ptrT"
 }
 
-func StructMethod(structName string, methodName string) string {
-	return fmt.Sprintf("%s__%s", structName, methodName)
+func MethodName(tyName string, funcName string) string {
+	return fmt.Sprintf("%s__%s", tyName, funcName)
 }
 
-func InterfaceMethod(interfaceName string, methodName string) string {
-	return fmt.Sprintf("(struct.get %s \"%s\")", interfaceName, methodName)
+func InterfaceMethodName(interfaceName string, funcName string) string {
+	return fmt.Sprintf("(struct.get %s \"%s\")", interfaceName, funcName)
 }
 
 const importHeader string = `
