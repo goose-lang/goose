@@ -489,7 +489,15 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 		// skip disk argument (f.X) and just pass the method arguments
 		return ctx.newCoqCall(method, call.Args)
 	}
-	switch selectorType.Underlying().(type) {
+
+	// Tricky: need the deref'd type for exact Underlying() case handling
+	// and name extraction, but also need original type for knowing
+	// whether to deref struct func field.
+	deref := selectorType
+	if pt, ok := selectorType.(*types.Pointer); ok {
+		deref = pt.Elem()
+	}
+	switch deref.Underlying().(type) {
 	case *types.Interface:
 		interfaceInfo, ok := ctx.getInterfaceInfo(selectorType)
 		if ok {
@@ -498,8 +506,11 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 				coq.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
 				callArgs)
 		}
-	default:
+	case *types.Struct:
 		structInfo, ok := ctx.getStructInfo(selectorType)
+		if !ok {
+			panic("expected struct")
+		}
 
 		// see if f.Sel.Name is a struct field, and translate accordingly if so
 		for _, name := range structInfo.fields() {
@@ -509,17 +520,15 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
 					args)
 			}
 		}
-
-		if ok {
-			callArgs := append([]ast.Expr{f.X}, args...)
-			m := coq.StructMethod(structInfo.name, f.Sel.Name)
-			ctx.dep.addDep(m)
-			coqCall := ctx.coqRecurFunc(m, f.Sel)
-			return ctx.newCoqCallWithExpr(coqCall, callArgs)
-		}
 	}
-	ctx.unsupported(f, "unexpected select on type "+selectorType.String())
-	return nil
+
+	namedTy := deref.(*types.Named)
+	tyName := ctx.qualifiedName(namedTy.Obj())
+	callArgs := append([]ast.Expr{f.X}, args...)
+	fullName := coq.StructMethod(tyName, f.Sel.Name)
+	ctx.dep.addDep(fullName)
+	coqCall := ctx.coqRecurFunc(fullName, f.Sel)
+	return ctx.newCoqCallWithExpr(coqCall, callArgs)
 }
 
 func (ctx Ctx) newCoqCallTypeArgs(method coq.Expr, typeArgs []coq.Expr,
@@ -1959,19 +1968,15 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		if len(d.Recv.List) != 1 {
 			ctx.nope(d, "function with multiple receivers")
 		}
-		receiver := d.Recv.List[0]
-		recvType := ctx.typeOf(receiver.Type)
-		// TODO: factor out this struct-or-struct pointer pattern
-		if pT, ok := recvType.(*types.Pointer); ok {
-			recvType = pT.Elem()
-		}
 
-		structInfo, ok := ctx.getStructInfo(recvType)
-		if !ok {
-			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
+		rcvr := d.Recv.List[0]
+		rcvrTy := rcvr.Type
+		if star, ok := rcvrTy.(*ast.StarExpr); ok {
+			rcvrTy = star.X
 		}
-		fd.Name = coq.StructMethod(structInfo.name, d.Name.Name)
-		fd.Args = append(fd.Args, ctx.field(receiver))
+		ident := rcvrTy.(*ast.Ident)
+		fd.Name = coq.StructMethod(ident.Name, d.Name.Name)
+		fd.Args = append(fd.Args, ctx.field(rcvr))
 	}
 
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
