@@ -252,7 +252,7 @@ func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestRe
 	pkgName := "example"
 	ctx := goose.NewCtx(pkgName, goose.Config{})
 	fset := ctx.Fset
-	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		assert.FailNowf("test code does not parse", "file: %s", filePath)
