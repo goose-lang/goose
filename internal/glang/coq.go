@@ -278,7 +278,7 @@ func (t TypeIdent) Coq(needs_paren bool) string {
 type StructName string
 
 func (t StructName) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("structT"), StructDesc(string(t))).Coq(needs_paren)
 }
 
 type MapType struct {
@@ -319,7 +319,7 @@ type SliceType struct {
 }
 
 func (t SliceType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("slice.T"), t.Value).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("sliceT"), t.Value).Coq(needs_paren)
 }
 
 type ArrayType struct {
@@ -453,7 +453,7 @@ func StructDesc(name string) Expr {
 
 func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
 	if e.ThroughPointer {
-		return NewCallExpr(GallinaIdent("struct.loadF"),
+		return NewCallExpr(GallinaIdent("struct.fieldRef"),
 			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq(needs_paren)
 	}
 	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
@@ -554,7 +554,6 @@ type fieldVal struct {
 type StructLiteral struct {
 	StructName string
 	elts       []fieldVal
-	Allocation bool // if true, struct is being allocated on the heap
 }
 
 // NewStructLiteral creates a StructLiteral with no values.
@@ -570,9 +569,6 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.mk"
-	if sl.Allocation {
-		method = "struct.new"
-	}
 	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
@@ -1055,7 +1051,7 @@ func InterfaceMethod(interfaceName string, methodName string) string {
 }
 
 const importHeader string = `
-From Perennial.goose_lang Require Import new.prelude.
+From Perennial.new_goose_lang Require Import prelude.
 `
 
 // These will not end up in `File.Decls`, they are put into `File.Imports` by `translatePackage`.

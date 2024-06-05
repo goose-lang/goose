@@ -670,13 +670,19 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.StructFieldAccessExpr {
+func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.Expr {
 	ctx.dep.addDep(info.name)
-	return glang.StructFieldAccessExpr{
-		Struct:         info.name,
-		Field:          e.Sel.Name,
-		X:              ctx.expr(e.X),
-		ThroughPointer: info.throughPointer,
+	return glang.DerefExpr{
+		X: glang.StructFieldAccessExpr{
+			Struct:         info.name,
+			Field:          e.Sel.Name,
+			X:              ctx.expr(e.X),
+			ThroughPointer: info.throughPointer,
+		},
+		Ty: glang.NewCallExpr(glang.GallinaIdent("struct.fieldTy"),
+			glang.GallinaIdent(info.name),
+			glang.IdentExpr(e.Sel.Name),
+		),
 	}
 }
 
@@ -902,8 +908,10 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 			if ok {
 				// e is &s{...} (a struct literal)
 				sl := ctx.structLiteral(info, structLit)
-				sl.Allocation = true
-				return sl
+				return glang.RefExpr{
+					X: sl,
+					Ty: ctx.coqTypeOfType(e.X, ctx.typeOf(e.X)),
+				}
 			}
 		}
 		// e is something else
@@ -1375,11 +1383,18 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 		}
 		if ok {
 			fieldName := lhs.Sel.Name
-			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
-				glang.StructDesc(info.name),
-				glang.GallinaString(fieldName),
-				structExpr,
-				rhs), cont)
+			return glang.NewDoSeq(glang.StoreStmt{
+				Dst: glang.NewCallExpr(glang.GallinaIdent("struct.fieldRef"),
+					glang.StructDesc(info.name),
+					glang.GallinaString(fieldName),
+					structExpr,
+					rhs),
+				Ty: glang.NewCallExpr(glang.GallinaIdent("struct.fieldTy"),
+					glang.GallinaIdent(info.name),
+					glang.IdentExpr(lhs.Sel.Name),
+				),
+				X: rhs,
+			}, cont)
 		}
 		ctx.unsupported(s,
 			"assigning to field of non-struct type %v", ty)
