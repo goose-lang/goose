@@ -1220,11 +1220,11 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			if _, ok := ctx.info.Defs[ident]; ok { // if this identifier is defining something
+				t := ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
-					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
-						ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident)),
-						glang.Tt,
+					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_to"), t,
+						glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
 					),
 					Cont: e,
 				}
