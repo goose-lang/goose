@@ -460,20 +460,11 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.CallExpr {
-	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
-		return glang.NewCallExpr(glang.GallinaIdent("zero_array"),
-			ctx.coqTypeOfType(ty, t.Elem()),
-			glang.IntLiteral{Value: uint64(t.Len())})
+func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.Expr {
+	return glang.RefExpr{
+		X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty)),
+		Ty: ctx.coqType(ty),
 	}
-	e := glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty))
-	// check for new(T) where T is a struct, but not a pointer to a struct
-	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
-	// a pointer to a nil pointer)
-	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return glang.NewCallExpr(glang.GallinaIdent("struct.alloc"), glang.StructDesc(info.name), e)
-	}
-	return glang.NewCallExpr(glang.GallinaIdent("ref"), e)
 }
 
 // integerConversion generates an expression for converting x to an integer
@@ -1223,9 +1214,10 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 				t := ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
-					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_to"), t,
-						glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
-					),
+					ValExpr: glang.RefExpr{
+						X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
+						Ty: t,
+					},
 					Cont: e,
 				}
 			}

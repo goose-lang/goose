@@ -753,7 +753,7 @@ type RefExpr struct {
 }
 
 func (e RefExpr) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("ref_ty"), e.Ty, e.X).Coq(needs_paren)
 }
 
 type StoreStmt struct {
