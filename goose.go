@@ -38,21 +38,6 @@ type Ctx struct {
 	dep *depTracker
 }
 
-// Says how the result of the currently generated expression will be used
-type ExprValUsage int
-
-const (
-	// The result of this expression will only be used locally,
-	// or entirely discarded
-	ExprValLocal ExprValUsage = iota
-	// The result of this expression will be returned from the current function
-	// (i.e., the "early return" control effect is available here)
-	ExprValReturned
-	// The result of this expression will control the current loop
-	// (i.e., the "break/continue" control effect is available here)
-	ExprValLoop
-)
-
 // Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
@@ -462,7 +447,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
 // newExpr parses a call to new() into an appropriate allocation
 func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.Expr {
 	return glang.RefExpr{
-		X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty)),
+		X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty)),
 		Ty: ctx.coqType(ty),
 	}
 }
@@ -900,7 +885,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 				// e is &s{...} (a struct literal)
 				sl := ctx.structLiteral(info, structLit)
 				return glang.RefExpr{
-					X: sl,
+					X:  sl,
 					Ty: ctx.coqTypeOfType(e.X, ctx.typeOf(e.X)),
 				}
 			}
@@ -1215,7 +1200,7 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
 					ValExpr: glang.RefExpr{
-						X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
+						X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
 						Ty: t,
 					},
 					Cont: e,
