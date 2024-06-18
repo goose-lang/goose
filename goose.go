@@ -670,7 +670,7 @@ func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.Ex
 			X:              ctx.expr(e.X),
 			ThroughPointer: info.throughPointer,
 		},
-		Ty: glang.NewCallExpr(glang.GallinaIdent("struct.fieldTy"),
+		Ty: glang.NewCallExpr(glang.GallinaIdent("struct.field_ty"),
 			glang.GallinaIdent(info.name),
 			glang.IdentExpr(e.Sel.Name),
 		),
@@ -1297,7 +1297,7 @@ func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
 		} else {
 			structExpr = ctx.refExpr(s.X)
 		}
-		return glang.NewCallExpr(glang.GallinaIdent("struct.fieldRef"), glang.StructDesc(info.name),
+		return glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"), glang.StructDesc(info.name),
 			glang.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
@@ -1376,12 +1376,12 @@ func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang
 		if ok {
 			fieldName := lhs.Sel.Name
 			return glang.NewDoSeq(glang.StoreStmt{
-				Dst: glang.NewCallExpr(glang.GallinaIdent("struct.fieldRef"),
+				Dst: glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
 					glang.StructDesc(info.name),
 					glang.GallinaString(fieldName),
 					structExpr,
 					rhs),
-				Ty: glang.NewCallExpr(glang.GallinaIdent("struct.fieldTy"),
+				Ty: glang.NewCallExpr(glang.GallinaIdent("struct.field_ty"),
 					glang.GallinaIdent(info.name),
 					glang.IdentExpr(lhs.Sel.Name),
 				),

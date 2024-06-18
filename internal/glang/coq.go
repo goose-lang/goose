@@ -124,7 +124,7 @@ type StructDecl struct {
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := struct.decl [", d.Name)
+	pp.Add("Definition %s := [", d.Name)
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -453,7 +453,7 @@ func StructDesc(name string) Expr {
 
 func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
 	if e.ThroughPointer {
-		return NewCallExpr(GallinaIdent("struct.fieldRef"),
+		return NewCallExpr(GallinaIdent("struct.field_ref"),
 			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq(needs_paren)
 	}
 	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
