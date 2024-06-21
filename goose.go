@@ -730,7 +730,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return ctx.capExpr(s)
 	}
 	if isIdent(s.Fun, "append") {
-		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
+		elemTy := sliceElem(ctx.typeOf(s.Args[0]).Underlying())
 		if s.Ellipsis == token.NoPos {
 			return coq.NewCallExpr(coq.GallinaIdent("SliceAppend"),
 				ctx.coqTypeOfType(s, elemTy),
@@ -1498,13 +1498,13 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 		Key:   ctx.identBinder(key),
 		Val:   ctx.identBinder(val),
 		Slice: ctx.expr(s.X),
-		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
+		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X).Underlying())),
 		Body:  ctx.blockStmt(s.Body, ExprValLocal),
 	}
 }
 
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
-	switch ctx.typeOf(s.X).(type) {
+	switch ctx.typeOf(s.X).Underlying().(type) {
 	case *types.Map:
 		return ctx.mapRangeStmt(s)
 	case *types.Slice:
