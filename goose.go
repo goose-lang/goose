@@ -283,9 +283,16 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 			IsPtrWrapped: false,
 			IsMacro:      true,
 		})
-		return coq.TypeDecl{
-			Name: spec.Name.Name,
-			Body: ctx.coqType(spec.Type),
+		if spec.Assign == 0 {
+			return coq.TypeDef{
+				Name: spec.Name.Name,
+				Type: ctx.coqType(spec.Type),
+			}
+		} else {
+			return coq.AliasDecl{
+				Name: spec.Name.Name,
+				Type: ctx.coqType(spec.Type),
+			}
 		}
 	}
 }

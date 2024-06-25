@@ -2,6 +2,8 @@ package unittest
 
 type my_u64 = uint64
 
+type my_slice = []byte
+
 type Timestamp uint64
 
 type UseTypeAbbrev my_u64

@@ -260,14 +260,25 @@ func (d StructToInterfaceDecl) Coq(needs_paren bool) string {
 	return pp.Build()
 }
 
-type TypeDecl struct {
+type TypeDef struct {
 	Name string
-	Body Type
+	Type Type
 }
 
-func (d TypeDecl) CoqDecl() string {
+func (d TypeDef) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s: ty := %s.", d.Name, d.Body.Coq(false))
+	pp.Add("Definition %s: ty := %s.", d.Name, d.Type.Coq(false))
+	return pp.Build()
+}
+
+type AliasDecl struct {
+	Name string
+	Type Type
+}
+
+func (t AliasDecl) CoqDecl() string {
+	var pp buffer
+	pp.Add("Notation %s := %s.", t.Name, t.Type.Coq(true))
 	return pp.Build()
 }
 
