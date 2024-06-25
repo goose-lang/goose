@@ -669,7 +669,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) coq.CallExpr {
+func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
 			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
@@ -728,7 +728,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return ctx.makeExpr(s.Args)
 	}
 	if isIdent(s.Fun, "new") {
-		return ctx.newExpr(s, s.Args[0])
+		return ctx.newExpr(s.Args[0])
 	}
 	if isIdent(s.Fun, "len") {
 		return ctx.lenExpr(s)
@@ -2094,55 +2094,55 @@ func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {
 	return decls
 }
 
-func (ctx Ctx) exprInterface(cvs []coq.Decl, expr ast.Expr, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) exprInterface(cvs []coq.Decl, expr ast.Expr) []coq.Decl {
 	switch f := expr.(type) {
 	case *ast.UnaryExpr:
 		if left, ok := f.X.(*ast.BinaryExpr); ok {
 			if call, ok := left.X.(*ast.CallExpr); ok {
-				cvs = ctx.callExprInterface(cvs, call, d)
+				cvs = ctx.callExprInterface(cvs, call)
 			}
 		}
 	case *ast.BinaryExpr:
 		if left, ok := f.X.(*ast.BinaryExpr); ok {
 			if call, ok := left.X.(*ast.CallExpr); ok {
-				cvs = ctx.callExprInterface(cvs, call, d)
+				cvs = ctx.callExprInterface(cvs, call)
 			}
 		}
 		if right, ok := f.Y.(*ast.BinaryExpr); ok {
 			if call, ok := right.X.(*ast.CallExpr); ok {
-				cvs = ctx.callExprInterface(cvs, call, d)
+				cvs = ctx.callExprInterface(cvs, call)
 			}
 		}
 	case *ast.CallExpr:
-		cvs = ctx.callExprInterface(cvs, f, d)
+		cvs = ctx.callExprInterface(cvs, f)
 	}
 	return cvs
 }
 
-func (ctx Ctx) stmtInterface(cvs []coq.Decl, stmt ast.Stmt, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) stmtInterface(cvs []coq.Decl, stmt ast.Stmt) []coq.Decl {
 	switch f := stmt.(type) {
 	case *ast.ReturnStmt:
 		for _, result := range f.Results {
-			cvs = ctx.exprInterface(cvs, result, d)
+			cvs = ctx.exprInterface(cvs, result)
 		}
 		if len(f.Results) > 0 {
 			if results, ok := f.Results[0].(*ast.BinaryExpr); ok {
 				if call, ok := results.X.(*ast.CallExpr); ok {
-					cvs = ctx.callExprInterface(cvs, call, d)
+					cvs = ctx.callExprInterface(cvs, call)
 				}
 			}
 		}
 	case *ast.IfStmt:
 		if call, ok := f.Cond.(*ast.CallExpr); ok {
-			cvs = ctx.callExprInterface(cvs, call, d)
+			cvs = ctx.callExprInterface(cvs, call)
 		}
 	case *ast.ExprStmt:
 		if call, ok := f.X.(*ast.CallExpr); ok {
-			cvs = ctx.callExprInterface(cvs, call, d)
+			cvs = ctx.callExprInterface(cvs, call)
 		}
 	case *ast.AssignStmt:
 		if call, ok := f.Rhs[0].(*ast.CallExpr); ok {
-			cvs = ctx.callExprInterface(cvs, call, d)
+			cvs = ctx.callExprInterface(cvs, call)
 		}
 	}
 	return cvs
@@ -2156,7 +2156,7 @@ func unqualifyName(name string) string {
 	return components[len(components)-1]
 }
 
-func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr, d *ast.FuncDecl) []coq.Decl {
+func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr) []coq.Decl {
 	interfaceName := ""
 	methods := []string{}
 	if signature, ok := ctx.typeOf(r.Fun).(*types.Signature); ok {
@@ -2189,7 +2189,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	case *ast.FuncDecl:
 		cvs := []coq.Decl{}
 		for _, stmt := range d.Body.List {
-			cvs = ctx.stmtInterface(cvs, stmt, d)
+			cvs = ctx.stmtInterface(cvs, stmt)
 		}
 		fd := ctx.funcDecl(d)
 		var results []coq.Decl
