@@ -226,7 +226,11 @@ func ffiHeaderFooter(ffi string) (header string, footer string) {
 			"Local Coercion Var' s: expr := Var s."
 		footer = "\nEnd code.\n"
 	} else {
+		// FIXME: this is a hack so that there's an ext_ty available for old
+		// code, e.g. so we can import the old marshal package.
 		header = fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
+			"%s_prelude.\n", ffi)
+		header += fmt.Sprintf("From Perennial.new_goose_lang Require Import ffi."+
 			"%s_prelude.", ffi)
 	}
 	return

@@ -234,12 +234,6 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
-		// FIXME: why was this needed?
-		// ctx.addDef(spec.Name, identInfo{
-		// 	IsPtrWrapped: false,
-		// 	IsMacro:      false,
-		// })
-
 		decl := glang.StructDecl{
 			Name: spec.Name.Name,
 		}
@@ -417,9 +411,9 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 
 func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 	if len(args) == 2 {
-		return glang.NewCallExpr(glang.GallinaIdent("NewSlice"), elt, ctx.expr(args[1]))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
 	} else if len(args) == 3 {
-		return glang.NewCallExpr(glang.GallinaIdent("NewSliceWithCap"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
 	} else {
 		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
 		return glang.CallExpr{}
@@ -427,11 +421,18 @@ func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
-func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
+func (ctx Ctx) makeExpr(args []ast.Expr) glang.Expr {
 	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
 	case *types.Slice:
 		elt := ctx.coqTypeOfType(args[0], ty.Elem())
-		return ctx.makeSliceExpr(elt, args)
+		if len(args) == 2 {
+			return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
+		} else if len(args) == 3 {
+			return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		} else {
+			ctx.nope(args[0], "Too many or too few arguments in slice construction")
+			return glang.CallExpr{}
+		}
 	case *types.Map:
 		return glang.NewCallExpr(glang.GallinaIdent("NewMap"),
 			ctx.coqTypeOfType(args[0], ty.Key()),
