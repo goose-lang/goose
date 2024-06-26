@@ -1789,6 +1789,9 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	assignOps := map[token.Token]coq.BinOp{
 		token.ADD_ASSIGN: coq.OpPlus,
 		token.SUB_ASSIGN: coq.OpMinus,
+		token.OR_ASSIGN:  coq.OpOr,
+		token.AND_ASSIGN: coq.OpAnd,
+		token.XOR_ASSIGN: coq.OpXor,
 	}
 	if op, ok := assignOps[s.Tok]; ok {
 		rhs = coq.BinaryExpr{

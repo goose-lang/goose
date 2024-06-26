@@ -42,6 +42,18 @@ func (suite *GoTestSuite) TestAppendSlice() {
 	suite.Equal(true, testAppendSlice())
 }
 
+func (suite *GoTestSuite) TestAssignAddSub() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignAddSub())
+}
+
+func (suite *GoTestSuite) TestAssignBitwise() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAssignBitwise())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
