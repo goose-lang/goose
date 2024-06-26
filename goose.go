@@ -1070,8 +1070,8 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 
 func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
 	info := ctx.identInfo(s)
-	ctx.dep.addDep(s.Name)
 	if info.IsMacro {
+		ctx.dep.addDep(s.Name)
 		return coq.GallinaIdent(s.Name)
 	}
 	e := coq.IdentExpr(s.Name)
