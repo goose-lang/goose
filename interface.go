@@ -168,11 +168,6 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 }
 
 // TranslationConfig has global configuration for translation
-//
-// TODO: need a better name for this (TranslationConfig is somehow global stuff, PkgConfig
-// is per-package)
-//
-// TODO: fix duplication with PkgConfig, perhaps embed a TranslationConfig in a PkgConfig
 type TranslationConfig struct {
 	TypeCheck             bool
 	AddSourceFileComments bool
