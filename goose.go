@@ -2190,8 +2190,10 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 		var cvs []coq.Decl
-		for _, stmt := range d.Body.List {
-			cvs = ctx.stmtInterface(cvs, stmt)
+		if !ctx.SkipInterfaces {
+			for _, stmt := range d.Body.List {
+				cvs = ctx.stmtInterface(cvs, stmt)
+			}
 		}
 		fd := ctx.funcDecl(d)
 		var results []coq.Decl

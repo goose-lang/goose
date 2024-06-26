@@ -86,6 +86,7 @@ func main() {
 	flag.BoolVar(&tr.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")
 	flag.BoolVar(&tr.TypeCheck, "typecheck", false, "add type-checking theorems")
+	flag.BoolVar(&tr.SkipInterfaces, "skip-interfaces", false, "skip creating interface conversions")
 
 	var outRootDir string
 	flag.StringVar(&outRootDir, "out", ".",

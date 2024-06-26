@@ -176,6 +176,7 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 type TranslationConfig struct {
 	TypeCheck             bool
 	AddSourceFileComments bool
+	SkipInterfaces        bool
 }
 
 func pkgErrors(errors []packages.Error) error {
