@@ -60,6 +60,7 @@ fi
 # generate and run the Go side of the tests
 cd "$REPO"
 go generate ./...
+go test -update-gold
 go test ./internal/examples/semantics
 
 # generate the Coq side
