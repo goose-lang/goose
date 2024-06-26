@@ -34,7 +34,7 @@ type Ctx struct {
 	Fset    *token.FileSet
 	pkgPath string
 	errorReporter
-	Config
+	PkgConfig
 
 	dep *depTracker
 }
@@ -55,11 +55,10 @@ const (
 	ExprValLoop
 )
 
-// Config holds global configuration for Coq conversion
-type Config struct {
-	AddSourceFileComments bool
-	TypeCheck             bool
-	Ffi                   string
+// PkgConfig holds package configuration for Coq conversion
+type PkgConfig struct {
+	TranslationConfig
+	Ffi string
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -90,14 +89,12 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
+func NewPkgCtx(pkg *packages.Package, tr TranslationConfig) Ctx {
 	// Figure out which FFI we're using
-	var config Config
-	// TODO: this duplication is bad, Config should probably embed Translator or
-	//   some other cleanup is needed
-	config.TypeCheck = tr.TypeCheck
-	config.AddSourceFileComments = tr.AddSourceFileComments
-	config.Ffi = getFfi(pkg)
+	config := PkgConfig{
+		TranslationConfig: tr,
+		Ffi:               getFfi(pkg),
+	}
 
 	return Ctx{
 		idents:        newIdentCtx(),
@@ -105,13 +102,13 @@ func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
 		Fset:          pkg.Fset,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
-		Config:        config,
+		PkgConfig:     config,
 	}
 }
 
 // NewCtx loads a context for files passed directly,
 // rather than loaded from a packages.
-func NewCtx(pkgPath string, conf Config) Ctx {
+func NewCtx(pkgPath string, conf PkgConfig) Ctx {
 	info := &types.Info{
 		Defs: make(map[*ast.Ident]types.Object),
 		Uses: make(map[*ast.Ident]types.Object),
@@ -128,7 +125,7 @@ func NewCtx(pkgPath string, conf Config) Ctx {
 		Fset:          fset,
 		pkgPath:       pkgPath,
 		errorReporter: newErrorReporter(fset),
-		Config:        conf,
+		PkgConfig:     conf,
 	}
 }
 
@@ -1969,7 +1966,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) coq.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
-	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
+	fd := coq.FuncDecl{Name: d.Name.Name, AddTypes: ctx.PkgConfig.TypeCheck,
 		TypeParams: ctx.typeParamList(d.Type.TypeParams),
 	}
 	addSourceDoc(d.Doc, &fd.Comment)
@@ -2000,7 +1997,7 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 	ident := spec.Names[0]
 	cd := coq.ConstDecl{
 		Name:     ident.Name,
-		AddTypes: ctx.Config.TypeCheck,
+		AddTypes: ctx.PkgConfig.TypeCheck,
 	}
 	ctx.addDef(ident, identInfo{
 		IsPtrWrapped: false,

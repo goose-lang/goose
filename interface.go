@@ -167,13 +167,13 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	return flatFiles
 }
 
-// Translator has global configuration for translation
+// TranslationConfig has global configuration for translation
 //
-// TODO: need a better name for this (Translator is somehow global stuff, Config
+// TODO: need a better name for this (TranslationConfig is somehow global stuff, PkgConfig
 // is per-package)
 //
-// TODO: fix duplication with Config, perhaps embed a Translator in a Config
-type Translator struct {
+// TODO: fix duplication with PkgConfig, perhaps embed a TranslationConfig in a PkgConfig
+type TranslationConfig struct {
 	TypeCheck             bool
 	AddSourceFileComments bool
 }
@@ -192,7 +192,7 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
+func (tr TranslationConfig) translatePackage(pkg *packages.Package) (coq.File, error) {
 	if len(pkg.Errors) > 0 {
 		return coq.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
@@ -205,7 +205,7 @@ func (tr Translator) translatePackage(pkg *packages.Package) (coq.File, error) {
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
-	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.Config.Ffi)
+	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.PkgConfig.Ffi)
 
 	imports, decls, errs := ctx.Decls(files...)
 	coqFile.Imports = imports
@@ -250,7 +250,7 @@ func newPackageConfig(modDir string) *packages.Config {
 // The errs list contains errors corresponding to each package (in parallel with
 // the files list). patternErr is only non-nil if the patterns themselves have
 // a syntax error.
-func (tr Translator) TranslatePackages(modDir string,
+func (tr TranslationConfig) TranslatePackages(modDir string,
 	pkgPattern ...string) (files []coq.File, errs []error, patternErr error) {
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {

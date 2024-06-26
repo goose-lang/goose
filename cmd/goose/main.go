@@ -36,7 +36,7 @@ func coqFileContents(f coq.File) []byte {
 }
 
 func translate(pkgPatterns []string, outRootDir string, modDir string,
-	ignoreErrors bool, tr goose.Translator) {
+	ignoreErrors bool, tr goose.TranslationConfig) {
 	red := color.New(color.FgRed).SprintFunc()
 	fs, errs, patternError := tr.TranslatePackages(modDir, pkgPatterns...)
 	if patternError != nil {
@@ -81,7 +81,7 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-	var tr goose.Translator
+	var tr goose.TranslationConfig
 
 	flag.BoolVar(&tr.AddSourceFileComments, "source-comments", false,
 		"add comments indicating Go source code location for each top-level declaration")

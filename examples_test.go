@@ -108,7 +108,7 @@ func (t positiveTest) deleteActual() {
 	_ = os.Remove(t.actualFile())
 }
 
-func testGold(testingT *testing.T, dir string, tr goose.Translator) {
+func testGold(testingT *testing.T, dir string, tr goose.TranslationConfig) {
 	testingT.Parallel()
 	testingT.Helper()
 	assert := assert.New(testingT)
@@ -167,51 +167,51 @@ func testGold(testingT *testing.T, dir string, tr goose.Translator) {
 }
 
 func TestUnitTests(t *testing.T) {
-	testGold(t, "internal/examples/unittest", goose.Translator{})
+	testGold(t, "internal/examples/unittest", goose.TranslationConfig{})
 }
 
 func TestUnitTestGeneric(t *testing.T) {
-	testGold(t, "internal/examples/unittest/generic", goose.Translator{})
+	testGold(t, "internal/examples/unittest/generic", goose.TranslationConfig{})
 }
 
 func TestSimpleDb(t *testing.T) {
-	testGold(t, "internal/examples/simpledb", goose.Translator{})
+	testGold(t, "internal/examples/simpledb", goose.TranslationConfig{})
 }
 
 func TestWal(t *testing.T) {
-	testGold(t, "internal/examples/wal", goose.Translator{})
+	testGold(t, "internal/examples/wal", goose.TranslationConfig{})
 }
 
 func TestAsync(t *testing.T) {
-	testGold(t, "internal/examples/async", goose.Translator{TypeCheck: false})
+	testGold(t, "internal/examples/async", goose.TranslationConfig{TypeCheck: false})
 }
 
 func TestLogging2(t *testing.T) {
-	testGold(t, "internal/examples/logging2", goose.Translator{})
+	testGold(t, "internal/examples/logging2", goose.TranslationConfig{})
 }
 
 func TestAppendLog(t *testing.T) {
-	testGold(t, "internal/examples/append_log", goose.Translator{})
+	testGold(t, "internal/examples/append_log", goose.TranslationConfig{})
 }
 
 func TestRfc1813(t *testing.T) {
-	testGold(t, "internal/examples/rfc1813", goose.Translator{})
+	testGold(t, "internal/examples/rfc1813", goose.TranslationConfig{})
 }
 
 func TestSemantics(t *testing.T) {
-	testGold(t, "internal/examples/semantics", goose.Translator{})
+	testGold(t, "internal/examples/semantics", goose.TranslationConfig{})
 }
 
 func TestComments(t *testing.T) {
-	testGold(t, "internal/examples/comments", goose.Translator{})
+	testGold(t, "internal/examples/comments", goose.TranslationConfig{})
 }
 
 func TestTrustedImport(t *testing.T) {
-	testGold(t, "internal/examples/trust_import", goose.Translator{})
+	testGold(t, "internal/examples/trust_import", goose.TranslationConfig{})
 }
 
 func TestBadGoose(t *testing.T) {
-	testGold(t, "testdata/badgoose", goose.Translator{})
+	testGold(t, "testdata/badgoose", goose.TranslationConfig{})
 }
 
 type errorExpectation struct {
@@ -250,7 +250,7 @@ func getExpectedError(fset *token.FileSet,
 
 func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestResult {
 	pkgName := "example"
-	ctx := goose.NewCtx(pkgName, goose.Config{})
+	ctx := goose.NewCtx(pkgName, goose.PkgConfig{})
 	fset := ctx.Fset
 	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
