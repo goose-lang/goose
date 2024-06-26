@@ -39,17 +39,18 @@ type Ctx struct {
 	dep *depTracker
 }
 
-// Says how the result of the currently generated expression will be used
+// ExprValUsage says how the result of the currently generated expression will be used
 type ExprValUsage int
 
 const (
-	// The result of this expression will only be used locally,
+	// ExprValLocal means result of this expression will only be used locally,
 	// or entirely discarded
 	ExprValLocal ExprValUsage = iota
-	// The result of this expression will be returned from the current function
-	// (i.e., the "early return" control effect is available here)
+	// ExprValReturned means the result of this expression will be returned from
+	// the current function (i.e., the "early return" control effect is
+	// available here)
 	ExprValReturned
-	// The result of this expression will control the current loop
+	// ExprValLoop the result of this expression will control the current loop
 	// (i.e., the "break/continue" control effect is available here)
 	ExprValLoop
 )
@@ -1235,7 +1236,7 @@ type cursor struct {
 }
 
 // HasNext returns true if the cursor has any remaining statements
-func (c cursor) HasNext() bool {
+func (c *cursor) HasNext() bool {
 	return len(c.Stmts) > 0
 }
 
@@ -1325,7 +1326,7 @@ func (ctx Ctx) stmts(ss []ast.Stmt, usage ExprValUsage) coq.BlockExpr {
 }
 
 // ifStmt has special support for an early-return "then" branch; to achieve that
-// it is responsible for generating the if *together with* all the statements that
+// it is responsible for generating the `if` statement *together with* all the statements that
 // follow it in the same block.
 // It is also responsible for "finalizing" the expression according to the usage.
 func (ctx Ctx) ifStmt(s *ast.IfStmt, remainder []ast.Stmt, usage ExprValUsage) coq.Binding {
@@ -1427,7 +1428,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	if s.Cond != nil {
 		cond = ctx.expr(s.Cond)
 	}
-	var post coq.Expr = coq.Skip
+	post := coq.Skip
 	if s.Post != nil {
 		postBlock := ctx.stmt(s.Post)
 		if len(postBlock.Names) > 0 {
@@ -1872,6 +1873,7 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 		if ok {
 			return coq.NewAnon(ctx.branchStmt(s)), true
 		}
+	case ExprValLocal:
 	}
 	// Some statements can handle the usage themselves, and they make sure to finalize it, too
 	switch s := s.(type) {
@@ -1882,7 +1884,7 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	}
 	// For everything else, we generate the statement and possibly tell the caller
 	// that this is not yet finalized.
-	var binding coq.Binding = coq.Binding{}
+	binding := coq.Binding{}
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		ctx.futureWork(s, "return in unsupported position")
@@ -2161,7 +2163,7 @@ func unqualifyName(name string) string {
 
 func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr) []coq.Decl {
 	interfaceName := ""
-	methods := []string{}
+	var methods []string
 	if signature, ok := ctx.typeOf(r.Fun).(*types.Signature); ok {
 		params := signature.Params()
 		for j := 0; j < params.Len(); j++ {
@@ -2190,7 +2192,7 @@ func (ctx Ctx) callExprInterface(cvs []coq.Decl, r *ast.CallExpr) []coq.Decl {
 func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		cvs := []coq.Decl{}
+		var cvs []coq.Decl
 		for _, stmt := range d.Body.List {
 			cvs = ctx.stmtInterface(cvs, stmt)
 		}
