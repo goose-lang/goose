@@ -1222,9 +1222,9 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 	lhs := s.Names[0]
 	var rhs glang.Expr
 	if len(s.Values) == 0 {
-		ty := ctx.typeOf(lhs)
-		rhs = glang.NewCallExpr(glang.GallinaIdent("ref"),
-			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
+		ty := ctx.coqType(lhs)
+		rhs = glang.NewCallExpr(glang.GallinaIdent("ref_ty"), ty,
+			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty))
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
