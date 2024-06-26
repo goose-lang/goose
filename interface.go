@@ -78,7 +78,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports coq.ImportDecls, decls []coq.Decl
 				errs = append(errs, err)
 			}
 
-			// fmt.Printf("Generated %s, depends on %s\n", ctx.dep.names, ctx.dep.deps)
+			// fmt.Printf("%s depends on %s\n", ctx.dep.names, ctx.dep.deps)
 
 			declGroups[id] = newDecls
 			declDeps[id] = ctx.dep.deps
