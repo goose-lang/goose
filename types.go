@@ -140,7 +140,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) coq.Type {
 	return coq.SliceType{Value: ctx.coqType(e.Elt)}
 }
 
-func (ctx Ctx) ptrType(e *ast.StarExpr) coq.Type {
+func (ctx Ctx) ptrType() coq.Type {
 	return coq.PtrType{}
 }
 
@@ -176,7 +176,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.ArrayType:
 		return ctx.arrayType(e)
 	case *ast.StarExpr:
-		return ctx.ptrType(e)
+		return ctx.ptrType()
 	case *ast.InterfaceType:
 		if isEmptyInterface(e) {
 			return coq.TypeIdent("anyT")
