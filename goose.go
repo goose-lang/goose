@@ -176,10 +176,6 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []coq.FieldDecl {
 				Name: name.Name,
 				Type: ty,
 			})
-			ctx.addDef(name, identInfo{
-				IsPtrWrapped: false,
-				IsMacro:      false,
-			})
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
 			decls = append(decls, coq.FieldDecl{
@@ -253,10 +249,6 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
-		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
 		ty := coq.StructDecl{
 			Name: spec.Name.Name,
 		}
@@ -265,10 +257,6 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		ty.Fields = ctx.structFields(goTy.Fields)
 		return ty
 	case *ast.InterfaceType:
-		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
 		ty := coq.InterfaceDecl{
 			Name: spec.Name.Name,
 		}
@@ -277,10 +265,6 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		ty.Methods = ctx.structFields(goTy.Methods)
 		return ty
 	default:
-		ctx.addDef(spec.Name, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      true,
-		})
 		if spec.Assign == 0 {
 			return coq.TypeDef{
 				Name: spec.Name.Name,
@@ -1069,13 +1053,12 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 }
 
 func (ctx Ctx) variable(s *ast.Ident) coq.Expr {
-	info := ctx.identInfo(s)
-	if info.IsMacro {
+	if ctx.isGlobalVar(s) {
 		ctx.dep.addDep(s.Name)
 		return coq.GallinaIdent(s.Name)
 	}
 	e := coq.IdentExpr(s.Name)
-	if info.IsPtrWrapped {
+	if ctx.isPtrWrapped(s) {
 		return coq.DerefExpr{X: e, Ty: ctx.coqTypeOfType(s, ctx.typeOf(s))}
 	}
 	return e
@@ -1416,9 +1399,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt) coq.ForLoopExpr {
 	var ident *ast.Ident
 	if s.Init != nil {
 		ident, _ = ctx.loopVar(s.Init)
-		ctx.addDef(ident, identInfo{
-			IsPtrWrapped: true,
-		})
+		ctx.setPtrWrapped(ident)
 		init = ctx.stmt(s.Init)
 	}
 	var cond coq.Expr = coq.True
@@ -1487,18 +1468,6 @@ func (ctx Ctx) identBinder(id *ast.Ident) coq.Binder {
 func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) coq.Expr {
 	key := getIdentOrNil(s.Key)
 	val := getIdentOrNil(s.Value)
-	if key != nil {
-		ctx.addDef(key, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-	}
-	if val != nil {
-		ctx.addDef(val, identInfo{
-			IsPtrWrapped: false,
-			IsMacro:      false,
-		})
-	}
 	return coq.SliceLoopExpr{
 		Key:   ctx.identBinder(key),
 		Val:   ctx.identBinder(val),
@@ -1545,12 +1514,6 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			idents = append(idents, ident)
-			if !ctx.doesDefHaveInfo(ident) {
-				ctx.addDef(ident, identInfo{
-					IsPtrWrapped: false,
-					IsMacro:      false,
-				})
-			}
 		} else {
 			ctx.nope(lhsExpr, "defining a non-identifier")
 		}
@@ -1562,7 +1525,7 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt) coq.Binding {
 	// NOTE: this checks whether the identifier being defined is supposed to be
 	// 	pointer wrapped, so to work correctly the caller must set this identInfo
 	// 	before processing the defining expression.
-	if len(idents) == 1 && ctx.definesPtrWrapped(idents[0]) {
+	if len(idents) == 1 && ctx.isPtrWrapped(idents[0]) {
 		return coq.Binding{Names: names, Expr: ctx.referenceTo(rhs)}
 	} else {
 		return coq.Binding{Names: names, Expr: ctx.exprSpecial(rhs, len(idents) == 2)}
@@ -1574,10 +1537,7 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 		ctx.unsupported(s, "multiple declarations in one block")
 	}
 	lhs := s.Names[0]
-	ctx.addDef(lhs, identInfo{
-		IsPtrWrapped: true,
-		IsMacro:      false,
-	})
+	ctx.setPtrWrapped(lhs)
 	var rhs coq.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
@@ -1666,7 +1626,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		if lhs.Name == "_" {
 			return coq.NewAnon(rhs)
 		}
-		if ctx.identInfo(lhs).IsPtrWrapped {
+		if ctx.isPtrWrapped(lhs) {
 			return ctx.pointerAssign(lhs, rhs)
 		}
 		ctx.unsupported(s, "variable %s is not assignable\n\t(declare it with 'var' to pointer-wrap in GooseLang and support re-assignment)", lhs.Name)
@@ -1809,7 +1769,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
 		ctx.todo(stmt, "cannot inc/dec non-var")
 		return coq.Binding{}
 	}
-	if !ctx.identInfo(ident).IsPtrWrapped {
+	if !ctx.isPtrWrapped(ident) {
 		// should also be able to support variables that are of pointer type
 		ctx.todo(stmt, "can only inc/dec pointer-wrapped variables")
 	}
@@ -1999,10 +1959,6 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 		Name:     ident.Name,
 		AddTypes: ctx.PkgConfig.TypeCheck,
 	}
-	ctx.addDef(ident, identInfo{
-		IsPtrWrapped: false,
-		IsMacro:      true,
-	})
 	addSourceDoc(spec.Comment, &cd.Comment)
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)

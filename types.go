@@ -165,7 +165,8 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	switch e := e.(type) {
 	case *ast.Ident:
 		ctx.dep.addDep(e.Name)
-		if ctx.identInfo(e).IsMacro {
+		// Struct typing is a bit funky.
+		if ctx.isGlobalVar(e) && !ctx.isStruct(e) {
 			return coq.TypeIdent(e.Name)
 		}
 		return ctx.coqTypeOfType(e, ctx.typeOf(e))
