@@ -287,7 +287,7 @@ type MapType struct {
 }
 
 func (t MapType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("mapT"), t.Key, t.Value).Coq(needs_paren)
 }
 
 type FuncType struct {

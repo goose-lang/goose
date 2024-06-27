@@ -434,7 +434,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.Expr {
 			return glang.CallExpr{}
 		}
 	case *types.Map:
-		return glang.NewCallExpr(glang.GallinaIdent("NewMap"),
+		return glang.NewCallExpr(glang.GallinaIdent("map.make"),
 			ctx.coqTypeOfType(args[0], ty.Key()),
 			ctx.coqTypeOfType(args[0], ty.Elem()),
 			glang.UnitLiteral{})
