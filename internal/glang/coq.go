@@ -706,6 +706,17 @@ func NewTuple(es []Expr) Expr {
 	return TupleExpr(es)
 }
 
+type ListExpr []Expr
+
+func (le ListExpr) Coq(needs_paren bool) string {
+	var comps []string
+	for _, t := range le {
+		comps = append(comps, t.Coq(false))
+	}
+	return fmt.Sprintf("[%s]",
+		indent(1, strings.Join(comps, "; ")))
+}
+
 type DerefExpr struct {
 	X  Expr
 	Ty Expr

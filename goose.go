@@ -529,17 +529,29 @@ func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
 		return ctx.capExpr(s)
 	case "append":
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
+		var xExpr glang.Expr = glang.GallinaIdent("slice.nil")
+
+		// append(s, x1, x2, xn)
 		if s.Ellipsis == token.NoPos {
-			return glang.NewCallExpr(glang.GallinaIdent("SliceAppend"),
-				ctx.coqTypeOfType(s, elemTy),
-				ctx.expr(s.Args[0]),
-				ctx.expr(s.Args[1]))
+			if len(s.Args) > 0 {
+				var exprs []glang.Expr
+				for _, arg := range s.Args[1:] {
+					exprs = append(exprs, ctx.expr(arg))
+				}
+				xExpr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
+					// FIXME: get the type of the vararg
+					ctx.coqTypeOfType(s.Args[1], ctx.typeOf(s.Args[1])),
+					glang.ListExpr(exprs))
+			}
+		} else {
+			// append(s1, s2...)
+			xExpr = ctx.expr(s.Args[1])
 		}
-		// append(s1, s2...)
-		return glang.NewCallExpr(glang.GallinaIdent("SliceAppendSlice"),
+		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
-			ctx.expr(s.Args[1]))
+			xExpr,
+		)
 	case "copy":
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	case "delete":
