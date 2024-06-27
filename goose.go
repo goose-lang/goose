@@ -866,10 +866,10 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 	if e.Op == token.NOT {
-		return glang.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.XOR {
-		return glang.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
@@ -892,7 +892,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 			}
 		}
 		// e is something else
-		return ctx.refExpr(e.X)
+		return ctx.exprAddr(e.X)
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
@@ -952,11 +952,13 @@ func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
 	panic("")
 }
 
-func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
+func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	xTy := ctx.typeOf(e.X).Underlying()
-	switch xTy := xTy.(type) {
+	switch xTy.(type) {
 	case *types.Map:
-		e := glang.NewCallExpr(glang.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
+		e := glang.NewCallExpr(glang.GallinaIdent("map.get"),
+			ctx.expr(e.X),
+			ctx.expr(e.Index))
 		// FIXME: this is non-local. Should decide whether to do "Fst" based on
 		// assign statement or parent expression.
 		if !isSpecial {
@@ -964,21 +966,16 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
 		}
 		return e
 	case *types.Slice:
-		return glang.NewCallExpr(glang.GallinaIdent("SliceGet"),
-			ctx.coqTypeOfType(e, xTy.Elem()),
-			ctx.expr(e.X), ctx.expr(e.Index))
+		return glang.DerefExpr{
+			X:  ctx.exprAddr(e),
+			Ty: ctx.coqType(e),
+		}
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
 	return glang.CallExpr{}
 }
 
 func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
-	info, ok := ctx.getStructInfo(ctx.typeOf(e))
-	if ok && info.throughPointer {
-		return glang.NewCallExpr(glang.GallinaIdent("struct.load"),
-			glang.StructDesc(info.name),
-			ctx.expr(e))
-	}
 	return glang.DerefExpr{
 		X:  ctx.expr(e),
 		Ty: ctx.coqTypeOfType(e, ptrElem(ctx.typeOf(e))),
@@ -1160,12 +1157,17 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 		valExpr = ctx.identBinder(val)
 	}
 
-	return glang.ForRangeSliceExpr{
+	var e glang.Expr = glang.ForRangeSliceExpr{
 		Key:   ctx.identBinder(key),
 		Val:   valExpr,
-		Slice: ctx.expr(s.X),
+		Slice: glang.IdentExpr("$range"),
 		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
 		Body:  ctx.blockStmt(s.Body),
+	}
+	return glang.LetExpr{
+		Names:   []string{"$range"},
+		ValExpr: ctx.expr(s.X),
+		Cont:    e,
 	}
 }
 
@@ -1254,131 +1256,74 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec), cont)
 }
 
-// refExpr translates an expression which is a pointer in Go to a GooseLang
-// expr for the pointer itself (whereas ordinarily it would be implicitly loaded)
-//
-// TODO: integrate this into the reference-of, store, and load code
-//
-//	note that we will no longer special-case when the reference is to a
-//	basic value and will use generic type-based support in Coq,
-//	hence on the Coq side we'll always have to reduce type-based loads and
-//	stores when they end up loading single-word values.
-func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
-	switch s := s.(type) {
+// Returns the address of the given expression.
+// Requires that e is actually addressable
+func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
+	switch e := e.(type) {
 	case *ast.Ident:
-		// this is the intended translation even if s is pointer-wrapped
-		return glang.IdentExpr(s.Name)
+		return glang.IdentExpr(e.Name)
+	case *ast.IndexExpr:
+		targetTy := ctx.typeOf(e.X)
+		switch targetTy := targetTy.(type) {
+		case *types.Slice:
+			return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
+				ctx.coqTypeOfType(e, targetTy.Elem()),
+				ctx.expr(e.X),
+				ctx.expr(e.Index))
+		case *types.Map:
+			ctx.nope(e, "map index expressions are not addressable")
+		default:
+			ctx.unsupported(e, "index update to unexpected target of type %v", targetTy)
+		}
+	case *ast.StarExpr:
+		return ctx.expr(e.X)
 	case *ast.SelectorExpr:
-		ty := ctx.typeOf(s.X)
+		// if it's the base of the SelectorExpr is a struct, then this is a struct.field_ref
+		ty := ctx.typeOf(e.X)
 		info, ok := ctx.getStructInfo(ty)
 		if !ok {
-			ctx.unsupported(s,
-				"reference to selector from non-struct type %v", ty)
+			ctx.unsupported(e, "address of selector expression that's not a struct field %v", ty)
 		}
-		fieldName := s.Sel.Name
 
 		var structExpr glang.Expr
 		if info.throughPointer {
-			structExpr = ctx.expr(s.X)
+			structExpr = ctx.expr(e.X)
 		} else {
-			structExpr = ctx.refExpr(s.X)
+			structExpr = ctx.exprAddr(e.X)
 		}
-		return glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"), glang.StructDesc(info.name),
-			glang.GallinaString(fieldName), structExpr)
-	// TODO: should move support for slice indexing here as well
+		return glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+			glang.StructDesc(info.name),
+			glang.GallinaString(e.Sel.Name),
+			structExpr)
 	default:
-		ctx.futureWork(s, "reference to other types of expressions")
-		return nil
+		ctx.unsupported(e, "address of unknown expression")
 	}
-}
-
-func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr, cont glang.Expr) glang.Expr {
-	return glang.NewDoSeq(glang.StoreStmt{
-		Dst: glang.IdentExpr(dst.Name),
-		X:   x,
-		Ty:  ctx.coqTypeOfType(dst, ctx.typeOf(dst)),
-	}, cont)
+	return nil
 }
 
 func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
-	// assignments can mean various things
+	// lhs should either be a map index expression, or is addressable
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
 			return glang.NewDoSeq(rhs, cont)
 		}
-		return ctx.pointerAssign(lhs, rhs, cont)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
-		switch targetTy := targetTy.(type) {
-		case *types.Slice:
-			value := rhs
-			return glang.NewDoSeq(glang.NewCallExpr(
-				glang.GallinaIdent("SliceSet"),
-				ctx.coqTypeOfType(lhs, targetTy.Elem()),
-				ctx.expr(lhs.X),
-				ctx.expr(lhs.Index),
-				value), cont)
+		switch targetTy.(type) {
 		case *types.Map:
-			value := rhs
-			return glang.NewDoSeq(glang.NewCallExpr(
-				glang.GallinaIdent("MapInsert"),
+			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("map.insert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
-				value), cont)
-		default:
-			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
-		}
-	case *ast.StarExpr:
-		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
-		if ok && info.throughPointer {
-			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
-				glang.StructDesc(info.name),
-				ctx.expr(lhs.X),
 				rhs), cont)
 		}
-		dstPtrTy, ok := ctx.typeOf(lhs.X).Underlying().(*types.Pointer)
-		if !ok {
-			ctx.unsupported(s,
-				"could not identify element type of assignment through pointer")
-		}
-		return glang.NewDoSeq(glang.StoreStmt{
-			Dst: ctx.expr(lhs.X),
-			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
-			X:   rhs,
-		}, cont)
-	case *ast.SelectorExpr:
-		ty := ctx.typeOf(lhs.X)
-		info, ok := ctx.getStructInfo(ty)
-		var structExpr glang.Expr
-		// TODO: this adjusts for pointer-wrapping in refExpr, but there should
-		//  be a more systematic way to think about this (perhaps in terms of
-		//  distinguishing between translating for lvalues and rvalue)
-		if info.throughPointer {
-			structExpr = ctx.expr(lhs.X)
-		} else {
-			structExpr = ctx.refExpr(lhs.X)
-		}
-		if ok {
-			fieldName := lhs.Sel.Name
-			return glang.NewDoSeq(glang.StoreStmt{
-				Dst: glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-					glang.StructDesc(info.name),
-					glang.GallinaString(fieldName),
-					structExpr),
-				Ty: glang.NewCallExpr(glang.GallinaIdent("struct.field_ty"),
-					glang.GallinaIdent(info.name),
-					glang.IdentExpr(lhs.Sel.Name),
-				),
-				X: rhs,
-			}, cont)
-		}
-		ctx.unsupported(s,
-			"assigning to field of non-struct type %v", ty)
-	default:
-		ctx.unsupported(s, "assigning to complex expression")
 	}
-	return nil
+
+	return glang.NewDoSeq(glang.StoreStmt{
+		Dst: ctx.exprAddr(lhs),
+		X:   rhs,
+		Ty:  ctx.coqTypeOfType(lhs, ctx.typeOf(lhs)),
+	}, cont)
 }
 
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {

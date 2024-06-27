@@ -793,12 +793,20 @@ type ForRangeSliceExpr struct {
 
 func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("ForSlice %v %s %s %s",
+	pp.Add("slice.for_range %s %s (λ: %s %s,",
 		e.Ty.Coq(true),
+		e.Slice.Coq(true),
 		binderToCoq(e.Key), binderToCoq(e.Val),
-		e.Slice.Coq(true))
+	)
 	pp.Indent(2)
-	pp.Add("%s", e.Body.Coq(true))
+	if e.Key != nil && *e.Key != "_" {
+		pp.Add("let: %s := ref_ty uint64T %s in", binderToCoq(e.Key), binderToCoq(e.Key))
+	}
+	if e.Val != nil && *e.Val != "_" {
+		pp.Add("let: %s := ref_ty %s %s in", binderToCoq(e.Val), e.Ty.Coq(true), binderToCoq(e.Val))
+	}
+	pp.Add("%s)", e.Body.Coq(false))
+	pp.Indent(-2)
 	return addParens(needs_paren, pp.Build())
 }
 
@@ -1111,11 +1119,11 @@ func (f File) Write(w io.Writer) {
 	if len(f.Imports) > 0 {
 		fmt.Fprintln(w)
 	}
+	fmt.Fprintln(w, f.ImportHeader)
+	fmt.Fprintln(w)
 	// XXX: putting this header after the imports because of naming collision
 	// between the old typing module and the new one.
 	fmt.Fprintln(w, strings.Trim(importHeader, "\n"))
-	fmt.Fprintln(w, f.ImportHeader)
-	fmt.Fprintln(w)
 	decls := make(map[string]bool)
 	for i, d := range f.Decls {
 		decl := d.CoqDecl()

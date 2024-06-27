@@ -112,7 +112,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 	case *types.Interface:
 		ctx.unsupported(n, "interface type")
 	}
-	// panic("unknown type")
+	panic("unknown type")
 	ctx.unsupported(n, "unknown type %v", t)
 	return nil // unreachable
 }
