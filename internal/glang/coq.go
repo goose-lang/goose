@@ -381,7 +381,6 @@ func (s GallinaString) Coq(needs_paren bool) string {
 // CallExpr includes primitives and references to other functions.
 type CallExpr struct {
 	MethodName Expr
-	TypeArgs   []Expr
 	Args       []Expr
 }
 
@@ -396,10 +395,6 @@ func NewCallExpr(name Expr, args ...Expr) CallExpr {
 
 func (s CallExpr) Coq(needs_paren bool) string {
 	comps := []string{s.MethodName.Coq(true)}
-
-	for _, a := range s.TypeArgs {
-		comps = append(comps, a.Coq(true))
-	}
 
 	for _, a := range s.Args {
 		comps = append(comps, a.Coq(true))
