@@ -19,6 +19,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
+	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -385,6 +386,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	case *ast.IndexListExpr:
 		f = indexF.X
 	}
+	log.Print("function: ", f)
 
 	switch f := f.(type) {
 	case *ast.Ident:
@@ -393,7 +395,10 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 		// XXX: this could be a struct field of type `func()`; right now we
 		// don't support generic structs, so code with a generic function field
 		// will be rejected. But, in the future, that might change.
-		retExpr = ctx.newCoqCallTypeArgs(ctx.identExpr(f), typeArgs, args)
+		log.Print("Type args: ", typeArgs)
+		log.Print(ctx.expr(f).Coq(false))
+		retExpr = ctx.newCoqCallTypeArgs(ctx.expr(f), typeArgs, args)
+		log.Print("retExpr: ", retExpr.Coq(false))
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
 	case *ast.IndexExpr:
@@ -910,8 +915,6 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 	return nil
 }
 
-// XXX: should distinguish between vars on LHS and RHS of assign statements. Not
-// sure if this is being used in both places.
 func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 	if _, ok := ctx.info.Uses[s].(*types.Const); ok {
 		ctx.dep.addDep(s.Name)
@@ -980,7 +983,7 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	case *types.Slice:
 		return glang.DerefExpr{
 			X:  ctx.exprAddr(e),
-			Ty: ctx.coqType(e),
+			Ty: ctx.coqTypeOfType(e, ctx.typeOf(e)),
 		}
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)

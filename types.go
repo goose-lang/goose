@@ -100,11 +100,13 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
+			ctx.dep.addDep(info.name)
 			return glang.StructName(info.name)
 		}
+		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
-		return glang.SliceType{ctx.coqTypeOfType(n, t.Elem())}
+		return glang.SliceType{Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return glang.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
