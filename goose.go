@@ -395,7 +395,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 
 func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) glang.Expr {
 	e := sliceElem(ctx.typeOf(dst))
-	return glang.NewCallExpr(glang.GallinaIdent("SliceCopy"),
+	return glang.NewCallExpr(glang.GallinaIdent("slice.copy"),
 		ctx.coqTypeOfType(n, e),
 		ctx.expr(dst), ctx.expr(src))
 }
