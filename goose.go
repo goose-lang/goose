@@ -746,25 +746,26 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 		ctx.unsupported(e, "setting the max capacity in a slice expression is not supported")
 		return nil
 	}
-	x := ctx.expr(e.X)
-	if e.Low != nil && e.High == nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceSkip"),
-			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
-			x, ctx.expr(e.Low))
-	}
-	if e.Low == nil && e.High != nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceTake"),
-			x, ctx.expr(e.High))
-	}
-	if e.Low != nil && e.High != nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceSubslice"),
-			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
-			x, ctx.expr(e.Low), ctx.expr(e.High))
-	}
 	if e.Low == nil && e.High == nil {
 		ctx.unsupported(e, "complete slice doesn't do anything")
 	}
-	return nil
+
+	x := ctx.expr(e.X)
+	var lowExpr glang.Expr = glang.IntLiteral{Value: 0}
+	var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
+	if e.Low != nil {
+		lowExpr = ctx.expr(e.Low)
+	}
+	if e.High != nil {
+		highExpr = ctx.expr(e.High)
+	}
+	return glang.LetExpr{
+		Names:   []string{"$s"},
+		ValExpr: x,
+		Cont: glang.NewCallExpr(glang.GallinaIdent("slice.slice"),
+			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
+			glang.IdentExpr("$s"), lowExpr, highExpr),
+	}
 }
 
 func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
