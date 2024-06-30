@@ -890,7 +890,6 @@ func (e FuncLit) Coq(needs_paren bool) string {
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
-	TypeParams []TypeIdent
 	Args       []FieldDecl
 	ReturnType Type
 	Body       Expr
@@ -931,12 +930,7 @@ func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 
-	typeParams := make([]string, 0)
-	for _, tp := range d.TypeParams {
-		typeParams = append(typeParams, fmt.Sprintf(" (%s:ty)", string(tp)))
-	}
-
-	pp.Add("Definition %s%s: val :=", d.Name, strings.Join(typeParams, ""))
+	pp.Add("Definition %s : val :=", d.Name)
 	func() {
 		pp.Indent(2)
 		defer pp.Indent(-2)
@@ -1025,8 +1019,8 @@ func (t PtrType) Coq(needs_paren bool) string {
 	return "ptrT"
 }
 
-func StructMethod(structName string, methodName string) string {
-	return fmt.Sprintf("%s__%s", structName, methodName)
+func TypeMethod(typeName string, methodName string) string {
+	return fmt.Sprintf("%s__%s", typeName, methodName)
 }
 
 func InterfaceMethod(interfaceName string, methodName string) string {

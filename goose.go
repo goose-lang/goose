@@ -568,7 +568,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		m := glang.StructMethod(structInfo.name, e.Sel.Name)
+		m := glang.TypeMethod(structInfo.name, e.Sel.Name)
 		ctx.dep.addDep(m)
 		return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
 	}
@@ -1431,10 +1431,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
-
-	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
-		TypeParams: ctx.typeParamList(d.Type.TypeParams),
-	}
+	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
@@ -1442,17 +1439,18 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 			ctx.nope(d, "function with multiple receivers")
 		}
 		receiver := d.Recv.List[0]
-		recvType := ctx.typeOf(receiver.Type)
-		// TODO: factor out this struct-or-struct pointer pattern
-		if pT, ok := recvType.(*types.Pointer); ok {
-			recvType = pT.Elem()
+		recvType := types.Unalias(ctx.typeOf(receiver.Type))
+		// recvType must be either a "named" type or a pointer type that points to a named type.
+		if baseType, ok := recvType.(*types.Pointer); ok {
+			recvType = baseType.Elem()
 		}
-
-		structInfo, ok := ctx.getStructInfo(recvType)
+		namedType, ok := recvType.(*types.Named)
 		if !ok {
-			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
+			ctx.nope(d.Recv, "expected named type as method receiver, got %T", recvType)
 		}
-		fd.Name = glang.StructMethod(structInfo.name, d.Name.Name)
+		typeName := namedType.Obj().Name()
+
+		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(receiver))
 	}
 
