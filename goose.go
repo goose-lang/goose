@@ -545,7 +545,7 @@ func (ctx Ctx) qualifiedName(obj types.Object) string {
 	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
 }
 
-func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
+func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	selectorType, ok := ctx.getType(e.X)
 	if !ok {
 		if isIdent(e.X, "filesys") {
@@ -563,36 +563,26 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
 	}
 	structInfo, ok := ctx.getStructInfo(selectorType)
 
-	// Check if the select expression is actually referring to a function object
-	// If it is, we need to translate to 'StructName__FuncName varName' instead
-	// of a struct access
-	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
-	if isFuncType {
-		m := glang.TypeMethod(structInfo.name, e.Sel.Name)
-		ctx.dep.addDep(m)
-		return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
-	}
 	if ok {
-		return ctx.structSelector(structInfo, e)
+		// Check if select expression refers to a field of the struct
+		isField := false
+		for i := 0; i < structInfo.structType.NumFields(); i++ {
+			if structInfo.structType.Field(i).Name() == e.Sel.Name {
+				isField = true
+				break
+			}
+		}
+		if isField {
+			return glang.DerefExpr{
+				X:  ctx.exprAddr(e),
+				Ty: ctx.coqTypeOfType(e, ctx.typeOf(e)),
+			}
+		}
 	}
-	ctx.unsupported(e, "unexpected select expression")
-	return nil
-}
-
-func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.Expr {
-	ctx.dep.addDep(info.name)
-	return glang.DerefExpr{
-		X: glang.StructFieldAccessExpr{
-			Struct:         info.name,
-			Field:          e.Sel.Name,
-			X:              ctx.expr(e.X),
-			ThroughPointer: info.throughPointer,
-		},
-		Ty: glang.NewCallExpr(glang.GallinaIdent("struct.field_ty"),
-			glang.GallinaIdent(info.name),
-			glang.IdentExpr(e.Sel.Name),
-		),
-	}
+	// must be method
+	m := glang.TypeMethod(structInfo.name, e.Sel.Name)
+	ctx.dep.addDep(m)
+	return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
 }
 
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
@@ -936,7 +926,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.Ident:
 		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
-		return ctx.selectExpr(e)
+		return ctx.selectorExpr(e)
 	case *ast.CompositeLit:
 		return ctx.compositeLiteral(e)
 	case *ast.BasicLit:
@@ -1216,6 +1206,7 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 		if !ok {
 			ctx.unsupported(e, "address of selector expression that's not a struct field %v", ty)
 		}
+		ctx.dep.addDep(info.name)
 
 		var structExpr glang.Expr
 		if info.throughPointer {

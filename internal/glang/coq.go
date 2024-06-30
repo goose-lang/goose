@@ -402,26 +402,8 @@ func (s CallExpr) Coq(needs_paren bool) string {
 	return addParens(needs_paren, strings.Join(comps, " "))
 }
 
-type StructFieldAccessExpr struct {
-	Struct string
-	Field  string
-	X      Expr
-	// the expression X is a pointer to a struct (whether because of pointer
-	// wrapping or because it was a pointer in the program)
-	ThroughPointer bool
-}
-
 func StructDesc(name string) Expr {
 	return GallinaIdent(name)
-}
-
-func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
-	if e.ThroughPointer {
-		return NewCallExpr(GallinaIdent("struct.field_ref"),
-			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq(needs_paren)
-	}
-	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
-		GallinaString(e.Field), e.X).Coq(needs_paren)
 }
 
 type ContinueExpr struct {
