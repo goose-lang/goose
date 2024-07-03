@@ -86,6 +86,8 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("boolT")
 		case "string", "untyped string":
 			return coq.TypeIdent("stringT")
+		case "int":
+			ctx.todo(n, "basic type int (use uint64)")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}
@@ -191,6 +193,8 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return coq.SliceType{Value: ctx.coqType(e.Elt)}
 	case *ast.FuncType:
 		return ctx.coqFuncType(e)
+	case *ast.IndexExpr:
+		ctx.todo(e, "unsupported generic type instantiation")
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}

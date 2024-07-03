@@ -645,7 +645,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			coq.UnitLiteral{})
 	default:
 		ctx.unsupported(args[0],
-			"make of should be slice or map, got %v", ty)
+			"make type should be slice or map, got %v", ty)
 	}
 	return coq.CallExpr{}
 }
@@ -1808,7 +1808,7 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt) coq.Expr {
 // getSpawn returns a non-nil spawned thread if the expression is a go call
 func (ctx Ctx) goStmt(e *ast.GoStmt) coq.Expr {
 	if len(e.Call.Args) > 0 {
-		ctx.unsupported(e, "go statement with parameters")
+		ctx.todo(e, "go statement with parameters")
 	}
 	return ctx.spawnExpr(e.Call.Fun)
 }
@@ -1867,6 +1867,8 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 		ctx.todo(s, "check for switch statement")
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "check for type switch statement")
+	case *ast.SelectStmt:
+		ctx.unsupported(s, "select statement")
 	default:
 		ctx.unsupported(s, "statement")
 	}
@@ -1941,7 +1943,10 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		if star, ok := rcvrTy.(*ast.StarExpr); ok {
 			rcvrTy = star.X
 		}
-		ident := rcvrTy.(*ast.Ident)
+		ident, ok := rcvrTy.(*ast.Ident)
+		if !ok {
+			ctx.unsupported(rcvr, "unexpected function receiver type: %s", ctx.printGo(rcvrTy))
+		}
 		fd.Name = coq.MethodName(ident.Name, d.Name.Name)
 		fd.Args = append(fd.Args, ctx.field(rcvr))
 	}
@@ -1960,6 +1965,9 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) coq.ConstDecl {
 		AddTypes: ctx.PkgConfig.TypeCheck,
 	}
 	addSourceDoc(spec.Comment, &cd.Comment)
+	if len(spec.Values) == 0 {
+		ctx.unsupported(spec, "const with no value")
+	}
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)
 	if spec.Type == nil {
@@ -2147,6 +2155,9 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []coq.Decl {
 	case *ast.FuncDecl:
 		var cvs []coq.Decl
 		if !ctx.SkipInterfaces {
+			if d.Body == nil {
+				ctx.unsupported(d, "function declaration with no body")
+			}
 			for _, stmt := range d.Body.List {
 				cvs = ctx.stmtInterface(cvs, stmt)
 			}
