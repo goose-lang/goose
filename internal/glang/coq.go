@@ -690,7 +690,7 @@ func (le ListExpr) Coq(needs_paren bool) string {
 	for _, t := range le {
 		comps = append(comps, t.Coq(false))
 	}
-	return fmt.Sprintf("[ %s ]",
+	return fmt.Sprintf("[%s]",
 		indent(1, strings.Join(comps, "; ")))
 }
 

@@ -586,15 +586,14 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 }
 
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
-	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
-		if len(e.Elts) == 0 {
-			return glang.NewCallExpr(glang.GallinaIdent("nil"))
+	if t, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
+		var args glang.ListExpr
+		for _, e := range e.Elts {
+			args = append(args, ctx.expr(e))
 		}
-		if len(e.Elts) == 1 {
-			return ctx.newCoqCall(glang.GallinaIdent("SliceSingleton"), []ast.Expr{e.Elts[0]})
-		}
-		ctx.unsupported(e, "slice literal with multiple elements")
-		return nil
+		return glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
+			ctx.coqTypeOfType(e, t.Elem()),
+			args)
 	}
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok {
