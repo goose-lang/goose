@@ -226,8 +226,7 @@ func ffiHeaderFooter(ffi string) (header string, footer string) {
 			"Local Coercion Var' s: expr := Var s."
 		footer = "\nEnd code.\n"
 	} else {
-		header += fmt.Sprintf("From Perennial.new_goose_lang Require Import ffi."+
-			"%s_prelude.", ffi)
+		header += fmt.Sprintf("From New Require Import %s_prelude.", ffi)
 	}
 	return
 }

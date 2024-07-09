@@ -1443,7 +1443,8 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		typeName := namedType.Obj().Name()
 
 		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
-		fd.Args = append(fd.Args, ctx.field(receiver))
+		f := ctx.field(receiver)
+		fd.RecvArg = &f
 	}
 
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
@@ -1454,6 +1455,13 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
 			ValExpr: glang.RefExpr{Ty: arg.Type, X: glang.IdentExpr(arg.Name)},
+			Cont:    fd.Body,
+		}
+	}
+	if fd.RecvArg != nil {
+		fd.Body = glang.LetExpr{
+			Names:   []string{fd.RecvArg.Name},
+			ValExpr: glang.RefExpr{Ty: fd.RecvArg.Type, X: glang.IdentExpr(fd.RecvArg.Name)},
 			Cont:    fd.Body,
 		}
 	}

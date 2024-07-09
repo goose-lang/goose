@@ -872,6 +872,7 @@ func (e FuncLit) Coq(needs_paren bool) string {
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
+	RecvArg    *FieldDecl
 	Args       []FieldDecl
 	ReturnType Type
 	Body       Expr
@@ -882,11 +883,14 @@ type FuncDecl struct {
 // Signature renders the function declaration's bindings
 func (d FuncDecl) Signature() string {
 	var args []string
+	if d.RecvArg != nil {
+		args = append(args, d.RecvArg.CoqBinder())
+	}
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
 	}
 	if len(args) == 0 {
-		args = []string{"<>"}
+		args = append(args, "<>")
 	}
 	return strings.Join(args, " ")
 }
@@ -901,7 +905,8 @@ func (d FuncDecl) Type() string {
 		types = append(types, TypeIdent("unitT").Coq(true))
 	}
 	types = append(types, d.ReturnType.Coq(true))
-	return strings.Join(types, " -> ")
+	panic("include RecvArg")
+	// return strings.Join(types, " -> ")
 }
 
 // CoqDecl implements the Decl interface
@@ -1010,7 +1015,7 @@ func InterfaceMethod(interfaceName string, methodName string) string {
 }
 
 const importHeader string = `
-From Perennial.new_goose_lang Require Import prelude.
+From New.golang Require Import defn.
 `
 
 // These will not end up in `File.Decls`, they are put into `File.Imports` by `translatePackage`.
@@ -1048,7 +1053,7 @@ func ImportToPath(pkgPath, pkgName string) string {
 
 func (decl ImportDecl) CoqDecl() string {
 	coqImportQualid := strings.ReplaceAll(thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
-	return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
+	return fmt.Sprintf("From New.code Require %s.", coqImportQualid)
 }
 
 // ImportDecls groups imports into one declaration so they can be printed
