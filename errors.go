@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+type locatable interface {
+	Pos() token.Pos
+}
+
 // errorReporter groups methods for reporting errors, documenting what kind of
 // issue was encountered in a uniform way.
 type errorReporter struct {
@@ -37,7 +41,7 @@ func (r errorReporter) printField(f *ast.Field) string {
 		what.String())
 }
 
-func (r errorReporter) printGo(n ast.Node) string {
+func (r errorReporter) printGo(n locatable) string {
 	if f, ok := n.(*ast.Field); ok {
 		return r.printField(f)
 	}
@@ -93,7 +97,7 @@ type ConversionError struct {
 	// file:lineno for the source program where GoCode appears
 	GoSrcFile string
 	// (for systematic tests)
-	Pos, End token.Pos
+	Pos token.Pos
 }
 
 func (e *ConversionError) Error() string {
@@ -106,7 +110,7 @@ func (e *ConversionError) Error() string {
 	return strings.Join(lines, "\n")
 }
 
-func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) prefixed(prefix string, n locatable, msg string, args ...interface{}) {
 	where := r.fset.Position(n.Pos())
 	what := r.printGo(n)
 	formatted := fmt.Sprintf(msg, args...)
@@ -118,7 +122,6 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 		GooseCaller: getCaller(2),
 		GoSrcFile:   where.String(),
 		Pos:         n.Pos(),
-		End:         n.End(),
 	}
 
 	panic(gooseError{err: err})
@@ -126,30 +129,30 @@ func (r errorReporter) prefixed(prefix string, n ast.Node, msg string, args ...i
 
 // nope reports a situation that believed to be impossible from reading the
 // documentation.
-func (r errorReporter) nope(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) nope(n locatable, msg string, args ...interface{}) {
 	r.prefixed("impossible(go)", n, msg, args...)
 }
 
 // noExample reports a situation believed to be impossible because I couldn't
 // think of how to do it in Go.
-func (r errorReporter) noExample(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) noExample(n locatable, msg string, args ...interface{}) {
 	r.prefixed("impossible(no-examples)", n, msg, args...)
 }
 
 // futureWork reports something we could theoretically handle but probably
 // won't.
-func (r errorReporter) futureWork(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) futureWork(n locatable, msg string, args ...interface{}) {
 	r.prefixed("future", n, msg, args...)
 }
 
 // todo reports a situation that is intended to be handled but we haven't gotten
 // around to.
-func (r errorReporter) todo(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) todo(n locatable, msg string, args ...interface{}) {
 	r.prefixed("todo", n, msg, args...)
 }
 
 // unsupported reports something intentionally unhandled (the code should not
 // use this feature).
-func (r errorReporter) unsupported(n ast.Node, msg string, args ...interface{}) {
+func (r errorReporter) unsupported(n locatable, msg string, args ...interface{}) {
 	r.prefixed("unsupported", n, msg, args...)
 }

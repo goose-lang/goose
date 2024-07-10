@@ -232,23 +232,10 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 	if spec.TypeParams != nil {
 		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
 	}
-	switch goTy := spec.Type.(type) {
-	case *ast.StructType:
-		decl := glang.StructDecl{
-			Name: spec.Name.Name,
-		}
-		addSourceDoc(spec.Doc, &decl.Comment)
-		ctx.addSourceFile(spec, &decl.Comment)
-		decl.Fields = ctx.structFields(goTy.Fields)
-		return decl
-	case *ast.InterfaceType:
-		ctx.futureWork(spec, "interface type declaration")
-		panic("unreachable")
-	default:
-		return glang.TypeDecl{
-			Name: spec.Name.Name,
-			Body: ctx.glangType(spec.Type, ctx.typeOf(spec.Type)),
-		}
+
+	return glang.TypeDecl{
+		Name: spec.Name.Name,
+		Body: ctx.glangTypeFromExpr(spec.Type),
 	}
 }
 

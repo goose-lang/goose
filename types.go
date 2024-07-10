@@ -48,13 +48,25 @@ func (ctx Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
 	return ctx.glangType(e, ctx.typeOf(e))
 }
 
-func (ctx Ctx) glangType(n ast.Node, t types.Type) glang.Type {
+func (ctx Ctx) structType(t *types.Struct) glang.Type {
+	ty := glang.StructType{}
+	for i := range t.NumFields() {
+		fieldt := t.Field(i).Type()
+		ty.Fields = append(ty.Fields, glang.FieldDecl{
+			Name: t.Field(i).Name(),
+			Type: ctx.glangType(t.Field(i), fieldt),
+		})
+	}
+	return ty
+}
+
+func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 	if isProphId(t) {
 		return glang.TypeIdent("ProphIdT")
 	}
 	switch t := t.(type) {
 	case *types.Struct:
-		ctx.unsupported(n, "type for anonymous struct")
+		return ctx.structType(t)
 	case *types.TypeParam:
 		return glang.TypeIdent(t.Obj().Name())
 	case *types.Basic:

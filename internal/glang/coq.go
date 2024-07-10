@@ -112,19 +112,16 @@ func (d FieldDecl) Coq(needs_paren bool) string {
 }
 
 // StructDecl is a Coq record for a Go struct
-type StructDecl struct {
-	Name    string
-	Fields  []FieldDecl
-	Comment string
+type StructType struct {
+	Fields []FieldDecl
 }
 
 // CoqDecl implements the Decl interface
 //
 // A struct declaration simply consists of the struct descriptor
-func (d StructDecl) CoqDecl() string {
+func (d StructType) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := [", d.Name)
+	pp.Add("structT [")
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -134,111 +131,7 @@ func (d StructDecl) CoqDecl() string {
 		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
-	pp.AddLine("].")
-	return pp.Build()
-}
-
-type InterfaceDecl struct {
-	Name    string
-	Methods []FieldDecl
-	Comment string
-}
-
-func (d InterfaceDecl) CoqDecl() string {
-	var pp buffer
-	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := struct.decl [", d.Name)
-	pp.Indent(2)
-	for i, fd := range d.Methods {
-		sep := ";"
-		if i == len(d.Methods)-1 {
-			sep = ""
-		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
-	}
-	pp.Indent(-2)
-	pp.AddLine("].")
-	return pp.Build()
-}
-
-type StructToInterface struct {
-	Struct    string
-	Interface string
-	Methods   []string
-}
-
-func (d StructToInterface) Coq(needs_paren bool) string {
-	var pp buffer
-	if len(d.Struct) > 0 && len(d.Interface) > 0 {
-		pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
-		pp.Indent(2)
-		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
-		pp.Indent(2)
-		if len(d.Methods) == 1 {
-			pp.Add("struct.mk %s [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
-		} else {
-			pp.Add("struct.mk %s [", d.Interface)
-			pp.Indent(2)
-			for i, method := range d.Methods {
-				if i == len(d.Methods)-1 {
-					pp.Add("\"%s\" ::= %s__%s \"t\"", method, d.Struct, method)
-				} else {
-					pp.Add("\"%s\" ::= %s__%s \"t\";", method, d.Struct, method)
-				}
-			}
-			pp.Indent(-2)
-			pp.Add("].")
-		}
-	}
-	return pp.Build()
-}
-
-func (d StructToInterface) MethodList() []string {
-	return d.Methods
-}
-
-func (d StructToInterface) Name() string {
-	var pp buffer
-	pp.Add("%s__to__%s", d.Struct, d.Interface)
-	return pp.Build()
-}
-
-func (d StructToInterface) CoqDecl() string {
-	var pp buffer
-	if len(d.Struct) > 0 && len(d.Interface) > 0 {
-		pp.Add("Definition %s__to__%s: val :=", d.Struct, d.Interface)
-		pp.Indent(2)
-		pp.Add("rec: \"%s_to_%s\" \"t\" :=", d.Struct, d.Interface)
-		pp.Indent(2)
-		if len(d.Methods) == 1 {
-			pp.Add("struct.mk %s [\"%s\" ::= %s__%s \"t\"].", d.Interface, d.Methods[0], d.Struct, d.Methods[0])
-		} else {
-			pp.Add("struct.mk %s [", d.Interface)
-			pp.Indent(2)
-			for i, method := range d.Methods {
-				if i == len(d.Methods)-1 {
-					pp.Add("\"%s\" ::= %s__%s \"t\"", method, d.Struct, method)
-				} else {
-					pp.Add("\"%s\" ::= %s__%s \"t\";", method, d.Struct, method)
-				}
-			}
-			pp.Indent(-2)
-			pp.Add("].")
-		}
-	}
-	return pp.Build()
-}
-
-type StructToInterfaceDecl struct {
-	Fun       string
-	Struct    string
-	Interface string
-	Arg       string
-}
-
-func (d StructToInterfaceDecl) Coq(needs_paren bool) string {
-	var pp buffer
-	pp.Add("(%s (%s__to__%s %s))", d.Fun, d.Struct, d.Interface, d.Arg)
+	pp.AddLine("]")
 	return pp.Build()
 }
 
