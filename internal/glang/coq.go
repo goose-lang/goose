@@ -171,7 +171,7 @@ func (t TypeIdent) Coq(needs_paren bool) string {
 type StructName string
 
 func (t StructName) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("structT"), StructDesc(string(t))).Coq(needs_paren)
+	return string(t)
 }
 
 type MapType struct {
