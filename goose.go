@@ -502,38 +502,6 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	} else {
 		return ctx.methodExpr(s)
 	}
-
-	// FIXME: obviate this code
-	/*
-		// Special case for *sync.NewCond
-		if _, ok := s.Fun.(*ast.SelectorExpr); ok {
-		} else {
-			if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
-				for j := 0; j < signature.Params().Len(); j++ {
-					if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
-						interfaceName := signature.Params().At(j).Type().String()
-						structName := ctx.typeOf(s.Args[0]).String()
-						interfaceName = unqualifyName(interfaceName)
-						structName = unqualifyName(structName)
-						if interfaceName != structName && interfaceName != "" && structName != "" {
-							conversion := glang.StructToInterfaceDecl{
-								Fun:       ctx.expr(s.Fun).Coq(true),
-								Struct:    structName,
-								Interface: interfaceName,
-								Arg:       ctx.expr(s.Args[0]).Coq(true),
-							}.Coq(true)
-							for i, arg := range s.Args {
-								if i > 0 {
-									conversion += " " + ctx.expr(arg).Coq(true)
-								}
-							}
-							return glang.CallExpr{MethodName: glang.GallinaIdent(conversion)}
-						}
-					}
-				}
-			}
-		}
-	*/
 }
 
 func (ctx Ctx) qualifiedName(obj types.Object) string {
@@ -1304,13 +1272,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
-	f, ok := thread.(*ast.FuncLit)
-	if !ok {
-		ctx.futureWork(thread,
-			"only function literal spawns are supported")
-		return glang.SpawnExpr{}
-	}
-	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body)}
+	return glang.SpawnExpr{Body: ctx.expr(thread)}
 }
 
 func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
@@ -1329,7 +1291,32 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 	if len(e.Call.Args) > 0 {
 		ctx.unsupported(e, "go statement with parameters")
 	}
-	return ctx.spawnExpr(e.Call.Fun)
+	args := make([]glang.Expr, 0, len(e.Call.Args))
+	for i := range len(e.Call.Args) {
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$arg%d", i)))
+	}
+	var expr glang.Expr = glang.SpawnExpr{Body: glang.NewCallExpr(
+		glang.IdentExpr("$go"),
+		args...
+	)}
+	expr = glang.LetExpr{
+		Names:   []string{"$go"},
+		ValExpr: ctx.expr(e.Call.Fun),
+		Cont:    expr,
+	}
+
+	// FIXME:(evaluation order)
+	// compute values left-to-right
+	for i := len(e.Call.Args); i > 0; i-- {
+		expr = glang.LetExpr{
+			Names:   []string{fmt.Sprintf("$arg%d", i-1)},
+			ValExpr: ctx.expr(e.Call.Args[i-1]),
+			Cont:    expr,
+		}
+	}
+
+	// ctx.expr(e.Call.Fun)}
+	return expr
 }
 
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
