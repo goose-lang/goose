@@ -366,7 +366,7 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.Expr {
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.Expr {
+func (ctx Ctx) newExpr(ty ast.Expr) glang.Expr {
 	return glang.RefExpr{
 		X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty)),
 		Ty: ctx.coqType(ty),
@@ -442,7 +442,7 @@ func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
 	case "make":
 		return ctx.makeExpr(s.Args)
 	case "new":
-		return ctx.newExpr(s, s.Args[0])
+		return ctx.newExpr(s.Args[0])
 	case "len":
 		return ctx.lenExpr(s)
 	case "cap":
@@ -1150,6 +1150,8 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 // Requires that e is actually addressable
 func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	switch e := e.(type) {
+	case *ast.ParenExpr:
+		return ctx.exprAddr(e.X)
 	case *ast.Ident:
 		return glang.IdentExpr(e.Name)
 	case *ast.IndexExpr:
