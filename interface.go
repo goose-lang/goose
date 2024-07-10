@@ -222,12 +222,11 @@ func (tr Translator) translatePackage(pkg *packages.Package) (glang.File, error)
 func ffiHeaderFooter(ffi string) (header string, footer string) {
 	if ffi == "none" {
 		header = "Section code.\n" +
-			"Context `{ext_ty: ext_types}.\n" +
+			"Context `{ffi_syntax}.\n" +
 			"Local Coercion Var' s: expr := Var s."
 		footer = "\nEnd code.\n"
 	} else {
-		header = fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
-			"%s_prelude.", ffi)
+		header += fmt.Sprintf("From New Require Import %s_prelude.", ffi)
 	}
 	return
 }

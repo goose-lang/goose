@@ -38,21 +38,6 @@ type Ctx struct {
 	dep *depTracker
 }
 
-// Says how the result of the currently generated expression will be used
-type ExprValUsage int
-
-const (
-	// The result of this expression will only be used locally,
-	// or entirely discarded
-	ExprValLocal ExprValUsage = iota
-	// The result of this expression will be returned from the current function
-	// (i.e., the "early return" control effect is available here)
-	ExprValReturned
-	// The result of this expression will control the current loop
-	// (i.e., the "break/continue" control effect is available here)
-	ExprValLoop
-)
-
 // Config holds global configuration for Coq conversion
 type Config struct {
 	AddSourceFileComments bool
@@ -249,12 +234,6 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
-		// FIXME: why was this needed?
-		// ctx.addDef(spec.Name, identInfo{
-		// 	IsPtrWrapped: false,
-		// 	IsMacro:      false,
-		// })
-
 		decl := glang.StructDecl{
 			Name: spec.Name.Name,
 		}
@@ -317,7 +296,7 @@ func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExp
 	callArgs := append([]ast.Expr{f.X}, args...)
 	switch f.Sel.Name {
 	case "ResolveBool", "ResolveU64":
-		return ctx.newCoqCall("ResolveProph", callArgs)
+		return ctx.newCoqCall(glang.GallinaIdent("ResolveProph"), callArgs)
 	default:
 		ctx.unsupported(f, "method %s of machine.ProphId", f.Sel.Name)
 		return glang.CallExpr{}
@@ -328,113 +307,33 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	call *ast.CallExpr) glang.Expr {
 	args := call.Args
 	pkg := f.X.(*ast.Ident)
-	return ctx.newCoqCallTypeArgs(
-		glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name},
-		ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs),
-		args)
+	return ctx.newCoqCall(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}, args)
 }
 
-func (ctx Ctx) selectorMethod(f *ast.SelectorExpr,
-	call *ast.CallExpr) glang.Expr {
-	args := call.Args
-	selectorType, ok := ctx.getType(f.X)
-	if !ok {
-		return ctx.packageMethod(f, call)
-	}
-	switch selectorType.Underlying().(type) {
-	case *types.Interface:
-		interfaceInfo, ok := ctx.getInterfaceInfo(selectorType)
-		if ok {
-			callArgs := append([]ast.Expr{f.X}, args...)
-			return ctx.newCoqCall(
-				glang.InterfaceMethod(interfaceInfo.name, f.Sel.Name),
-				callArgs)
-		}
-	default:
-		structInfo, ok := ctx.getStructInfo(selectorType)
-		if ok {
-			// see if f.Sel.Name is a struct field, and translate accordingly if so
-			for _, name := range structInfo.fields() {
-				if f.Sel.Name == name {
-					return ctx.newCoqCallWithExpr(
-						ctx.structSelector(structInfo, f),
-						args)
-				}
-			}
-			callArgs := append([]ast.Expr{f.X}, args...)
-			m := glang.StructMethod(structInfo.name, f.Sel.Name)
-			ctx.dep.addDep(m)
-			return ctx.newCoqCall(m, callArgs)
-		}
-	}
-	ctx.todo(f, "unexpected select on type "+selectorType.String())
-	return nil
-}
-
-func (ctx Ctx) newCoqCallTypeArgs(method glang.Expr, typeArgs []glang.Expr,
-	es []ast.Expr) glang.CallExpr {
+func (ctx Ctx) newCoqCall(method glang.Expr, es []ast.Expr) glang.CallExpr {
 	var args []glang.Expr
 	for _, e := range es {
 		args = append(args, ctx.expr(e))
 	}
 	call := glang.NewCallExpr(method, args...)
-	call.TypeArgs = typeArgs
 	return call
 }
 
-func (ctx Ctx) newCoqCall(method string, es []ast.Expr) glang.CallExpr {
-	return ctx.newCoqCallTypeArgs(glang.GallinaIdent(method), nil, es)
-}
-
-func (ctx Ctx) newCoqCallWithExpr(method glang.Expr, es []ast.Expr) glang.CallExpr {
-	return ctx.newCoqCallTypeArgs(method, nil, es)
-}
-
 func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
-	args := call.Args
-	var retExpr glang.Expr
-
-	f := call.Fun
-
-	// IndexExpr and IndexListExpr represent calls like `f[T](x)`;
-	// we get rid of the `[T]` since we can figure that out from the
-	// ctx.info.Instances thing like we would need to for implicit type
-	// arguments
-	switch indexF := f.(type) {
-	case *ast.IndexExpr:
-		f = indexF.X
-	case *ast.IndexListExpr:
-		f = indexF.X
+	if f, ok := call.Fun.(*ast.Ident); ok {
+		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
+			ctx.unsupported(f, "generic function")
+		}
 	}
 
-	switch f := f.(type) {
-	case *ast.Ident:
-		typeArgs := ctx.typeList(call, ctx.info.Instances[f].TypeArgs)
-
-		// XXX: this could be a struct field of type `func()`; right now we
-		// don't support generic structs, so code with a generic function field
-		// will be rejected. But, in the future, that might change.
-		retExpr = ctx.newCoqCallTypeArgs(ctx.identExpr(f), typeArgs, args)
-	case *ast.SelectorExpr:
-		retExpr = ctx.selectorMethod(f, call)
-	case *ast.IndexExpr:
-		// generic type instantiation f[T]
-		ctx.nope(call, "double explicit generic type instantiation")
-	case *ast.IndexListExpr:
-		// generic type instantiation f[T, V]
-		ctx.nope(call, "double explicit generic type instantiation with multiple arguments")
-	default:
-		ctx.unsupported(call, "call to unexpected function (of type %T)", call.Fun)
-	}
-
-	return retExpr
+	return ctx.newCoqCall(ctx.expr(call.Fun), call.Args)
 }
 
 func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 	if len(args) == 2 {
-		return glang.NewCallExpr(glang.GallinaIdent("NewSlice"), elt, ctx.expr(args[1]))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
 	} else if len(args) == 3 {
-		return glang.NewCallExpr(glang.GallinaIdent("NewSliceWithCap"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
 	} else {
 		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
 		return glang.CallExpr{}
@@ -442,13 +341,20 @@ func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
-func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
+func (ctx Ctx) makeExpr(args []ast.Expr) glang.Expr {
 	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
 	case *types.Slice:
 		elt := ctx.coqTypeOfType(args[0], ty.Elem())
-		return ctx.makeSliceExpr(elt, args)
+		if len(args) == 2 {
+			return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
+		} else if len(args) == 3 {
+			return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
+		} else {
+			ctx.nope(args[0], "Too many or too few arguments in slice construction")
+			return glang.CallExpr{}
+		}
 	case *types.Map:
-		return glang.NewCallExpr(glang.GallinaIdent("NewMap"),
+		return glang.NewCallExpr(glang.GallinaIdent("map.make"),
 			ctx.coqTypeOfType(args[0], ty.Key()),
 			ctx.coqTypeOfType(args[0], ty.Elem()),
 			glang.UnitLiteral{})
@@ -460,20 +366,11 @@ func (ctx Ctx) makeExpr(args []ast.Expr) glang.CallExpr {
 }
 
 // newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(s ast.Node, ty ast.Expr) glang.CallExpr {
-	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
-		return glang.NewCallExpr(glang.GallinaIdent("zero_array"),
-			ctx.coqTypeOfType(ty, t.Elem()),
-			glang.IntLiteral{Value: uint64(t.Len())})
+func (ctx Ctx) newExpr(ty ast.Expr) glang.Expr {
+	return glang.RefExpr{
+		X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty)),
+		Ty: ctx.coqType(ty),
 	}
-	e := glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqType(ty))
-	// check for new(T) where T is a struct, but not a pointer to a struct
-	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
-	// a pointer to a nil pointer)
-	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return glang.NewCallExpr(glang.GallinaIdent("struct.alloc"), glang.StructDesc(info.name), e)
-	}
-	return glang.NewCallExpr(glang.GallinaIdent("ref"), e)
 }
 
 // integerConversion generates an expression for converting x to an integer
@@ -498,7 +395,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 
 func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) glang.Expr {
 	e := sliceElem(ctx.typeOf(dst))
-	return glang.NewCallExpr(glang.GallinaIdent("SliceCopy"),
+	return glang.NewCallExpr(glang.GallinaIdent("slice.copy"),
 		ctx.coqTypeOfType(n, e),
 		ctx.expr(dst), ctx.expr(src))
 }
@@ -521,7 +418,7 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 		if f.Len == nil && isIdent(f.Elt, "byte") {
 			arg := s.Args[0]
 			if isString(ctx.typeOf(arg)) {
-				return ctx.newCoqCall("StringToBytes", s.Args)
+				return ctx.newCoqCall(glang.GallinaIdent("StringToBytes"), s.Args)
 			}
 		}
 	}
@@ -532,7 +429,7 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 				"conversion from type %v to string", ctx.typeOf(arg))
 			return glang.CallExpr{}
 		}
-		return ctx.newCoqCall("StringFromBytes", s.Args)
+		return ctx.newCoqCall(glang.GallinaIdent("StringFromBytes"), s.Args)
 	}
 
 	ctx.unsupported(s, "conversion from %s to %s", ctx.info.TypeOf(s.Args[0]).Underlying(), s.Fun)
@@ -545,24 +442,36 @@ func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
 	case "make":
 		return ctx.makeExpr(s.Args)
 	case "new":
-		return ctx.newExpr(s, s.Args[0])
+		return ctx.newExpr(s.Args[0])
 	case "len":
 		return ctx.lenExpr(s)
 	case "cap":
 		return ctx.capExpr(s)
 	case "append":
 		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
+		var xExpr glang.Expr = glang.GallinaIdent("slice.nil")
+
+		// append(s, x1, x2, xn)
 		if s.Ellipsis == token.NoPos {
-			return glang.NewCallExpr(glang.GallinaIdent("SliceAppend"),
-				ctx.coqTypeOfType(s, elemTy),
-				ctx.expr(s.Args[0]),
-				ctx.expr(s.Args[1]))
+			if len(s.Args) > 0 {
+				var exprs []glang.Expr
+				for _, arg := range s.Args[1:] {
+					exprs = append(exprs, ctx.expr(arg))
+				}
+				xExpr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
+					// FIXME: get the type of the vararg
+					ctx.coqTypeOfType(s.Args[1], ctx.typeOf(s.Args[1])),
+					glang.ListExpr(exprs))
+			}
+		} else {
+			// append(s1, s2...)
+			xExpr = ctx.expr(s.Args[1])
 		}
-		// append(s1, s2...)
-		return glang.NewCallExpr(glang.GallinaIdent("SliceAppendSlice"),
+		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
 			ctx.coqTypeOfType(s, elemTy),
 			ctx.expr(s.Args[0]),
-			ctx.expr(s.Args[1]))
+			xExpr,
+		)
 	case "copy":
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	case "delete":
@@ -593,38 +502,6 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	} else {
 		return ctx.methodExpr(s)
 	}
-
-	// FIXME: obviate this code
-	/*
-		// Special case for *sync.NewCond
-		if _, ok := s.Fun.(*ast.SelectorExpr); ok {
-		} else {
-			if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
-				for j := 0; j < signature.Params().Len(); j++ {
-					if _, ok := signature.Params().At(j).Type().Underlying().(*types.Interface); ok {
-						interfaceName := signature.Params().At(j).Type().String()
-						structName := ctx.typeOf(s.Args[0]).String()
-						interfaceName = unqualifyName(interfaceName)
-						structName = unqualifyName(structName)
-						if interfaceName != structName && interfaceName != "" && structName != "" {
-							conversion := glang.StructToInterfaceDecl{
-								Fun:       ctx.expr(s.Fun).Coq(true),
-								Struct:    structName,
-								Interface: interfaceName,
-								Arg:       ctx.expr(s.Args[0]).Coq(true),
-							}.Coq(true)
-							for i, arg := range s.Args {
-								if i > 0 {
-									conversion += " " + ctx.expr(arg).Coq(true)
-								}
-							}
-							return glang.CallExpr{MethodName: glang.GallinaIdent(conversion)}
-						}
-					}
-				}
-			}
-		}
-	*/
 }
 
 func (ctx Ctx) qualifiedName(obj types.Object) string {
@@ -636,7 +513,7 @@ func (ctx Ctx) qualifiedName(obj types.Object) string {
 	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
 }
 
-func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
+func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	selectorType, ok := ctx.getType(e.X)
 	if !ok {
 		if isIdent(e.X, "filesys") {
@@ -654,42 +531,37 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) glang.Expr {
 	}
 	structInfo, ok := ctx.getStructInfo(selectorType)
 
-	// Check if the select expression is actually referring to a function object
-	// If it is, we need to translate to 'StructName__FuncName varName' instead
-	// of a struct access
-	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
-	if isFuncType {
-		m := glang.StructMethod(structInfo.name, e.Sel.Name)
-		ctx.dep.addDep(m)
-		return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
-	}
 	if ok {
-		return ctx.structSelector(structInfo, e)
+		// Check if select expression refers to a field of the struct
+		isField := false
+		for i := 0; i < structInfo.structType.NumFields(); i++ {
+			if structInfo.structType.Field(i).Name() == e.Sel.Name {
+				isField = true
+				break
+			}
+		}
+		if isField {
+			return glang.DerefExpr{
+				X:  ctx.exprAddr(e),
+				Ty: ctx.coqTypeOfType(e, ctx.typeOf(e)),
+			}
+		}
 	}
-	ctx.unsupported(e, "unexpected select expression")
-	return nil
-}
-
-func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) glang.StructFieldAccessExpr {
-	ctx.dep.addDep(info.name)
-	return glang.StructFieldAccessExpr{
-		Struct:         info.name,
-		Field:          e.Sel.Name,
-		X:              ctx.expr(e.X),
-		ThroughPointer: info.throughPointer,
-	}
+	// must be method
+	m := glang.TypeMethod(structInfo.name, e.Sel.Name)
+	ctx.dep.addDep(m)
+	return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
 }
 
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
-	if _, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
-		if len(e.Elts) == 0 {
-			return glang.NewCallExpr(glang.GallinaIdent("nil"))
+	if t, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
+		var args glang.ListExpr
+		for _, e := range e.Elts {
+			args = append(args, ctx.expr(e))
 		}
-		if len(e.Elts) == 1 {
-			return ctx.newCoqCall("SliceSingleton", []ast.Expr{e.Elts[0]})
-		}
-		ctx.unsupported(e, "slice literal with multiple elements")
-		return nil
+		return glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
+			ctx.coqTypeOfType(e, t.Elem()),
+			args)
 	}
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok {
@@ -841,25 +713,26 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 		ctx.unsupported(e, "setting the max capacity in a slice expression is not supported")
 		return nil
 	}
-	x := ctx.expr(e.X)
-	if e.Low != nil && e.High == nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceSkip"),
-			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
-			x, ctx.expr(e.Low))
-	}
-	if e.Low == nil && e.High != nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceTake"),
-			x, ctx.expr(e.High))
-	}
-	if e.Low != nil && e.High != nil {
-		return glang.NewCallExpr(glang.GallinaIdent("SliceSubslice"),
-			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
-			x, ctx.expr(e.Low), ctx.expr(e.High))
-	}
 	if e.Low == nil && e.High == nil {
 		ctx.unsupported(e, "complete slice doesn't do anything")
 	}
-	return nil
+
+	x := ctx.expr(e.X)
+	var lowExpr glang.Expr = glang.IntLiteral{Value: 0}
+	var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
+	if e.Low != nil {
+		lowExpr = ctx.expr(e.Low)
+	}
+	if e.High != nil {
+		highExpr = ctx.expr(e.High)
+	}
+	return glang.LetExpr{
+		Names:   []string{"$s"},
+		ValExpr: x,
+		Cont: glang.NewCallExpr(glang.GallinaIdent("slice.slice"),
+			ctx.coqTypeOfType(e, sliceElem(ctx.typeOf(e.X))),
+			glang.IdentExpr("$s"), lowExpr, highExpr),
+	}
 }
 
 func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
@@ -883,10 +756,10 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 	if e.Op == token.NOT {
-		return glang.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.XOR {
-		return glang.NotExpr{ctx.expr(e.X)}
+		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
 	if e.Op == token.AND {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
@@ -902,19 +775,19 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 			if ok {
 				// e is &s{...} (a struct literal)
 				sl := ctx.structLiteral(info, structLit)
-				sl.Allocation = true
-				return sl
+				return glang.RefExpr{
+					X:  sl,
+					Ty: ctx.coqTypeOfType(e.X, ctx.typeOf(e.X)),
+				}
 			}
 		}
 		// e is something else
-		return ctx.refExpr(e.X)
+		return ctx.exprAddr(e.X)
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
 
-// XXX: should distinguish between vars on LHS and RHS of assign statements. Not
-// sure if this is being used in both places.
 func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 	if _, ok := ctx.info.Uses[s].(*types.Const); ok {
 		ctx.dep.addDep(s.Name)
@@ -967,11 +840,13 @@ func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
 	panic("")
 }
 
-func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
+func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	xTy := ctx.typeOf(e.X).Underlying()
-	switch xTy := xTy.(type) {
+	switch xTy.(type) {
 	case *types.Map:
-		e := glang.NewCallExpr(glang.GallinaIdent("MapGet"), ctx.expr(e.X), ctx.expr(e.Index))
+		e := glang.NewCallExpr(glang.GallinaIdent("map.get"),
+			ctx.expr(e.X),
+			ctx.expr(e.Index))
 		// FIXME: this is non-local. Should decide whether to do "Fst" based on
 		// assign statement or parent expression.
 		if !isSpecial {
@@ -979,21 +854,18 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.CallExpr {
 		}
 		return e
 	case *types.Slice:
-		return glang.NewCallExpr(glang.GallinaIdent("SliceGet"),
-			ctx.coqTypeOfType(e, xTy.Elem()),
-			ctx.expr(e.X), ctx.expr(e.Index))
+		return glang.DerefExpr{
+			X:  ctx.exprAddr(e),
+			Ty: ctx.coqTypeOfType(e, ctx.typeOf(e)),
+		}
+	case *types.Signature:
+		ctx.unsupported(e, "generic function %v", xTy)
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
 	return glang.CallExpr{}
 }
 
 func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
-	info, ok := ctx.getStructInfo(ctx.typeOf(e))
-	if ok && info.throughPointer {
-		return glang.NewCallExpr(glang.GallinaIdent("struct.load"),
-			glang.StructDesc(info.name),
-			ctx.expr(e))
-	}
 	return glang.DerefExpr{
 		X:  ctx.expr(e),
 		Ty: ctx.coqTypeOfType(e, ptrElem(ctx.typeOf(e))),
@@ -1022,7 +894,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.Ident:
 		return ctx.identExpr(e)
 	case *ast.SelectorExpr:
-		return ctx.selectExpr(e)
+		return ctx.selectorExpr(e)
 	case *ast.CompositeLit:
 		return ctx.compositeLiteral(e)
 	case *ast.BasicLit:
@@ -1175,12 +1047,17 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 		valExpr = ctx.identBinder(val)
 	}
 
-	return glang.ForRangeSliceExpr{
+	var e glang.Expr = glang.ForRangeSliceExpr{
 		Key:   ctx.identBinder(key),
 		Val:   valExpr,
-		Slice: ctx.expr(s.X),
+		Slice: glang.IdentExpr("$range"),
 		Ty:    ctx.coqTypeOfType(s.X, sliceElem(ctx.typeOf(s.X))),
 		Body:  ctx.blockStmt(s.Body),
+	}
+	return glang.LetExpr{
+		Names:   []string{"$range"},
+		ValExpr: ctx.expr(s.X),
+		Cont:    e,
 	}
 }
 
@@ -1212,12 +1089,13 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			if _, ok := ctx.info.Defs[ident]; ok { // if this identifier is defining something
+				t := ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident))
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
-					ValExpr: glang.NewCallExpr(glang.GallinaIdent("ref_zero"),
-						ctx.coqTypeOfType(ident, ctx.info.TypeOf(ident)),
-						glang.Tt,
-					),
+					ValExpr: glang.RefExpr{
+						X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
+						Ty: t,
+					},
 					Cont: e,
 				}
 			}
@@ -1236,9 +1114,9 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 	lhs := s.Names[0]
 	var rhs glang.Expr
 	if len(s.Values) == 0 {
-		ty := ctx.typeOf(lhs)
-		rhs = glang.NewCallExpr(glang.GallinaIdent("ref"),
-			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
+		ty := ctx.coqType(lhs)
+		rhs = glang.NewCallExpr(glang.GallinaIdent("ref_ty"), ty,
+			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty))
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}
@@ -1268,125 +1146,77 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec), cont)
 }
 
-// refExpr translates an expression which is a pointer in Go to a GooseLang
-// expr for the pointer itself (whereas ordinarily it would be implicitly loaded)
-//
-// TODO: integrate this into the reference-of, store, and load code
-//
-//	note that we will no longer special-case when the reference is to a
-//	basic value and will use generic type-based support in Coq,
-//	hence on the Coq side we'll always have to reduce type-based loads and
-//	stores when they end up loading single-word values.
-func (ctx Ctx) refExpr(s ast.Expr) glang.Expr {
-	switch s := s.(type) {
+// Returns the address of the given expression.
+// Requires that e is actually addressable
+func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
+	switch e := e.(type) {
+	case *ast.ParenExpr:
+		return ctx.exprAddr(e.X)
 	case *ast.Ident:
-		// this is the intended translation even if s is pointer-wrapped
-		return glang.IdentExpr(s.Name)
+		return glang.IdentExpr(e.Name)
+	case *ast.IndexExpr:
+		targetTy := ctx.typeOf(e.X)
+		switch targetTy := targetTy.(type) {
+		case *types.Slice:
+			return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
+				ctx.coqTypeOfType(e, targetTy.Elem()),
+				ctx.expr(e.X),
+				ctx.expr(e.Index))
+		case *types.Map:
+			ctx.nope(e, "map index expressions are not addressable")
+		default:
+			ctx.unsupported(e, "index update to unexpected target of type %v", targetTy)
+		}
+	case *ast.StarExpr:
+		return ctx.expr(e.X)
 	case *ast.SelectorExpr:
-		ty := ctx.typeOf(s.X)
+		// if it's the base of the SelectorExpr is a struct, then this is a struct.field_ref
+		ty := ctx.typeOf(e.X)
 		info, ok := ctx.getStructInfo(ty)
 		if !ok {
-			ctx.unsupported(s,
-				"reference to selector from non-struct type %v", ty)
+			ctx.unsupported(e, "address of selector expression that's not a struct field %v", ty)
 		}
-		fieldName := s.Sel.Name
+		ctx.dep.addDep(info.name)
 
 		var structExpr glang.Expr
 		if info.throughPointer {
-			structExpr = ctx.expr(s.X)
+			structExpr = ctx.expr(e.X)
 		} else {
-			structExpr = ctx.refExpr(s.X)
+			structExpr = ctx.exprAddr(e.X)
 		}
-		return glang.NewCallExpr(glang.GallinaIdent("struct.fieldRef"), glang.StructDesc(info.name),
-			glang.GallinaString(fieldName), structExpr)
-	// TODO: should move support for slice indexing here as well
+		return glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+			glang.StructDesc(info.name),
+			glang.GallinaString(e.Sel.Name),
+			structExpr)
 	default:
-		ctx.futureWork(s, "reference to other types of expressions")
-		return nil
+		ctx.unsupported(e, "address of unknown expression")
 	}
-}
-
-func (ctx Ctx) pointerAssign(dst *ast.Ident, x glang.Expr, cont glang.Expr) glang.Expr {
-	return glang.NewDoSeq(glang.StoreStmt{
-		Dst: glang.IdentExpr(dst.Name),
-		X:   x,
-		Ty:  ctx.coqTypeOfType(dst, ctx.typeOf(dst)),
-	}, cont)
+	return nil
 }
 
 func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
-	// assignments can mean various things
+	// lhs should either be a map index expression, or is addressable
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
 		if lhs.Name == "_" {
 			return glang.NewDoSeq(rhs, cont)
 		}
-		return ctx.pointerAssign(lhs, rhs, cont)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(lhs.X)
-		switch targetTy := targetTy.(type) {
-		case *types.Slice:
-			value := rhs
-			return glang.NewDoSeq(glang.NewCallExpr(
-				glang.GallinaIdent("SliceSet"),
-				ctx.coqTypeOfType(lhs, targetTy.Elem()),
-				ctx.expr(lhs.X),
-				ctx.expr(lhs.Index),
-				value), cont)
+		switch targetTy.(type) {
 		case *types.Map:
-			value := rhs
-			return glang.NewDoSeq(glang.NewCallExpr(
-				glang.GallinaIdent("MapInsert"),
+			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("map.insert"),
 				ctx.expr(lhs.X),
 				ctx.expr(lhs.Index),
-				value), cont)
-		default:
-			ctx.unsupported(s, "index update to unexpected target of type %v", targetTy)
-		}
-	case *ast.StarExpr:
-		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
-		if ok && info.throughPointer {
-			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.store"),
-				glang.StructDesc(info.name),
-				ctx.expr(lhs.X),
 				rhs), cont)
 		}
-		dstPtrTy, ok := ctx.typeOf(lhs.X).Underlying().(*types.Pointer)
-		if !ok {
-			ctx.unsupported(s,
-				"could not identify element type of assignment through pointer")
-		}
-		return glang.NewDoSeq(glang.StoreStmt{
-			Dst: ctx.expr(lhs.X),
-			Ty:  ctx.coqTypeOfType(s, dstPtrTy.Elem()),
-			X:   rhs,
-		}, cont)
-	case *ast.SelectorExpr:
-		ty := ctx.typeOf(lhs.X)
-		info, ok := ctx.getStructInfo(ty)
-		var structExpr glang.Expr
-		// TODO: this adjusts for pointer-wrapping in refExpr, but there should
-		//  be a more systematic way to think about this (perhaps in terms of
-		//  distinguishing between translating for lvalues and rvalue)
-		if info.throughPointer {
-			structExpr = ctx.expr(lhs.X)
-		} else {
-			structExpr = ctx.refExpr(lhs.X)
-		}
-		if ok {
-			fieldName := lhs.Sel.Name
-			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("struct.storeF"),
-				glang.StructDesc(info.name),
-				glang.GallinaString(fieldName),
-				structExpr,
-				rhs), cont)
-		}
-		ctx.unsupported(s,
-			"assigning to field of non-struct type %v", ty)
-	default:
-		ctx.unsupported(s, "assigning to complex expression")
 	}
-	return nil
+
+	return glang.NewDoSeq(glang.StoreStmt{
+		Dst: ctx.exprAddr(lhs),
+		X:   rhs,
+		Ty:  ctx.coqTypeOfType(lhs, ctx.typeOf(lhs)),
+	}, cont)
 }
 
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
@@ -1444,13 +1274,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
-	f, ok := thread.(*ast.FuncLit)
-	if !ok {
-		ctx.futureWork(thread,
-			"only function literal spawns are supported")
-		return glang.SpawnExpr{}
-	}
-	return glang.SpawnExpr{Body: ctx.blockStmt(f.Body)}
+	return glang.SpawnExpr{Body: ctx.expr(thread)}
 }
 
 func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
@@ -1469,7 +1293,32 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 	if len(e.Call.Args) > 0 {
 		ctx.unsupported(e, "go statement with parameters")
 	}
-	return ctx.spawnExpr(e.Call.Fun)
+	args := make([]glang.Expr, 0, len(e.Call.Args))
+	for i := range len(e.Call.Args) {
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$arg%d", i)))
+	}
+	var expr glang.Expr = glang.SpawnExpr{Body: glang.NewCallExpr(
+		glang.IdentExpr("$go"),
+		args...,
+	)}
+	expr = glang.LetExpr{
+		Names:   []string{"$go"},
+		ValExpr: ctx.expr(e.Call.Fun),
+		Cont:    expr,
+	}
+
+	// FIXME:(evaluation order)
+	// compute values left-to-right
+	for i := len(e.Call.Args); i > 0; i-- {
+		expr = glang.LetExpr{
+			Names:   []string{fmt.Sprintf("$arg%d", i-1)},
+			ValExpr: ctx.expr(e.Call.Args[i-1]),
+			Cont:    expr,
+		}
+	}
+
+	// ctx.expr(e.Call.Fun)}
+	return expr
 }
 
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
@@ -1562,10 +1411,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
-
-	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck,
-		TypeParams: ctx.typeParamList(d.Type.TypeParams),
-	}
+	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	if d.Recv != nil {
@@ -1573,18 +1419,20 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 			ctx.nope(d, "function with multiple receivers")
 		}
 		receiver := d.Recv.List[0]
-		recvType := ctx.typeOf(receiver.Type)
-		// TODO: factor out this struct-or-struct pointer pattern
-		if pT, ok := recvType.(*types.Pointer); ok {
-			recvType = pT.Elem()
+		recvType := types.Unalias(ctx.typeOf(receiver.Type))
+		// recvType must be either a "named" type or a pointer type that points to a named type.
+		if baseType, ok := recvType.(*types.Pointer); ok {
+			recvType = baseType.Elem()
 		}
-
-		structInfo, ok := ctx.getStructInfo(recvType)
+		namedType, ok := recvType.(*types.Named)
 		if !ok {
-			ctx.unsupported(d.Recv, "receiver does not appear to be a struct")
+			ctx.nope(d.Recv, "expected named type as method receiver, got %T", recvType)
 		}
-		fd.Name = glang.StructMethod(structInfo.name, d.Name.Name)
-		fd.Args = append(fd.Args, ctx.field(receiver))
+		typeName := namedType.Obj().Name()
+
+		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
+		f := ctx.field(receiver)
+		fd.RecvArg = &f
 	}
 
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
@@ -1595,6 +1443,13 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
 			ValExpr: glang.RefExpr{Ty: arg.Type, X: glang.IdentExpr(arg.Name)},
+			Cont:    fd.Body,
+		}
+	}
+	if fd.RecvArg != nil {
+		fd.Body = glang.LetExpr{
+			Names:   []string{fd.RecvArg.Name},
+			ValExpr: glang.RefExpr{Ty: fd.RecvArg.Type, X: glang.IdentExpr(fd.RecvArg.Name)},
 			Cont:    fd.Body,
 		}
 	}

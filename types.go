@@ -100,16 +100,17 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
+			ctx.dep.addDep(info.name)
 			return glang.StructName(info.name)
 		}
+		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
-		return glang.SliceType{ctx.coqTypeOfType(n, t.Elem())}
+		return glang.SliceType{Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Map:
 		return glang.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
 	case *types.Signature:
-		// FIXME: arrowT should not mention the underlying types.
-		return glang.FuncType{Results: []string{"unitT"}}
+		return glang.FuncType{}
 	case *types.Interface:
 		ctx.unsupported(n, "interface type")
 	}
@@ -137,7 +138,7 @@ func (ctx Ctx) arrayType(e *ast.ArrayType) glang.Type {
 		t := ctx.typeOf(e).(*types.Array)
 		return glang.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
 	}
-	return glang.SliceType{ctx.coqType(e.Elt)}
+	return glang.SliceType{Value: ctx.coqType(e.Elt)}
 }
 
 func (ctx Ctx) ptrType(e *ast.StarExpr) glang.Type {
@@ -146,19 +147,6 @@ func (ctx Ctx) ptrType(e *ast.StarExpr) glang.Type {
 
 func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
-}
-
-func (ctx Ctx) coqFuncType(e *ast.FuncType) glang.Type {
-	types := []glang.Type{}
-	args := ctx.paramList(e.Params)
-	for _, a := range args {
-		types = append(types, a.Type)
-	}
-	if len(args) == 0 {
-		types = append(types, glang.TypeIdent("unitT"))
-	}
-	resType := ctx.returnType(e.Results)
-	return glang.ArrowType{ArgTypes: types, ReturnType: resType}
 }
 
 func (ctx Ctx) coqType(e ast.Expr) glang.Type {
@@ -191,9 +179,9 @@ func (ctx Ctx) coqType(e ast.Expr) glang.Type {
 		// NOTE: ellipsis types are not fully supported
 		// we emit the right type here but Goose doesn't know how to call a method
 		// which takes variadic parameters (it'll pass them as separate arguments)
-		return glang.SliceType{ctx.coqType(e.Elt)}
+		return glang.SliceType{Value: ctx.coqType(e.Elt)}
 	case *ast.FuncType:
-		return ctx.coqFuncType(e)
+		return glang.FuncType{}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}

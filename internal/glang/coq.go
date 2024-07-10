@@ -124,7 +124,7 @@ type StructDecl struct {
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := struct.decl [", d.Name)
+	pp.Add("Definition %s := [", d.Name)
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"
@@ -249,7 +249,7 @@ type TypeDecl struct {
 
 func (d TypeDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s: ty := %s.", d.Name, d.Body.Coq(false))
+	pp.Add("Definition %s : go_type := %s.", d.Name, d.Body.Coq(false))
 	return pp.Build()
 }
 
@@ -278,7 +278,7 @@ func (t TypeIdent) Coq(needs_paren bool) string {
 type StructName string
 
 func (t StructName) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("structT"), StructDesc(string(t))).Coq(needs_paren)
 }
 
 type MapType struct {
@@ -287,31 +287,14 @@ type MapType struct {
 }
 
 func (t MapType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("mapT"), t.Value).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("mapT"), t.Key, t.Value).Coq(needs_paren)
 }
 
-// FIXME: no need to have params and results in the type system. Just need to
-// count heap cells.
 type FuncType struct {
-	Params  []string
-	Results []string
 }
 
 func (t FuncType) Coq(needs_paren bool) string {
-	var args []string
-	for _, a := range t.Params {
-		args = append(args, a)
-	}
-	if len(t.Params) == 0 {
-		args = []string{"unitT"}
-	}
-	for _, a := range t.Results {
-		args = append(args, a)
-	}
-	if len(args) == 0 {
-		args = []string{"<>"}
-	}
-	return fmt.Sprintf("(arrowT %s)", strings.Join(args, " "))
+	return "funcT"
 }
 
 type SliceType struct {
@@ -319,7 +302,7 @@ type SliceType struct {
 }
 
 func (t SliceType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("slice.T"), t.Value).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("sliceT"), t.Value).Coq(needs_paren)
 }
 
 type ArrayType struct {
@@ -329,20 +312,6 @@ type ArrayType struct {
 
 func (t ArrayType) Coq(needs_paren bool) string {
 	return NewCallExpr(GallinaIdent("arrayT"), t.Elt).Coq(needs_paren)
-}
-
-type ArrowType struct {
-	ArgTypes   []Type // Must be non-empty; if no arguments, consists of unitT
-	ReturnType Type
-}
-
-func (t ArrowType) Coq(needs_paren bool) string {
-	types := []string{}
-	for _, a := range t.ArgTypes {
-		types = append(types, a.Coq(true))
-	}
-	types = append(types, t.ReturnType.Coq(true))
-	return "(" + strings.Join(types, " -> ") + ")%ht"
 }
 
 type Expr interface {
@@ -412,7 +381,6 @@ func (s GallinaString) Coq(needs_paren bool) string {
 // CallExpr includes primitives and references to other functions.
 type CallExpr struct {
 	MethodName Expr
-	TypeArgs   []Expr
 	Args       []Expr
 }
 
@@ -428,36 +396,14 @@ func NewCallExpr(name Expr, args ...Expr) CallExpr {
 func (s CallExpr) Coq(needs_paren bool) string {
 	comps := []string{s.MethodName.Coq(true)}
 
-	for _, a := range s.TypeArgs {
-		comps = append(comps, a.Coq(true))
-	}
-
 	for _, a := range s.Args {
 		comps = append(comps, a.Coq(true))
 	}
 	return addParens(needs_paren, strings.Join(comps, " "))
 }
 
-type StructFieldAccessExpr struct {
-	Struct string
-	Field  string
-	X      Expr
-	// the expression X is a pointer to a struct (whether because of pointer
-	// wrapping or because it was a pointer in the program)
-	ThroughPointer bool
-}
-
 func StructDesc(name string) Expr {
 	return GallinaIdent(name)
-}
-
-func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
-	if e.ThroughPointer {
-		return NewCallExpr(GallinaIdent("struct.loadF"),
-			StructDesc(e.Struct), GallinaString(e.Field), e.X).Coq(needs_paren)
-	}
-	return NewCallExpr(GallinaIdent("struct.get"), StructDesc(e.Struct),
-		GallinaString(e.Field), e.X).Coq(needs_paren)
 }
 
 type ContinueExpr struct {
@@ -554,7 +500,6 @@ type fieldVal struct {
 type StructLiteral struct {
 	StructName string
 	elts       []fieldVal
-	Allocation bool // if true, struct is being allocated on the heap
 }
 
 // NewStructLiteral creates a StructLiteral with no values.
@@ -569,10 +514,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
-	method := "struct.mk"
-	if sl.Allocation {
-		method = "struct.new"
-	}
+	method := "struct.make"
 	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
@@ -741,6 +683,17 @@ func NewTuple(es []Expr) Expr {
 	return TupleExpr(es)
 }
 
+type ListExpr []Expr
+
+func (le ListExpr) Coq(needs_paren bool) string {
+	var comps []string
+	for _, t := range le {
+		comps = append(comps, t.Coq(false))
+	}
+	return fmt.Sprintf("[%s]",
+		indent(1, strings.Join(comps, "; ")))
+}
+
 type DerefExpr struct {
 	X  Expr
 	Ty Expr
@@ -757,7 +710,7 @@ type RefExpr struct {
 }
 
 func (e RefExpr) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("ref_ty"), e.Ty, e.X).Coq(needs_paren)
 }
 
 type StoreStmt struct {
@@ -828,12 +781,20 @@ type ForRangeSliceExpr struct {
 
 func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("ForSlice %v %s %s %s",
+	pp.Add("slice.for_range %s %s (λ: %s %s,",
 		e.Ty.Coq(true),
+		e.Slice.Coq(true),
 		binderToCoq(e.Key), binderToCoq(e.Val),
-		e.Slice.Coq(true))
+	)
 	pp.Indent(2)
-	pp.Add("%s", e.Body.Coq(true))
+	if e.Key != nil && *e.Key != "_" {
+		pp.Add("let: %s := ref_ty uint64T %s in", binderToCoq(e.Key), binderToCoq(e.Key))
+	}
+	if e.Val != nil && *e.Val != "_" {
+		pp.Add("let: %s := ref_ty %s %s in", binderToCoq(e.Val), e.Ty.Coq(true), binderToCoq(e.Val))
+	}
+	pp.Add("%s)", e.Body.Coq(false))
+	pp.Indent(-2)
 	return addParens(needs_paren, pp.Build())
 }
 
@@ -911,7 +872,7 @@ func (e FuncLit) Coq(needs_paren bool) string {
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
-	TypeParams []TypeIdent
+	RecvArg    *FieldDecl
 	Args       []FieldDecl
 	ReturnType Type
 	Body       Expr
@@ -922,11 +883,14 @@ type FuncDecl struct {
 // Signature renders the function declaration's bindings
 func (d FuncDecl) Signature() string {
 	var args []string
+	if d.RecvArg != nil {
+		args = append(args, d.RecvArg.CoqBinder())
+	}
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
 	}
 	if len(args) == 0 {
-		args = []string{"<>"}
+		args = append(args, "<>")
 	}
 	return strings.Join(args, " ")
 }
@@ -941,7 +905,8 @@ func (d FuncDecl) Type() string {
 		types = append(types, TypeIdent("unitT").Coq(true))
 	}
 	types = append(types, d.ReturnType.Coq(true))
-	return strings.Join(types, " -> ")
+	panic("include RecvArg")
+	// return strings.Join(types, " -> ")
 }
 
 // CoqDecl implements the Decl interface
@@ -952,12 +917,7 @@ func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 
-	typeParams := make([]string, 0)
-	for _, tp := range d.TypeParams {
-		typeParams = append(typeParams, fmt.Sprintf(" (%s:ty)", string(tp)))
-	}
-
-	pp.Add("Definition %s%s: val :=", d.Name, strings.Join(typeParams, ""))
+	pp.Add("Definition %s : val :=", d.Name)
 	func() {
 		pp.Indent(2)
 		defer pp.Indent(-2)
@@ -1046,8 +1006,8 @@ func (t PtrType) Coq(needs_paren bool) string {
 	return "ptrT"
 }
 
-func StructMethod(structName string, methodName string) string {
-	return fmt.Sprintf("%s__%s", structName, methodName)
+func TypeMethod(typeName string, methodName string) string {
+	return fmt.Sprintf("%s__%s", typeName, methodName)
 }
 
 func InterfaceMethod(interfaceName string, methodName string) string {
@@ -1055,7 +1015,7 @@ func InterfaceMethod(interfaceName string, methodName string) string {
 }
 
 const importHeader string = `
-From Perennial.goose_lang Require Import new.prelude.
+From New.golang Require Import defn.
 `
 
 // These will not end up in `File.Decls`, they are put into `File.Imports` by `translatePackage`.
@@ -1093,7 +1053,7 @@ func ImportToPath(pkgPath, pkgName string) string {
 
 func (decl ImportDecl) CoqDecl() string {
 	coqImportQualid := strings.ReplaceAll(thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
-	return fmt.Sprintf("From Goose Require %s.", coqImportQualid)
+	return fmt.Sprintf("From New.code Require %s.", coqImportQualid)
 }
 
 // ImportDecls groups imports into one declaration so they can be printed
