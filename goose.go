@@ -1297,7 +1297,7 @@ func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
 	}
 	var expr glang.Expr = glang.SpawnExpr{Body: glang.NewCallExpr(
 		glang.IdentExpr("$go"),
-		args...
+		args...,
 	)}
 	expr = glang.LetExpr{
 		Names:   []string{"$go"},
