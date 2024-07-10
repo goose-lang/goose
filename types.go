@@ -34,14 +34,6 @@ func supportedMapKey(keyTy types.Type) bool {
 	return false
 }
 
-func (ctx Ctx) mapType(e *ast.MapType) glang.MapType {
-	ty := ctx.typeOf(e).Underlying().(*types.Map)
-	if !supportedMapKey(ty.Key()) {
-		ctx.unsupported(e, "maps must be from uint64 or string (not %v)", e.Key)
-	}
-	return glang.MapType{Key: ctx.coqType(e.Key), Value: ctx.coqType(e.Value)}
-}
-
 func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) glang.Expr {
 	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
 		return glang.TypeIdent("fileT")
@@ -49,19 +41,14 @@ func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) glang.Expr {
 	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
 		return glang.TypeIdent("disk.blockT")
 	}
-	return ctx.coqTypeOfType(e, ctx.typeOf(e))
+	return ctx.glangType(e, ctx.typeOf(e))
 }
 
-func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
-	// TODO: move support for various types in ctx.coqType with this function
-	//
-	// ctx.coqType operates syntactically whereas this function uses type
-	// checker info. We can always write ctx.coqType in terms of this function,
-	// since the go/types package will give a types.Type expression for the
-	// "type" of an Ast.Expr representing a type. Improving this function is
-	// also useful because there are some situations where there is no
-	// syntactic type and we need to operate on the output of type inference
-	// anyway.
+func (ctx Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
+	return ctx.glangType(e, ctx.typeOf(e))
+}
+
+func (ctx Ctx) glangType(n ast.Node, t types.Type) glang.Type {
 	if isProphId(t) {
 		return glang.TypeIdent("ProphIdT")
 	}
@@ -106,13 +93,13 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) glang.Type {
 		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
-		return glang.SliceType{Value: ctx.coqTypeOfType(n, t.Elem())}
+		return glang.SliceType{Value: ctx.glangType(n, t.Elem())}
 	case *types.Map:
-		return glang.MapType{Key: ctx.coqTypeOfType(n, t.Key()), Value: ctx.coqTypeOfType(n, t.Elem())}
+		return glang.MapType{Key: ctx.glangType(n, t.Key()), Value: ctx.glangType(n, t.Elem())}
 	case *types.Signature:
 		return glang.FuncType{}
 	case *types.Interface:
-		ctx.unsupported(n, "interface type")
+		return glang.TypeIdent("interfaceT")
 	}
 	// panic("unknown type")
 	ctx.unsupported(n, "unknown type %v", t)
@@ -133,59 +120,12 @@ func ptrElem(t types.Type) types.Type {
 	panic(fmt.Errorf("expected pointer type, got %v", t))
 }
 
-func (ctx Ctx) arrayType(e *ast.ArrayType) glang.Type {
-	if e.Len != nil {
-		t := ctx.typeOf(e).(*types.Array)
-		return glang.ArrayType{Len: uint64(t.Len()), Elt: ctx.coqType(e.Elt)}
-	}
-	return glang.SliceType{Value: ctx.coqType(e.Elt)}
-}
-
-func (ctx Ctx) ptrType(e *ast.StarExpr) glang.Type {
+func (ctx Ctx) ptrType(_ *ast.StarExpr) glang.Type {
 	return glang.PtrType{}
 }
 
 func isEmptyInterface(e *ast.InterfaceType) bool {
 	return len(e.Methods.List) == 0
-}
-
-func (ctx Ctx) coqType(e ast.Expr) glang.Type {
-	switch e := e.(type) {
-	case *ast.Ident:
-		// FIXME: this treats "e" as denoting a type name if "IsMacro", but
-		// otherwise treats it as a Go object and returns its type.
-		if _, ok := ctx.info.Uses[e].(*types.Const); ok {
-			ctx.dep.addDep(e.Name)
-		}
-		// if ctx.identInfo(e).IsMacro {
-		// 	return glang.TypeIdent(e.Name)
-		// }
-		return ctx.coqTypeOfType(e, ctx.typeOf(e))
-	case *ast.MapType:
-		return ctx.mapType(e)
-	case *ast.SelectorExpr:
-		return ctx.selectorExprType(e)
-	case *ast.ArrayType:
-		return ctx.arrayType(e)
-	case *ast.StarExpr:
-		return ctx.ptrType(e)
-	case *ast.InterfaceType:
-		if isEmptyInterface(e) {
-			return glang.TypeIdent("anyT")
-		} else {
-			ctx.unsupported(e, "non-empty interface")
-		}
-	case *ast.Ellipsis:
-		// NOTE: ellipsis types are not fully supported
-		// we emit the right type here but Goose doesn't know how to call a method
-		// which takes variadic parameters (it'll pass them as separate arguments)
-		return glang.SliceType{Value: ctx.coqType(e.Elt)}
-	case *ast.FuncType:
-		return glang.FuncType{}
-	default:
-		ctx.unsupported(e, "unexpected type expr")
-	}
-	return glang.TypeIdent("<type>")
 }
 
 func isLockRef(t types.Type) bool {
@@ -368,7 +308,7 @@ func (ctx Ctx) typeList(n ast.Node, ts *types.TypeList) []glang.Expr {
 		return nil
 	}
 	for i := 0; i < ts.Len(); i++ {
-		typeArgs = append(typeArgs, ctx.coqTypeOfType(n, ts.At(i)))
+		typeArgs = append(typeArgs, ctx.glangType(n, ts.At(i)))
 	}
 	return typeArgs
 }
