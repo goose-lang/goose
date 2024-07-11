@@ -1,8 +1,0 @@
-package m
-
-import "github.com/tchajed/marshal"
-
-func ExampleFunc() bool {
-	marshal.NewEnc(4096)
-	return true
-}
