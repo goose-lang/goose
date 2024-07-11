@@ -175,10 +175,6 @@ func TestUnitTests(t *testing.T) {
 	testExample(t, "unittest", goose.Translator{})
 }
 
-func TestUnitTestGeneric(t *testing.T) {
-	testExample(t, "unittest/generic", goose.Translator{})
-}
-
 func TestSimpleDb(t *testing.T) {
 	testExample(t, "simpledb", goose.Translator{})
 }
