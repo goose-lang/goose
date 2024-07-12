@@ -1,4 +1,4 @@
-//go:generate go run main.go -go -out ../../internal/examples/semantics/generated_test.go ../../internal/examples/semantics
+//go:generate go run main.go -go -out ../../testdata/examples/semantics/generated_test.go ../../testdata/examples/semantics
 package main
 
 import (
