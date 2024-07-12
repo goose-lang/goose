@@ -466,6 +466,38 @@ Definition TakesFunctionType : val :=
     do:  (![funcT] "f") #();;;
     do:  #()).
 
+(* interfaces.go *)
+
+Definition Fooer : go_type := interfaceT.
+
+Definition concreteFooer : go_type := structT [
+  "a" :: uint64T
+].
+
+Definition concreteFooer__Foo : val :=
+  rec: "concreteFooer__Foo" "f" :=
+    exception_do (let: "f" := ref_ty ptrT "f" in
+    do:  #()).
+
+Definition fooConsumer : val :=
+  rec: "fooConsumer" "f" :=
+    exception_do (let: "f" := ref_ty Fooer "f" in
+    do:  (__Foo (![Fooer] "f")) #();;;
+    do:  #()).
+
+Definition m : val :=
+  rec: "m" <> :=
+    exception_do (let: "c" := ref_ty ptrT (zero_val ptrT) in
+    let: "$a0" := ref_ty concreteFooer (struct.make concreteFooer [
+    ]) in
+    do:  "c" <-[ptrT] "$a0";;;
+    do:  fooConsumer (![ptrT] "c");;;
+    let: "f" := ref_ty ptrT (![ptrT] "c") in
+    do:  fooConsumer (![Fooer] "f");;;
+    do:  (concreteFooer__Foo (![ptrT] "c")) #();;;
+    do:  (__Foo (![Fooer] "f")) #();;;
+    do:  #()).
+
 (* ints.go *)
 
 Definition useInts : val :=
@@ -520,6 +552,15 @@ Definition oddLiterals : val :=
     exception_do (return: (struct.make allTheLiterals [
        "int" ::= #5;
        "s" ::= #(str "backquote string");
+       "b" ::= #false
+     ]);;;
+    do:  #()).
+
+Definition unKeyedLiteral : val :=
+  rec: "unKeyedLiteral" <> :=
+    exception_do (return: (struct.make allTheLiterals [
+       "int" ::= #0;
+       "s" ::= #(str "a");
        "b" ::= #false
      ]);;;
     do:  #()).
