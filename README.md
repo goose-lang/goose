@@ -145,7 +145,7 @@ where `$perennial` is the path to a clone of [Perennial](https://github.com/mit-
 ## Developing goose
 
 The bulk of goose is implemented in `goose.go` (which translates Go) and
-`internal/coq/coq.go` (which has structs to represent Coq and GooseLang code,
+`glang/coq.go` (which has structs to represent Coq and GooseLang code,
 and code to convert these to strings).
 
 Goose has integration tests that translate example code and compare against a
@@ -155,14 +155,14 @@ code continues to translate correctly. To update the gold files after
 modifying the tests or fixing goose, run `go test -update-gold` (and manually
 review the diff before committing).
 
-The tests include `internal/examples/unittest`, a collection of small
+The tests include `testdata/examples/unittest`, a collection of small
 examples intended for wide coverage, as well as some real programs in other
-directories within `internal/examples`.
+directories within `testdata/examples`.
 
 The Coq output is separately tested by building it within the [Perennial
 ](https://github.com/mit-pdos/perennial) source tree.
 
-Additionally, the `internal/examples/semantics` package contains a set of
+Additionally, the `testdata/examples/semantics` package contains a set of
 semantic tests for checking that translated programs preserve their semantic
 meaning. The testing infrastructure requires test functions to have the form
 `func test*() bool` and return true (that is, they begin with "test", take no
@@ -182,7 +182,7 @@ functions. The files are:
 To generate these files, the executable takes a required flag of either `-go` or
 `-coq` which specifies the file type, an optional `-out` argument specifying
 where to write the output, and finally the path to the semantics package. For
-example, `go run ./cmd/test_gen -coq -out ~/code/perennial/src/goose_lang/interpreter/generated_test.v ./internal/examples/semantics` generates the Coq file of semantics tests.
+example, `go run ./cmd/test_gen -coq -out ~/code/perennial/src/goose_lang/interpreter/generated_test.v ./testdata/examples/semantics` generates the Coq file of semantics tests.
 (You'll probably need to adjust the path to Perennial.) To re-generate the Go
 test file you can just run `go generate ./...`.
 

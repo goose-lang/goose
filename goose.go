@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tchajed/goose/internal/glang"
+	"github.com/tchajed/goose/glang"
 	"golang.org/x/tools/go/packages"
 )
 

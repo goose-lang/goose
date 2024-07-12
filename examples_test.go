@@ -117,7 +117,7 @@ func testExample(testingT *testing.T, name string, tr goose.Translator) {
 	testingT.Parallel()
 	testingT.Helper()
 	assert := assert.New(testingT)
-	t := positiveTest{newTest("internal/examples", name)}
+	t := positiveTest{newTest("testdata/examples", name)}
 	if !t.isDir() {
 		assert.FailNowf("not a test directory",
 			"path: %s",
