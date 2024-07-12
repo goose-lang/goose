@@ -765,6 +765,7 @@ func (e FuncLit) Coq(needs_paren bool) string {
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string
+	TypeParams []TypeIdent
 	RecvArg    *FieldDecl
 	Args       []FieldDecl
 	ReturnType Type
@@ -810,7 +811,12 @@ func (d FuncDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
 
-	pp.Add("Definition %s : val :=", d.Name)
+	typeParams := ""
+	for _, t := range d.TypeParams {
+		typeParams += fmt.Sprintf("(%s: go_type) ", t.Coq(false))
+	}
+
+	pp.Add("Definition %s %s: val :=", d.Name, typeParams)
 	func() {
 		pp.Indent(2)
 		defer pp.Indent(-2)
