@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -96,7 +95,7 @@ func main() {
 		os.Exit(1)
 	}
 	srcDir := flag.Arg(0)
-	files, err := ioutil.ReadDir(srcDir)
+	files, err := os.ReadDir(srcDir)
 	if err != nil {
 		panic(err)
 	}
