@@ -426,7 +426,7 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 		}
 	}
 
-	ctx.unsupported(s, "conversion from %s to %s", ctx.info.TypeOf(s.Args[0]).Underlying(), s.Fun)
+	ctx.unsupported(s, "conversion from %s to %s", fromType, toType)
 	return nil
 }
 
@@ -581,8 +581,7 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 			}
 			lit.AddField(ident, ctx.expr(el.Value))
 		default:
-			ctx.unsupported(e,
-				"un-keyed struct literal field %v", ctx.printGo(el))
+			ctx.unsupported(e, "un-keyed struct literal field %v", ctx.printGo(el))
 		}
 	}
 	return lit
@@ -1456,7 +1455,7 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 	}
 	addSourceDoc(spec.Comment, &cd.Comment)
 	if len(spec.Values) == 0 {
-		ctx.todo(spec, "No values")
+		ctx.todo(spec, "global var/const with no values")
 	}
 	val := spec.Values[0]
 	cd.Val = ctx.expr(val)
