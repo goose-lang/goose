@@ -90,7 +90,11 @@ func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 		return glang.PtrType{}
 	case *types.Named:
 		if t.Obj().Pkg() == nil {
-			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
+			if t.Obj().Name() == "error" {
+				return glang.TypeIdent("error")
+			} else {
+				ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
+			}
 		}
 		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
 			return glang.TypeIdent("fileT")
@@ -197,8 +201,8 @@ func isProphId(t types.Type) bool {
 
 func isByteSlice(t types.Type) bool {
 	if t, ok := t.(*types.Slice); ok {
-		if elTy, ok := t.Elem().(*types.Basic); ok {
-			return elTy.Name() == "byte"
+		if elTy, ok := t.Elem().Underlying().(*types.Basic); ok {
+			return elTy.Kind() == types.Byte
 		}
 	}
 	return false
@@ -206,7 +210,7 @@ func isByteSlice(t types.Type) bool {
 
 func isString(t types.Type) bool {
 	if t, ok := t.(*types.Basic); ok {
-		return t.Name() == "string"
+		return t.Kind() == types.String
 	}
 	return false
 }

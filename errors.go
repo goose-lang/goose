@@ -52,6 +52,11 @@ func (r errorReporter) printGo(n locatable) string {
 		}
 		return strings.Join(fields, "; ")
 	}
+
+	if s, ok := n.(fmt.Stringer); ok {
+		return s.String()
+	}
+
 	var what bytes.Buffer
 	err := printer.Fprint(&what, r.fset, n)
 	if err != nil {
