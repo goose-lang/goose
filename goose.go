@@ -567,10 +567,10 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) structLiteral(info structTypeInfo,
-	e *ast.CompositeLit) glang.StructLiteral {
+func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.StructLiteral {
 	ctx.dep.addDep(info.name)
 	lit := glang.NewStructLiteral(info.name)
+	isUnkeyedStruct := false
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
@@ -581,7 +581,15 @@ func (ctx Ctx) structLiteral(info structTypeInfo,
 			}
 			lit.AddField(ident, ctx.expr(el.Value))
 		default:
-			ctx.unsupported(e, "un-keyed struct literal field %v", ctx.printGo(el))
+			isUnkeyedStruct = true
+		}
+	}
+	if isUnkeyedStruct {
+		if len(e.Elts) != info.structType.NumFields() {
+			ctx.nope(e, "expected as many elements are there are struct fields in unkeyed literal")
+		}
+		for i := range info.structType.NumFields() {
+			lit.AddField(info.structType.Field(i).Name(), ctx.expr(e.Elts[i]))
 		}
 	}
 	return lit
@@ -1355,9 +1363,9 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.BlockStmt:
 		return ctx.blockStmt(s)
 	case *ast.SwitchStmt:
-		ctx.todo(s, "check for switch statement")
+		ctx.todo(s, "switch statement")
 	case *ast.TypeSwitchStmt:
-		ctx.todo(s, "check for type switch statement")
+		ctx.todo(s, "type switch statement")
 	default:
 		ctx.unsupported(s, "statement %T", s)
 	}
