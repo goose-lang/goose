@@ -29,3 +29,7 @@ func oddLiterals() allTheLiterals {
 		b:   false,
 	}
 }
+
+func unKeyedLiteral() allTheLiterals {
+	return allTheLiterals{0, "a", false}
+}
