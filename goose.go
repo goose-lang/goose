@@ -1411,6 +1411,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
+	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
 			ctx.nope(d, "function with multiple receivers")
