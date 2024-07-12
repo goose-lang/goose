@@ -11,15 +11,15 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: ["1.18.x"]
+        go-version: ["1.22.x"]
         os: ["ubuntu-latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Check style
