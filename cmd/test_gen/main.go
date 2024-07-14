@@ -1,11 +1,10 @@
-//go:generate go run main.go -go -out ../../internal/examples/semantics/generated_test.go ../../internal/examples/semantics
+//go:generate go run main.go -go -out ../../testdata/examples/semantics/generated_test.go ../../testdata/examples/semantics
 package main
 
 import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -96,7 +95,7 @@ func main() {
 		os.Exit(1)
 	}
 	srcDir := flag.Arg(0)
-	files, err := ioutil.ReadDir(srcDir)
+	files, err := os.ReadDir(srcDir)
 	if err != nil {
 		panic(err)
 	}
