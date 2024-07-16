@@ -735,7 +735,7 @@ type SpawnExpr struct {
 
 func (e SpawnExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Block("Fork (", "%s)", e.Body.Coq(false))
+	pp.Block("do: Fork (", "%s)", e.Body.Coq(false))
 	return addParens(needs_paren, pp.Build())
 }
 
@@ -789,7 +789,7 @@ func (d FuncDecl) Signature() string {
 	for _, a := range d.Args {
 		args = append(args, a.CoqBinder())
 	}
-	if len(args) == 0 {
+	if len(d.Args) == 0 {
 		args = append(args, "<>")
 	}
 	return strings.Join(args, " ")
