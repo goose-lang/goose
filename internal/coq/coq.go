@@ -278,7 +278,10 @@ type AliasDecl struct {
 
 func (t AliasDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Notation %s := %s.", t.Name, t.Type.Coq(true))
+	// (only parsing) so that terms don't get printed as their aliases.
+	// All aliases get printed as their underlying type, but that seems
+	// similar to their Go interpretation.
+	pp.Add("Notation %s := %s (only parsing).", t.Name, t.Type.Coq(true))
 	return pp.Build()
 }
 
