@@ -76,3 +76,12 @@ func testOverwriteArray() bool {
 	}
 	return arr[3] == 4 && arr[0] == 4
 }
+
+func testSliceLiteral() bool {
+	bytes := []byte{1, 2}
+	var ok = true
+	ok = ok && bytes[0] == byte(1)
+	ints := []uint64{1, 2, 3}
+	ok = ok && ints[1] == uint64(2)
+	return ok
+}

@@ -462,6 +462,12 @@ func (suite *GoTestSuite) TestOverwriteArray() {
 	suite.Equal(true, testOverwriteArray())
 }
 
+func (suite *GoTestSuite) TestSliceLiteral() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSliceLiteral())
+}
+
 func (suite *GoTestSuite) TestStringAppend() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
