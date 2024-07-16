@@ -583,8 +583,14 @@ func (le ListExpr) Coq(needs_paren bool) string {
 	for _, t := range le {
 		comps = append(comps, t.Coq(false))
 	}
-	return fmt.Sprintf("[%s]",
-		indent(1, strings.Join(comps, "; ")))
+	elements := indent(1, strings.Join(comps, "; "))
+	if strings.HasPrefix(elements, "#") {
+		// [# ...] is a vector notation while we want the list notation [ ... ]
+		// (and `[#` is a single token even if the vector notation isn't in
+		// scope)
+		return fmt.Sprintf("[ %s ]", elements)
+	}
+	return fmt.Sprintf("[%s]", elements)
 }
 
 type DerefExpr struct {

@@ -1720,6 +1720,22 @@ Definition testOverwriteArray : val :=
     return: (((![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #3)) = #4) && ((![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #0)) = #4));;;
     do:  #()).
 
+Definition testSliceLiteral : val :=
+  rec: "testSliceLiteral" <> :=
+    exception_do (let: "bytes" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
+    let: "$a0" := slice.literal byteT [ #(U8 1); #(U8 2) ] in
+    do:  "bytes" <-[sliceT byteT] "$a0";;;
+    let: "ok" := ref_ty boolT #true in
+    let: "$a0" := (![boolT] "ok") && ((![byteT] (slice.elem_ref byteT (![sliceT byteT] "bytes") #0)) = #(U8 1)) in
+    do:  "ok" <-[boolT] "$a0";;;
+    let: "ints" := ref_ty (sliceT uint64T) (zero_val (sliceT uint64T)) in
+    let: "$a0" := slice.literal uint64T [ #1; #2; #3 ] in
+    do:  "ints" <-[sliceT uint64T] "$a0";;;
+    let: "$a0" := (![boolT] "ok") && ((![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "ints") #1)) = #2) in
+    do:  "ok" <-[boolT] "$a0";;;
+    return: (![boolT] "ok");;;
+    do:  #()).
+
 (* strings.go *)
 
 (* helpers *)
