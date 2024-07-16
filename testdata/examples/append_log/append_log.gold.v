@@ -40,19 +40,19 @@ Definition Init : val :=
     exception_do (let: "diskSz" := ref_ty uint64T "diskSz" in
     (if: (![uint64T] "diskSz") < #1
     then
-      return: (ref_ty Log (struct.make Log [
-         "m" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
-         "sz" ::= #0;
-         "diskSz" ::= #0
-       ]), #false);;;
+      return: (ref_ty Log (struct.make Log {[
+         #(str "m") := ref_ty sync.Mutex (zero_val sync.Mutex);
+         #(str "sz") := #0;
+         #(str "diskSz") := #0
+       ]}), #false);;;
       do:  #()
     else do:  #());;;
     let: "log" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty Log (struct.make Log [
-      "m" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
-      "sz" ::= #0;
-      "diskSz" ::= ![uint64T] "diskSz"
-    ]) in
+    let: "$a0" := ref_ty Log (struct.make Log {[
+      #(str "m") := ref_ty sync.Mutex (zero_val sync.Mutex);
+      #(str "sz") := #0;
+      #(str "diskSz") := ![uint64T] "diskSz"
+    ]}) in
     do:  "log" <-[ptrT] "$a0";;;
     do:  (Log__writeHdr (![ptrT] "log")) #();;;
     return: (![ptrT] "log", #true);;;
@@ -72,11 +72,11 @@ Definition Open : val :=
     let: "diskSz" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := (marshal.Dec__GetInt (![marshal.Dec] "dec")) #() in
     do:  "diskSz" <-[uint64T] "$a0";;;
-    return: (ref_ty Log (struct.make Log [
-       "m" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
-       "sz" ::= ![uint64T] "sz";
-       "diskSz" ::= ![uint64T] "diskSz"
-     ]));;;
+    return: (ref_ty Log (struct.make Log {[
+       #(str "m") := ref_ty sync.Mutex (zero_val sync.Mutex);
+       #(str "sz") := ![uint64T] "sz";
+       #(str "diskSz") := ![uint64T] "diskSz"
+     ]}));;;
     do:  #()).
 
 Definition Log__get : val :=

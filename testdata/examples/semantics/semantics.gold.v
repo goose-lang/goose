@@ -52,8 +52,8 @@ Definition freeRange : val :=
     do:  "i" <-[uint64T] "$a0";;;
     (for: (λ: <>, (![uint64T] "i") < (![uint64T] "sz")); (λ: <>, do:  "i" <-[uint64T] ((![uint64T] "i") + #1);;;
     #()) := λ: <>,
-      let: "$a0" := struct.make unit [
-      ] in
+      let: "$a0" := struct.make unit {[
+      ]} in
       do:  map.insert (![mapT uint64T unit] "m") (![uint64T] "i") "$a0";;;
       do:  #()));;;
     return: (![mapT uint64T unit] "m");;;
@@ -363,14 +363,14 @@ Definition roundtripEncDec32 : val :=
     let: "$a0" := slice.make2 byteT #4 in
     do:  "r" <-[sliceT byteT] "$a0";;;
     let: "e" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty Enc (struct.make Enc [
-      "p" ::= ![sliceT byteT] "r"
-    ]) in
+    let: "$a0" := ref_ty Enc (struct.make Enc {[
+      #(str "p") := ![sliceT byteT] "r"
+    ]}) in
     do:  "e" <-[ptrT] "$a0";;;
     let: "d" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty Dec (struct.make Dec [
-      "p" ::= ![sliceT byteT] "r"
-    ]) in
+    let: "$a0" := ref_ty Dec (struct.make Dec {[
+      #(str "p") := ![sliceT byteT] "r"
+    ]}) in
     do:  "d" <-[ptrT] "$a0";;;
     do:  machine.UInt32Put ((Enc__consume (![ptrT] "e")) #4) (![uint32T] "x");;;
     return: (machine.UInt32Get ((Dec__consume (![ptrT] "d")) #4));;;
@@ -383,14 +383,14 @@ Definition roundtripEncDec64 : val :=
     let: "$a0" := slice.make2 byteT #8 in
     do:  "r" <-[sliceT byteT] "$a0";;;
     let: "e" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty Enc (struct.make Enc [
-      "p" ::= ![sliceT byteT] "r"
-    ]) in
+    let: "$a0" := ref_ty Enc (struct.make Enc {[
+      #(str "p") := ![sliceT byteT] "r"
+    ]}) in
     do:  "e" <-[ptrT] "$a0";;;
     let: "d" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty Dec (struct.make Dec [
-      "p" ::= ![sliceT byteT] "r"
-    ]) in
+    let: "$a0" := ref_ty Dec (struct.make Dec {[
+      #(str "p") := ![sliceT byteT] "r"
+    ]}) in
     do:  "d" <-[ptrT] "$a0";;;
     do:  machine.UInt64Put ((Enc__consume (![ptrT] "e")) #8) (![uint64T] "x");;;
     return: (machine.UInt64Get ((Dec__consume (![ptrT] "d")) #8));;;
@@ -526,18 +526,18 @@ Definition failing_testFunctionOrdering : val :=
   rec: "failing_testFunctionOrdering" <> :=
     exception_do (let: "arr" := ref_ty (sliceT uint64T) (slice.make2 uint64T #5) in
     let: "e1" := ref_ty Editor (zero_val Editor) in
-    let: "$a0" := struct.make Editor [
-      "s" ::= let: "$s" := ![sliceT uint64T] "arr" in
+    let: "$a0" := struct.make Editor {[
+      #(str "s") := let: "$s" := ![sliceT uint64T] "arr" in
       slice.slice uint64T "$s" #0 (slice.len "$s");
-      "next_val" ::= #1
-    ] in
+      #(str "next_val") := #1
+    ]} in
     do:  "e1" <-[Editor] "$a0";;;
     let: "e2" := ref_ty Editor (zero_val Editor) in
-    let: "$a0" := struct.make Editor [
-      "s" ::= let: "$s" := ![sliceT uint64T] "arr" in
+    let: "$a0" := struct.make Editor {[
+      #(str "s") := let: "$s" := ![sliceT uint64T] "arr" in
       slice.slice uint64T "$s" #0 (slice.len "$s");
-      "next_val" ::= #101
-    ] in
+      #(str "next_val") := #101
+    ]} in
     do:  "e2" <-[Editor] "$a0";;;
     (if: (((Editor__AdvanceReturn (![Editor] "e1")) #2) + ((Editor__AdvanceReturn (![Editor] "e2")) #102)) ≠ #102
     then
@@ -565,10 +565,10 @@ Definition failing_testFunctionOrdering : val :=
       do:  #()
     else do:  #());;;
     let: "p" := ref_ty Pair (zero_val Pair) in
-    let: "$a0" := struct.make Pair [
-      "x" ::= (Editor__AdvanceReturn (![Editor] "e1")) #5;
-      "y" ::= (Editor__AdvanceReturn (![Editor] "e2")) #105
-    ] in
+    let: "$a0" := struct.make Pair {[
+      #(str "x") := (Editor__AdvanceReturn (![Editor] "e1")) #5;
+      #(str "y") := (Editor__AdvanceReturn (![Editor] "e2")) #105
+    ]} in
     do:  "p" <-[Pair] "$a0";;;
     (if: (![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #3)) ≠ #104
     then
@@ -576,10 +576,10 @@ Definition failing_testFunctionOrdering : val :=
       do:  #()
     else do:  #());;;
     let: "q" := ref_ty Pair (zero_val Pair) in
-    let: "$a0" := struct.make Pair [
-      "y" ::= (Editor__AdvanceReturn (![Editor] "e1")) #6;
-      "x" ::= (Editor__AdvanceReturn (![Editor] "e2")) #106
-    ] in
+    let: "$a0" := struct.make Pair {[
+      #(str "y") := (Editor__AdvanceReturn (![Editor] "e1")) #6;
+      #(str "x") := (Editor__AdvanceReturn (![Editor] "e2")) #106
+    ]} in
     do:  "q" <-[Pair] "$a0";;;
     (if: (![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #4)) ≠ #105
     then
@@ -690,9 +690,9 @@ Definition SquareStruct__Volume : val :=
 Definition testBasicInterface : val :=
   rec: "testBasicInterface" <> :=
     exception_do (let: "s" := ref_ty SquareStruct (zero_val SquareStruct) in
-    let: "$a0" := struct.make SquareStruct [
-      "Side" ::= #2
-    ] in
+    let: "$a0" := struct.make SquareStruct {[
+      #(str "Side") := #2
+    ]} in
     do:  "s" <-[SquareStruct] "$a0";;;
     return: ((measureArea (![SquareStruct] "s")) = #4);;;
     do:  #()).
@@ -700,9 +700,9 @@ Definition testBasicInterface : val :=
 Definition testAssignInterface : val :=
   rec: "testAssignInterface" <> :=
     exception_do (let: "s" := ref_ty SquareStruct (zero_val SquareStruct) in
-    let: "$a0" := struct.make SquareStruct [
-      "Side" ::= #3
-    ] in
+    let: "$a0" := struct.make SquareStruct {[
+      #(str "Side") := #3
+    ]} in
     do:  "s" <-[SquareStruct] "$a0";;;
     let: "area" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := measureArea (![SquareStruct] "s") in
@@ -713,9 +713,9 @@ Definition testAssignInterface : val :=
 Definition testMultipleInterface : val :=
   rec: "testMultipleInterface" <> :=
     exception_do (let: "s" := ref_ty SquareStruct (zero_val SquareStruct) in
-    let: "$a0" := struct.make SquareStruct [
-      "Side" ::= #3
-    ] in
+    let: "$a0" := struct.make SquareStruct {[
+      #(str "Side") := #3
+    ]} in
     do:  "s" <-[SquareStruct] "$a0";;;
     let: "square1" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := measureArea (![SquareStruct] "s") in
@@ -729,9 +729,9 @@ Definition testMultipleInterface : val :=
 Definition testBinaryExprInterface : val :=
   rec: "testBinaryExprInterface" <> :=
     exception_do (let: "s" := ref_ty SquareStruct (zero_val SquareStruct) in
-    let: "$a0" := struct.make SquareStruct [
-      "Side" ::= #3
-    ] in
+    let: "$a0" := struct.make SquareStruct {[
+      #(str "Side") := #3
+    ]} in
     do:  "s" <-[SquareStruct] "$a0";;;
     let: "square1" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := measureArea (![SquareStruct] "s") in
@@ -745,9 +745,9 @@ Definition testBinaryExprInterface : val :=
 Definition testIfStmtInterface : val :=
   rec: "testIfStmtInterface" <> :=
     exception_do (let: "s" := ref_ty SquareStruct (zero_val SquareStruct) in
-    let: "$a0" := struct.make SquareStruct [
-      "Side" ::= #3
-    ] in
+    let: "$a0" := struct.make SquareStruct {[
+      #(str "Side") := #3
+    ]} in
     do:  "s" <-[SquareStruct] "$a0";;;
     (if: (measureArea (![SquareStruct] "s")) = #9
     then
@@ -846,9 +846,9 @@ Definition testStandardForLoop : val :=
 Definition testForLoopWait : val :=
   rec: "testForLoopWait" <> :=
     exception_do (let: "ls" := ref_ty LoopStruct (zero_val LoopStruct) in
-    let: "$a0" := struct.make LoopStruct [
-      "loopNext" ::= ref_ty uint64T (zero_val uint64T)
-    ] in
+    let: "$a0" := struct.make LoopStruct {[
+      #(str "loopNext") := ref_ty uint64T (zero_val uint64T)
+    ]} in
     do:  "ls" <-[LoopStruct] "$a0";;;
     do:  (LoopStruct__forLoopWait (![LoopStruct] "ls")) #3;;;
     return: ((![uint64T] (![ptrT] (struct.field_ref LoopStruct "loopNext" "ls"))) = #4);;;
@@ -1516,12 +1516,12 @@ Definition CheckFalse : val :=
 Definition testShortcircuitAndTF : val :=
   rec: "testShortcircuitAndTF" <> :=
     exception_do (let: "b" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty BoolTest (struct.make BoolTest [
-      "t" ::= #true;
-      "f" ::= #false;
-      "tc" ::= #0;
-      "fc" ::= #0
-    ]) in
+    let: "$a0" := ref_ty BoolTest (struct.make BoolTest {[
+      #(str "t") := #true;
+      #(str "f") := #false;
+      #(str "tc") := #0;
+      #(str "fc") := #0
+    ]}) in
     do:  "b" <-[ptrT] "$a0";;;
     (if: (CheckTrue (![ptrT] "b")) && (CheckFalse (![ptrT] "b"))
     then
@@ -1534,12 +1534,12 @@ Definition testShortcircuitAndTF : val :=
 Definition testShortcircuitAndFT : val :=
   rec: "testShortcircuitAndFT" <> :=
     exception_do (let: "b" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty BoolTest (struct.make BoolTest [
-      "t" ::= #true;
-      "f" ::= #false;
-      "tc" ::= #0;
-      "fc" ::= #0
-    ]) in
+    let: "$a0" := ref_ty BoolTest (struct.make BoolTest {[
+      #(str "t") := #true;
+      #(str "f") := #false;
+      #(str "tc") := #0;
+      #(str "fc") := #0
+    ]}) in
     do:  "b" <-[ptrT] "$a0";;;
     (if: (CheckFalse (![ptrT] "b")) && (CheckTrue (![ptrT] "b"))
     then
@@ -1552,12 +1552,12 @@ Definition testShortcircuitAndFT : val :=
 Definition testShortcircuitOrTF : val :=
   rec: "testShortcircuitOrTF" <> :=
     exception_do (let: "b" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty BoolTest (struct.make BoolTest [
-      "t" ::= #true;
-      "f" ::= #false;
-      "tc" ::= #0;
-      "fc" ::= #0
-    ]) in
+    let: "$a0" := ref_ty BoolTest (struct.make BoolTest {[
+      #(str "t") := #true;
+      #(str "f") := #false;
+      #(str "tc") := #0;
+      #(str "fc") := #0
+    ]}) in
     do:  "b" <-[ptrT] "$a0";;;
     (if: (CheckTrue (![ptrT] "b")) || (CheckFalse (![ptrT] "b"))
     then
@@ -1570,12 +1570,12 @@ Definition testShortcircuitOrTF : val :=
 Definition testShortcircuitOrFT : val :=
   rec: "testShortcircuitOrFT" <> :=
     exception_do (let: "b" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty BoolTest (struct.make BoolTest [
-      "t" ::= #true;
-      "f" ::= #false;
-      "tc" ::= #0;
-      "fc" ::= #0
-    ]) in
+    let: "$a0" := ref_ty BoolTest (struct.make BoolTest {[
+      #(str "t") := #true;
+      #(str "f") := #false;
+      #(str "tc") := #0;
+      #(str "fc") := #0
+    ]}) in
     do:  "b" <-[ptrT] "$a0";;;
     (if: (CheckFalse (![ptrT] "b")) || (CheckTrue (![ptrT] "b"))
     then
@@ -1692,18 +1692,18 @@ Definition testOverwriteArray : val :=
   rec: "testOverwriteArray" <> :=
     exception_do (let: "arr" := ref_ty (sliceT uint64T) (slice.make2 uint64T #4) in
     let: "ae1" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty ArrayEditor (struct.make ArrayEditor [
-      "s" ::= let: "$s" := ![sliceT uint64T] "arr" in
+    let: "$a0" := ref_ty ArrayEditor (struct.make ArrayEditor {[
+      #(str "s") := let: "$s" := ![sliceT uint64T] "arr" in
       slice.slice uint64T "$s" #0 (slice.len "$s");
-      "next_val" ::= #1
-    ]) in
+      #(str "next_val") := #1
+    ]}) in
     do:  "ae1" <-[ptrT] "$a0";;;
     let: "ae2" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty ArrayEditor (struct.make ArrayEditor [
-      "s" ::= let: "$s" := ![sliceT uint64T] "arr" in
+    let: "$a0" := ref_ty ArrayEditor (struct.make ArrayEditor {[
+      #(str "s") := let: "$s" := ![sliceT uint64T] "arr" in
       slice.slice uint64T "$s" #1 (slice.len "$s");
-      "next_val" ::= #102
-    ]) in
+      #(str "next_val") := #102
+    ]}) in
     do:  "ae2" <-[ptrT] "$a0";;;
     do:  (ArrayEditor__Advance (![ptrT] "ae2")) (![sliceT uint64T] "arr") #103;;;
     do:  (ArrayEditor__Advance (![ptrT] "ae2")) (![sliceT uint64T] "arr") #104;;;
@@ -1805,12 +1805,12 @@ Definition Foo__mutateBar : val :=
 Definition failing_testFooBarMutation : val :=
   rec: "failing_testFooBarMutation" <> :=
     exception_do (let: "x" := ref_ty Foo (zero_val Foo) in
-    let: "$a0" := struct.make Foo [
-      "bar" ::= struct.make Bar [
-        "a" ::= #0;
-        "b" ::= #0
-      ]
-    ] in
+    let: "$a0" := struct.make Foo {[
+      #(str "bar") := struct.make Bar {[
+        #(str "a") := #0;
+        #(str "b") := #0
+      ]}
+    ]} in
     do:  "x" <-[Foo] "$a0";;;
     do:  (Foo__mutateBar (![Foo] "x")) #();;;
     return: ((![uint64T] (struct.field_ref Bar "a" (struct.field_ref Foo "bar" "x"))) = #2);;;
@@ -1831,14 +1831,14 @@ Definition S : go_type := structT [
 
 Definition NewS : val :=
   rec: "NewS" <> :=
-    exception_do (return: (ref_ty S (struct.make S [
-       "a" ::= #2;
-       "b" ::= struct.make TwoInts [
-         "x" ::= #1;
-         "y" ::= #2
-       ];
-       "c" ::= #true
-     ]));;;
+    exception_do (return: (ref_ty S (struct.make S {[
+       #(str "a") := #2;
+       #(str "b") := struct.make TwoInts {[
+         #(str "x") := #1;
+         #(str "y") := #2
+       ]};
+       #(str "c") := #true
+     ]}));;;
     do:  #()).
 
 Definition S__readA : val :=
@@ -1940,16 +1940,16 @@ Definition testStructConstructions : val :=
     let: "p1" := ref_ty ptrT (zero_val ptrT) in
     let: "p2" := ref_ty TwoInts (zero_val TwoInts) in
     let: "p3" := ref_ty TwoInts (zero_val TwoInts) in
-    let: "$a0" := struct.make TwoInts [
-      "y" ::= #0;
-      "x" ::= #0
-    ] in
+    let: "$a0" := struct.make TwoInts {[
+      #(str "y") := #0;
+      #(str "x") := #0
+    ]} in
     do:  "p3" <-[TwoInts] "$a0";;;
     let: "p4" := ref_ty TwoInts (zero_val TwoInts) in
-    let: "$a0" := struct.make TwoInts [
-      "x" ::= #0;
-      "y" ::= #0
-    ] in
+    let: "$a0" := struct.make TwoInts {[
+      #(str "x") := #0;
+      #(str "y") := #0
+    ]} in
     do:  "p4" <-[TwoInts] "$a0";;;
     let: "$a0" := (![boolT] "ok") && ((![ptrT] "p1") = #null) in
     do:  "ok" <-[boolT] "$a0";;;
@@ -1970,16 +1970,16 @@ Definition testIncompleteStruct : val :=
   rec: "testIncompleteStruct" <> :=
     exception_do (let: "ok" := ref_ty boolT #true in
     let: "p1" := ref_ty TwoInts (zero_val TwoInts) in
-    let: "$a0" := struct.make TwoInts [
-      "x" ::= #0
-    ] in
+    let: "$a0" := struct.make TwoInts {[
+      #(str "x") := #0
+    ]} in
     do:  "p1" <-[TwoInts] "$a0";;;
     let: "$a0" := (![boolT] "ok") && ((![uint64T] (struct.field_ref TwoInts "y" "p1")) = #0) in
     do:  "ok" <-[boolT] "$a0";;;
     let: "p2" := ref_ty S (zero_val S) in
-    let: "$a0" := struct.make S [
-      "a" ::= #2
-    ] in
+    let: "$a0" := struct.make S {[
+      #(str "a") := #2
+    ]} in
     do:  "p2" <-[S] "$a0";;;
     let: "$a0" := (![boolT] "ok") && ((![uint64T] (struct.field_ref TwoInts "x" (struct.field_ref S "b" "p2"))) = #0) in
     do:  "ok" <-[boolT] "$a0";;;
@@ -1994,9 +1994,9 @@ Definition StructWrap : go_type := structT [
 
 Definition testStoreInStructVar : val :=
   rec: "testStoreInStructVar" <> :=
-    exception_do (let: "p" := ref_ty StructWrap (struct.make StructWrap [
-      "i" ::= #0
-    ]) in
+    exception_do (let: "p" := ref_ty StructWrap (struct.make StructWrap {[
+      #(str "i") := #0
+    ]}) in
     let: "$a0" := #5 in
     do:  (struct.field_ref StructWrap "i" "p") <-[uint64T] "$a0";;;
     return: ((![uint64T] (struct.field_ref StructWrap "i" "p")) = #5);;;
@@ -2015,10 +2015,10 @@ Definition testStoreComposite : val :=
     exception_do (let: "p" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty TwoInts (zero_val TwoInts) in
     do:  "p" <-[ptrT] "$a0";;;
-    let: "$a0" := struct.make TwoInts [
-      "x" ::= #3;
-      "y" ::= #4
-    ] in
+    let: "$a0" := struct.make TwoInts {[
+      #(str "x") := #3;
+      #(str "y") := #4
+    ]} in
     do:  (![ptrT] "p") <-[TwoInts] "$a0";;;
     return: ((![uint64T] (struct.field_ref TwoInts "y" (![ptrT] "p"))) = #4);;;
     do:  #()).
@@ -2143,12 +2143,12 @@ Definition New : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log [
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
-     ]);;;
+    return: (struct.make Log {[
+       #(str "d") := ![disk.Disk] "d";
+       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
+       #(str "length") := ![ptrT] "lengthPtr";
+       #(str "l") := ![ptrT] "l"
+     ]});;;
     do:  #()).
 
 Definition Log__lock : val :=
@@ -2359,12 +2359,12 @@ Definition Open : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log [
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
-     ]);;;
+    return: (struct.make Log {[
+       #(str "d") := ![disk.Disk] "d";
+       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
+       #(str "length") := ![ptrT] "lengthPtr";
+       #(str "l") := ![ptrT] "l"
+     ]});;;
     do:  #()).
 
 (* disabled since performance is quite poor *)

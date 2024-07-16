@@ -488,8 +488,8 @@ Definition fooConsumer : val :=
 Definition m : val :=
   rec: "m" <> :=
     exception_do (let: "c" := ref_ty ptrT (zero_val ptrT) in
-    let: "$a0" := ref_ty concreteFooer (struct.make concreteFooer [
-    ]) in
+    let: "$a0" := ref_ty concreteFooer (struct.make concreteFooer {[
+    ]}) in
     do:  "c" <-[ptrT] "$a0";;;
     do:  fooConsumer (![ptrT] "c");;;
     let: "f" := ref_ty ptrT (![ptrT] "c") in
@@ -531,38 +531,38 @@ Definition allTheLiterals : go_type := structT [
 
 Definition normalLiterals : val :=
   rec: "normalLiterals" <> :=
-    exception_do (return: (struct.make allTheLiterals [
-       "int" ::= #0;
-       "s" ::= #(str "foo");
-       "b" ::= #true
-     ]);;;
+    exception_do (return: (struct.make allTheLiterals {[
+       #(str "int") := #0;
+       #(str "s") := #(str "foo");
+       #(str "b") := #true
+     ]});;;
     do:  #()).
 
 Definition specialLiterals : val :=
   rec: "specialLiterals" <> :=
-    exception_do (return: (struct.make allTheLiterals [
-       "int" ::= #4096;
-       "s" ::= #(str "");
-       "b" ::= #false
-     ]);;;
+    exception_do (return: (struct.make allTheLiterals {[
+       #(str "int") := #4096;
+       #(str "s") := #(str "");
+       #(str "b") := #false
+     ]});;;
     do:  #()).
 
 Definition oddLiterals : val :=
   rec: "oddLiterals" <> :=
-    exception_do (return: (struct.make allTheLiterals [
-       "int" ::= #5;
-       "s" ::= #(str "backquote string");
-       "b" ::= #false
-     ]);;;
+    exception_do (return: (struct.make allTheLiterals {[
+       #(str "int") := #5;
+       #(str "s") := #(str "backquote string");
+       #(str "b") := #false
+     ]});;;
     do:  #()).
 
 Definition unKeyedLiteral : val :=
   rec: "unKeyedLiteral" <> :=
-    exception_do (return: (struct.make allTheLiterals [
-       "int" ::= #0;
-       "s" ::= #(str "a");
-       "b" ::= #false
-     ]);;;
+    exception_do (return: (struct.make allTheLiterals {[
+       #(str "int") := #0;
+       #(str "s") := #(str "a");
+       #(str "b") := #false
+     ]});;;
     do:  #()).
 
 (* locks.go *)
@@ -1056,14 +1056,14 @@ Definition ReassignVars : val :=
     do:  "y" <-[uint64T] "$a0";;;
     let: "$a0" := #3 in
     do:  "x" <-[uint64T] "$a0";;;
-    let: "z" := ref_ty composite (struct.make composite [
-      "a" ::= ![uint64T] "x";
-      "b" ::= ![uint64T] "y"
-    ]) in
-    let: "$a0" := struct.make composite [
-      "a" ::= ![uint64T] "y";
-      "b" ::= ![uint64T] "x"
-    ] in
+    let: "z" := ref_ty composite (struct.make composite {[
+      #(str "a") := ![uint64T] "x";
+      #(str "b") := ![uint64T] "y"
+    ]}) in
+    let: "$a0" := struct.make composite {[
+      #(str "a") := ![uint64T] "y";
+      #(str "b") := ![uint64T] "x"
+    ]} in
     do:  "z" <-[composite] "$a0";;;
     let: "$a0" := ![uint64T] (struct.field_ref composite "a" "z") in
     do:  "x" <-[uint64T] "$a0";;;
@@ -1095,9 +1095,9 @@ Definition TwoDiskRead : val :=
   rec: "TwoDiskRead" "diskId" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in
     let: "diskId" := ref_ty uint64T "diskId" in
-    return: (struct.make Block [
-       "Value" ::= #0
-     ], #true);;;
+    return: (struct.make Block {[
+       #(str "Value") := #0
+     ]}, #true);;;
     do:  #()).
 
 (* TwoDiskLock is a dummy function to represent locking an address in the
@@ -1337,10 +1337,10 @@ Definition Point__GetField : val :=
 Definition UseAdd : val :=
   rec: "UseAdd" <> :=
     exception_do (let: "c" := ref_ty Point (zero_val Point) in
-    let: "$a0" := struct.make Point [
-      "x" ::= #2;
-      "y" ::= #3
-    ] in
+    let: "$a0" := struct.make Point {[
+      #(str "x") := #2;
+      #(str "y") := #3
+    ]} in
     do:  "c" <-[Point] "$a0";;;
     let: "r" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := (Point__Add (![Point] "c")) #4 in
@@ -1351,10 +1351,10 @@ Definition UseAdd : val :=
 Definition UseAddWithLiteral : val :=
   rec: "UseAddWithLiteral" <> :=
     exception_do (let: "r" := ref_ty uint64T (zero_val uint64T) in
-    let: "$a0" := (Point__Add (struct.make Point [
-      "x" ::= #2;
-      "y" ::= #3
-    ])) #4 in
+    let: "$a0" := (Point__Add (struct.make Point {[
+      #(str "x") := #2;
+      #(str "y") := #3
+    ]})) #4 in
     do:  "r" <-[uint64T] "$a0";;;
     return: (![uint64T] "r");;;
     do:  #()).
@@ -1374,14 +1374,14 @@ Definition S : go_type := structT [
 
 Definition NewS : val :=
   rec: "NewS" <> :=
-    exception_do (return: (ref_ty S (struct.make S [
-       "a" ::= #2;
-       "b" ::= struct.make TwoInts [
-         "x" ::= #1;
-         "y" ::= #2
-       ];
-       "c" ::= #true
-     ]));;;
+    exception_do (return: (ref_ty S (struct.make S {[
+       #(str "a") := #2;
+       #(str "b") := struct.make TwoInts {[
+         #(str "x") := #1;
+         #(str "y") := #2
+       ]};
+       #(str "c") := #true
+     ]}));;;
     do:  #()).
 
 Definition S__readA : val :=

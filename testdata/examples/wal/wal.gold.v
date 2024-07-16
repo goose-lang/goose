@@ -66,12 +66,12 @@ Definition New : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log [
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
-     ]);;;
+    return: (struct.make Log {[
+       #(str "d") := ![disk.Disk] "d";
+       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
+       #(str "length") := ![ptrT] "lengthPtr";
+       #(str "l") := ![ptrT] "l"
+     ]});;;
     do:  #()).
 
 Definition Log__lock : val :=
@@ -282,10 +282,10 @@ Definition Open : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log [
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
-     ]);;;
+    return: (struct.make Log {[
+       #(str "d") := ![disk.Disk] "d";
+       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
+       #(str "length") := ![ptrT] "lengthPtr";
+       #(str "l") := ![ptrT] "l"
+     ]});;;
     do:  #()).

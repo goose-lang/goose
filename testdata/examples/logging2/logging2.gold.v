@@ -41,15 +41,15 @@ Definition Init : val :=
   rec: "Init" "logSz" :=
     exception_do (let: "logSz" := ref_ty uint64T "logSz" in
     let: "log" := ref_ty Log (zero_val Log) in
-    let: "$a0" := struct.make Log [
-      "logLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
-      "memLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
-      "logSz" ::= ![uint64T] "logSz";
-      "memLog" ::= ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)));
-      "memLen" ::= ref_ty uint64T (zero_val uint64T);
-      "memTxnNxt" ::= ref_ty uint64T (zero_val uint64T);
-      "logTxnNxt" ::= ref_ty uint64T (zero_val uint64T)
-    ] in
+    let: "$a0" := struct.make Log {[
+      #(str "logLock") := ref_ty sync.Mutex (zero_val sync.Mutex);
+      #(str "memLock") := ref_ty sync.Mutex (zero_val sync.Mutex);
+      #(str "logSz") := ![uint64T] "logSz";
+      #(str "memLog") := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)));
+      #(str "memLen") := ref_ty uint64T (zero_val uint64T);
+      #(str "memTxnNxt") := ref_ty uint64T (zero_val uint64T);
+      #(str "logTxnNxt") := ref_ty uint64T (zero_val uint64T)
+    ]} in
     do:  "log" <-[Log] "$a0";;;
     do:  (Log__writeHdr (![Log] "log")) #0;;;
     return: (![Log] "log");;;
@@ -257,10 +257,10 @@ Definition Begin : val :=
   rec: "Begin" "log" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     let: "txn" := ref_ty Txn (zero_val Txn) in
-    let: "$a0" := struct.make Txn [
-      "log" ::= ![ptrT] "log";
-      "blks" ::= map.make uint64T (sliceT byteT) #()
-    ] in
+    let: "$a0" := struct.make Txn {[
+      #(str "log") := ![ptrT] "log";
+      #(str "blks") := map.make uint64T (sliceT byteT) #()
+    ]} in
     do:  "txn" <-[Txn] "$a0";;;
     return: (![Txn] "txn");;;
     do:  #()).
