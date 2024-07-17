@@ -41,22 +41,22 @@ Definition Init : val :=
   rec: "Init" "logSz" :=
     exception_do (let: "logSz" := ref_ty uint64T "logSz" in
     let: "log" := ref_ty Log (zero_val Log) in
-    let: "$a0" := struct.make Log {[
-      #(str "logLock") := ref_ty sync.Mutex (zero_val sync.Mutex);
-      #(str "memLock") := ref_ty sync.Mutex (zero_val sync.Mutex);
-      #(str "logSz") := ![uint64T] "logSz";
-      #(str "memLog") := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)));
-      #(str "memLen") := ref_ty uint64T (zero_val uint64T);
-      #(str "memTxnNxt") := ref_ty uint64T (zero_val uint64T);
-      #(str "logTxnNxt") := ref_ty uint64T (zero_val uint64T)
-    ]} in
+    let: "$a0" := struct.make Log [{
+      "logLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
+      "memLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
+      "logSz" ::= ![uint64T] "logSz";
+      "memLog" ::= ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)));
+      "memLen" ::= ref_ty uint64T (zero_val uint64T);
+      "memTxnNxt" ::= ref_ty uint64T (zero_val uint64T);
+      "logTxnNxt" ::= ref_ty uint64T (zero_val uint64T)
+    }] in
     do:  "log" <-[Log] "$a0";;;
     do:  (Log__writeHdr (![Log] "log")) #0;;;
     return: (![Log] "log");;;
     do:  #()).
 
 Definition Log__readHdr : val :=
-  rec: "Log__readHdr" "log" :=
+  rec: "Log__readHdr" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
     let: "hdr" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$a0" := disk.Read LOGCOMMIT in
@@ -87,7 +87,7 @@ Definition Log__readBlocks : val :=
     do:  #()).
 
 Definition Log__Read : val :=
-  rec: "Log__Read" "log" :=
+  rec: "Log__Read" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
     do:  (sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #();;;
     let: "disklen" := ref_ty uint64T (zero_val uint64T) in
@@ -144,7 +144,7 @@ Definition Log__memAppend : val :=
 
 (* XXX just an atomic read? *)
 Definition Log__readLogTxnNxt : val :=
-  rec: "Log__readLogTxnNxt" "log" :=
+  rec: "Log__readLogTxnNxt" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
     do:  (sync.Mutex__Lock (![ptrT] (struct.field_ref Log "memLock" "log"))) #();;;
     let: "n" := ref_ty uint64T (zero_val uint64T) in
@@ -209,7 +209,7 @@ Definition Log__writeBlocks : val :=
     do:  #()).
 
 Definition Log__diskAppend : val :=
-  rec: "Log__diskAppend" "log" :=
+  rec: "Log__diskAppend" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
     do:  (sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #();;;
     let: "disklen" := ref_ty uint64T (zero_val uint64T) in
@@ -238,7 +238,7 @@ Definition Log__diskAppend : val :=
     do:  #()).
 
 Definition Log__Logger : val :=
-  rec: "Log__Logger" "log" :=
+  rec: "Log__Logger" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       do:  (Log__diskAppend (![Log] "log")) #();;;
@@ -257,10 +257,10 @@ Definition Begin : val :=
   rec: "Begin" "log" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     let: "txn" := ref_ty Txn (zero_val Txn) in
-    let: "$a0" := struct.make Txn {[
-      #(str "log") := ![ptrT] "log";
-      #(str "blks") := map.make uint64T (sliceT byteT) #()
-    ]} in
+    let: "$a0" := struct.make Txn [{
+      "log" ::= ![ptrT] "log";
+      "blks" ::= map.make uint64T (sliceT byteT) #()
+    }] in
     do:  "txn" <-[Txn] "$a0";;;
     return: (![Txn] "txn");;;
     do:  #()).
@@ -317,7 +317,7 @@ Definition Txn__Read : val :=
     do:  #()).
 
 Definition Txn__Commit : val :=
-  rec: "Txn__Commit" "txn" :=
+  rec: "Txn__Commit" "txn" <> :=
     exception_do (let: "txn" := ref_ty Txn "txn" in
     let: "blks" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT))) in

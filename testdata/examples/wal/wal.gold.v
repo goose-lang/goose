@@ -66,22 +66,22 @@ Definition New : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log {[
-       #(str "d") := ![disk.Disk] "d";
-       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
-       #(str "length") := ![ptrT] "lengthPtr";
-       #(str "l") := ![ptrT] "l"
-     ]});;;
+    return: (struct.make Log [{
+       "d" ::= ![disk.Disk] "d";
+       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
+       "length" ::= ![ptrT] "lengthPtr";
+       "l" ::= ![ptrT] "l"
+     }]);;;
     do:  #()).
 
 Definition Log__lock : val :=
-  rec: "Log__lock" "l" :=
+  rec: "Log__lock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (sync.Mutex__Lock (![ptrT] (struct.field_ref Log "l" "l"))) #();;;
     do:  #()).
 
 Definition Log__unlock : val :=
-  rec: "Log__unlock" "l" :=
+  rec: "Log__unlock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "l" "l"))) #();;;
     do:  #()).
@@ -90,7 +90,7 @@ Definition Log__unlock : val :=
 
    Returns true if the allocation succeeded. *)
 Definition Log__BeginTxn : val :=
-  rec: "Log__BeginTxn" "l" :=
+  rec: "Log__BeginTxn" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (Log__lock (![Log] "l")) #();;;
     let: "length" := ref_ty uint64T (zero_val uint64T) in
@@ -133,7 +133,7 @@ Definition Log__Read : val :=
     do:  #()).
 
 Definition Log__Size : val :=
-  rec: "Log__Size" "l" :=
+  rec: "Log__Size" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     let: "sz" := ref_ty uint64T (zero_val uint64T) in
     let: "$a0" := (__Size (![disk.Disk] (struct.field_ref Log "d" "l"))) #() in
@@ -173,7 +173,7 @@ Definition Log__Write : val :=
 
 (* Commit the current transaction. *)
 Definition Log__Commit : val :=
-  rec: "Log__Commit" "l" :=
+  rec: "Log__Commit" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (Log__lock (![Log] "l")) #();;;
     let: "length" := ref_ty uint64T (zero_val uint64T) in
@@ -244,7 +244,7 @@ Definition clearLog : val :=
 
    Frees all the space in the log. *)
 Definition Log__Apply : val :=
-  rec: "Log__Apply" "l" :=
+  rec: "Log__Apply" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (Log__lock (![Log] "l")) #();;;
     let: "length" := ref_ty uint64T (zero_val uint64T) in
@@ -282,10 +282,10 @@ Definition Open : val :=
     let: "l" := ref_ty ptrT (zero_val ptrT) in
     let: "$a0" := ref_ty sync.Mutex (zero_val sync.Mutex) in
     do:  "l" <-[ptrT] "$a0";;;
-    return: (struct.make Log {[
-       #(str "d") := ![disk.Disk] "d";
-       #(str "cache") := ![mapT uint64T (sliceT byteT)] "cache";
-       #(str "length") := ![ptrT] "lengthPtr";
-       #(str "l") := ![ptrT] "l"
-     ]});;;
+    return: (struct.make Log [{
+       "d" ::= ![disk.Disk] "d";
+       "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
+       "length" ::= ![ptrT] "lengthPtr";
+       "l" ::= ![ptrT] "l"
+     }]);;;
     do:  #()).
