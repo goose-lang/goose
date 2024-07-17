@@ -1195,7 +1195,7 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) assignFromTo(s ast.Node, lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
+func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
 	// lhs should either be a map index expression, or is addressable
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
@@ -1227,7 +1227,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	intermediates := make([]string, 0, len(s.Lhs))
 	for i, lhs := range s.Lhs {
 		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
-		e = ctx.assignFromTo(s, lhs, glang.IdentExpr(intermediates[i]), e)
+		e = ctx.assignFromTo(lhs, glang.IdentExpr(intermediates[i]), e)
 	}
 
 	// FIXME:(evaluation order)
@@ -1259,7 +1259,7 @@ func (ctx Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		Op: op,
 		Y:  ctx.expr(s.Rhs[0]),
 	}
-	return ctx.assignFromTo(s, s.Lhs[0], rhs, cont)
+	return ctx.assignFromTo(s.Lhs[0], rhs, cont)
 }
 
 func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
@@ -1267,15 +1267,11 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	if stmt.Tok == token.DEC {
 		op = glang.OpMinus
 	}
-	return ctx.assignFromTo(stmt, stmt.X, glang.BinaryExpr{
+	return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
 		Y:  glang.IntLiteral{Value: 1},
 	}, cont)
-}
-
-func (ctx Ctx) spawnExpr(thread ast.Expr) glang.SpawnExpr {
-	return glang.SpawnExpr{Body: ctx.expr(thread)}
 }
 
 func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
@@ -1290,15 +1286,15 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 }
 
 // getSpawn returns a non-nil spawned thread if the expression is a go call
-func (ctx Ctx) goStmt(e *ast.GoStmt) glang.Expr {
+func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 	args := make([]glang.Expr, 0, len(e.Call.Args))
 	for i := range len(e.Call.Args) {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("$arg%d", i)))
 	}
-	var expr glang.Expr = glang.SpawnExpr{Body: glang.NewCallExpr(
+	var expr glang.Expr = glang.NewDoSeq(glang.SpawnExpr{Body: glang.NewCallExpr(
 		glang.IdentExpr("$go"),
 		args...,
-	)}
+	)}, cont)
 	expr = glang.LetExpr{
 		Names:   []string{"$go"},
 		ValExpr: ctx.expr(e.Call.Fun),
@@ -1339,7 +1335,7 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.IfStmt:
 		return ctx.ifStmt(s, cont)
 	case *ast.GoStmt:
-		return glang.NewDoSeq(ctx.goStmt(s), cont)
+		return ctx.goStmt(s, cont)
 	case *ast.ExprStmt:
 		return glang.NewDoSeq(ctx.expr(s.X), cont)
 	case *ast.AssignStmt:

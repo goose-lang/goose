@@ -408,7 +408,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq(true))
+	pp.Add("%s %s [{", method, StructDesc(sl.StructName).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
@@ -418,7 +418,7 @@ func (sl StructLiteral) Coq(needs_paren bool) string {
 		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(false), terminator)
 	}
 	pp.Indent(-2)
-	pp.Add("]")
+	pp.Add("}]")
 	return addParens(needs_paren, pp.Build())
 }
 
@@ -735,7 +735,7 @@ type SpawnExpr struct {
 
 func (e SpawnExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Block("do: Fork (", "%s)", e.Body.Coq(false))
+	pp.Block("Fork (", "%s)", e.Body.Coq(false))
 	return addParens(needs_paren, pp.Build())
 }
 
