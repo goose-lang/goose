@@ -408,17 +408,17 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s {[", method, StructDesc(sl.StructName).Coq(true))
+	pp.Add("%s %s [", method, StructDesc(sl.StructName).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"
 		if i == len(sl.elts)-1 {
 			terminator = ""
 		}
-		pp.Add("#(str %s) := %s%s", quote(f.Field), f.Value.Coq(false), terminator)
+		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(false), terminator)
 	}
 	pp.Indent(-2)
-	pp.Add("]}")
+	pp.Add("]")
 	return addParens(needs_paren, pp.Build())
 }
 
