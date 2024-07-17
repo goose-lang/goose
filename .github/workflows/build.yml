@@ -15,13 +15,13 @@ jobs:
         os: ["ubuntu-latest"]
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Check style
         run: |
           gofmt -w -s .
