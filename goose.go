@@ -2018,18 +2018,18 @@ func stringLitValue(lit *ast.BasicLit) string {
 var builtinImports = map[string]bool{
 	"github.com/goose-lang/goose/machine":            true,
 	"github.com/goose-lang/goose/machine/filesys":    true,
-	"github.com/mit-pdos/gokv/grove_ffi":          true,
+	"github.com/mit-pdos/gokv/grove_ffi":             true,
 	"github.com/goose-lang/goose/machine/disk":       true,
 	"github.com/goose-lang/goose/machine/async_disk": true,
-	"github.com/mit-pdos/gokv/time":               true,
-	"github.com/mit-pdos/vmvcc/cfmutex":           true,
-	"sync":                                        true,
-	"log":                                         true,
-	"fmt":                                         true,
+	"github.com/mit-pdos/gokv/time":                  true,
+	"github.com/mit-pdos/vmvcc/cfmutex":              true,
+	"sync":                                           true,
+	"log":                                            true,
+	"fmt":                                            true,
 }
 
 var ffiMapping = map[string]string{
-	"github.com/mit-pdos/gokv/grove_ffi":          "grove",
+	"github.com/mit-pdos/gokv/grove_ffi":             "grove",
 	"github.com/goose-lang/goose/machine/disk":       "disk",
 	"github.com/goose-lang/goose/machine/async_disk": "async_disk",
 }

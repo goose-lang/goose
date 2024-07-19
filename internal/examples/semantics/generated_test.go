@@ -4,8 +4,8 @@ package semantics
 import (
 	"testing"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/goose-lang/goose/machine/disk"
+	"github.com/stretchr/testify/suite"
 )
 
 type GoTestSuite struct {

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/goose-lang/goose/machine/filesys"
+	"github.com/stretchr/testify/suite"
 )
 
 // FilesysSuite implements a filesystem test suite generic over fs.
