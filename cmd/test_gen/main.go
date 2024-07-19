@@ -17,7 +17,7 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 From Perennial.goose_lang.interpreter Require Import test_config.
 
 (* test functions *)
-From Goose.github_com.tchajed.goose.internal.examples Require Import semantics.
+From Goose.github_com.goose_lang.goose.internal.examples Require Import semantics.
 
 `
 
