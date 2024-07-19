@@ -1,6 +1,6 @@
 package unittest
 
-import "github.com/tchajed/goose/machine/disk"
+import "github.com/goose-lang/goose/machine/disk"
 
 type diskWrapper struct {
 	d disk.Disk

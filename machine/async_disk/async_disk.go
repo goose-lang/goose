@@ -1,7 +1,7 @@
 package async_disk
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 )
 
 // Essentially a copy + paste of the disk interface. We do this so that we can

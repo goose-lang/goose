@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 )
 
 var diskFile = flag.String("disk", "", "path to file to use for disk-based benchmark")

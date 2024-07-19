@@ -1,6 +1,6 @@
 package unittest
 
-import "github.com/tchajed/goose/machine"
+import "github.com/goose-lang/goose/machine"
 
 type Enc struct {
 	p []byte

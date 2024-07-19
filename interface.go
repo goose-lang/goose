@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/goose-lang/goose/internal/coq"
 	"golang.org/x/tools/go/packages"
 )
 

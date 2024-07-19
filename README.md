@@ -1,7 +1,7 @@
 # Goose: a subset of Go with a semantics in Coq
 
-[![CI](https://github.com/tchajed/goose/workflows/CI/badge.svg)](https://github.com/tchajed/goose/actions/workflows/build.yml)
-[![](https://godoc.org/github.com/tchajed/goose?status.svg)](https://godoc.org/github.com/tchajed/goose)
+[![CI](https://github.com/goose-lang/goose/workflows/CI/badge.svg)](https://github.com/goose-lang/goose/actions/workflows/build.yml)
+[![](https://godoc.org/github.com/goose-lang/goose?status.svg)](https://godoc.org/github.com/goose-lang/goose)
 
 Goose is a subset of Go equipped with a semantics in Coq, as well as translator to automatically convert Go programs written in Go to a model in Coq. The model plugs into [Perennial](https://github.com/mit-pdos/perennial) for carrying out verification of concurrent storage systems.
 
@@ -26,7 +26,7 @@ import (
 
 	"github.com/tchajed/marshal"
 
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 )
 
 type Log struct {
@@ -128,7 +128,7 @@ Directly modeling a low-level, imperative language (and especially writing in it
 
 Goose requires Go 1.12+.
 
-You can install goose with either `go get github.com/tchajed/goose/cmd/goose` or from a clone of this repo with `go install ./cmd/goose`. These install
+You can install goose with either `go get github.com/goose-lang/goose/cmd/goose` or from a clone of this repo with `go install ./cmd/goose`. These install
 the `goose` binary to `$GOPATH/bin` (or `~/go/bin` if you don't have GOPATH
 set).
 

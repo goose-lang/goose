@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/goose-lang/goose/internal/coq"
 )
 
 // this file has the translations for types themselves
@@ -275,7 +275,7 @@ func isString(t types.Type) bool {
 func isDisk(t types.Type) bool {
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
-		if obj.Pkg().Path() == "github.com/tchajed/goose/machine/disk" &&
+		if obj.Pkg().Path() == "github.com/goose-lang/goose/machine/disk" &&
 			obj.Name() == "Disk" {
 			return true
 		}

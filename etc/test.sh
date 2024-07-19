@@ -71,5 +71,5 @@ go run ./cmd/goose -out \
   "$perennial_dir"/etc/../external/Goose \
   -dir ./internal/examples \
   ./semantics ./unittest ./unittest/generic
-make -C "$perennial_dir" external/Goose/github_com/tchajed/goose/internal/examples/unittest.vo
+make -C "$perennial_dir" external/Goose/github_com/goose-lang/goose/internal/examples/unittest.vo
 make -C "$perennial_dir" src/goose_lang/interpreter/generated_test.vo

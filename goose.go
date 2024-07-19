@@ -5,9 +5,9 @@
 // include user-defined structs in Go as Coq records and a Perennial procedure
 // for each Go function.
 //
-// See the Goose README at https://github.com/tchajed/goose for a high-level
+// See the Goose README at https://github.com/goose-lang/goose for a high-level
 // overview. The source also has some design documentation at
-// https://github.com/tchajed/goose/tree/master/docs.
+// https://github.com/goose-lang/goose/tree/master/docs.
 package goose
 
 import (
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tchajed/goose/internal/coq"
+	"github.com/goose-lang/goose/internal/coq"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -568,7 +568,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		// a different type conversion, which is a noop in GooseLang (which is
 		// untyped)
 		// TODO: handle integer conversions here, checking if call.Fun is an integer
-		//  type; see https://github.com/tchajed/goose/issues/14
+		//  type; see https://github.com/goose-lang/goose/issues/14
 		return ctx.expr(args[0])
 	}
 
@@ -2016,11 +2016,11 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 // TODO: put this in another file
 var builtinImports = map[string]bool{
-	"github.com/tchajed/goose/machine":            true,
-	"github.com/tchajed/goose/machine/filesys":    true,
+	"github.com/goose-lang/goose/machine":            true,
+	"github.com/goose-lang/goose/machine/filesys":    true,
 	"github.com/mit-pdos/gokv/grove_ffi":          true,
-	"github.com/tchajed/goose/machine/disk":       true,
-	"github.com/tchajed/goose/machine/async_disk": true,
+	"github.com/goose-lang/goose/machine/disk":       true,
+	"github.com/goose-lang/goose/machine/async_disk": true,
 	"github.com/mit-pdos/gokv/time":               true,
 	"github.com/mit-pdos/vmvcc/cfmutex":           true,
 	"sync":                                        true,
@@ -2030,8 +2030,8 @@ var builtinImports = map[string]bool{
 
 var ffiMapping = map[string]string{
 	"github.com/mit-pdos/gokv/grove_ffi":          "grove",
-	"github.com/tchajed/goose/machine/disk":       "disk",
-	"github.com/tchajed/goose/machine/async_disk": "async_disk",
+	"github.com/goose-lang/goose/machine/disk":       "disk",
+	"github.com/goose-lang/goose/machine/async_disk": "async_disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {

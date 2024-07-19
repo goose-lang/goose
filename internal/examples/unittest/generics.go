@@ -1,6 +1,6 @@
 package unittest
 
-import "github.com/tchajed/goose/internal/examples/unittest/generic"
+import "github.com/goose-lang/goose/internal/examples/unittest/generic"
 
 func genericId[T any](x T) T {
 	return x

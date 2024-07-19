@@ -1,7 +1,7 @@
 package unittest
 
 import (
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 )
 
 func atomicCreateStub(dir string, fname string, data []byte) {}

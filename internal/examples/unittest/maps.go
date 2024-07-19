@@ -1,6 +1,6 @@
 package unittest
 
-import "github.com/tchajed/goose/machine"
+import "github.com/goose-lang/goose/machine"
 
 func clearMap(m map[uint64]uint64) {
 	machine.MapClear(m)

@@ -3,9 +3,9 @@ package semantics
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 )
 
 // MaxTxnWrites is a guaranteed reservation for each transaction.
