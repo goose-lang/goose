@@ -881,6 +881,23 @@ func (d ConstDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+type MethodSetDecl struct {
+	TypeName    string
+	MethodNames []string
+}
+
+func (d MethodSetDecl) CoqDecl() string {
+	var pp buffer
+	pp.Add("Definition %s__mset : list (string * val) := [", d.TypeName)
+	pp.Indent(2)
+	for _, methodName := range d.MethodNames {
+		pp.Add("(\"%s\", %s)", methodName, TypeMethod(d.TypeName, methodName))
+	}
+	pp.Indent(-2)
+	pp.Add("].")
+	return pp.Build()
+}
+
 // Decl is a FuncDecl, StructDecl, CommentDecl, or ConstDecl
 type Decl interface {
 	CoqDecl() string

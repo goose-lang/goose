@@ -19,6 +19,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
+	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -228,15 +229,36 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
-func (ctx Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
+func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
+	typeName := t.Obj().Name()
+	d := glang.MethodSetDecl{
+		TypeName:    typeName,
+		MethodNames: []string{},
+	}
+	log.Printf("For type %s", typeName)
+	for i := range t.NumMethods() {
+		log.Printf(" .%s", t.Method(i).Name())
+		d.MethodNames = append(d.MethodNames, t.Method(i).Name())
+	}
+	return d
+}
+
+func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	if spec.TypeParams != nil {
 		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
 	}
+	var r []glang.Decl
 
-	return glang.TypeDecl{
+	r = append(r, glang.TypeDecl{
 		Name: spec.Name.Name,
 		Body: ctx.glangTypeFromExpr(spec.Type),
+	})
+
+	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+		r = append(r, ctx.methodSet(t))
 	}
+
+	return r
 }
 
 func toInitialLower(s string) string {
@@ -1558,8 +1580,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
 			ctx.dep.addName(spec.Name.Name)
-			ty := ctx.typeDecl(spec)
-			return []glang.Decl{ty}
+			return ctx.typeDecl(spec)
 		default:
 			ctx.nope(d, "unknown token type in decl")
 		}

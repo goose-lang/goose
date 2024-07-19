@@ -82,6 +82,9 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.
 
 			declGroups[id] = newDecls
 			declDeps[id] = ctx.dep.deps
+			if len(ctx.dep.names) > 1 {
+				panic("More than one")
+			}
 			for _, n := range ctx.dep.names {
 				nameDecls[n] = id
 			}
