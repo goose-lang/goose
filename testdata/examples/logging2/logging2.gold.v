@@ -26,6 +26,21 @@ Definition Log : go_type := structT [
   "logTxnNxt" :: ptrT
 ].
 
+Definition Log__mset : list (string * val) := [
+  ("writeHdr", Log__writeHdr)
+  ("readHdr", Log__readHdr)
+  ("readBlocks", Log__readBlocks)
+  ("Read", Log__Read)
+  ("memWrite", Log__memWrite)
+  ("memAppend", Log__memAppend)
+  ("readLogTxnNxt", Log__readLogTxnNxt)
+  ("diskAppendWait", Log__diskAppendWait)
+  ("Append", Log__Append)
+  ("writeBlocks", Log__writeBlocks)
+  ("diskAppend", Log__diskAppend)
+  ("Logger", Log__Logger)
+].
+
 Definition Log__writeHdr : val :=
   rec: "Log__writeHdr" "log" "len" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -250,6 +265,12 @@ Definition Log__Logger : val :=
 Definition Txn : go_type := structT [
   "log" :: ptrT;
   "blks" :: mapT uint64T (sliceT byteT)
+].
+
+Definition Txn__mset : list (string * val) := [
+  ("Write", Txn__Write)
+  ("Read", Txn__Read)
+  ("Commit", Txn__Commit)
 ].
 
 (* XXX wait if cannot reserve space in log *)

@@ -21,4 +21,7 @@ Definition Foo : go_type := structT [
   "a" :: boolT
 ].
 
+Definition Foo__mset : list (string * val) := [
+].
+
 End code.

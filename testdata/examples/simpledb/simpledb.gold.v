@@ -26,6 +26,9 @@ Definition Table : go_type := structT [
   "File" :: fileT
 ].
 
+Definition Table__mset : list (string * val) := [
+].
+
 (* CreateTable creates a new, empty table. *)
 Definition CreateTable : val :=
   rec: "CreateTable" "p" :=
@@ -51,6 +54,9 @@ Definition CreateTable : val :=
 Definition Entry : go_type := structT [
   "Key" :: uint64T;
   "Value" :: sliceT byteT
+].
+
+Definition Entry__mset : list (string * val) := [
 ].
 
 (* DecodeUInt64 is a Decoder(uint64)
@@ -125,6 +131,9 @@ Definition DecodeEntry : val :=
 Definition lazyFileBuf : go_type := structT [
   "offset" :: uint64T;
   "next" :: sliceT byteT
+].
+
+Definition lazyFileBuf__mset : list (string * val) := [
 ].
 
 (* readTableIndex parses a complete table on disk into a key->offset index *)
@@ -260,6 +269,9 @@ Definition bufFile : go_type := structT [
   "buf" :: ptrT
 ].
 
+Definition bufFile__mset : list (string * val) := [
+].
+
 Definition newBuf : val :=
   rec: "newBuf" "f" :=
     exception_do (let: "f" := ref_ty fileT "f" in
@@ -314,6 +326,9 @@ Definition tableWriter : go_type := structT [
   "name" :: stringT;
   "file" :: bufFile;
   "offset" :: ptrT
+].
+
+Definition tableWriter__mset : list (string * val) := [
 ].
 
 Definition newTableWriter : val :=
@@ -425,6 +440,9 @@ Definition Database : go_type := structT [
   "tableName" :: ptrT;
   "tableL" :: ptrT;
   "compactionL" :: ptrT
+].
+
+Definition Database__mset : list (string * val) := [
 ].
 
 Definition makeValueBuffer : val :=

@@ -18,6 +18,17 @@ Definition Log : go_type := structT [
   "diskSz" :: uint64T
 ].
 
+Definition Log__mset : list (string * val) := [
+  ("mkHdr", Log__mkHdr)
+  ("writeHdr", Log__writeHdr)
+  ("get", Log__get)
+  ("Get", Log__Get)
+  ("append", Log__append)
+  ("Append", Log__Append)
+  ("reset", Log__reset)
+  ("Reset", Log__Reset)
+].
+
 Definition Log__mkHdr : val :=
   rec: "Log__mkHdr" "log" <> :=
     exception_do (let: "log" := ref_ty ptrT "log" in

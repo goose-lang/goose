@@ -15,6 +15,9 @@ From New Require Import disk_prelude.
 Definition importantStruct : go_type := structT [
 ].
 
+Definition importantStruct__mset : list (string * val) := [
+].
+
 (* doSubtleThings does a number of subtle things:
 
    (actually, it does nothing) *)
@@ -162,6 +165,9 @@ Definition elseIf : val :=
 (* conversions.go *)
 
 Definition stringWrapper : go_type := stringT.
+
+Definition stringWrapper__mset : list (string * val) := [
+].
 
 Definition typedLiteral : val :=
   rec: "typedLiteral" <> :=
@@ -374,6 +380,9 @@ Definition diskWrapper : go_type := structT [
   "d" :: disk.Disk
 ].
 
+Definition diskWrapper__mset : list (string * val) := [
+].
+
 Definition diskArgument : val :=
   rec: "diskArgument" "d" :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in
@@ -398,6 +407,12 @@ Definition emptyReturn : val :=
 
 Definition Enc : go_type := structT [
   "p" :: sliceT byteT
+].
+
+Definition Enc__mset : list (string * val) := [
+  ("consume", Enc__consume)
+  ("UInt64", Enc__UInt64)
+  ("UInt32", Enc__UInt32)
 ].
 
 Definition Enc__consume : val :=
@@ -430,6 +445,12 @@ Definition Enc__UInt32 : val :=
 
 Definition Dec : go_type := structT [
   "p" :: sliceT byteT
+].
+
+Definition Dec__mset : list (string * val) := [
+  ("consume", Dec__consume)
+  ("UInt64", Dec__UInt64)
+  ("UInt32", Dec__UInt32)
 ].
 
 Definition Dec__consume : val :=
@@ -470,8 +491,15 @@ Definition TakesFunctionType : val :=
 
 Definition Fooer : go_type := interfaceT.
 
+Definition Fooer__mset : list (string * val) := [
+].
+
 Definition concreteFooer : go_type := structT [
   "a" :: uint64T
+].
+
+Definition concreteFooer__mset : list (string * val) := [
+  ("Foo", concreteFooer__Foo)
 ].
 
 Definition concreteFooer__Foo : val :=
@@ -517,7 +545,13 @@ Definition useInts : val :=
 
 Definition my_u32 : go_type := uint32T.
 
+Definition my_u32__mset : list (string * val) := [
+].
+
 Definition also_u32 : go_type := my_u32.
+
+Definition also_u32__mset : list (string * val) := [
+].
 
 Definition ConstWithAbbrevType : expr := #(U32 3).
 
@@ -527,6 +561,9 @@ Definition allTheLiterals : go_type := structT [
   "int" :: uint64T;
   "s" :: stringT;
   "b" :: boolT
+].
+
+Definition allTheLiterals__mset : list (string * val) := [
 ].
 
 Definition normalLiterals : val :=
@@ -592,6 +629,9 @@ Definition useCondVar : val :=
 
 Definition hasCondVar : go_type := structT [
   "cond" :: ptrT
+].
+
+Definition hasCondVar__mset : list (string * val) := [
 ].
 
 (* log_debugging.go *)
@@ -856,7 +896,13 @@ Definition MapSize : val :=
 
 Definition IntWrapper : go_type := uint64T.
 
+Definition IntWrapper__mset : list (string * val) := [
+].
+
 Definition MapWrapper : go_type := mapT uint64T boolT.
+
+Definition MapWrapper__mset : list (string * val) := [
+].
 
 Definition MapTypeAliases : val :=
   rec: "MapTypeAliases" "m1" "m2" :=
@@ -1013,6 +1059,10 @@ Definition wrapExternalStruct : go_type := structT [
   "d" :: marshal.Dec
 ].
 
+Definition wrapExternalStruct__mset : list (string * val) := [
+  ("moveUint64", wrapExternalStruct__moveUint64)
+].
+
 Definition wrapExternalStruct__moveUint64 : val :=
   rec: "wrapExternalStruct__moveUint64" "w" <> :=
     exception_do (let: "w" := ref_ty wrapExternalStruct "w" in
@@ -1041,11 +1091,17 @@ Definition typing : go_type := structT [
   "proph" :: ProphIdT
 ].
 
+Definition typing__mset : list (string * val) := [
+].
+
 (* reassign.go *)
 
 Definition composite : go_type := structT [
   "a" :: uint64T;
   "b" :: uint64T
+].
+
+Definition composite__mset : list (string * val) := [
 ].
 
 Definition ReassignVars : val :=
@@ -1073,6 +1129,9 @@ Definition ReassignVars : val :=
 
 Definition Block : go_type := structT [
   "Value" :: uint64T
+].
+
+Definition Block__mset : list (string * val) := [
 ].
 
 Definition Disk1 : expr := #0.
@@ -1179,6 +1238,9 @@ Definition ReplicatedDiskRecover : val :=
 
 Definition SliceAlias : go_type := sliceT boolT.
 
+Definition SliceAlias__mset : list (string * val) := [
+].
+
 Definition sliceOps : val :=
   rec: "sliceOps" <> :=
     exception_do (let: "x" := ref_ty (sliceT uint64T) (zero_val (sliceT uint64T)) in
@@ -1211,8 +1273,15 @@ Definition thing : go_type := structT [
   "x" :: uint64T
 ].
 
+Definition thing__mset : list (string * val) := [
+].
+
 Definition sliceOfThings : go_type := structT [
   "things" :: sliceT thing
+].
+
+Definition sliceOfThings__mset : list (string * val) := [
+  ("getThingRef", sliceOfThings__getThingRef)
 ].
 
 Definition sliceOfThings__getThingRef : val :=
@@ -1315,6 +1384,11 @@ Definition Point : go_type := structT [
   "y" :: uint64T
 ].
 
+Definition Point__mset : list (string * val) := [
+  ("Add", Point__Add)
+  ("GetField", Point__GetField)
+].
+
 Definition Point__Add : val :=
   rec: "Point__Add" "c" "z" :=
     exception_do (let: "c" := ref_ty Point "c" in
@@ -1366,10 +1440,22 @@ Definition TwoInts : go_type := structT [
   "y" :: uint64T
 ].
 
+Definition TwoInts__mset : list (string * val) := [
+].
+
 Definition S : go_type := structT [
   "a" :: uint64T;
   "b" :: TwoInts;
   "c" :: boolT
+].
+
+Definition S__mset : list (string * val) := [
+  ("readA", S__readA)
+  ("readB", S__readB)
+  ("readBVal", S__readBVal)
+  ("writeB", S__writeB)
+  ("negateC", S__negateC)
+  ("refC", S__refC)
 ].
 
 Definition NewS : val :=
@@ -1469,8 +1555,14 @@ Definition sleep : val :=
 Definition A : go_type := structT [
 ].
 
+Definition A__mset : list (string * val) := [
+].
+
 Definition B : go_type := structT [
   "a" :: sliceT A
+].
+
+Definition B__mset : list (string * val) := [
 ].
 
 (* trailing_call.go *)
@@ -1491,9 +1583,18 @@ Definition my_u64 : go_type := uint64T.
 
 Definition Timestamp : go_type := uint64T.
 
+Definition Timestamp__mset : list (string * val) := [
+].
+
 Definition UseTypeAbbrev : go_type := uint64T.
 
+Definition UseTypeAbbrev__mset : list (string * val) := [
+].
+
 Definition UseNamedType : go_type := Timestamp.
+
+Definition UseNamedType__mset : list (string * val) := [
+].
 
 Definition convertToAlias : val :=
   rec: "convertToAlias" <> :=

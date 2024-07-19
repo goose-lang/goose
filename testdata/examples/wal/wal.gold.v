@@ -18,6 +18,17 @@ Definition Log : go_type := structT [
   "length" :: ptrT
 ].
 
+Definition Log__mset : list (string * val) := [
+  ("lock", Log__lock)
+  ("unlock", Log__unlock)
+  ("BeginTxn", Log__BeginTxn)
+  ("Read", Log__Read)
+  ("Size", Log__Size)
+  ("Write", Log__Write)
+  ("Commit", Log__Commit)
+  ("Apply", Log__Apply)
+].
+
 Definition intToBlock : val :=
   rec: "intToBlock" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in

@@ -11,6 +11,9 @@ From New Require Import disk_prelude.
 Definition unit : go_type := structT [
 ].
 
+Definition unit__mset : list (string * val) := [
+].
+
 Definition findKey : val :=
   rec: "findKey" "m" :=
     exception_do (let: "m" := ref_ty (mapT uint64T unit) "m" in
@@ -324,6 +327,10 @@ Definition Enc : go_type := structT [
   "p" :: sliceT byteT
 ].
 
+Definition Enc__mset : list (string * val) := [
+  ("consume", Enc__consume)
+].
+
 Definition Enc__consume : val :=
   rec: "Enc__consume" "e" "n" :=
     exception_do (let: "e" := ref_ty ptrT "e" in
@@ -340,6 +347,10 @@ Definition Enc__consume : val :=
 
 Definition Dec : go_type := structT [
   "p" :: sliceT byteT
+].
+
+Definition Dec__mset : list (string * val) := [
+  ("consume", Dec__consume)
 ].
 
 Definition Dec__consume : val :=
@@ -488,6 +499,10 @@ Definition Editor : go_type := structT [
   "next_val" :: uint64T
 ].
 
+Definition Editor__mset : list (string * val) := [
+  ("AdvanceReturn", Editor__AdvanceReturn)
+].
+
 (* advances the array editor, and returns the value it wrote, storing
    "next" in next_val *)
 Definition Editor__AdvanceReturn : val :=
@@ -519,6 +534,9 @@ Definition addFour64 : val :=
 Definition Pair : go_type := structT [
   "x" :: uint64T;
   "y" :: uint64T
+].
+
+Definition Pair__mset : list (string * val) := [
 ].
 
 (* tests *)
@@ -638,6 +656,9 @@ Definition testU32Len : val :=
 
 Definition Uint32 : go_type := uint32T.
 
+Definition Uint32__mset : list (string * val) := [
+].
+
 (* https://github.com/tchajed/goose/issues/14 *)
 Definition failing_testU32NewtypeLen : val :=
   rec: "failing_testU32NewtypeLen" <> :=
@@ -650,6 +671,9 @@ Definition failing_testU32NewtypeLen : val :=
 (* interfaces.go *)
 
 Definition geometryInterface : go_type := interfaceT.
+
+Definition geometryInterface__mset : list (string * val) := [
+].
 
 Definition measureArea : val :=
   rec: "measureArea" "t" :=
@@ -673,6 +697,11 @@ Definition measureVolume : val :=
 
 Definition SquareStruct : go_type := structT [
   "Side" :: uint64T
+].
+
+Definition SquareStruct__mset : list (string * val) := [
+  ("Square", SquareStruct__Square)
+  ("Volume", SquareStruct__Volume)
 ].
 
 Definition SquareStruct__Square : val :=
@@ -811,6 +840,10 @@ Definition standardForLoop : val :=
 
 Definition LoopStruct : go_type := structT [
   "loopNext" :: ptrT
+].
+
+Definition LoopStruct__mset : list (string * val) := [
+  ("forLoopWait", LoopStruct__forLoopWait)
 ].
 
 Definition LoopStruct__forLoopWait : val :=
@@ -1498,6 +1531,9 @@ Definition BoolTest : go_type := structT [
   "fc" :: uint64T
 ].
 
+Definition BoolTest__mset : list (string * val) := [
+].
+
 Definition CheckTrue : val :=
   rec: "CheckTrue" "b" :=
     exception_do (let: "b" := ref_ty ptrT "b" in
@@ -1590,6 +1626,10 @@ Definition testShortcircuitOrFT : val :=
 Definition ArrayEditor : go_type := structT [
   "s" :: sliceT uint64T;
   "next_val" :: uint64T
+].
+
+Definition ArrayEditor__mset : list (string * val) := [
+  ("Advance", ArrayEditor__Advance)
 ].
 
 Definition ArrayEditor__Advance : val :=
@@ -1783,8 +1823,16 @@ Definition Bar : go_type := structT [
   "b" :: uint64T
 ].
 
+Definition Bar__mset : list (string * val) := [
+  ("mutate", Bar__mutate)
+].
+
 Definition Foo : go_type := structT [
   "bar" :: Bar
+].
+
+Definition Foo__mset : list (string * val) := [
+  ("mutateBar", Foo__mutateBar)
 ].
 
 Definition Bar__mutate : val :=
@@ -1823,10 +1871,21 @@ Definition TwoInts : go_type := structT [
   "y" :: uint64T
 ].
 
+Definition TwoInts__mset : list (string * val) := [
+].
+
 Definition S : go_type := structT [
   "a" :: uint64T;
   "b" :: TwoInts;
   "c" :: boolT
+].
+
+Definition S__mset : list (string * val) := [
+  ("readA", S__readA)
+  ("readB", S__readB)
+  ("readBVal", S__readBVal)
+  ("updateBValX", S__updateBValX)
+  ("negateC", S__negateC)
 ].
 
 Definition NewS : val :=
@@ -1992,6 +2051,9 @@ Definition StructWrap : go_type := structT [
   "i" :: uint64T
 ].
 
+Definition StructWrap__mset : list (string * val) := [
+].
+
 Definition testStoreInStructVar : val :=
   rec: "testStoreInStructVar" <> :=
     exception_do (let: "p" := ref_ty StructWrap (struct.make StructWrap [{
@@ -2038,6 +2100,9 @@ Definition testStoreSlice : val :=
 
 Definition StructWithFunc : go_type := structT [
   "fn" :: funcT
+].
+
+Definition StructWithFunc__mset : list (string * val) := [
 ].
 
 Definition testStructFieldFunc : val :=
@@ -2093,6 +2158,17 @@ Definition Log : go_type := structT [
   "l" :: ptrT;
   "cache" :: mapT uint64T (sliceT byteT);
   "length" :: ptrT
+].
+
+Definition Log__mset : list (string * val) := [
+  ("lock", Log__lock)
+  ("unlock", Log__unlock)
+  ("BeginTxn", Log__BeginTxn)
+  ("Read", Log__Read)
+  ("Size", Log__Size)
+  ("Write", Log__Write)
+  ("Commit", Log__Commit)
+  ("Apply", Log__Apply)
 ].
 
 Definition intToBlock : val :=
