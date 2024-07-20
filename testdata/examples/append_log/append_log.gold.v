@@ -23,6 +23,7 @@ Definition Log__mset : list (string * val) := [
   ("Reset", Log__Reset)
 ].
 
+(* go: append_log.go:22:17 *)
 Definition Log__mkHdr : val :=
   rec: "Log__mkHdr" "log" <> :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -34,12 +35,14 @@ Definition Log__mkHdr : val :=
     return: ((marshal.Enc__Finish (![marshal.Enc] "enc")) #());;;
     do:  #()).
 
+(* go: append_log.go:29:17 *)
 Definition Log__writeHdr : val :=
   rec: "Log__writeHdr" "log" <> :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     do:  disk.Write #0 ((Log__mkHdr (![ptrT] "log")) #());;;
     do:  #()).
 
+(* go: append_log.go:33:6 *)
 Definition Init : val :=
   rec: "Init" "diskSz" :=
     exception_do (let: "diskSz" := ref_ty uint64T "diskSz" in
@@ -63,6 +66,7 @@ Definition Init : val :=
     return: (![ptrT] "log", #true);;;
     do:  #()).
 
+(* go: append_log.go:42:6 *)
 Definition Open : val :=
   rec: "Open" <> :=
     exception_do (let: "hdr" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
@@ -84,6 +88,7 @@ Definition Open : val :=
      }]));;;
     do:  #()).
 
+(* go: append_log.go:50:17 *)
 Definition Log__get : val :=
   rec: "Log__get" "log" "i" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -99,6 +104,7 @@ Definition Log__get : val :=
     return: (slice.nil, #false);;;
     do:  #()).
 
+(* go: append_log.go:58:17 *)
 Definition Log__Get : val :=
   rec: "Log__Get" "log" "i" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -113,6 +119,7 @@ Definition Log__Get : val :=
     return: (![sliceT byteT] "v", ![boolT] "b");;;
     do:  #()).
 
+(* go: append_log.go:65:6 *)
 Definition writeAll : val :=
   rec: "writeAll" "bks" "off" :=
     exception_do (let: "off" := ref_ty uint64T "off" in
@@ -125,6 +132,7 @@ Definition writeAll : val :=
       do:  #());;;
     do:  #()).
 
+(* go: append_log.go:71:17 *)
 Definition Log__append : val :=
   rec: "Log__append" "log" "bks" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -143,6 +151,7 @@ Definition Log__append : val :=
     return: (#true);;;
     do:  #()).
 
+(* go: append_log.go:82:17 *)
 Definition Log__Append : val :=
   rec: "Log__Append" "log" "bks" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -155,6 +164,7 @@ Definition Log__Append : val :=
     return: (![boolT] "b");;;
     do:  #()).
 
+(* go: append_log.go:89:17 *)
 Definition Log__reset : val :=
   rec: "Log__reset" "log" <> :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -163,6 +173,7 @@ Definition Log__reset : val :=
     do:  (Log__writeHdr (![ptrT] "log")) #();;;
     do:  #()).
 
+(* go: append_log.go:94:17 *)
 Definition Log__Reset : val :=
   rec: "Log__Reset" "log" <> :=
     exception_do (let: "log" := ref_ty ptrT "log" in

@@ -16,6 +16,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
 	info    *types.Info
-	Fset    *token.FileSet
 	pkgPath string
 	errorReporter
 
@@ -64,7 +64,6 @@ func getFfi(pkg *packages.Package) string {
 func NewPkgCtx(pkg *packages.Package) Ctx {
 	return Ctx{
 		info:          pkg.TypesInfo,
-		Fset:          pkg.Fset,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
 	}
@@ -129,6 +128,15 @@ func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 		*comment += "\n\n"
 	}
 	*comment += strings.TrimSuffix(doc.Text(), "\n")
+}
+
+func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
+	if *comment != "" {
+		*comment += "\n\n"
+	}
+	f := ctx.fset.Position(d.Name.Pos())
+	f.Filename = filepath.Base(f.Filename)
+	*comment += "go: " + f.String()
 }
 
 func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
@@ -1251,7 +1259,7 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
-	// ctx.addSourceFile(d, &fd.Comment)
+	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {

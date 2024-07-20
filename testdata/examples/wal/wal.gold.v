@@ -29,6 +29,7 @@ Definition Log__mset : list (string * val) := [
   ("Apply", Log__Apply)
 ].
 
+(* go: log.go:25:6 *)
 Definition intToBlock : val :=
   rec: "intToBlock" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in
@@ -39,6 +40,7 @@ Definition intToBlock : val :=
     return: (![sliceT byteT] "b");;;
     do:  #()).
 
+(* go: log.go:31:6 *)
 Definition blockToInt : val :=
   rec: "blockToInt" "v" :=
     exception_do (let: "v" := ref_ty (sliceT byteT) "v" in
@@ -48,7 +50,9 @@ Definition blockToInt : val :=
     return: (![uint64T] "a");;;
     do:  #()).
 
-(* New initializes a fresh log *)
+(* New initializes a fresh log
+
+   go: log.go:37:6 *)
 Definition New : val :=
   rec: "New" <> :=
     exception_do (let: "d" := ref_ty disk.Disk (zero_val disk.Disk) in
@@ -85,12 +89,14 @@ Definition New : val :=
      }]);;;
     do:  #()).
 
+(* go: log.go:52:14 *)
 Definition Log__lock : val :=
   rec: "Log__lock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     do:  (sync.Mutex__Lock (![ptrT] (struct.field_ref Log "l" "l"))) #();;;
     do:  #()).
 
+(* go: log.go:56:14 *)
 Definition Log__unlock : val :=
   rec: "Log__unlock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -99,7 +105,9 @@ Definition Log__unlock : val :=
 
 (* BeginTxn allocates space for a new transaction in the log.
 
-   Returns true if the allocation succeeded. *)
+   Returns true if the allocation succeeded.
+
+   go: log.go:63:14 *)
 Definition Log__BeginTxn : val :=
   rec: "Log__BeginTxn" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -119,7 +127,9 @@ Definition Log__BeginTxn : val :=
 
 (* Read from the logical disk.
 
-   Reads must go through the log to return committed but un-applied writes. *)
+   Reads must go through the log to return committed but un-applied writes.
+
+   go: log.go:77:14 *)
 Definition Log__Read : val :=
   rec: "Log__Read" "l" "a" :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -143,6 +153,7 @@ Definition Log__Read : val :=
     return: (![sliceT byteT] "dv");;;
     do:  #()).
 
+(* go: log.go:90:14 *)
 Definition Log__Size : val :=
   rec: "Log__Size" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -152,7 +163,9 @@ Definition Log__Size : val :=
     return: ((![uint64T] "sz") - logLength);;;
     do:  #()).
 
-(* Write to the disk through the log. *)
+(* Write to the disk through the log.
+
+   go: log.go:97:14 *)
 Definition Log__Write : val :=
   rec: "Log__Write" "l" "a" "v" :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -182,7 +195,9 @@ Definition Log__Write : val :=
     do:  (Log__unlock (![Log] "l")) #();;;
     do:  #()).
 
-(* Commit the current transaction. *)
+(* Commit the current transaction.
+
+   go: log.go:113:14 *)
 Definition Log__Commit : val :=
   rec: "Log__Commit" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -197,6 +212,7 @@ Definition Log__Commit : val :=
     do:  (__Write (![disk.Disk] (struct.field_ref Log "d" "l"))) #0 (![sliceT byteT] "header");;;
     do:  #()).
 
+(* go: log.go:122:6 *)
 Definition getLogEntry : val :=
   rec: "getLogEntry" "d" "logOffset" :=
     exception_do (let: "logOffset" := ref_ty uint64T "logOffset" in
@@ -216,7 +232,9 @@ Definition getLogEntry : val :=
     return: (![uint64T] "a", ![sliceT byteT] "v");;;
     do:  #()).
 
-(* applyLog assumes we are running sequentially *)
+(* applyLog assumes we are running sequentially
+
+   go: log.go:131:6 *)
 Definition applyLog : val :=
   rec: "applyLog" "d" "length" :=
     exception_do (let: "length" := ref_ty uint64T "length" in
@@ -242,6 +260,7 @@ Definition applyLog : val :=
       do:  #()));;;
     do:  #()).
 
+(* go: log.go:142:6 *)
 Definition clearLog : val :=
   rec: "clearLog" "d" :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in
@@ -253,7 +272,9 @@ Definition clearLog : val :=
 
 (* Apply all the committed transactions.
 
-   Frees all the space in the log. *)
+   Frees all the space in the log.
+
+   go: log.go:150:14 *)
 Definition Log__Apply : val :=
   rec: "Log__Apply" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
@@ -268,7 +289,9 @@ Definition Log__Apply : val :=
     do:  (Log__unlock (![Log] "l")) #();;;
     do:  #()).
 
-(* Open recovers the log following a crash or shutdown *)
+(* Open recovers the log following a crash or shutdown
+
+   go: log.go:163:6 *)
 Definition Open : val :=
   rec: "Open" <> :=
     exception_do (let: "d" := ref_ty disk.Disk (zero_val disk.Disk) in

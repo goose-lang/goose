@@ -39,6 +39,7 @@ Definition Log__mset : list (string * val) := [
   ("Logger", Log__Logger)
 ].
 
+(* go: logging2.go:25:16 *)
 Definition Log__writeHdr : val :=
   rec: "Log__writeHdr" "log" "len" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -50,6 +51,7 @@ Definition Log__writeHdr : val :=
     do:  disk.Write LOGCOMMIT (![sliceT byteT] "hdr");;;
     do:  #()).
 
+(* go: logging2.go:31:6 *)
 Definition Init : val :=
   rec: "Init" "logSz" :=
     exception_do (let: "logSz" := ref_ty uint64T "logSz" in
@@ -68,6 +70,7 @@ Definition Init : val :=
     return: (![Log] "log");;;
     do:  #()).
 
+(* go: logging2.go:45:16 *)
 Definition Log__readHdr : val :=
   rec: "Log__readHdr" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -80,6 +83,7 @@ Definition Log__readHdr : val :=
     return: (![uint64T] "disklen");;;
     do:  #()).
 
+(* go: logging2.go:51:16 *)
 Definition Log__readBlocks : val :=
   rec: "Log__readBlocks" "log" "len" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -99,6 +103,7 @@ Definition Log__readBlocks : val :=
     return: (![sliceT (sliceT byteT)] "blks");;;
     do:  #()).
 
+(* go: logging2.go:60:16 *)
 Definition Log__Read : val :=
   rec: "Log__Read" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -113,6 +118,7 @@ Definition Log__Read : val :=
     return: (![sliceT (sliceT byteT)] "blks");;;
     do:  #()).
 
+(* go: logging2.go:68:16 *)
 Definition Log__memWrite : val :=
   rec: "Log__memWrite" "log" "l" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -130,6 +136,7 @@ Definition Log__memWrite : val :=
       do:  #()));;;
     do:  #()).
 
+(* go: logging2.go:75:16 *)
 Definition Log__memAppend : val :=
   rec: "Log__memAppend" "log" "l" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -155,7 +162,9 @@ Definition Log__memAppend : val :=
     return: (#true, ![uint64T] "txn");;;
     do:  #()).
 
-(* XXX just an atomic read? *)
+(* XXX just an atomic read?
+
+   go: logging2.go:90:16 *)
 Definition Log__readLogTxnNxt : val :=
   rec: "Log__readLogTxnNxt" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -167,6 +176,7 @@ Definition Log__readLogTxnNxt : val :=
     return: (![uint64T] "n");;;
     do:  #()).
 
+(* go: logging2.go:97:16 *)
 Definition Log__diskAppendWait : val :=
   rec: "Log__diskAppendWait" "log" "txn" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -184,6 +194,7 @@ Definition Log__diskAppendWait : val :=
       do:  #());;;
     do:  #()).
 
+(* go: logging2.go:107:16 *)
 Definition Log__Append : val :=
   rec: "Log__Append" "log" "l" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -201,6 +212,7 @@ Definition Log__Append : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
+(* go: logging2.go:115:16 *)
 Definition Log__writeBlocks : val :=
   rec: "Log__writeBlocks" "log" "l" "pos" :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -221,6 +233,7 @@ Definition Log__writeBlocks : val :=
       do:  #()));;;
     do:  #()).
 
+(* go: logging2.go:123:16 *)
 Definition Log__diskAppend : val :=
   rec: "Log__diskAppend" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -250,6 +263,7 @@ Definition Log__diskAppend : val :=
     do:  (sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "logLock" "log"))) #();;;
     do:  #()).
 
+(* go: logging2.go:142:16 *)
 Definition Log__Logger : val :=
   rec: "Log__Logger" "log" <> :=
     exception_do (let: "log" := ref_ty Log "log" in
@@ -269,7 +283,9 @@ Definition Txn__mset : list (string * val) := [
   ("Commit", Txn__Commit)
 ].
 
-(* XXX wait if cannot reserve space in log *)
+(* XXX wait if cannot reserve space in log
+
+   go: txn.go:13:6 *)
 Definition Begin : val :=
   rec: "Begin" "log" :=
     exception_do (let: "log" := ref_ty ptrT "log" in
@@ -282,6 +298,7 @@ Definition Begin : val :=
     return: (![Txn] "txn");;;
     do:  #()).
 
+(* go: txn.go:21:16 *)
 Definition Txn__Write : val :=
   rec: "Txn__Write" "txn" "addr" "blk" :=
     exception_do (let: "txn" := ref_ty Txn "txn" in
@@ -315,6 +332,7 @@ Definition Txn__Write : val :=
     return: (![boolT] "ret");;;
     do:  #()).
 
+(* go: txn.go:38:16 *)
 Definition Txn__Read : val :=
   rec: "Txn__Read" "txn" "addr" :=
     exception_do (let: "txn" := ref_ty Txn "txn" in
@@ -333,6 +351,7 @@ Definition Txn__Read : val :=
       do:  #());;;
     do:  #()).
 
+(* go: txn.go:47:16 *)
 Definition Txn__Commit : val :=
   rec: "Txn__Commit" "txn" <> :=
     exception_do (let: "txn" := ref_ty Txn "txn" in

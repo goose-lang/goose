@@ -9,6 +9,7 @@ Section code.
 Context `{ffi_syntax}.
 Local Coercion Var' s: expr := Var s.
 
+(* go: simpledb.go:20:6 *)
 Definition UseMarshal : val :=
   rec: "UseMarshal" <> :=
     exception_do (do:  marshal.NewEnc #0;;;
@@ -22,7 +23,9 @@ Definition Table : go_type := structT [
 Definition Table__mset : list (string * val) := [
 ].
 
-(* CreateTable creates a new, empty table. *)
+(* CreateTable creates a new, empty table.
+
+   go: simpledb.go:32:6 *)
 Definition CreateTable : val :=
   rec: "CreateTable" "p" :=
     exception_do (let: "p" := ref_ty stringT "p" in
@@ -57,7 +60,9 @@ Definition Entry__mset : list (string * val) := [
    All decoders have the shape func(p []byte) (T, uint64)
 
    The uint64 represents the number of bytes consumed; if 0,
-   then decoding failed, and the value of type T should be ignored. *)
+   then decoding failed, and the value of type T should be ignored.
+
+   go: simpledb.go:52:6 *)
 Definition DecodeUInt64 : val :=
   rec: "DecodeUInt64" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
@@ -72,7 +77,9 @@ Definition DecodeUInt64 : val :=
     return: (![uint64T] "n", #8);;;
     do:  #()).
 
-(* DecodeEntry is a Decoder(Entry) *)
+(* DecodeEntry is a Decoder(Entry)
+
+   go: simpledb.go:61:6 *)
 Definition DecodeEntry : val :=
   rec: "DecodeEntry" "data" :=
     exception_do (let: "data" := ref_ty (sliceT byteT) "data" in
@@ -129,7 +136,9 @@ Definition lazyFileBuf : go_type := structT [
 Definition lazyFileBuf__mset : list (string * val) := [
 ].
 
-(* readTableIndex parses a complete table on disk into a key->offset index *)
+(* readTableIndex parses a complete table on disk into a key->offset index
+
+   go: simpledb.go:86:6 *)
 Definition readTableIndex : val :=
   rec: "readTableIndex" "f" "index" :=
     exception_do (let: "index" := ref_ty (mapT uint64T uint64T) "index" in
@@ -181,7 +190,9 @@ Definition readTableIndex : val :=
       do:  #()));;;
     do:  #()).
 
-(* RecoverTable restores a table from disk on startup. *)
+(* RecoverTable restores a table from disk on startup.
+
+   go: simpledb.go:111:6 *)
 Definition RecoverTable : val :=
   rec: "RecoverTable" "p" :=
     exception_do (let: "p" := ref_ty stringT "p" in
@@ -198,13 +209,16 @@ Definition RecoverTable : val :=
      }]);;;
     do:  #()).
 
-(* CloseTable frees up the fd held by a table. *)
+(* CloseTable frees up the fd held by a table.
+
+   go: simpledb.go:119:6 *)
 Definition CloseTable : val :=
   rec: "CloseTable" "t" :=
     exception_do (let: "t" := ref_ty Table "t" in
     do:  FS.Close (![fileT] (struct.field_ref Table "File" "t"));;;
     do:  #()).
 
+(* go: simpledb.go:123:6 *)
 Definition readValue : val :=
   rec: "readValue" "f" "off" :=
     exception_do (let: "off" := ref_ty uint64T "off" in
@@ -237,6 +251,7 @@ Definition readValue : val :=
      slice.slice byteT "$s" #0 (![uint64T] "totalBytes"));;;
     do:  #()).
 
+(* go: simpledb.go:137:6 *)
 Definition tableRead : val :=
   rec: "tableRead" "t" "k" :=
     exception_do (let: "k" := ref_ty uint64T "k" in
@@ -265,6 +280,7 @@ Definition bufFile : go_type := structT [
 Definition bufFile__mset : list (string * val) := [
 ].
 
+(* go: simpledb.go:151:6 *)
 Definition newBuf : val :=
   rec: "newBuf" "f" :=
     exception_do (let: "f" := ref_ty fileT "f" in
@@ -277,6 +293,7 @@ Definition newBuf : val :=
      }]);;;
     do:  #()).
 
+(* go: simpledb.go:159:6 *)
 Definition bufFlush : val :=
   rec: "bufFlush" "f" :=
     exception_do (let: "f" := ref_ty bufFile "f" in
@@ -293,6 +310,7 @@ Definition bufFlush : val :=
     do:  (![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT byteT] "$a0";;;
     do:  #()).
 
+(* go: simpledb.go:168:6 *)
 Definition bufAppend : val :=
   rec: "bufAppend" "f" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
@@ -307,6 +325,7 @@ Definition bufAppend : val :=
     do:  (![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT byteT] "$a0";;;
     do:  #()).
 
+(* go: simpledb.go:174:6 *)
 Definition bufClose : val :=
   rec: "bufClose" "f" :=
     exception_do (let: "f" := ref_ty bufFile "f" in
@@ -324,6 +343,7 @@ Definition tableWriter : go_type := structT [
 Definition tableWriter__mset : list (string * val) := [
 ].
 
+(* go: simpledb.go:186:6 *)
 Definition newTableWriter : val :=
   rec: "newTableWriter" "p" :=
     exception_do (let: "p" := ref_ty stringT "p" in
@@ -349,6 +369,7 @@ Definition newTableWriter : val :=
      }]);;;
     do:  #()).
 
+(* go: simpledb.go:199:6 *)
 Definition tableWriterAppend : val :=
   rec: "tableWriterAppend" "w" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
@@ -361,6 +382,7 @@ Definition tableWriterAppend : val :=
     do:  (![ptrT] (struct.field_ref tableWriter "offset" "w")) <-[uint64T] "$a0";;;
     do:  #()).
 
+(* go: simpledb.go:205:6 *)
 Definition tableWriterClose : val :=
   rec: "tableWriterClose" "w" :=
     exception_do (let: "w" := ref_ty tableWriter "w" in
@@ -374,7 +396,9 @@ Definition tableWriterClose : val :=
      }]);;;
     do:  #()).
 
-(* EncodeUInt64 is an Encoder(uint64) *)
+(* EncodeUInt64 is an Encoder(uint64)
+
+   go: simpledb.go:215:6 *)
 Definition EncodeUInt64 : val :=
   rec: "EncodeUInt64" "x" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
@@ -389,7 +413,9 @@ Definition EncodeUInt64 : val :=
     return: (![sliceT byteT] "p2");;;
     do:  #()).
 
-(* EncodeSlice is an Encoder([]byte) *)
+(* EncodeSlice is an Encoder([]byte)
+
+   go: simpledb.go:223:6 *)
 Definition EncodeSlice : val :=
   rec: "EncodeSlice" "data" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
@@ -403,6 +429,7 @@ Definition EncodeSlice : val :=
     return: (![sliceT byteT] "p3");;;
     do:  #()).
 
+(* go: simpledb.go:229:6 *)
 Definition tablePut : val :=
   rec: "tablePut" "w" "k" "v" :=
     exception_do (let: "v" := ref_ty (sliceT byteT) "v" in
@@ -438,6 +465,7 @@ Definition Database : go_type := structT [
 Definition Database__mset : list (string * val) := [
 ].
 
+(* go: simpledb.go:256:6 *)
 Definition makeValueBuffer : val :=
   rec: "makeValueBuffer" <> :=
     exception_do (let: "buf" := ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT))) in
@@ -451,7 +479,9 @@ Definition makeValueBuffer : val :=
     return: (![ptrT] "bufPtr");;;
     do:  #()).
 
-(* NewDb initializes a new database on top of an empty filesys. *)
+(* NewDb initializes a new database on top of an empty filesys.
+
+   go: simpledb.go:264:6 *)
 Definition NewDb : val :=
   rec: "NewDb" <> :=
     exception_do (let: "wbuf" := ref_ty ptrT (zero_val ptrT) in
@@ -501,7 +531,9 @@ Definition NewDb : val :=
    Returns a boolean indicating if the k was found and a non-nil slice with
    the value if k was in the database.
 
-   Reflects any completed in-memory writes. *)
+   Reflects any completed in-memory writes.
+
+   go: simpledb.go:293:6 *)
 Definition Read : val :=
   rec: "Read" "db" "k" :=
     exception_do (let: "k" := ref_ty uint64T "k" in
@@ -552,7 +584,9 @@ Definition Read : val :=
    Creates a new key-value mapping if k is not in the database and overwrites
    the previous value if k is present.
 
-   The new value is buffered in memory. To persist it, call db.Compact(). *)
+   The new value is buffered in memory. To persist it, call db.Compact().
+
+   go: simpledb.go:326:6 *)
 Definition Write : val :=
   rec: "Write" "db" "k" "v" :=
     exception_do (let: "v" := ref_ty (sliceT byteT) "v" in
@@ -567,6 +601,7 @@ Definition Write : val :=
     do:  (sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #();;;
     do:  #()).
 
+(* go: simpledb.go:333:6 *)
 Definition freshTable : val :=
   rec: "freshTable" "p" :=
     exception_do (let: "p" := ref_ty stringT "p" in
@@ -583,6 +618,7 @@ Definition freshTable : val :=
     return: (![stringT] "p");;;
     do:  #()).
 
+(* go: simpledb.go:345:6 *)
 Definition tablePutBuffer : val :=
   rec: "tablePutBuffer" "w" "buf" :=
     exception_do (let: "buf" := ref_ty (mapT uint64T (sliceT byteT)) "buf" in
@@ -593,7 +629,9 @@ Definition tablePutBuffer : val :=
     do:  #()).
 
 (* add all of table t to the table w being created; skip any keys in the (read)
-   buffer b since those writes overwrite old ones *)
+   buffer b since those writes overwrite old ones
+
+   go: simpledb.go:353:6 *)
 Definition tablePutOldTable : val :=
   rec: "tablePutOldTable" "w" "t" "b" :=
     exception_do (let: "b" := ref_ty (mapT uint64T (sliceT byteT)) "b" in
@@ -659,7 +697,9 @@ Definition tablePutOldTable : val :=
 
    Assumes all the appropriate locks have been taken.
 
-   Returns the old table and new table. *)
+   Returns the old table and new table.
+
+   go: simpledb.go:388:6 *)
 Definition constructNewTable : val :=
   rec: "constructNewTable" "db" "wbuf" :=
     exception_do (let: "wbuf" := ref_ty (mapT uint64T (sliceT byteT)) "wbuf" in
@@ -687,7 +727,9 @@ Definition constructNewTable : val :=
 (* Compact persists in-memory writes to a new table.
 
    This simple database design must re-write all data to combine in-memory
-   writes with existing writes. *)
+   writes with existing writes.
+
+   go: simpledb.go:405:6 *)
 Definition Compact : val :=
   rec: "Compact" "db" :=
     exception_do (let: "db" := ref_ty Database "db" in
@@ -730,6 +772,7 @@ Definition Compact : val :=
     do:  (sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "compactionL" "db"))) #();;;
     do:  #()).
 
+(* go: simpledb.go:450:6 *)
 Definition recoverManifest : val :=
   rec: "recoverManifest" <> :=
     exception_do (let: "f" := ref_ty fileT (zero_val fileT) in
@@ -745,7 +788,9 @@ Definition recoverManifest : val :=
     return: (![stringT] "tableName");;;
     do:  #()).
 
-(* delete 'name' if it isn't tableName or "manifest" *)
+(* delete 'name' if it isn't tableName or "manifest"
+
+   go: simpledb.go:464:6 *)
 Definition deleteOtherFile : val :=
   rec: "deleteOtherFile" "name" "tableName" :=
     exception_do (let: "tableName" := ref_ty stringT "tableName" in
@@ -763,6 +808,7 @@ Definition deleteOtherFile : val :=
     do:  FS.Delete #(str "db") (![stringT] "name");;;
     do:  #()).
 
+(* go: simpledb.go:474:6 *)
 Definition deleteOtherFiles : val :=
   rec: "deleteOtherFiles" "tableName" :=
     exception_do (let: "tableName" := ref_ty stringT "tableName" in
@@ -791,7 +837,9 @@ Definition deleteOtherFiles : val :=
       do:  #()));;;
     do:  #()).
 
-(* Recover restores a previously created database after a crash or shutdown. *)
+(* Recover restores a previously created database after a crash or shutdown.
+
+   go: simpledb.go:489:6 *)
 Definition Recover : val :=
   rec: "Recover" <> :=
     exception_do (let: "tableName" := ref_ty stringT (zero_val stringT) in
@@ -840,7 +888,9 @@ Definition Recover : val :=
 (* Shutdown immediately closes the database.
 
    Discards any uncommitted in-memory writes; similar to a crash except for
-   cleanly closing any open files. *)
+   cleanly closing any open files.
+
+   go: simpledb.go:520:6 *)
 Definition Shutdown : val :=
   rec: "Shutdown" "db" :=
     exception_do (let: "db" := ref_ty Database "db" in
@@ -856,7 +906,9 @@ Definition Shutdown : val :=
 
 (* Close closes an open database cleanly, flushing any in-memory writes.
 
-   db should not be used afterward *)
+   db should not be used afterward
+
+   go: simpledb.go:534:6 *)
 Definition Close : val :=
   rec: "Close" "db" :=
     exception_do (let: "db" := ref_ty Database "db" in
