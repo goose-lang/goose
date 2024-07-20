@@ -6,12 +6,6 @@ From New.code Require sync.
 
 From New Require Import disk_prelude.
 
-(* Append-only, sequential, crash-safe log.
-
-   The main interesting feature is that the log supports multi-block atomic
-   appends, which are implemented by atomically updating an on-disk header with
-   the number of valid blocks in the log. *)
-
 Definition Log : go_type := structT [
   "m" :: ptrT;
   "sz" :: uint64T;

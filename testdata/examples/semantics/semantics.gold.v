@@ -6,8 +6,6 @@ From New.code Require sync.
 
 From New Require Import disk_prelude.
 
-(* allocator.go *)
-
 Definition unit : go_type := structT [
 ].
 
@@ -103,8 +101,6 @@ Definition testAllocateFull : val :=
     return: (((![boolT] "ok1") && (![boolT] "ok2")) && (~ (![boolT] "ok3")));;;
     do:  #()).
 
-(* closures.go *)
-
 Definition AdderType : go_type := funcT.
 
 Definition MultipleArgsType : go_type := funcT.
@@ -142,8 +138,6 @@ Definition testClosureBasic : val :=
     else do:  #());;;
     return: (#false);;;
     do:  #()).
-
-(* comparisons.go *)
 
 Definition testCompareAll : val :=
   rec: "testCompareAll" <> :=
@@ -229,8 +223,6 @@ Definition testCompareLE : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* conversions.go *)
-
 Definition literalCast : val :=
   rec: "literalCast" <> :=
     exception_do (let: "x" := ref_ty uint64T (zero_val uint64T) in
@@ -268,8 +260,6 @@ Definition testByteSliceToString : val :=
     do:  (slice.elem_ref byteT (![sliceT byteT] "x") #2) <-[byteT] "$a0";;;
     return: ((byteSliceToString (![sliceT byteT] "x")) = #(str "ABC"));;;
     do:  #()).
-
-(* copy.go *)
 
 Definition testCopySimple : val :=
   rec: "testCopySimple" <> :=
@@ -320,8 +310,6 @@ Definition testCopyShorterSrc : val :=
     do:  "n" <-[uint64T] "$a0";;;
     return: ((((![uint64T] "n") = #10) && ((![byteT] (slice.elem_ref byteT (![sliceT byteT] "y") #3)) = #(U8 1))) && ((![byteT] (slice.elem_ref byteT (![sliceT byteT] "y") #12)) = #(U8 2)));;;
     do:  #()).
-
-(* encoding.go *)
 
 Definition Enc : go_type := structT [
   "p" :: sliceT byteT
@@ -472,8 +460,6 @@ Definition testEncDec64 : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* first_class_function.go *)
-
 Definition FirstClassFunction : val :=
   rec: "FirstClassFunction" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in
@@ -491,8 +477,6 @@ Definition testFirstClassFunction : val :=
   rec: "testFirstClassFunction" <> :=
     exception_do (return: ((ApplyF #1 FirstClassFunction) = #11);;;
     do:  #()).
-
-(* function_ordering.go *)
 
 Definition Editor : go_type := structT [
   "s" :: sliceT uint64T;
@@ -628,8 +612,6 @@ Definition failing_testArgumentOrder : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* int_conversions.go *)
-
 Definition testU64ToU32 : val :=
   rec: "testU64ToU32" <> :=
     exception_do (let: "ok" := ref_ty boolT #true in
@@ -667,8 +649,6 @@ Definition failing_testU32NewtypeLen : val :=
     do:  "s" <-[sliceT byteT] "$a0";;;
     return: ((to_u32 (slice.len (![sliceT byteT] "s"))) = #(U32 20));;;
     do:  #()).
-
-(* interfaces.go *)
 
 Definition geometryInterface : go_type := interfaceT.
 
@@ -786,10 +766,6 @@ Definition testIfStmtInterface : val :=
     return: (#false);;;
     do:  #()).
 
-(* interfaces_failing.go *)
-
-(* lock.go *)
-
 (* We can't interpret multithreaded code, so this just checks that
    locks are correctly interpreted *)
 Definition testsUseLocks : val :=
@@ -801,8 +777,6 @@ Definition testsUseLocks : val :=
     do:  (sync.Mutex__Unlock (![ptrT] "m")) #();;;
     return: (#true);;;
     do:  #()).
-
-(* loops.go *)
 
 (* helpers *)
 Definition standardForLoop : val :=
@@ -1051,8 +1025,6 @@ Definition testNestedGoStyleLoopsNoComparison : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* maps.go *)
-
 Definition IterateMapKeys : val :=
   rec: "IterateMapKeys" "m" :=
     exception_do (let: "m" := ref_ty (mapT uint64T uint64T) "m" in
@@ -1113,8 +1085,6 @@ Definition testMapSize : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* multiple_assign.go *)
-
 Definition multReturnTwo : val :=
   rec: "multReturnTwo" <> :=
     exception_do (return: (#2, #3);;;
@@ -1156,8 +1126,6 @@ Definition testMultipleAssignToMap : val :=
     do:  "x" <-[uint64T] "$a0";;;
     return: (((![uint64T] "x") = #2) && ((Fst (map.get (![mapT uint64T uint64T] "m") #0)) = #3));;;
     do:  #()).
-
-(* multiple_return.go *)
 
 Definition returnTwo : val :=
   rec: "returnTwo" <> :=
@@ -1220,8 +1188,6 @@ Definition testReturnFour : val :=
     return: (((((![uint64T] "x") = #2) && ((![boolT] "y") = #true)) && ((![uint32T] "z") = #(U32 1))) && ((![uint64T] "w") = #7));;;
     do:  #()).
 
-(* nil.go *)
-
 Definition failing_testCompareSliceToNil : val :=
   rec: "failing_testCompareSliceToNil" <> :=
     exception_do (let: "s" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
@@ -1259,8 +1225,6 @@ Definition testComparePointerWrappedDefaultToNil : val :=
     exception_do (let: "s" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     return: ((![sliceT byteT] "s") = slice.nil);;;
     do:  #()).
-
-(* operations.go *)
 
 (* helpers *)
 Definition reverseAssignOps64 : val :=
@@ -1456,8 +1420,6 @@ Definition testPlusTimes : val :=
     exception_do (return: (((#2 + #5) * #2) = #14);;;
     do:  #()).
 
-(* precedence.go *)
-
 Definition testOrCompareSimple : val :=
   rec: "testOrCompareSimple" <> :=
     exception_do ((if: (#3 > #4) || (#4 > #3)
@@ -1509,8 +1471,6 @@ Definition testShiftMod : val :=
     exception_do (return: ((#20 ≫ (#8 `rem` #4)) = #20);;;
     do:  #()).
 
-(* prims.go *)
-
 Definition testLinearize : val :=
   rec: "testLinearize" <> :=
     exception_do (let: "m" := ref_ty ptrT (zero_val ptrT) in
@@ -1521,8 +1481,6 @@ Definition testLinearize : val :=
     do:  (sync.Mutex__Unlock (![ptrT] "m")) #();;;
     return: (#true);;;
     do:  #()).
-
-(* shortcircuiting.go *)
 
 Definition BoolTest : go_type := structT [
   "t" :: boolT;
@@ -1620,8 +1578,6 @@ Definition testShortcircuitOrFT : val :=
     else do:  #());;;
     return: (#false);;;
     do:  #()).
-
-(* slices.go *)
 
 Definition ArrayEditor : go_type := structT [
   "s" :: sliceT uint64T;
@@ -1776,8 +1732,6 @@ Definition testSliceLiteral : val :=
     return: (![boolT] "ok");;;
     do:  #()).
 
-(* strings.go *)
-
 (* helpers *)
 Definition stringAppend : val :=
   rec: "stringAppend" "s" "x" :=
@@ -1815,8 +1769,6 @@ Definition failing_testStringLength : val :=
     do:  "s" <-[stringT] "$a0";;;
     return: ((![boolT] "ok") && ((StringLength (![stringT] "s")) = #3));;;
     do:  #()).
-
-(* struct_pointers.go *)
 
 Definition Bar : go_type := structT [
   "a" :: uint64T;
@@ -1863,8 +1815,6 @@ Definition failing_testFooBarMutation : val :=
     do:  (Foo__mutateBar (![Foo] "x")) #();;;
     return: ((![uint64T] (struct.field_ref Bar "a" (struct.field_ref Foo "bar" "x"))) = #2);;;
     do:  #()).
-
-(* structs.go *)
 
 Definition TwoInts : go_type := structT [
   "x" :: uint64T;
@@ -2118,8 +2068,6 @@ Definition testStructFieldFunc : val :=
     return: (((![funcT] (struct.field_ref StructWithFunc "fn" (![ptrT] "a"))) #10) = #20);;;
     do:  #()).
 
-(* vars.go *)
-
 Definition testPointerAssignment : val :=
   rec: "testPointerAssignment" <> :=
     exception_do (let: "x" := ref_ty boolT (zero_val boolT) in
@@ -2145,8 +2093,6 @@ Definition testAnonymousAssign : val :=
     do:  "$a0";;;
     return: (#true);;;
     do:  #()).
-
-(* wal.go *)
 
 (* 10 is completely arbitrary *)
 Definition MaxTxnWrites : expr := #10.

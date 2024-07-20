@@ -5,17 +5,9 @@ Section code.
 Context `{ffi_syntax}.
 Local Coercion Var' s: expr := Var s.
 
-(* 0consts.go *)
-
 Definition ONE : expr := #1.
 
 Definition TWO : expr := #2.
-
-(* 1doc.go *)
-
-(* comments tests package comments, like this one
-
-   it has multiple files *)
 
 Definition Foo : go_type := structT [
   "a" :: boolT

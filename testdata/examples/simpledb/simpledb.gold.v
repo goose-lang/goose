@@ -9,13 +9,6 @@ Section code.
 Context `{ffi_syntax}.
 Local Coercion Var' s: expr := Var s.
 
-(* Package simpledb implements a one-table version of LevelDB
-
-   It buffers all writes in memory; to make data durable, call Compact().
-   This operation re-writes all of the data in the database
-   (including in-memory writes) in a crash-safe manner.
-   Keys in the table are cached for efficient reads. *)
-
 Definition UseMarshal : val :=
   rec: "UseMarshal" <> :=
     exception_do (do:  marshal.NewEnc #0;;;

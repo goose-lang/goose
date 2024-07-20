@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"path"
-	"sort"
 	"strings"
 	"sync"
 
@@ -62,7 +61,7 @@ func (dt *depTracker) addDep(s string) {
 }
 
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.Decl, errs []error) {
+func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, decls []glang.Decl, errs []error) {
 	declGroups := make(map[declId][]glang.Decl)
 	declDeps := make(map[declId][]string)
 	nameDecls := make(map[string]declId)
@@ -71,7 +70,7 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.
 	// Translate every Go decl into a Glang decl and build up dependencies for
 	// each of them.
 	for fi, f := range fs {
-		for di, d := range f.Ast.Decls {
+		for di, d := range f.Decls {
 			ctx.dep = &depTracker{}
 
 			id := declId{fi, di}
@@ -109,9 +108,6 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.
 		}
 
 		if lastFile != id.fileIdx && ident != "" {
-			f := fs[id.fileIdx]
-			decls = append(decls,
-				glang.NewComment(fmt.Sprintf("%s from %s", ident, f.Name())))
 			lastFile = id.fileIdx
 		}
 
@@ -121,15 +117,8 @@ func (ctx Ctx) Decls(fs ...NamedFile) (imports glang.ImportDecls, decls []glang.
 	}
 
 	for fi, f := range fs {
-		if len(fs) > 1 {
-			decls = append(decls,
-				glang.NewComment(fmt.Sprintf("%s", f.Name())))
-		}
-		if f.Ast.Doc != nil {
-			decls = append(decls, glang.NewComment(f.Ast.Doc.Text()))
-		}
 		lastFile = fi
-		for di := range f.Ast.Decls {
+		for di := range f.Decls {
 			processDecl(declId{fi, di}, "")
 		}
 	}
@@ -156,22 +145,6 @@ func (f NamedFile) Name() string {
 	return path.Base(f.Path)
 }
 
-func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
-	var flatFiles []NamedFile
-	if len(fileNames) != len(fileAsts) {
-		fmt.Printf("names: %+v\n", fileNames)
-		fmt.Printf("asts: %+v\n", fileAsts)
-		panic("sortedFiles(): fileNames must match fileAsts")
-	}
-	for i := range fileNames {
-		flatFiles = append(flatFiles, NamedFile{Path: fileNames[i], Ast: fileAsts[i]})
-	}
-	sort.Slice(flatFiles, func(i, j int) bool {
-		return flatFiles[i].Path < flatFiles[j].Path
-	})
-	return flatFiles
-}
-
 func pkgErrors(errors []packages.Error) error {
 	var errs []error
 	for _, err := range errors {
@@ -193,7 +166,6 @@ func translatePackage(pkg *packages.Package) (glang.File, error) {
 			pkgErrors(pkg.Errors))
 	}
 	ctx := NewPkgCtx(pkg)
-	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
 	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
@@ -201,7 +173,7 @@ func translatePackage(pkg *packages.Package) (glang.File, error) {
 	}
 	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(getFfi(pkg))
 
-	imports, decls, errs := ctx.Decls(files...)
+	imports, decls, errs := ctx.decls(pkg.Syntax)
 	coqFile.Imports = imports
 	coqFile.Decls = decls
 	if len(errs) != 0 {

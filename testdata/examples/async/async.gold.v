@@ -4,8 +4,6 @@ From New.code Require github_com.tchajed.goose.machine.async_disk.
 
 From New Require Import async_disk_prelude.
 
-(* async just uses the async disk FFI *)
-
 Definition TakesDisk : val :=
   rec: "TakesDisk" "d" :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in

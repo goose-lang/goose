@@ -6,8 +6,6 @@ From New.code Require sync.
 
 From New Require Import disk_prelude.
 
-(* logging2.go *)
-
 Definition LOGCOMMIT : expr := #0.
 
 Definition LOGSTART : expr := #1.
@@ -259,8 +257,6 @@ Definition Log__Logger : val :=
       do:  (Log__diskAppend (![Log] "log")) #();;;
       do:  #());;;
     do:  #()).
-
-(* txn.go *)
 
 Definition Txn : go_type := structT [
   "log" :: ptrT;
