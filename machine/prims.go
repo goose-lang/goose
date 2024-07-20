@@ -10,6 +10,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/goose-lang/primitive"
 )
 
 // UInt64Get converts the first 8 bytes of p to a uint64.
@@ -96,22 +98,7 @@ func Exit(n uint64) {
 // Not provided by sync.Cond, so we have to (inefficiently) implement this
 // ourselves.
 func WaitTimeout(cond *sync.Cond, timeoutMs uint64) {
-	done := make(chan struct{})
-	go func() {
-		cond.Wait()
-		cond.L.Unlock()
-		close(done)
-	}()
-	select {
-	case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
-		// timed out
-		cond.L.Lock()
-		return
-	case <-done:
-		// Wait returned
-		cond.L.Lock()
-		return
-	}
+	primitive.WaitTimeout(cond, timeoutMs)
 }
 
 func TimeNow() uint64 {

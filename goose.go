@@ -368,7 +368,7 @@ func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) coq.CallExpr 
 	case "ResolveBool", "ResolveU64":
 		return ctx.newCoqCall("ResolveProph", callArgs)
 	default:
-		ctx.unsupported(f, "method %s of machine.ProphId", f.Sel.Name)
+		ctx.unsupported(f, "method %s of primitive.ProphId", f.Sel.Name)
 		return coq.CallExpr{}
 	}
 }
@@ -411,7 +411,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		case "NewProph":
 			return ctx.newCoqCall("NewProph", args)
 		default:
-			ctx.futureWork(f, "unhandled call to machine.%s", f.Sel.Name)
+			ctx.futureWork(f, "unhandled call to primitive.%s", f.Sel.Name)
 			return coq.CallExpr{}
 		}
 	}

@@ -1,6 +1,6 @@
 module github.com/goose-lang/goose
 
-go 1.21
+go 1.22
 
 require (
 	github.com/fatih/color v1.17.0
@@ -13,6 +13,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/goose-lang/primitive v0.1.0
 	github.com/goose-lang/std v0.3.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
