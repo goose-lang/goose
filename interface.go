@@ -210,7 +210,7 @@ func (tr Translator) translatePackage(pkg *packages.Package) (glang.File, error)
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
-	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.Config.Ffi)
+	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(getFfi(pkg))
 
 	imports, decls, errs := ctx.Decls(files...)
 	coqFile.Imports = imports

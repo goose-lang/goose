@@ -13,12 +13,11 @@
 package goose_test
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path"
 	"regexp"
@@ -112,99 +111,56 @@ func (t positiveTest) DeleteActual() {
 	_ = os.Remove(t.ActualFile())
 }
 
-func testExample(testingT *testing.T, name string, tr goose.Translator) {
-	testingT.Parallel()
-	testingT.Helper()
-	assert := assert.New(testingT)
-	t := positiveTest{newTest("testdata/examples", name)}
-	if !t.isDir() {
-		assert.FailNowf("not a test directory",
-			"path: %s",
-			t.path)
-	}
-	// c.Logf("testing example %s/", t.Path)
-
-	files, errs, patternError := tr.TranslatePackages(t.path, ".")
-	if patternError != nil {
-		// shouldn't be possible since "." is valid
-		assert.FailNowf("loading failed", "load error: %v", patternError)
-	}
-	if !(len(files) == 1 && len(errs) == 1) {
-		assert.FailNowf("pattern matched unexpected number of packages",
-			"files: %v", files)
-	}
-	f, terr := files[0], errs[0]
-	if terr != nil {
-		fmt.Fprintln(os.Stderr, terr)
-		assert.FailNow("translation failed")
-	}
-
-	var b bytes.Buffer
-	f.Write(&b)
-	actual := b.String()
-
-	if *updateGold {
-		expected := t.Gold()
-		if actual != expected {
-			fmt.Fprintf(os.Stderr, "updated %s\n", t.GoldFile())
+func TestExamples(testingT *testing.T) {
+	tests := loadTests("./testdata/examples")
+	for _, t := range tests {
+		t := positiveTest{t}
+		if !t.isDir() {
+			continue
 		}
-		t.UpdateGold(actual)
-		t.DeleteActual()
-		return
+		testingT.Run(t.name, func(testingT *testing.T) {
+			testingT.Parallel()
+			assert := assert.New(testingT)
+			files, errs, patternError := goose.Translator{}.TranslatePackages(t.path, ".")
+			if patternError != nil {
+				// shouldn't be possible since "." is valid
+				assert.FailNowf("loading failed", "load error: %v", patternError)
+			}
+			if !(len(files) == 1 && len(errs) == 1) {
+				assert.FailNowf("pattern matched unexpected number of packages",
+					"files: %v", files)
+			}
+
+			var b bytes.Buffer
+			files[0].Write(&b)
+			actual := b.String()
+
+			expected := t.Gold()
+			if *updateGold {
+				if actual != expected {
+					fmt.Fprintf(os.Stderr, "updated %s\n", t.GoldFile())
+				}
+				t.UpdateGold(actual)
+				t.DeleteActual()
+				return
+			}
+
+			if expected == "" {
+				assert.FailNowf("could not load gold output",
+					"gold file: %s",
+					t.GoldFile())
+			}
+			if actual != expected {
+				t.PutActual(actual)
+				assert.FailNowf("actual Coq output != gold output",
+					"see %s",
+					t.ActualFile())
+				return
+			}
+			// when tests pass, clean up actual output
+			t.DeleteActual()
+		})
 	}
-
-	expected := t.Gold()
-	if expected == "" {
-		assert.FailNowf("could not load gold output",
-			"gold file: %s",
-			t.GoldFile())
-	}
-	if actual != expected {
-		t.PutActual(actual)
-		assert.FailNowf("actual Coq output != gold output",
-			"see %s",
-			t.ActualFile())
-		return
-	}
-	// when tests pass, clean up actual output
-	t.DeleteActual()
-}
-
-func TestUnitTests(t *testing.T) {
-	testExample(t, "unittest", goose.Translator{})
-}
-
-func TestSimpleDb(t *testing.T) {
-	testExample(t, "simpledb", goose.Translator{})
-}
-
-func TestWal(t *testing.T) {
-	testExample(t, "wal", goose.Translator{})
-}
-
-func TestAsync(t *testing.T) {
-	testExample(t, "async", goose.Translator{TypeCheck: false})
-}
-
-func TestLogging2(t *testing.T) {
-	testExample(t, "logging2", goose.Translator{})
-}
-
-func TestAppendLog(t *testing.T) {
-	testExample(t, "append_log", goose.Translator{})
-}
-
-// This test is disabled while goose doesn't support arrays
-func Disabled__TestRfc1813(t *testing.T) {
-	testExample(t, "rfc1813", goose.Translator{})
-}
-
-func TestSemantics(t *testing.T) {
-	testExample(t, "semantics", goose.Translator{})
-}
-
-func TestComments(t *testing.T) {
-	testExample(t, "comments", goose.Translator{})
 }
 
 type errorExpectation struct {
@@ -218,18 +174,30 @@ type errorTestResult struct {
 	Expected   errorExpectation
 }
 
-func getExpectedError(fset *token.FileSet,
-	comments []*ast.CommentGroup) *errorExpectation {
+func getExpectedError(pkgDir string) *errorExpectation {
 	errRegex := regexp.MustCompile(`ERROR ?(.*)`)
-	for _, cg := range comments {
-		for _, c := range cg.List {
-			ms := errRegex.FindStringSubmatch(c.Text)
+	f, err := os.Open(pkgDir)
+	if err != nil {
+		panic(err)
+	}
+	fileNames, err := f.Readdirnames(0)
+	if err != nil {
+		panic(err)
+	}
+	for _, name := range fileNames {
+		file, err := os.Open(path.Join(pkgDir, name))
+		if err != nil {
+			panic(err)
+		}
+		scanner := bufio.NewScanner(file)
+		lineNum := 0
+		for scanner.Scan() {
+			lineNum += 1
+			ms := errRegex.FindStringSubmatch(scanner.Text())
 			if ms == nil {
 				continue
 			}
-			expected := &errorExpectation{
-				Line: fset.Position(c.Pos()).Line,
-			}
+			expected := &errorExpectation{Line: lineNum}
 			// found a match
 			if len(ms) > 1 {
 				expected.Error = ms[1]
@@ -241,68 +209,53 @@ func getExpectedError(fset *token.FileSet,
 	return nil
 }
 
-func translateErrorFile(assert *assert.Assertions, filePath string) *errorTestResult {
-	pkgName := "example"
-	ctx := goose.NewCtx(pkgName, goose.Config{})
-	fset := ctx.Fset
-	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		assert.FailNowf("test code does not parse", "file: %s", filePath)
-		return nil
+func getFirstConversionError(err error) *goose.ConversionError {
+	var cerr *goose.ConversionError
+	var merr goose.MultipleErrors
+	if errors.As(err, &merr) {
+		if errors.As(merr[0], &cerr) {
+		} else {
+			panic("Cannot convert to ConversionError")
+		}
+	} else {
+		panic("Cannot convert")
 	}
-
-	err = ctx.TypeCheck([]*ast.File{f})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		assert.FailNowf("test code does not type check", "file: %s", filePath)
-		return nil
-	}
-
-	_, _, errs := ctx.Decls(goose.NamedFile{Path: filePath, Ast: f})
-	if len(errs) == 0 {
-		assert.FailNowf("expected error", "file: %s", filePath)
-		return nil
-	}
-	cerr := errs[0].(*goose.ConversionError)
-
-	expectedErr := getExpectedError(fset, f.Comments)
-	if expectedErr == nil {
-		assert.FailNowf("test code does not have an error expectation",
-			"file: %s", filePath)
-		return nil
-	}
-
-	return &errorTestResult{
-		Err:        cerr,
-		ActualLine: fset.Position(cerr.Pos).Line,
-		Expected:   *expectedErr,
-	}
+	return cerr
 }
 
 func TestNegativeExamples(testingT *testing.T) {
 	tests := loadTests("./testdata/negative-tests")
 	for _, t := range tests {
-		if t.isDir() {
+		if !t.isDir() {
 			continue
 		}
 		testingT.Run(t.name, func(testingT *testing.T) {
+			testingT.Parallel()
 			assert := assert.New(testingT)
-			tt := translateErrorFile(assert, t.path)
-			if tt == nil {
-				// this Ast has already failed
-				return
+			files, errs, patternError := goose.Translator{}.TranslatePackages(t.path, ".")
+
+			if patternError != nil { // shouldn't be possible since "." is valid
+				assert.FailNowf("loading failed", "load error: %v", patternError)
 			}
-			assert.Regexp(`(unsupported|future)`, tt.Err.Category)
-			if !strings.Contains(tt.Err.Message, tt.Expected.Error) {
+			conversionErr := getFirstConversionError(errs[0])
+			expectedErr := getExpectedError(t.path)
+
+			if !(len(files) == 1 && len(errs) == 1) {
+				assert.FailNowf("pattern matched unexpected number of packages",
+					"files: %v", files)
+			}
+
+			assert.Regexp(`(unsupported|future)`, conversionErr.Category)
+			if !strings.Contains(conversionErr.Message, expectedErr.Error) {
 				assert.FailNowf("incorrect error message",
 					`%s: error message "%s" does not contain "%s"`,
-					t.name, tt.Err.Message, tt.Expected.Error)
+					t.name, conversionErr.Message, expectedErr.Error)
 			}
-			if tt.ActualLine > 0 && tt.ActualLine != tt.Expected.Line {
+			actualLine := conversionErr.Position.Line
+			if actualLine > 0 && actualLine != expectedErr.Line {
 				assert.FailNowf("incorrect error message line",
 					"%s: error is incorrectly attributed to %s",
-					t.name, tt.Err.GoSrcFile)
+					t.name, conversionErr.Position.String())
 			}
 		})
 	}

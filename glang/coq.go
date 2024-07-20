@@ -742,9 +742,7 @@ func (e SpawnExpr) Coq(needs_paren bool) string {
 // FuncLit is an unnamed function literal, consisting of its parameters and body.
 type FuncLit struct {
 	Args []FieldDecl
-	// TODO: ReturnType Type
 	Body Expr
-	// TODO: AddTypes   bool
 }
 
 func (e FuncLit) Coq(needs_paren bool) string {
@@ -777,7 +775,6 @@ type FuncDecl struct {
 	ReturnType Type
 	Body       Expr
 	Comment    string
-	AddTypes   bool
 }
 
 // Signature renders the function declaration's bindings
@@ -831,11 +828,6 @@ func (d FuncDecl) CoqDecl() string {
 		defer pp.Indent(-2)
 		pp.AddLine(d.Body.Coq(false) + ".")
 	}()
-	if d.AddTypes {
-		pp.Add("Theorem %s_t: ⊢ %s : (%s).", d.Name, d.Name, d.Type())
-		pp.AddLine("Proof. typecheck. Qed.")
-		pp.Add("Hint Resolve %s_t : types.", d.Name)
-	}
 	return pp.Build()
 }
 
@@ -860,11 +852,10 @@ func (d CommentDecl) CoqDecl() string {
 }
 
 type ConstDecl struct {
-	Name     string
-	Type     Type
-	Val      Expr
-	Comment  string
-	AddTypes bool
+	Name    string
+	Type    Type
+	Val     Expr
+	Comment string
 }
 
 func (d ConstDecl) CoqDecl() string {
@@ -873,11 +864,6 @@ func (d ConstDecl) CoqDecl() string {
 	indent := pp.Block("Definition ", "%s : expr := %s.",
 		d.Name, d.Val.Coq(false))
 	pp.Indent(-indent)
-	if d.AddTypes {
-		pp.Add("Theorem %s_t Γ : Γ ⊢ %s : %s.",
-			d.Name, d.Name, d.Type.Coq(true))
-		pp.AddLine("Proof. typecheck. Qed.")
-	}
 	return pp.Build()
 }
 

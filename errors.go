@@ -99,10 +99,8 @@ type ConversionError struct {
 	// (for internal debugging) file:lineno for the goose code that threw the
 	// error
 	GooseCaller string
-	// file:lineno for the source program where GoCode appears
-	GoSrcFile string
 	// (for systematic tests)
-	Pos token.Pos
+	Position token.Position
 }
 
 func (e *ConversionError) Error() string {
@@ -110,7 +108,7 @@ func (e *ConversionError) Error() string {
 		fmt.Sprintf("[%s]: %s", e.Category, e.Message),
 		fmt.Sprintf("%s", e.GoCode),
 		fmt.Sprintf("  %s", e.GooseCaller),
-		fmt.Sprintf("  src: %s", e.GoSrcFile),
+		fmt.Sprintf("  src: %s", e.Position.String()),
 	}
 	return strings.Join(lines, "\n")
 }
@@ -125,8 +123,7 @@ func (r errorReporter) prefixed(prefix string, n locatable, msg string, args ...
 		Message:     formatted,
 		GoCode:      what,
 		GooseCaller: getCaller(2),
-		GoSrcFile:   where.String(),
-		Pos:         n.Pos(),
+		Position:    where,
 	}
 
 	panic(gooseError{err: err})

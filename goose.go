@@ -15,11 +15,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/importer"
 	"go/printer"
 	"go/token"
 	"go/types"
-	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -34,16 +32,8 @@ type Ctx struct {
 	Fset    *token.FileSet
 	pkgPath string
 	errorReporter
-	Config
 
 	dep *depTracker
-}
-
-// Config holds global configuration for Coq conversion
-type Config struct {
-	AddSourceFileComments bool
-	TypeCheck             bool
-	Ffi                   string
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -75,54 +65,12 @@ func getFfi(pkg *packages.Package) string {
 
 // NewPkgCtx initializes a context based on a properly loaded package
 func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
-	// Figure out which FFI we're using
-	var config Config
-	// TODO: this duplication is bad, Config should probably embed Translator or
-	//   some other cleanup is needed
-	config.TypeCheck = tr.TypeCheck
-	config.AddSourceFileComments = tr.AddSourceFileComments
-	config.Ffi = getFfi(pkg)
-
 	return Ctx{
 		info:          pkg.TypesInfo,
 		Fset:          pkg.Fset,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
-		Config:        config,
 	}
-}
-
-// NewCtx loads a context for files passed directly,
-// rather than loaded from a packages.
-func NewCtx(pkgPath string, conf Config) Ctx {
-	info := &types.Info{
-		Defs: make(map[*ast.Ident]types.Object),
-		Uses: make(map[*ast.Ident]types.Object),
-		// TODO: these instances give the generic arguments of function
-		//  calls, use those
-		Instances: make(map[*ast.Ident]types.Instance),
-		Types:     make(map[ast.Expr]types.TypeAndValue),
-		Scopes:    make(map[ast.Node]*types.Scope),
-	}
-	fset := token.NewFileSet()
-	return Ctx{
-		info:          info,
-		Fset:          fset,
-		pkgPath:       pkgPath,
-		errorReporter: newErrorReporter(fset),
-		Config:        conf,
-	}
-}
-
-// FIXME: this is currently never called
-// TypeCheck type-checks a set of files and stores the result in the Ctx
-//
-// This is needed before conversion to Coq to disambiguate some methods.
-func (ctx Ctx) TypeCheck(files []*ast.File) error {
-	imp := importer.ForCompiler(ctx.Fset, "source", nil)
-	conf := types.Config{Importer: imp}
-	_, err := conf.Check(ctx.pkgPath, ctx.Fset, files, ctx.info)
-	return err
 }
 
 func (ctx Ctx) where(node ast.Node) string {
@@ -220,9 +168,6 @@ func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 }
 
 func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
-	if !ctx.AddSourceFileComments {
-		return
-	}
 	if *comment != "" {
 		*comment += "\n\n   "
 	}
@@ -235,9 +180,7 @@ func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
 		TypeName:    typeName,
 		MethodNames: []string{},
 	}
-	log.Printf("For type %s", typeName)
 	for i := range t.NumMethods() {
-		log.Printf(" .%s", t.Method(i).Name())
 		d.MethodNames = append(d.MethodNames, t.Method(i).Name())
 	}
 	return d
@@ -1426,9 +1369,9 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 }
 
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
-	fd := glang.FuncDecl{Name: d.Name.Name, AddTypes: ctx.Config.TypeCheck}
+	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
-	ctx.addSourceFile(d, &fd.Comment)
+	// ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
@@ -1477,8 +1420,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 	ident := spec.Names[0]
 	cd := glang.ConstDecl{
-		Name:     ident.Name,
-		AddTypes: ctx.Config.TypeCheck,
+		Name: ident.Name,
 	}
 	addSourceDoc(spec.Comment, &cd.Comment)
 	if len(spec.Values) == 0 {
