@@ -9,7 +9,7 @@ From New Require Import async_disk_prelude.
 Definition TakesDisk : val :=
   rec: "TakesDisk" "d" :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in
-    do:  #()).
+    (do:  #())).
 
 Definition UseDisk : val :=
   rec: "UseDisk" "d" :=

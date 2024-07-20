@@ -1432,7 +1432,13 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	fd.Body = ctx.blockStmt(d.Body)
+	if len(d.Body.List) == 0 {
+		// special case to correctly parenthesize just a do block as an argument to
+		// exception_do
+		fd.Body = glang.ParenExpr{Inner: glang.DoExpr{Expr: glang.Tt}}
+	} else {
+		fd.Body = ctx.blockStmt(d.Body)
+	}
 	for _, arg := range fd.Args {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
