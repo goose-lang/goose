@@ -11,16 +11,13 @@
 package goose
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/printer"
 	"go/token"
 	"go/types"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/tchajed/goose/glang"
 	"golang.org/x/tools/go/packages"
@@ -71,19 +68,6 @@ func NewPkgCtx(pkg *packages.Package) Ctx {
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
 	}
-}
-
-func (ctx Ctx) where(node ast.Node) string {
-	return ctx.Fset.Position(node.Pos()).String()
-}
-
-func (ctx Ctx) printGo(node ast.Node) string {
-	var what bytes.Buffer
-	err := printer.Fprint(&what, ctx.Fset, node)
-	if err != nil {
-		panic(err.Error())
-	}
-	return what.String()
 }
 
 func (ctx Ctx) field(f *ast.Field) glang.FieldDecl {
@@ -137,26 +121,6 @@ func (ctx Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
 	return typeParams
 }
 
-func (ctx Ctx) structFields(fs *ast.FieldList) []glang.FieldDecl {
-	var decls []glang.FieldDecl
-	for _, f := range fs.List {
-		if len(f.Names) > 1 {
-			ctx.futureWork(f, "multiple fields for same type (split them up)")
-			return nil
-		}
-		if len(f.Names) == 0 {
-			ctx.unsupported(f, "unnamed (embedded) field")
-			return nil
-		}
-		ty := ctx.glangTypeFromExpr(f.Type)
-		decls = append(decls, glang.FieldDecl{
-			Name: f.Names[0].Name,
-			Type: ty,
-		})
-	}
-	return decls
-}
-
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 	if doc == nil {
 		return
@@ -165,13 +129,6 @@ func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 		*comment += "\n\n"
 	}
 	*comment += strings.TrimSuffix(doc.Text(), "\n")
-}
-
-func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
-	if *comment != "" {
-		*comment += "\n\n   "
-	}
-	*comment += fmt.Sprintf("go: %s", ctx.where(node))
 }
 
 func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
@@ -204,18 +161,6 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	return r
 }
 
-func toInitialLower(s string) string {
-	pastFirstLetter := false
-	return strings.Map(func(r rune) rune {
-		if !pastFirstLetter {
-			newR := unicode.ToLower(r)
-			pastFirstLetter = true
-			return newR
-		}
-		return r
-	}, s)
-}
-
 func (ctx Ctx) lenExpr(e *ast.CallExpr) glang.CallExpr {
 	x := e.Args[0]
 	xTy := ctx.typeOf(x)
@@ -244,24 +189,6 @@ func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
 	return glang.CallExpr{}
 }
 
-func (ctx Ctx) prophIdMethod(f *ast.SelectorExpr, args []ast.Expr) glang.CallExpr {
-	callArgs := append([]ast.Expr{f.X}, args...)
-	switch f.Sel.Name {
-	case "ResolveBool", "ResolveU64":
-		return ctx.newCoqCall(glang.GallinaIdent("ResolveProph"), callArgs)
-	default:
-		ctx.unsupported(f, "method %s of machine.ProphId", f.Sel.Name)
-		return glang.CallExpr{}
-	}
-}
-
-func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
-	call *ast.CallExpr) glang.Expr {
-	args := call.Args
-	pkg := f.X.(*ast.Ident)
-	return ctx.newCoqCall(glang.PackageIdent{Package: pkg.Name, Ident: f.Sel.Name}, args)
-}
-
 func (ctx Ctx) newCoqCall(method glang.Expr, es []ast.Expr) glang.CallExpr {
 	var args []glang.Expr
 	for _, e := range es {
@@ -279,17 +206,6 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	}
 
 	return ctx.newCoqCall(ctx.expr(call.Fun), call.Args)
-}
-
-func (ctx Ctx) makeSliceExpr(elt glang.Type, args []ast.Expr) glang.CallExpr {
-	if len(args) == 2 {
-		return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
-	} else if len(args) == 3 {
-		return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
-	} else {
-		ctx.unsupported(args[0], "Too many or too few arguments in slice construction")
-		return glang.CallExpr{}
-	}
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
@@ -916,23 +832,6 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	return glang.LetExpr{ValExpr: ife, Cont: cont}
 }
 
-func (ctx Ctx) loopVar(s ast.Stmt) (ident *ast.Ident, init glang.Expr) {
-	initAssign, ok := s.(*ast.AssignStmt)
-	if !ok ||
-		len(initAssign.Lhs) > 1 ||
-		len(initAssign.Rhs) > 1 ||
-		initAssign.Tok != token.DEFINE {
-		ctx.unsupported(s, "loop initialization must be a single assignment")
-		return nil, nil
-	}
-	lhs, ok := initAssign.Lhs[0].(*ast.Ident)
-	if !ok {
-		ctx.nope(s, "initialization must define an identifier")
-	}
-	rhs := initAssign.Rhs[0]
-	return lhs, ctx.expr(rhs)
-}
-
 func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	var cond glang.Expr = glang.True
 	if s.Cond != nil {
@@ -979,13 +878,6 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 		Map:        ctx.expr(s.X),
 		Body:       ctx.blockStmt(s.Body),
 	}
-}
-
-func getIdentOrNil(e ast.Expr) *ast.Ident {
-	if id, ok := e.(*ast.Ident); ok {
-		return id
-	}
-	return nil
 }
 
 func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
@@ -1333,18 +1225,6 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	panic("unreachable")
 }
 
-func (ctx Ctx) returnExpr(es []ast.Expr) glang.Expr {
-	if len(es) == 0 {
-		// named returns are not supported, so this must return unit
-		return glang.ReturnExpr{Value: glang.UnitLiteral{}}
-	}
-	var exprs glang.TupleExpr
-	for _, r := range es {
-		exprs = append(exprs, ctx.expr(r))
-	}
-	return glang.ReturnExpr{Value: glang.NewTuple(exprs)}
-}
-
 // returnType converts an Ast.FuncType's Results to a Coq return type
 func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 	if results == nil {
@@ -1493,14 +1373,6 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 		decls = append(decls, glang.ImportDecl{Path: importPath})
 	}
 	return decls
-}
-
-// TODO: this is a hack, should have a better scheme for putting
-// interface/implementation types into the conversion name
-func unqualifyName(name string) string {
-	components := strings.Split(name, ".")
-	// return strings.Join(components[1:], "")
-	return components[len(components)-1]
 }
 
 func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {

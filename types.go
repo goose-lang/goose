@@ -20,30 +20,6 @@ func (ctx Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
 	return
 }
 
-// for now only string and uint64 are supported
-//
-// literals structs with literals should also be fine
-func supportedMapKey(keyTy types.Type) bool {
-	if isString(keyTy) {
-		return true
-	}
-	info, ok := getIntegerType(keyTy)
-	if ok && info.isUint64() {
-		return true
-	}
-	return false
-}
-
-func (ctx Ctx) selectorExprType(e *ast.SelectorExpr) glang.Expr {
-	if isIdent(e.X, "filesys") && isIdent(e.Sel, "File") {
-		return glang.TypeIdent("fileT")
-	}
-	if isIdent(e.X, "disk") && isIdent(e.Sel, "Block") {
-		return glang.TypeIdent("disk.blockT")
-	}
-	return ctx.glangType(e, ctx.typeOf(e))
-}
-
 func (ctx Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
 	return ctx.glangType(e, ctx.typeOf(e))
 }
@@ -136,58 +112,6 @@ func ptrElem(t types.Type) types.Type {
 	panic(fmt.Errorf("expected pointer type, got %v", t))
 }
 
-func (ctx Ctx) ptrType(_ *ast.StarExpr) glang.Type {
-	return glang.PtrType{}
-}
-
-func isEmptyInterface(e *ast.InterfaceType) bool {
-	return len(e.Methods.List) == 0
-}
-
-func isLockRef(t types.Type) bool {
-	if t, ok := t.(*types.Pointer); ok {
-		if t, ok := t.Elem().(*types.Named); ok {
-			name := t.Obj()
-			return name.Pkg().Name() == "sync" &&
-				name.Name() == "Mutex"
-		}
-	}
-	return false
-}
-
-func isCFMutexRef(t types.Type) bool {
-	if t, ok := t.(*types.Pointer); ok {
-		if t, ok := t.Elem().(*types.Named); ok {
-			name := t.Obj()
-			return name.Pkg().Name() == "cfmutex" &&
-				name.Name() == "CFMutex"
-		}
-	}
-	return false
-}
-
-func isCondVar(t types.Type) bool {
-	if t, ok := t.(*types.Pointer); ok {
-		if t, ok := t.Elem().(*types.Named); ok {
-			name := t.Obj()
-			return name.Pkg().Name() == "sync" &&
-				name.Name() == "Cond"
-		}
-	}
-	return false
-}
-
-func isWaitGroup(t types.Type) bool {
-	if t, ok := t.(*types.Pointer); ok {
-		if t, ok := t.Elem().(*types.Named); ok {
-			name := t.Obj()
-			return name.Pkg().Name() == "sync" &&
-				name.Name() == "WaitGroup"
-		}
-	}
-	return false
-}
-
 func isProphId(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
@@ -215,32 +139,9 @@ func isString(t types.Type) bool {
 	return false
 }
 
-func isDisk(t types.Type) bool {
-	if t, ok := t.(*types.Named); ok {
-		obj := t.Obj()
-		if obj.Pkg().Path() == "github.com/tchajed/goose/machine/disk" &&
-			obj.Name() == "Disk" {
-			return true
-		}
-	}
-	return false
-}
-
 type intTypeInfo struct {
 	width     int
 	isUntyped bool
-}
-
-func (info intTypeInfo) isUint64() bool {
-	return info.width == 64 || info.isUntyped
-}
-
-func (info intTypeInfo) isUint32() bool {
-	return info.width == 32 || info.isUntyped
-}
-
-func (info intTypeInfo) isUint8() bool {
-	return info.width == 8 || info.isUntyped
 }
 
 func getIntegerType(t types.Type) (intTypeInfo, bool) {
@@ -308,23 +209,4 @@ func (ctx Ctx) getInterfaceInfo(t types.Type) (interfaceTypeInfo, bool) {
 		}
 	}
 	return interfaceTypeInfo{}, false
-}
-
-func (info structTypeInfo) fields() []string {
-	var fields []string
-	for i := 0; i < info.structType.NumFields(); i++ {
-		fields = append(fields, info.structType.Field(i).Name())
-	}
-	return fields
-}
-
-func (ctx Ctx) typeList(n ast.Node, ts *types.TypeList) []glang.Expr {
-	var typeArgs []glang.Expr
-	if ts == nil {
-		return nil
-	}
-	for i := 0; i < ts.Len(); i++ {
-		typeArgs = append(typeArgs, ctx.glangType(n, ts.At(i)))
-	}
-	return typeArgs
 }
