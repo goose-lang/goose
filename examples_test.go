@@ -206,7 +206,7 @@ func getExpectedError(pkgDir string) *errorExpectation {
 			return expected
 		}
 	}
-	return nil
+	panic(fmt.Sprintf("could not find expected error in %s", pkgDir))
 }
 
 func getFirstConversionError(err error) *goose.ConversionError {

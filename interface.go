@@ -65,7 +65,6 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, decls []glang.D
 	declGroups := make(map[declId][]glang.Decl)
 	declDeps := make(map[declId][]string)
 	nameDecls := make(map[string]declId)
-	generated := make(map[declId]bool)
 
 	// Translate every Go decl into a Glang decl and build up dependencies for
 	// each of them.
@@ -94,11 +93,23 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, decls []glang.D
 	var lastFile int
 	var processDecl func(id declId, ident string)
 
+	generated := make(map[declId]bool)
+	generating := make(map[declId]bool)
 	processDecl = func(id declId, ident string) {
+		if generating[id] {
+			errs = append(errs, &ConversionError{
+				Category:    "unsupported",
+				Message:     fmt.Sprintf("cycle in dependencies while generating %s", ident),
+				GoCode:      "???",
+				GooseCaller: "decls() in interface.go",
+				Position:    ctx.fset.Position(fs[id.fileIdx].Decls[id.declIdx].Pos()),
+			})
+			return
+		}
 		if generated[id] {
 			return
 		}
-		generated[id] = true
+		generating[id] = true
 
 		for _, dep := range declDeps[id] {
 			depid, ok := nameDecls[dep]
@@ -106,6 +117,8 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, decls []glang.D
 				processDecl(depid, dep)
 			}
 		}
+		generated[id] = true
+		delete(generating, id)
 
 		if lastFile != id.fileIdx && ident != "" {
 			lastFile = id.fileIdx
