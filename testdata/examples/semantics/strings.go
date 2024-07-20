@@ -1,6 +1,6 @@
 package semantics
 
-import "github.com/tchajed/goose/machine"
+import "github.com/goose-lang/goose/machine"
 
 // helpers
 func stringAppend(s string, x uint64) string {

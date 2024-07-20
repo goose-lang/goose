@@ -5,9 +5,9 @@
 // include user-defined structs in Go as Coq records and a Perennial procedure
 // for each Go function.
 //
-// See the Goose README at https://github.com/tchajed/goose for a high-level
+// See the Goose README at https://github.com/goose-lang/goose for a high-level
 // overview. The source also has some design documentation at
-// https://github.com/tchajed/goose/tree/master/docs.
+// https://github.com/goose-lang/goose/tree/master/docs.
 package goose
 
 import (
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tchajed/goose/glang"
+	"github.com/goose-lang/goose/glang"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -1509,9 +1509,9 @@ func stringLitValue(lit *ast.BasicLit) string {
 }
 
 var ffiMapping = map[string]string{
-	"github.com/mit-pdos/gokv/grove_ffi":          "grove",
-	"github.com/tchajed/goose/machine/disk":       "disk",
-	"github.com/tchajed/goose/machine/async_disk": "async_disk",
+	"github.com/mit-pdos/gokv/grove_ffi":             "grove",
+	"github.com/goose-lang/goose/machine/disk":       "disk",
+	"github.com/goose-lang/goose/machine/async_disk": "async_disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {

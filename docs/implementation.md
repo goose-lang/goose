@@ -10,4 +10,4 @@ A few Go features are implemented as libraries in GooseLang on top of simpler pr
 
 ## Go support library
 
-Goose supplies `github.com/tchajed/goose/machine` for a handful of additional base operations (eg, for encoding integers as bytes), which have a corresponding semantics in GooseLang (via an implementation).
+Goose supplies `github.com/goose-lang/goose/machine` for a handful of additional base operations (eg, for encoding integers as bytes), which have a corresponding semantics in GooseLang (via an implementation).

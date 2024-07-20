@@ -9,8 +9,8 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/tchajed/goose"
-	"github.com/tchajed/goose/glang"
+	"github.com/goose-lang/goose"
+	"github.com/goose-lang/goose/glang"
 )
 
 // write data to file name, first checking if it already has those contents

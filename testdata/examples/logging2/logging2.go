@@ -1,8 +1,8 @@
 package logging2
 
 import (
-	"github.com/tchajed/goose/machine"
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/goose/machine/disk"
 
 	"sync"
 )

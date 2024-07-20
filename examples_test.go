@@ -25,8 +25,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goose-lang/goose"
 	"github.com/stretchr/testify/assert"
-	"github.com/tchajed/goose"
 )
 
 var updateGold = flag.Bool("update-gold",
