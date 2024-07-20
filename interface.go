@@ -172,17 +172,6 @@ func sortedFiles(fileNames []string, fileAsts []*ast.File) []NamedFile {
 	return flatFiles
 }
 
-// Translator has global configuration for translation
-//
-// TODO: need a better name for this (Translator is somehow global stuff, Config
-// is per-package)
-//
-// TODO: fix duplication with Config, perhaps embed a Translator in a Config
-type Translator struct {
-	TypeCheck             bool
-	AddSourceFileComments bool
-}
-
 func pkgErrors(errors []packages.Error) error {
 	var errs []error
 	for _, err := range errors {
@@ -197,13 +186,13 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func (tr Translator) translatePackage(pkg *packages.Package) (glang.File, error) {
+func translatePackage(pkg *packages.Package) (glang.File, error) {
 	if len(pkg.Errors) > 0 {
 		return glang.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	ctx := NewPkgCtx(pkg, tr)
+	ctx := NewPkgCtx(pkg)
 	files := sortedFiles(pkg.CompiledGoFiles, pkg.Syntax)
 
 	coqFile := glang.File{
@@ -254,7 +243,7 @@ func newPackageConfig(modDir string) *packages.Config {
 // The errs list contains errors corresponding to each package (in parallel with
 // the files list). patternErr is only non-nil if the patterns themselves have
 // a syntax error.
-func (tr Translator) TranslatePackages(modDir string,
+func TranslatePackages(modDir string,
 	pkgPattern ...string) (files []glang.File, errs []error, patternErr error) {
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {
@@ -271,7 +260,7 @@ func (tr Translator) TranslatePackages(modDir string,
 	wg.Add(len(pkgs))
 	for i, pkg := range pkgs {
 		go func(i int, pkg *packages.Package) {
-			f, err := tr.translatePackage(pkg)
+			f, err := translatePackage(pkg)
 			files[i] = f
 			errs[i] = err
 			wg.Done()

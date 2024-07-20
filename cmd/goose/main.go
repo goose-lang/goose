@@ -36,9 +36,9 @@ func coqFileContents(f glang.File) []byte {
 }
 
 func translate(pkgPatterns []string, outRootDir string, modDir string,
-	ignoreErrors bool, tr goose.Translator) {
+	ignoreErrors bool) {
 	red := color.New(color.FgRed).SprintFunc()
-	fs, errs, patternError := tr.TranslatePackages(modDir, pkgPatterns...)
+	fs, errs, patternError := goose.TranslatePackages(modDir, pkgPatterns...)
 	if patternError != nil {
 		fmt.Fprintln(os.Stderr, red(patternError.Error()))
 		os.Exit(1)
@@ -81,11 +81,6 @@ func main() {
 
 		flag.PrintDefaults()
 	}
-	var tr goose.Translator
-
-	flag.BoolVar(&tr.AddSourceFileComments, "source-comments", false,
-		"add comments indicating Go source code location for each top-level declaration")
-	flag.BoolVar(&tr.TypeCheck, "typecheck", false, "add type-checking theorems")
 
 	var outRootDir string
 	flag.StringVar(&outRootDir, "out", ".",
@@ -101,5 +96,5 @@ func main() {
 
 	flag.Parse()
 
-	translate(flag.Args(), outRootDir, modDir, ignoreErrors, tr)
+	translate(flag.Args(), outRootDir, modDir, ignoreErrors)
 }

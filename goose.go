@@ -64,7 +64,7 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package, tr Translator) Ctx {
+func NewPkgCtx(pkg *packages.Package) Ctx {
 	return Ctx{
 		info:          pkg.TypesInfo,
 		Fset:          pkg.Fset,
