@@ -126,11 +126,10 @@ Directly modeling a low-level, imperative language (and especially writing in it
 
 ## Running goose
 
-Goose requires Go 1.12+.
+Goose requires Go 1.22+.
 
-You can install goose with either `go get github.com/goose-lang/goose/cmd/goose` or from a clone of this repo with `go install ./cmd/goose`. These install
-the `goose` binary to `$GOPATH/bin` (or `~/go/bin` if you don't have GOPATH
-set).
+You can install goose with either `go install github.com/goose-lang/goose/cmd/goose@latest` or from a clone of this repo with `go install ./cmd/goose`. These install
+the `goose` binary to `~/go/bin`.
 
 To run `goose` on one of the internal examples and update the Coq output in
 Perennial, run (for the append_log example):
