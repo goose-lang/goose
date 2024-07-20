@@ -328,7 +328,7 @@ type DoExpr struct {
 func (b DoExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.Add("do:  %s", b.Expr.Coq(false))
-	return pp.Build()
+	return addParens(needs_paren, pp.Build())
 }
 
 type LetExpr struct {

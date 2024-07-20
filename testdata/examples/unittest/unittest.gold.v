@@ -253,7 +253,7 @@ Definition atomicCreateStub : val :=
     exception_do (let: "data" := ref_ty (sliceT byteT) "data" in
     let: "fname" := ref_ty stringT "fname" in
     let: "dir" := ref_ty stringT "dir" in
-    (do:  #())).
+    do:  #()).
 
 Definition useSlice : val :=
   rec: "useSlice" <> :=
@@ -477,7 +477,7 @@ Definition concreteFooer : go_type := structT [
 Definition concreteFooer__Foo : val :=
   rec: "concreteFooer__Foo" "f" <> :=
     exception_do (let: "f" := ref_ty ptrT "f" in
-    (do:  #())).
+    do:  #()).
 
 Definition fooConsumer : val :=
   rec: "fooConsumer" "f" :=
@@ -616,7 +616,7 @@ Definition DoNothing : val :=
 Definition DoSomething : val :=
   rec: "DoSomething" "s" :=
     exception_do (let: "s" := ref_ty stringT "s" in
-    (do:  #())).
+    do:  #()).
 
 Definition standardForLoop : val :=
   rec: "standardForLoop" "s" :=
@@ -895,7 +895,7 @@ Definition multipleVar : val :=
   rec: "multipleVar" "x" "y" :=
     exception_do (let: "y" := ref_ty uint64T "y" in
     let: "x" := ref_ty uint64T "x" in
-    (do:  #())).
+    do:  #()).
 
 (* nil.go *)
 
@@ -1105,14 +1105,14 @@ Definition TwoDiskRead : val :=
 Definition TwoDiskLock : val :=
   rec: "TwoDiskLock" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in
-    (do:  #())).
+    do:  #()).
 
 (* TwoDiskUnlock is a dummy function to represent unlocking an address in the
    base layer *)
 Definition TwoDiskUnlock : val :=
   rec: "TwoDiskUnlock" "a" :=
     exception_do (let: "a" := ref_ty uint64T "a" in
-    (do:  #())).
+    do:  #()).
 
 Definition ReplicatedDiskRead : val :=
   rec: "ReplicatedDiskRead" "a" :=
@@ -1265,7 +1265,7 @@ Definition simpleSpawn : val :=
 Definition threadCode : val :=
   rec: "threadCode" "tid" :=
     exception_do (let: "tid" := ref_ty uint64T "tid" in
-    (do:  #())).
+    do:  #()).
 
 Definition loopSpawn : val :=
   rec: "loopSpawn" <> :=
