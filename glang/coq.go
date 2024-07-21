@@ -146,6 +146,10 @@ func (d TypeDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+func (d TypeDecl) DefName() (bool, string) {
+	return true, d.Name
+}
+
 // Type represents some Coq type.
 //
 // Structurally identical to Expr but serves as a nice annotation in the type
@@ -813,6 +817,10 @@ func (d FuncDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+func (d FuncDecl) DefName() (bool, string) {
+	return true, d.Name
+}
+
 // CommentDecl is a top-level comment
 //
 // Pretends to be a declaration so it can sit among declarations within a file.
@@ -833,6 +841,10 @@ func (d CommentDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+func (d CommentDecl) DefName() (bool, string) {
+	return false, ""
+}
+
 type ConstDecl struct {
 	Name    string
 	Type    Type
@@ -847,6 +859,10 @@ func (d ConstDecl) CoqDecl() string {
 		d.Name, d.Val.Coq(false))
 	pp.Indent(-indent)
 	return pp.Build()
+}
+
+func (d ConstDecl) DefName() (bool, string) {
+	return true, d.Name
 }
 
 type MethodSetDecl struct {
@@ -866,9 +882,14 @@ func (d MethodSetDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+func (d MethodSetDecl) DefName() (bool, string) {
+	return true, fmt.Sprintf("%s__mset", d.TypeName)
+}
+
 // Decl is a FuncDecl, StructDecl, CommentDecl, or ConstDecl
 type Decl interface {
 	CoqDecl() string
+	DefName() (bool, string) // If true, then the Gallina identifier that is defined by this decl.
 }
 
 type TupleType []Type
@@ -940,6 +961,10 @@ func ImportToPath(pkgPath, pkgName string) string {
 func (decl ImportDecl) CoqDecl() string {
 	coqImportQualid := strings.ReplaceAll(thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
 	return fmt.Sprintf("From New.code Require %s.", coqImportQualid)
+}
+
+func (decl ImportDecl) DefName() (bool, string) {
+	return false, ""
 }
 
 // ImportDecls groups imports into one declaration so they can be printed

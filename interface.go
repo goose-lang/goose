@@ -47,94 +47,72 @@ type declId struct {
 	declIdx int
 }
 
-type depTracker struct {
-	names []string
-	deps  []string
-}
-
-func (dt *depTracker) addName(s string) {
-	dt.names = append(dt.names, s)
-}
-
-func (dt *depTracker) addDep(s string) {
-	dt.deps = append(dt.deps, s)
-}
-
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, decls []glang.Decl, errs []error) {
-	declGroups := make(map[declId][]glang.Decl)
-	declDeps := make(map[declId][]string)
-	nameDecls := make(map[string]declId)
+func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []glang.Decl, errs []error) {
+	decls := make(map[string]glang.Decl)
+	var declNames []string
+	declNameToId := make(map[string]declId)
+	imports = make([]glang.ImportDecl, 0)
 
 	// Translate every Go decl into a Glang decl and build up dependencies for
 	// each of them.
 	for fi, f := range fs {
 		for di, d := range f.Decls {
-			ctx.dep = &depTracker{}
-
 			id := declId{fi, di}
 			newDecls, err := ctx.declsOrError(d)
 			if err != nil {
 				errs = append(errs, err)
 			}
-
-			declGroups[id] = newDecls
-			declDeps[id] = ctx.dep.deps
-			if len(ctx.dep.names) > 1 {
-				panic("More than one")
-			}
-			for _, n := range ctx.dep.names {
-				nameDecls[n] = id
+			newDecls, newImports := filterImports(newDecls)
+			imports = append(imports, newImports...)
+			for _, d := range newDecls {
+				named, name := d.DefName()
+				if !named {
+					panic("Unnamed decl")
+				}
+				declNames = append(declNames, name)
+				declNameToId[name] = id
+				decls[name] = d
 			}
 		}
 	}
 
 	// Sort Glang decls based on dependencies
-	var lastFile int
-	var processDecl func(id declId, ident string)
 
-	generated := make(map[declId]bool)
-	generating := make(map[declId]bool)
-	processDecl = func(id declId, ident string) {
-		if generating[id] {
+	generated := make(map[string]bool)
+	generating := make(map[string]bool)
+	var processDecl func(name string)
+	processDecl = func(name string) {
+		if generating[name] {
+			id := declNameToId[name]
 			errs = append(errs, &ConversionError{
 				Category:    "unsupported",
-				Message:     fmt.Sprintf("cycle in dependencies while generating %s", ident),
+				Message:     fmt.Sprintf("cycle in dependencies while generating %s", name),
 				GoCode:      "???",
 				GooseCaller: "decls() in interface.go",
 				Position:    ctx.fset.Position(fs[id.fileIdx].Decls[id.declIdx].Pos()),
 			})
 			return
 		}
-		if generated[id] {
+		if generated[name] {
 			return
 		}
-		generating[id] = true
+		generating[name] = true
 
-		for _, dep := range declDeps[id] {
-			depid, ok := nameDecls[dep]
-			if ok {
-				processDecl(depid, dep)
+		for _, dep := range ctx.dep.nameToDeps[name] {
+			if _, ok := decls[dep]; ok {
+				processDecl(dep)
 			}
 		}
-		generated[id] = true
-		delete(generating, id)
-
-		if lastFile != id.fileIdx && ident != "" {
-			lastFile = id.fileIdx
-		}
-
-		newDecls, newImports := filterImports(declGroups[id])
-		decls = append(decls, newDecls...)
-		imports = append(imports, newImports...)
+		generated[name] = true
+		delete(generating, name)
+		sortedDecls = append(sortedDecls, decls[name])
 	}
 
-	for fi, f := range fs {
-		lastFile = fi
-		for di := range f.Decls {
-			processDecl(declId{fi, di}, "")
-		}
+	for _, declName := range declNames {
+		processDecl(declName)
 	}
+
 	return
 }
 

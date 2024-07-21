@@ -1609,14 +1609,14 @@ Definition sleep : val :=
 Definition A : go_type := structT [
 ].
 
-Definition A__mset : list (string * val) := [
-].
-
 Definition B : go_type := structT [
   "a" :: sliceT A
 ].
 
 Definition B__mset : list (string * val) := [
+].
+
+Definition A__mset : list (string * val) := [
 ].
 
 (* go: trailing_call.go:3:6 *)

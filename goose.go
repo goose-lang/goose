@@ -66,6 +66,7 @@ func NewPkgCtx(pkg *packages.Package) Ctx {
 		info:          pkg.TypesInfo,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
+		dep:           newDepTracker(),
 	}
 }
 
@@ -145,6 +146,9 @@ func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
 		TypeName:    typeName,
 		MethodNames: []string{},
 	}
+	_, defName := d.DefName()
+	ctx.dep.setCurrentName(defName)
+	defer ctx.dep.unsetCurrentName()
 	for i := range t.NumMethods() {
 		d.MethodNames = append(d.MethodNames, t.Method(i).Name())
 	}
@@ -157,10 +161,12 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	}
 	var r []glang.Decl
 
+	ctx.dep.setCurrentName(spec.Name.Name)
 	r = append(r, glang.TypeDecl{
 		Name: spec.Name.Name,
 		Body: ctx.glangTypeFromExpr(spec.Type),
 	})
+	ctx.dep.unsetCurrentName()
 
 	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
 		r = append(r, ctx.methodSet(t))
@@ -1281,6 +1287,8 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
 	}
+	ctx.dep.setCurrentName(fd.Name)
+	defer ctx.dep.unsetCurrentName()
 
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
@@ -1301,7 +1309,6 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		}
 	}
 	fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
-	ctx.dep.addName(fd.Name)
 	return fd
 }
 
@@ -1310,6 +1317,9 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
 	cd := glang.ConstDecl{
 		Name: ident.Name,
 	}
+	ctx.dep.setCurrentName(cd.Name)
+	defer ctx.dep.unsetCurrentName()
+
 	addSourceDoc(spec.Comment, &cd.Comment)
 	if len(spec.Values) == 0 {
 		ctx.todo(spec, "global var/const with no values")
@@ -1329,7 +1339,6 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	var specs []glang.Decl
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
-		ctx.dep.addName(vs.Names[0].Name)
 		specs = append(specs, ctx.constSpec(vs))
 	}
 	return specs
@@ -1343,7 +1352,6 @@ func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	var specs []glang.Decl
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
-		ctx.dep.addName(vs.Names[0].Name)
 		specs = append(specs, ctx.constSpec(vs))
 	}
 	return specs
@@ -1401,7 +1409,6 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 				ctx.noExample(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
-			ctx.dep.addName(spec.Name.Name)
 			return ctx.typeDecl(spec)
 		default:
 			ctx.nope(d, "unknown token type in decl")
