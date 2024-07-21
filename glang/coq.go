@@ -368,8 +368,16 @@ func (b LetExpr) Coq(needs_paren bool) string {
 			binder(b.Names[2]),
 			binder(b.Names[3]),
 			b.ValExpr.Coq(false))
+	} else if len(b.Names) == 5 {
+		pp.Add("let: ((((%s, %s), %s), %s), %s) := %s in",
+			binder(b.Names[0]),
+			binder(b.Names[1]),
+			binder(b.Names[2]),
+			binder(b.Names[3]),
+			binder(b.Names[4]),
+			b.ValExpr.Coq(false))
 	} else {
-		panic("no support for destructuring more than 4 return values")
+		panic(fmt.Sprintf("no support for destructuring more than %d return values (up to 4 supported)", len(b.Names)))
 	}
 	pp.Add(b.Cont.Coq(false))
 	return addParens(needs_paren, pp.Build())
