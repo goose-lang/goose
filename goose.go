@@ -290,7 +290,7 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 	}
 	toType := ctx.info.TypeOf(s.Fun).Underlying()
 	fromType := ctx.info.TypeOf(s.Args[0]).Underlying()
-	if toType == fromType {
+	if types.Identical(toType, fromType) {
 		return ctx.expr(s.Args[0])
 	}
 	switch toType := toType.(type) {
@@ -647,7 +647,7 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 		//  nil identifier is mapped to an untyped nil object.
 		//  This seems wrong; the runtime representation of each of these
 		//  uses depends on the type, so Go must know how they're being used.
-		return glang.GallinaIdent("slice.nil")
+		return glang.GallinaIdent("BUG: this should get overwritten by handleImplicitConversion")
 	default:
 		ctx.unsupported(e, "nil of type %v (not pointer or slice)", t)
 		return nil
@@ -1093,18 +1093,78 @@ func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang
 	}, cont)
 }
 
+func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang.Expr) glang.Expr {
+	if to == nil {
+		// ctx.unsupported(n, "implicit conversion: don't know destination type")
+		// This happens when the LHS is `_`
+		return e
+	}
+	if from == nil {
+		ctx.unsupported(n, "implicit conversion: don't know from type")
+	}
+	from = from.Underlying()
+	to = to.Underlying()
+	if types.Identical(from, to) {
+		return e
+	}
+	if _, ok := to.(*types.Interface); ok {
+		if _, ok := from.(*types.Interface); ok {
+			// if both are interface types, the no need to convert anything
+			// because the GooseLang representation of interface values is
+			// independent of the particular interface type.
+			return e
+		}
+		//
+		if fromPointer, ok := from.(*types.Pointer); ok {
+			from = fromPointer.Elem()
+		}
+		if from, ok := from.(*types.Named); ok {
+			return glang.NewCallExpr(glang.GallinaIdent("list.val"),
+				glang.GallinaIdent(from.Obj().Name()+"_mset"))
+		}
+	}
+	if fromBasic, ok := from.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
+		if _, ok := to.(*types.Slice); ok {
+			return glang.GallinaIdent("slice.nil")
+		} else if _, ok := to.(*types.Pointer); ok {
+			return glang.GallinaIdent("null")
+		}
+	}
+	ctx.unsupported(n, "Conversion from %s to %s", from, to)
+	panic("unreachable")
+}
+
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	e := cont
 
-	// do assignments left-to-right
+	// Determine RHS types, specially handling multiple returns from a function call.
+	var rhsTypes []types.Type
+	for i := 0; i < len(s.Rhs); i++ {
+		t := ctx.typeOf(s.Rhs[i])
+		if tuple, ok := t.(*types.Tuple); ok {
+			for i := range tuple.Len() {
+				rhsTypes = append(rhsTypes, tuple.At(i).Type())
+			}
+		} else {
+			rhsTypes = append(rhsTypes, t)
+		}
+	}
+
+	// Do assignments left-to-right
 	intermediates := make([]string, 0, len(s.Lhs))
 	for i, lhs := range s.Lhs {
 		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
-		e = ctx.assignFromTo(lhs, glang.IdentExpr(intermediates[i]), e)
+		e = ctx.assignFromTo(lhs,
+			ctx.handleImplicitConversion(lhs,
+				rhsTypes[i],
+				ctx.typeOf(lhs),
+				glang.IdentExpr(intermediates[i])),
+			e,
+		)
 	}
 
 	// FIXME:(evaluation order).
-	// this computes values left-to-right
+	// This computes values left-to-right.
 	for i := len(s.Rhs); i > 0; i-- {
 		// NOTE: this handles the case that RHS = multiple-return function call
 		e = glang.LetExpr{
