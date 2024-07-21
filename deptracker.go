@@ -13,7 +13,7 @@ type depTracker struct {
 
 func (dt *depTracker) setCurrentName(s string) {
 	if dt.currentNameValid {
-		panic(fmt.Sprintf("depTracker: tried to change current name without " +
+		panic(fmt.Sprintf("depTracker: tried to change current name without "+
 			"unsetting it first (currently %s, tried to set to %s",
 			dt.currentName, s,
 		))

@@ -377,7 +377,7 @@ func (b LetExpr) Coq(needs_paren bool) string {
 			binder(b.Names[4]),
 			b.ValExpr.Coq(false))
 	} else {
-		panic(fmt.Sprintf("no support for destructuring more than %d return values (up to 4 supported)", len(b.Names)))
+		panic(fmt.Sprintf("no support for destructuring more than %d return values (up to 5 supported)", len(b.Names)))
 	}
 	pp.Add(b.Cont.Coq(false))
 	return addParens(needs_paren, pp.Build())
