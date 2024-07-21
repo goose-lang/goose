@@ -1103,8 +1103,8 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		e = ctx.assignFromTo(lhs, glang.IdentExpr(intermediates[i]), e)
 	}
 
-	// FIXME:(evaluation order)
-	// compute values left-to-right
+	// FIXME:(evaluation order).
+	// this computes values left-to-right
 	for i := len(s.Rhs); i > 0; i-- {
 		// NOTE: this handles the case that RHS = multiple-return function call
 		e = glang.LetExpr{

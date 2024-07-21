@@ -19,12 +19,12 @@ func fooConsumer(f Fooer) {
 	f.Foo()
 }
 
-func assignConcreteToInterface(x *Fooer) {
+func testAssignConcreteToInterface(x *Fooer) {
 	c := &concreteFooer{}
 	*x = c
 }
 
-func passConcreteToInterfaceArg() {
+func testPassConcreteToInterfaceArg() {
 	c := &concreteFooer{}
 	fooConsumer(c)
 
@@ -34,7 +34,7 @@ func passConcreteToInterfaceArg() {
 	f.Foo()
 }
 
-func passConcreteToInterfaceArgSpecial() ([]Fooer, map[uint64]Fooer, FooerUser) {
+func testPassConcreteToInterfaceArgSpecial() ([]Fooer, map[uint64]Fooer, FooerUser) {
 	c1 := &concreteFooer{}
 	c2 := &concreteFooer{}
 
@@ -46,4 +46,20 @@ func passConcreteToInterfaceArgSpecial() ([]Fooer, map[uint64]Fooer, FooerUser) 
 	f := FooerUser{c1}
 
 	return l, m, f
+}
+
+func returnConcrete() (*concreteFooer, uint64) {
+	return &concreteFooer{}, 10
+}
+
+// converts an object into an interface in a multiple return destructuring statement.
+func testMultiReturn(x *Fooer) uint64 {
+	var y uint64
+	*x, y = returnConcrete()
+	return y
+}
+
+func testReturnStatment() Fooer {
+	var y *concreteFooer = &concreteFooer{}
+	return y
 }
