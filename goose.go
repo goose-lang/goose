@@ -30,6 +30,10 @@ type Ctx struct {
 	pkgPath string
 	errorReporter
 
+	// XXX: this is so we can determine the expected return type when handling a
+	// `returnStmt` so the appropriate conversion is inserted
+	curDecl *ast.FuncDecl
+
 	dep *depTracker
 }
 
@@ -648,7 +652,7 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 		//  nil identifier is mapped to an untyped nil object.
 		//  This seems wrong; the runtime representation of each of these
 		//  uses depends on the type, so Go must know how they're being used.
-		return glang.GallinaIdent("BUG: this should get overwritten by handleImplicitConversion")
+		return glang.GallinaIdent("#(str \"BUG: this should get overwritten by handleImplicitConversion\"")
 	default:
 		ctx.unsupported(e, "nil of type %v (not pointer or slice)", t)
 		return nil
@@ -1251,8 +1255,19 @@ func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	exprs := make([]glang.Expr, 0, len(s.Results))
-	for _, result := range s.Results {
-		exprs = append(exprs, ctx.expr(result))
+	var expectedReturnTypes []types.Type
+	if ctx.curDecl.Type.Results != nil {
+		for i := range ctx.curDecl.Type.Results.List {
+			expectedReturnTypes = append(expectedReturnTypes, ctx.typeOf(ctx.curDecl.Type.Results.List[i].Type))
+		}
+	}
+	for i, result := range s.Results {
+		exprs = append(exprs,
+			ctx.handleImplicitConversion(result,
+				ctx.typeOf(result),
+				expectedReturnTypes[i],
+				ctx.expr(result)),
+		)
 	}
 	if len(exprs) == 0 { // return #()
 		exprs = []glang.Expr{glang.Tt}
@@ -1458,7 +1473,9 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
+		ctx.curDecl = d
 		fd := ctx.funcDecl(d)
+		ctx.curDecl = nil
 		return []glang.Decl{fd}
 	case *ast.GenDecl:
 		switch d.Tok {
