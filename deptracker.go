@@ -1,5 +1,9 @@
 package goose
 
+import (
+	"fmt"
+)
+
 // One of these tracks *all* the dependencies for an entire package
 type depTracker struct {
 	nameToDeps       map[string][]string
@@ -9,8 +13,12 @@ type depTracker struct {
 
 func (dt *depTracker) setCurrentName(s string) {
 	if dt.currentNameValid {
-		panic("depTracker: tried to change current name without unsetting it first")
+		panic(fmt.Sprintf("depTracker: tried to change current name without " +
+			"unsetting it first (currently %s, tried to set to %s",
+			dt.currentName, s,
+		))
 	}
+
 	dt.currentName = s
 	dt.currentNameValid = true
 }

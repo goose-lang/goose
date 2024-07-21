@@ -161,12 +161,14 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	}
 	var r []glang.Decl
 
-	ctx.dep.setCurrentName(spec.Name.Name)
-	r = append(r, glang.TypeDecl{
-		Name: spec.Name.Name,
-		Body: ctx.glangTypeFromExpr(spec.Type),
-	})
-	ctx.dep.unsetCurrentName()
+	func() {
+		ctx.dep.setCurrentName(spec.Name.Name)
+		defer ctx.dep.unsetCurrentName()
+		r = append(r, glang.TypeDecl{
+			Name: spec.Name.Name,
+			Body: ctx.glangTypeFromExpr(spec.Type),
+		})
+	}()
 
 	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
 		r = append(r, ctx.methodSet(t))
