@@ -151,6 +151,7 @@ func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
 	defer ctx.dep.unsetCurrentName()
 	for i := range t.NumMethods() {
 		d.MethodNames = append(d.MethodNames, t.Method(i).Name())
+		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), t.Method(i).Name()))
 	}
 	return d
 }
@@ -1119,8 +1120,9 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			from = fromPointer.Elem()
 		}
 		if from, ok := from.(*types.Named); ok {
-			return glang.NewCallExpr(glang.GallinaIdent("list.val"),
-				glang.GallinaIdent(from.Obj().Name()+"_mset"))
+			msetName := from.Obj().Name() + "_mset"
+			ctx.dep.addDep(msetName)
+			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
 		}
 	}
 	if fromBasic, ok := from.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
