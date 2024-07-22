@@ -82,7 +82,7 @@ func testConversionInEq(f Fooer) bool {
 func takeMultiple(a uint64, f ...Fooer) {
 }
 
-func giveMultiple() (uint64, Fooer, Fooer) {
+func giveMultiple() (uint64, Fooer, *concreteFooer) {
 	return 0, &concreteFooer{}, &concreteFooer{}
 }
 
