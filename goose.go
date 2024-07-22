@@ -210,6 +210,35 @@ func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
 	return glang.CallExpr{}
 }
 
+// TODO: make this the input to handleImplicitConversion?
+type exprWithInfo struct {
+	e glang.Expr
+	t types.Type // for conversions
+	n ast.Node   // for printing a location in error messages
+}
+
+func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang.Expr {
+	var expr glang.Expr = glang.GallinaIdent("slice.nil")
+
+	if len(es) > 0 {
+		var sliceLitArgs []glang.Expr
+		for i := 0; i < len(es); i++ {
+			sliceLitArgs = append(sliceLitArgs, glang.IdentExpr(fmt.Sprintf("$sl%d", i)))
+		}
+		expr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"), glang.ListExpr(sliceLitArgs))
+
+		for i := len(es); i > 0; i-- {
+			expr = glang.LetExpr{
+				Names:   []string{fmt.Sprintf("$sl%d", i-1)},
+				ValExpr: ctx.handleImplicitConversion(es[i-1].n, es[i-1].t, expectedType, es[i-1].e),
+				Cont:    expr,
+			}
+		}
+		expr = glang.ParenExpr{Inner: expr}
+	}
+	return expr
+}
+
 func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	var expr glang.Expr = glang.GallinaIdent("slice.nil")
 
@@ -233,6 +262,52 @@ func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	return expr
 }
 
+func (ctx Ctx) methodExprMultiPassthrough(cont glang.Expr, funcSig *types.Signature,
+	arg ast.Expr, tupleType *types.Tuple, ellipsisPos token.Pos) glang.Expr {
+	var args []glang.Expr
+	for i := range funcSig.Params().Len() {
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$b%d", i)))
+	}
+	var expr glang.Expr = cont
+
+	var i int = funcSig.Params().Len()
+	var intermediates []exprWithInfo
+	for i := range tupleType.Len() {
+		intermediates = append(intermediates,
+			exprWithInfo{
+				e: glang.IdentExpr(fmt.Sprintf("$c%d", i)),
+				t: tupleType.At(i).Type(),
+				n: arg,
+			})
+	}
+	if funcSig.Variadic() && ellipsisPos == token.NoPos {
+		// construct a slice literal for all the arguments including and after
+		// the last one listed in funcSig.
+		expr = glang.LetExpr{
+			Names: []string{fmt.Sprintf("$b%d", i-1)},
+			ValExpr: ctx.sliceLiteralAux(intermediates[i-1:],
+				funcSig.Params().At(i-1).Type().(*types.Slice).Elem()),
+			Cont: expr,
+		}
+		i--
+	}
+	for ; i > 0; i-- {
+		expr = glang.LetExpr{
+			Names: []string{fmt.Sprintf("$b%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(intermediates[i-1].n,
+				intermediates[i-1].t, funcSig.Params().At(i-1).Type(), intermediates[i-1].e),
+			Cont: expr,
+		}
+	}
+
+	// destructure the inner call
+	letExpr := glang.LetExpr{Names: nil, ValExpr: ctx.expr(arg), Cont: expr}
+	for i := range tupleType.Len() {
+		letExpr.Names = append(letExpr.Names, fmt.Sprintf("$c%d", i))
+	}
+	return letExpr
+}
+
 func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	if f, ok := call.Fun.(*ast.Ident); ok {
 		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
@@ -240,15 +315,24 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 		}
 	}
 
-	funcSig, ok := types.Unalias(ctx.typeOf(call.Fun)).(*types.Signature)
+	funcSig, ok := ctx.typeOf(call.Fun).Underlying().(*types.Signature)
 	if !ok {
-		ctx.nope(call.Fun, "function should have signature type")
+		ctx.nope(call.Fun, "function should have signature type, got %T", types.Unalias(ctx.typeOf(call.Fun)))
 	}
+
 	var args []glang.Expr
 	for i := range funcSig.Params().Len() {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("$b%d", i)))
 	}
 	var expr glang.Expr = glang.NewCallExpr(ctx.expr(call.Fun), args...)
+
+	// look for special case of multi-return pass through
+	if len(call.Args) == 1 {
+		if tupleType, ok := ctx.typeOf(call.Args[0]).(*types.Tuple); ok {
+			return ctx.methodExprMultiPassthrough(expr, funcSig, call.Args[0], tupleType, call.Ellipsis)
+		}
+	}
+
 	var i int = funcSig.Params().Len()
 	if funcSig.Variadic() && call.Ellipsis == token.NoPos {
 		// construct a slice literal for all the arguments including and after
@@ -371,8 +455,9 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 		}
 	}
 
-	ctx.unsupported(s, "explicit conversion from %s to %s", fromType, toType)
-	return nil
+	return ctx.handleImplicitConversion(s, fromType, toType, ctx.expr(s.Args[0]))
+	// ctx.unsupported(s, "explicit conversion from %s to %s", fromType, toType)
+	// return nil
 }
 
 func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
@@ -472,8 +557,8 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		ctx.unsupported(e, "expected base of selector expr to be typed")
 	}
 
+	// Check if select expression refers to a field of the struct
 	if structInfo, ok := ctx.getStructInfo(selectorType); ok {
-		// Check if select expression refers to a field of the struct
 		isField := false
 		for i := 0; i < structInfo.structType.NumFields(); i++ {
 			if structInfo.structType.Field(i).Name() == e.Sel.Name {
@@ -500,7 +585,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	}
 
 	// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
-	funcSig, ok := ctx.typeOf(e.Sel).(*types.Signature)
+	funcSig, ok := ctx.typeOf(e.Sel).Underlying().(*types.Signature)
 	if !ok {
 		ctx.nope(e, "func should have signature type")
 	}
@@ -583,7 +668,6 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 		if strings.ContainsRune(s, '"') {
 			ctx.unsupported(e, "string literals with quotes")
 		}
-		fmt.Printf("Got %s\n", s)
 		return glang.StringLiteral{Value: s}
 	}
 	if e.Kind == token.INT {
@@ -1050,7 +1134,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 }
 
 func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
-	switch ctx.typeOf(s.X).(type) {
+	switch ctx.typeOf(s.X).Underlying().(type) {
 	case *types.Map:
 		return ctx.mapRangeStmt(s)
 	case *types.Slice:
@@ -1216,14 +1300,14 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 	if from == nil {
 		ctx.unsupported(n, "implicit conversion: don't know from type")
 	}
-	from = from.Underlying()
-	to = to.Underlying()
-	if types.Identical(from, to) {
+	fromUnder := from.Underlying()
+	toUnder := to.Underlying()
+	if types.Identical(fromUnder, toUnder) {
 		return e
 	}
-	if _, ok := to.(*types.Interface); ok {
+	if _, ok := toUnder.(*types.Interface); ok {
 		if _, ok := from.(*types.Interface); ok {
-			// if both are interface types, the no need to convert anything
+			// if both are interface types, then no need to convert anything
 			// because the GooseLang representation of interface values is
 			// independent of the particular interface type.
 			return e
@@ -1242,10 +1326,10 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
 		}
 	}
-	if fromBasic, ok := from.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
-		if _, ok := to.(*types.Slice); ok {
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
+		if _, ok := toUnder.(*types.Slice); ok {
 			return glang.GallinaIdent("slice.nil")
-		} else if _, ok := to.(*types.Pointer); ok {
+		} else if _, ok := toUnder.(*types.Pointer); ok {
 			return glang.GallinaIdent("null")
 		}
 	}
