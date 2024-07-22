@@ -240,75 +240,14 @@ func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang
 }
 
 func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
-	var expr glang.Expr = glang.GallinaIdent("slice.nil")
-
-	if len(es) > 0 {
-		var sliceLitArgs []glang.Expr
-		for i := 0; i < len(es); i++ {
-			sliceLitArgs = append(sliceLitArgs, glang.IdentExpr(fmt.Sprintf("$sl%d", i)))
-		}
-		expr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"), glang.ListExpr(sliceLitArgs))
-
-		for i := len(es); i > 0; i-- {
-			expr = glang.LetExpr{
-				Names: []string{fmt.Sprintf("$sl%d", i-1)},
-				ValExpr: ctx.handleImplicitConversion(es[i-1],
-					ctx.typeOf(es[i-1]), expectedType, ctx.expr(es[i-1])),
-				Cont: expr,
-			}
-		}
-		expr = glang.ParenExpr{Inner: expr}
+	var exprs []exprWithInfo
+	for i := range len(es) {
+		exprs = append(exprs, exprWithInfo{e: ctx.expr(es[i]), t: ctx.typeOf(es[i]), n: es[i]})
 	}
-	return expr
+	return ctx.sliceLiteralAux(exprs, expectedType)
 }
 
-func (ctx Ctx) methodExprMultiPassthrough(cont glang.Expr, funcSig *types.Signature,
-	arg ast.Expr, tupleType *types.Tuple, ellipsisPos token.Pos) glang.Expr {
-	var args []glang.Expr
-	for i := range funcSig.Params().Len() {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("$b%d", i)))
-	}
-	var expr glang.Expr = cont
-
-	var i int = funcSig.Params().Len()
-	var intermediates []exprWithInfo
-	for i := range tupleType.Len() {
-		intermediates = append(intermediates,
-			exprWithInfo{
-				e: glang.IdentExpr(fmt.Sprintf("$c%d", i)),
-				t: tupleType.At(i).Type(),
-				n: arg,
-			})
-	}
-	if funcSig.Variadic() && ellipsisPos == token.NoPos {
-		// construct a slice literal for all the arguments including and after
-		// the last one listed in funcSig.
-		expr = glang.LetExpr{
-			Names: []string{fmt.Sprintf("$b%d", i-1)},
-			ValExpr: ctx.sliceLiteralAux(intermediates[i-1:],
-				funcSig.Params().At(i-1).Type().(*types.Slice).Elem()),
-			Cont: expr,
-		}
-		i--
-	}
-	for ; i > 0; i-- {
-		expr = glang.LetExpr{
-			Names: []string{fmt.Sprintf("$b%d", i-1)},
-			ValExpr: ctx.handleImplicitConversion(intermediates[i-1].n,
-				intermediates[i-1].t, funcSig.Params().At(i-1).Type(), intermediates[i-1].e),
-			Cont: expr,
-		}
-	}
-
-	// destructure the inner call
-	letExpr := glang.LetExpr{Names: nil, ValExpr: ctx.expr(arg), Cont: expr}
-	for i := range tupleType.Len() {
-		letExpr.Names = append(letExpr.Names, fmt.Sprintf("$c%d", i))
-	}
-	return letExpr
-}
-
-func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
+func (ctx Ctx) methodExpr(call *ast.CallExpr) (expr glang.Expr) {
 	if f, ok := call.Fun.(*ast.Ident); ok {
 		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
 			ctx.unsupported(f, "generic function")
@@ -322,14 +261,45 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 
 	var args []glang.Expr
 	for i := range funcSig.Params().Len() {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("$b%d", i)))
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$a%d", i)))
 	}
-	var expr glang.Expr = glang.NewCallExpr(ctx.expr(call.Fun), args...)
+	expr = glang.NewCallExpr(ctx.expr(call.Fun), args...)
 
+	var intermediates []exprWithInfo
+	intermediatesDone := false
 	// look for special case of multi-return pass through
 	if len(call.Args) == 1 {
 		if tupleType, ok := ctx.typeOf(call.Args[0]).(*types.Tuple); ok {
-			return ctx.methodExprMultiPassthrough(expr, funcSig, call.Args[0], tupleType, call.Ellipsis)
+			intermediatesDone = true
+			for i := range tupleType.Len() {
+				intermediates = append(intermediates,
+					exprWithInfo{
+						e: glang.IdentExpr(fmt.Sprintf("$ret%d", i)),
+						t: tupleType.At(i).Type(),
+						n: call.Args[0],
+					})
+			}
+			// destructure the inner call at the end
+			defer func() {
+				var names []string
+				for i := range tupleType.Len() {
+					names = append(names, fmt.Sprintf("$ret%d", i))
+				}
+				expr = glang.LetExpr{Names: names,
+					ValExpr: glang.ParenExpr{Inner: ctx.expr(call.Args[0])},
+					Cont:    expr,
+				}
+			}()
+		}
+	}
+	if !intermediatesDone {
+		for i := range len(call.Args) {
+			intermediates = append(intermediates,
+				exprWithInfo{
+					e: ctx.expr(call.Args[i]),
+					t: ctx.typeOf(call.Args[i]),
+					n: call.Args[i],
+				})
 		}
 	}
 
@@ -338,8 +308,8 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 		// construct a slice literal for all the arguments including and after
 		// the last one listed in funcSig.
 		expr = glang.LetExpr{
-			Names: []string{fmt.Sprintf("$b%d", i-1)},
-			ValExpr: ctx.sliceLiteral(call.Args[i-1:],
+			Names: []string{fmt.Sprintf("$a%d", i-1)},
+			ValExpr: ctx.sliceLiteralAux(intermediates[i-1:],
 				funcSig.Params().At(i-1).Type().(*types.Slice).Elem()),
 			Cont: expr,
 		}
@@ -347,13 +317,13 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	}
 	for ; i > 0; i-- {
 		expr = glang.LetExpr{
-			Names: []string{fmt.Sprintf("$b%d", i-1)},
-			ValExpr: ctx.handleImplicitConversion(call.Args[i-1],
-				ctx.typeOf(call.Args[i-1]), funcSig.Params().At(i-1).Type(), ctx.expr(call.Args[i-1])),
+			Names: []string{fmt.Sprintf("$a%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(intermediates[i-1].n,
+				intermediates[i-1].t, funcSig.Params().At(i-1).Type(), intermediates[i-1].e),
 			Cont: expr,
 		}
 	}
-	return expr
+	return
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
@@ -1363,19 +1333,19 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		// RHS is a function call returning multiple things. Will introduce
 		// extra let bindings to destructure those multiple returns.
 		for i := range s.Lhs {
-			rhsExprs = append(rhsExprs, glang.IdentExpr(fmt.Sprintf("$r%d", i)))
+			rhsExprs = append(rhsExprs, glang.IdentExpr(fmt.Sprintf("$ret%d", i)))
 		}
 	}
 
 	// Execute assignments left-to-right
 	for i := len(s.Lhs); i > 0; i-- {
-		e = ctx.assignFromTo(s.Lhs[i-1], glang.IdentExpr(fmt.Sprintf("$a%d", i-1)), e)
+		e = ctx.assignFromTo(s.Lhs[i-1], glang.IdentExpr(fmt.Sprintf("$r%d", i-1)), e)
 	}
 
 	// Let bindings for RHSs including conversions
 	for i := len(s.Lhs); i > 0; i-- {
 		e = glang.LetExpr{
-			Names: []string{fmt.Sprintf("$a%d", i-1)},
+			Names: []string{fmt.Sprintf("$r%d", i-1)},
 			ValExpr: ctx.handleImplicitConversion(s.Lhs[i-1], rhsTypes[i-1],
 				ctx.typeOf(s.Lhs[i-1]), rhsExprs[i-1]),
 			Cont: e,
@@ -1386,7 +1356,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	if len(s.Rhs) != len(s.Lhs) && len(s.Lhs) > 0 {
 		var n []string
 		for i := range s.Lhs {
-			n = append(n, fmt.Sprintf("$r%d", i))
+			n = append(n, fmt.Sprintf("$ret%d", i))
 		}
 		e = glang.LetExpr{
 			Names:   n,
