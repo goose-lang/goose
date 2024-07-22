@@ -63,3 +63,10 @@ func testReturnStatment() Fooer {
 	var y *concreteFooer = &concreteFooer{}
 	return y
 }
+
+func testConverionInEq(f Fooer) bool {
+	c := &concreteFooer{}
+	f = c
+
+	return c == f
+}

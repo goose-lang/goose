@@ -598,6 +598,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 			Op: op,
 			Y:  ctx.expr(e.Y),
 		}
+		// FIXME: get rid of this hack
 		if ctx.isNilCompareExpr(e) {
 			if _, ok := ctx.typeOf(e.X).(*types.Pointer); ok {
 				expr.Y = glang.Null
