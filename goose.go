@@ -426,6 +426,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				Ident:   e.Sel.Name,
 			}
 		}
+		ctx.unsupported(e, "expected base of selector expr to be typed")
 	}
 
 	if structInfo, ok := ctx.getStructInfo(selectorType); ok {
@@ -455,16 +456,42 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		)
 	}
 
-	// must be method
-	var typeName string
-	if t, ok := types.Unalias(selectorType).(*types.Named); ok {
-		typeName = ctx.qualifiedName(t.Obj())
-	} else {
-		ctx.nope(e, "methods can only be called on defined types, not %s", selectorType)
+	// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
+	f, ok := ctx.info.Uses[e.Sel].(*types.Func)
+	if !ok {
+		ctx.nope(e, "expected method as selectorExpr")
 	}
-	m := glang.TypeMethod(typeName, e.Sel.Name)
-	ctx.dep.addDep(m)
-	return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+	funcSig, ok := f.Type().(*types.Signature)
+	if !ok {
+		ctx.nope(e, "func should have signature type")
+	}
+
+	if pointerT, ok := types.Unalias(selectorType).(*types.Pointer); ok {
+		t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
+		if !ok {
+			ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
+		}
+		var typeName = ctx.qualifiedName(t.Obj())
+		m := glang.TypeMethod(typeName, e.Sel.Name)
+		ctx.dep.addDep(m)
+
+		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+		} else {
+			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.derefExpr(e.X))
+		}
+	} else if t, ok := types.Unalias(selectorType).(*types.Named); ok {
+		var typeName = ctx.qualifiedName(t.Obj())
+		m := glang.TypeMethod(typeName, e.Sel.Name)
+		ctx.dep.addDep(m)
+		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.exprAddr(e.X))
+		} else {
+			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+		}
+	}
+	ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", selectorType)
+	panic("unreachable")
 }
 
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
