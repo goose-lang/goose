@@ -489,7 +489,7 @@ func (suite *GoTestSuite) TestFooBarMutation() {
 func (suite *GoTestSuite) TestStructUpdates() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testStructUpdates())
+	suite.Equal(true, testStructUpdates())
 }
 
 func (suite *GoTestSuite) TestNestedStructUpdates() {

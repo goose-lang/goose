@@ -210,15 +210,6 @@ func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
 	return glang.CallExpr{}
 }
 
-func (ctx Ctx) newCoqCall(method glang.Expr, es []ast.Expr) glang.CallExpr {
-	var args []glang.Expr
-	for _, e := range es {
-		args = append(args, ctx.expr(e))
-	}
-	call := glang.NewCallExpr(method, args...)
-	return call
-}
-
 func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 	if f, ok := call.Fun.(*ast.Ident); ok {
 		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
@@ -226,7 +217,24 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) glang.Expr {
 		}
 	}
 
-	return ctx.newCoqCall(ctx.expr(call.Fun), call.Args)
+	funcSig, ok := types.Unalias(ctx.typeOf(call.Fun)).(*types.Signature)
+	if !ok {
+		ctx.nope(call.Fun, "function should have signature type")
+	}
+	var args []glang.Expr
+	for i := range call.Args {
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$b%d", i)))
+	}
+	var expr glang.Expr = glang.NewCallExpr(ctx.expr(call.Fun), args...)
+	for i := len(call.Args); i > 0; i-- {
+		expr = glang.LetExpr{
+			Names: []string{fmt.Sprintf("$b%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(call.Args[i-1],
+				ctx.typeOf(call.Args[i-1]), funcSig.Params().At(i-1).Type(), ctx.expr(call.Args[i-1])),
+			Cont: expr,
+		}
+	}
+	return expr
 }
 
 // makeExpr parses a call to make() into the appropriate data-structure Call
@@ -318,13 +326,13 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 
 		// handle `string(b)`, where b : []byte
 		if toType.Kind() == types.String && isByteSlice(fromType) {
-			return ctx.newCoqCall(glang.GallinaIdent("StringFromBytes"), s.Args)
+			return glang.NewCallExpr(glang.GallinaIdent("StringFromBytes"), ctx.expr(s.Args[0]))
 		}
 	case *types.Slice:
 		// handle `[]byte(s)`, where s : string
 		if eltType, ok := toType.Elem().Underlying().(*types.Basic); ok &&
 			eltType.Kind() == types.Byte && isString(fromType) {
-			return ctx.newCoqCall(glang.GallinaIdent("StringToBytes"), s.Args)
+			return glang.NewCallExpr(glang.GallinaIdent("StringToBytes"), ctx.expr(s.Args[0]))
 		}
 	}
 
