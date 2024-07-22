@@ -78,3 +78,15 @@ func testConversionInEq(f Fooer) bool {
 
 	return c == f
 }
+
+func takeMultiple(a uint64, f ...Fooer) {
+}
+
+func giveMultiple() (uint64, Fooer, Fooer) {
+	return 0, &concreteFooer{}, &concreteFooer{}
+}
+
+// See "special case" in https://go.dev/ref/spec#Calls
+func testConversionInMultiplePassThrough() {
+	takeMultiple(giveMultiple())
+}

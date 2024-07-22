@@ -10,3 +10,7 @@ func returnTwoWrapper(data []byte) (uint64, uint64) {
 }
 
 func multipleVar(x, y uint64) {}
+
+func multiplePassThrough() {
+	multipleVar(returnTwoWrapper(nil))
+}
