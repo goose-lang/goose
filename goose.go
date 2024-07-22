@@ -427,9 +427,8 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			}
 		}
 	}
-	structInfo, ok := ctx.getStructInfo(selectorType)
 
-	if ok {
+	if structInfo, ok := ctx.getStructInfo(selectorType); ok {
 		// Check if select expression refers to a field of the struct
 		isField := false
 		for i := 0; i < structInfo.structType.NumFields(); i++ {
@@ -444,9 +443,20 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				Ty: ctx.glangType(e, ctx.typeOf(e)),
 			}
 		}
+	} else if _, ok := ctx.getInterfaceInfo(selectorType); ok {
+		return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
+			glang.StringLiteral{Value: e.Sel.Name}, ctx.expr(e.X),
+		)
 	}
+
 	// must be method
-	m := glang.TypeMethod(structInfo.name, e.Sel.Name)
+	var typeName string
+	if t, ok := types.Unalias(selectorType).(*types.Named); ok {
+		typeName = ctx.qualifiedName(t.Obj())
+	} else {
+		ctx.nope(e, "methods can only be called on defined types, not %s", selectorType)
+	}
+	m := glang.TypeMethod(typeName, e.Sel.Name)
 	ctx.dep.addDep(m)
 	return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
 }
