@@ -83,6 +83,9 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 	generating := make(map[string]bool)
 	var processDecl func(name string)
 	processDecl = func(name string) {
+		if generated[name] {
+			return
+		}
 		if generating[name] {
 			id := declNameToId[name]
 			errs = append(errs, &ConversionError{
@@ -92,9 +95,7 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 				GooseCaller: "decls() in interface.go",
 				Position:    ctx.fset.Position(fs[id.fileIdx].Decls[id.declIdx].Pos()),
 			})
-			return
-		}
-		if generated[name] {
+			generated[name] = true
 			return
 		}
 		generating[name] = true

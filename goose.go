@@ -792,6 +792,9 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	if e.High != nil {
 		highExpr = ctx.expr(e.High)
 	}
+	if _, ok := ctx.typeOf(e.X).Underlying().(*types.Slice); !ok {
+		ctx.unsupported(e, "taking a slice of an object with type %s", ctx.typeOf(e.X))
+	}
 	return glang.LetExpr{
 		Names:   []string{"$s"},
 		ValExpr: x,
