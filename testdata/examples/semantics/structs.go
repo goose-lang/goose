@@ -39,7 +39,7 @@ func (s *S) negateC() {
 	s.c = !s.c
 }
 
-func failing_testStructUpdates() bool {
+func testStructUpdates() bool {
 	var ok = true
 	ns := NewS()
 
@@ -58,7 +58,7 @@ func failing_testStructUpdates() bool {
 
 	ns.updateBValX(4)
 	// FIXME: this isn't translated yet
-	// ok = ok && (ns.readBVal().x == 4)
+	ok = ok && (ns.readBVal().x == 4)
 	return ok
 }
 

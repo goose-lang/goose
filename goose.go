@@ -438,6 +438,12 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			}
 		}
 		if isField {
+			if !ctx.info.Types[e].Addressable() {
+				return glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+					ctx.glangType(e, ctx.typeOf(e)),
+					glang.StringLiteral{Value: e.Sel.Name}, ctx.expr(e.X),
+				)
+			}
 			return glang.DerefExpr{
 				X:  ctx.exprAddr(e),
 				Ty: ctx.glangType(e, ctx.typeOf(e)),
