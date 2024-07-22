@@ -15,7 +15,6 @@ func multiplePassThrough() {
 	multipleVar(returnTwoWrapper(nil))
 }
 
-
 func multipleReturnPassThrough() (uint64, uint64) {
 	return returnTwo(nil)
 }

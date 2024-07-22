@@ -1287,11 +1287,11 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			from = fromPointer.Elem()
 		}
 		if fromNamed, ok := from.(*types.Named); ok {
-			msetName := ctx.qualifiedName(fromNamed.Obj()) + "_mset"
+			msetName := ctx.qualifiedName(fromNamed.Obj()) + "__mset"
 			ctx.dep.addDep(msetName)
 			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
 		} else if fromBasic, ok := from.(*types.Basic); ok {
-			msetName := fromBasic.Name() + "_mset"
+			msetName := fromBasic.Name() + "__mset"
 			ctx.dep.addDep(msetName)
 			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
 		}
@@ -1453,7 +1453,7 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 			// special case
 			tupleType, ok := ctx.typeOf(s.Results[0]).(*types.Tuple)
 			if !ok {
-				ctx.nope(s.Results[0], "the only way for the number of values in a returnStmt to mismatch " +
+				ctx.nope(s.Results[0], "the only way for the number of values in a returnStmt to mismatch "+
 					"the function's signature is passing through a multiple-returning function")
 			}
 			for i := range tupleType.Len() {
