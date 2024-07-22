@@ -64,7 +64,7 @@ func testReturnStatment() Fooer {
 	return y
 }
 
-func testConverionInEq(f Fooer) bool {
+func testConversionInEq(f Fooer) bool {
 	c := &concreteFooer{}
 	f = c
 

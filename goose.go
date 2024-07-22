@@ -592,22 +592,43 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 		}
 		ok = true
 	}
-	if ok {
-		expr := glang.BinaryExpr{
-			X:  ctx.expr(e.X),
-			Op: op,
-			Y:  ctx.expr(e.Y),
-		}
-		// FIXME: get rid of this hack
-		if ctx.isNilCompareExpr(e) {
-			if _, ok := ctx.typeOf(e.X).(*types.Pointer); ok {
-				expr.Y = glang.Null
-			}
-		}
-		return expr
+	if !ok {
+		ctx.unsupported(e, "binary operator %v", e.Op)
+		return nil
 	}
-	ctx.unsupported(e, "binary operator %v", e.Op)
-	return nil
+
+	// copied from go/types/expr.go
+	isComparison := func(op token.Token) bool {
+		// Note: tokens are not ordered well to make this much easier
+		switch op {
+		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+			return true
+		}
+		return false
+	}
+
+	// Computes join on the lattice on type with the subtyping relation.
+	typeJoin := func(t1, t2 types.Type) types.Type {
+		panic("impl")
+	}
+
+	// XXX: comparisons can occur between types that are "assignable" to one
+	// another. This may require a conversion.
+	if isComparison(e.Op) {
+		xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
+		compType := typeJoin(xT, yT)
+		return glang.BinaryExpr{
+			X:  ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
+			Op: op,
+			Y:  ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
+		}
+	}
+
+	return glang.BinaryExpr{
+		X:  ctx.expr(e.X),
+		Op: op,
+		Y:  ctx.expr(e.Y),
+	}
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
@@ -1099,6 +1120,7 @@ func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang
 	}, cont)
 }
 
+// This handles conversions arising from the notion of "assignability" in the Go spec.
 func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang.Expr) glang.Expr {
 	if to == nil {
 		// ctx.unsupported(n, "implicit conversion: don't know destination type")
