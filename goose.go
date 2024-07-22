@@ -32,7 +32,7 @@ type Ctx struct {
 
 	// XXX: this is so we can determine the expected return type when handling a
 	// `returnStmt` so the appropriate conversion is inserted
-	curDecl *ast.FuncDecl
+	curFuncType *ast.FuncType
 
 	dep *depTracker
 }
@@ -824,6 +824,8 @@ func (ctx Ctx) expr(e ast.Expr) glang.Expr {
 func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	fl := glang.FuncLit{}
 
+	// ctx is by value, so no need to unset this
+	ctx.curFuncType = e.Type
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
 	fl.Body = ctx.blockStmt(e.Body)
@@ -1314,9 +1316,9 @@ func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	exprs := make([]glang.Expr, 0, len(s.Results))
 	var expectedReturnTypes []types.Type
-	if ctx.curDecl.Type.Results != nil {
-		for i := range ctx.curDecl.Type.Results.List {
-			expectedReturnTypes = append(expectedReturnTypes, ctx.typeOf(ctx.curDecl.Type.Results.List[i].Type))
+	if ctx.curFuncType.Results != nil {
+		for i := range ctx.curFuncType.Results.List {
+			expectedReturnTypes = append(expectedReturnTypes, ctx.typeOf(ctx.curFuncType.Results.List[i].Type))
 		}
 	}
 	for i, result := range s.Results {
@@ -1531,9 +1533,9 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		ctx.curDecl = d
+		ctx.curFuncType = d.Type
 		fd := ctx.funcDecl(d)
-		ctx.curDecl = nil
+		ctx.curFuncType = nil
 		return []glang.Decl{fd}
 	case *ast.GenDecl:
 		switch d.Tok {
