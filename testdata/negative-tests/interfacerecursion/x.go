@@ -12,13 +12,11 @@ type c struct { // ERROR cycle in dependencies
 }
 
 func (c *c) Foo() {
-	var y B
-	y = c
+	var y B = c
 	y.Bar()
 }
 
 func (c *c) Bar() {
-	var y A
-	y = c
+	var y A = c
 	y.Foo()
 }

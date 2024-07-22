@@ -1117,13 +1117,6 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	}
 }
 
-func (ctx Ctx) referenceTo(rhs ast.Expr) glang.Expr {
-	return glang.RefExpr{
-		X:  ctx.expr(rhs),
-		Ty: ctx.glangType(rhs, ctx.typeOf(rhs)),
-	}
-}
-
 func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	e := ctx.assignStmt(s, cont)
 
@@ -1160,7 +1153,15 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 		rhs = glang.NewCallExpr(glang.GallinaIdent("ref_ty"), ty,
 			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty))
 	} else {
-		rhs = ctx.referenceTo(s.Values[0])
+		rhs = glang.RefExpr{
+			X:  ctx.handleImplicitConversion(
+				s.Values[0],
+				ctx.typeOf(s.Values[0]),
+				ctx.typeOf(s.Names[0]),
+				ctx.expr(s.Values[0]),
+			),
+			Ty: ctx.glangType(s.Names[0], ctx.typeOf(s.Names[0])),
+		}
 	}
 	return glang.LetExpr{
 		Names:   []string{lhs.Name},
