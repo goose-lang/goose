@@ -321,7 +321,7 @@ type DoExpr struct {
 
 func (b DoExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("do:  %s", b.Expr.Coq(false))
+	pp.Add("do:  %s", b.Expr.Coq(true))
 	return pp.Build()
 }
 
@@ -379,7 +379,7 @@ func (b LetExpr) Coq(needs_paren bool) string {
 	} else {
 		panic(fmt.Sprintf("no support for destructuring more than %d return values (up to 5 supported)", len(b.Names)))
 	}
-	pp.Add(b.Cont.Coq(false))
+	pp.Add("%s", b.Cont.Coq(false))
 	return addParens(needs_paren, pp.Build())
 }
 

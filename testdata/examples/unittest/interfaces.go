@@ -48,6 +48,14 @@ func testPassConcreteToInterfaceArgSpecial() ([]Fooer, map[uint64]Fooer, FooerUs
 	return l, m, f
 }
 
+func takesVarArgsInterface(fs ...Fooer) {
+	fs[0].Foo()
+}
+
+func test() {
+	takesVarArgsInterface(&concreteFooer{}, &concreteFooer{})
+}
+
 func returnConcrete() (*concreteFooer, uint64) {
 	return &concreteFooer{}, 10
 }
