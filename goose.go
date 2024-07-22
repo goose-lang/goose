@@ -465,11 +465,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	}
 
 	// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
-	f, ok := ctx.info.Uses[e.Sel].(*types.Func)
-	if !ok {
-		ctx.nope(e, "expected method as selectorExpr")
-	}
-	funcSig, ok := f.Type().(*types.Signature)
+	funcSig, ok := ctx.typeOf(e.Sel).(*types.Signature)
 	if !ok {
 		ctx.nope(e, "func should have signature type")
 	}
