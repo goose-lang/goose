@@ -652,7 +652,7 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 		//  nil identifier is mapped to an untyped nil object.
 		//  This seems wrong; the runtime representation of each of these
 		//  uses depends on the type, so Go must know how they're being used.
-		return glang.GallinaIdent("#(str \"BUG: this should get overwritten by handleImplicitConversion\"")
+		return glang.GallinaIdent("BUG: this should get overwritten by handleImplicitConversion")
 	default:
 		ctx.unsupported(e, "nil of type %v (not pointer or slice)", t)
 		return nil
@@ -1156,29 +1156,46 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		}
 	}
 
-	// Do assignments left-to-right
-	intermediates := make([]string, 0, len(s.Lhs))
-	for i, lhs := range s.Lhs {
-		intermediates = append(intermediates, fmt.Sprintf("$a%d", i))
-		e = ctx.assignFromTo(lhs,
-			ctx.handleImplicitConversion(lhs,
-				rhsTypes[i],
-				ctx.typeOf(lhs),
-				glang.IdentExpr(intermediates[i])),
-			e,
-		)
+	// collect the RHS expressions
+	var rhsExprs []glang.Expr
+	if len(s.Rhs) == len(s.Lhs) {
+		for _, rhs := range s.Rhs {
+			rhsExprs = append(rhsExprs, ctx.expr(rhs))
+		}
+	} else {
+		// RHS is a function call returning multiple things. Will introduce
+		// extra let bindings to destructure those multiple returns.
+		for i := range s.Lhs {
+			rhsExprs = append(rhsExprs, glang.IdentExpr(fmt.Sprintf("$r%d", i)))
+		}
 	}
 
-	// FIXME:(evaluation order).
-	// This computes values left-to-right.
-	for i := len(s.Rhs); i > 0; i-- {
-		// NOTE: this handles the case that RHS = multiple-return function call
+	// Execute assignments left-to-right
+	for i := len(s.Lhs); i > 0; i-- {
+		e = ctx.assignFromTo(s.Lhs[i-1], glang.IdentExpr(fmt.Sprintf("$a%d", i-1)), e)
+	}
+
+	// Let bindings for RHSs including conversions
+	for i := len(s.Lhs); i > 0; i-- {
 		e = glang.LetExpr{
-			Names:   intermediates[i-1:],
-			ValExpr: ctx.expr(s.Rhs[i-1]),
+			Names: []string{fmt.Sprintf("$a%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(s.Lhs[i-1], rhsTypes[i-1],
+				ctx.typeOf(s.Lhs[i-1]), rhsExprs[i-1]),
+			Cont: e,
+		}
+	}
+
+	// Extra let bindings in case RHS is a multiple-returning function
+	if len(s.Rhs) != len(s.Lhs) && len(s.Lhs) > 0 {
+		var n []string
+		for i := range s.Lhs {
+			n = append(n, fmt.Sprintf("$r%d", i))
+		}
+		e = glang.LetExpr{
+			Names:   n,
+			ValExpr: ctx.exprSpecial(s.Rhs[0], true),
 			Cont:    e,
 		}
-		intermediates = intermediates[:i-1]
 	}
 
 	return e
