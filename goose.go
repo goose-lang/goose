@@ -1445,19 +1445,54 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 			expectedReturnTypes = append(expectedReturnTypes, ctx.typeOf(ctx.curFuncType.Results.List[i].Type))
 		}
 	}
-	for i, result := range s.Results {
-		exprs = append(exprs,
-			ctx.handleImplicitConversion(result,
-				ctx.typeOf(result),
-				expectedReturnTypes[i],
-				ctx.expr(result)),
-		)
-	}
-	if len(exprs) == 0 { // return #()
-		exprs = []glang.Expr{glang.Tt}
-	}
-	r := glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
-	return glang.LetExpr{ValExpr: r, Cont: cont}
+
+	var retExpr glang.Expr
+	func() {
+		var unconvertedReturnValues []exprWithInfo
+		if len(s.Results) == 1 && len(expectedReturnTypes) > 1 {
+			// special case
+			tupleType, ok := ctx.typeOf(s.Results[0]).(*types.Tuple)
+			if !ok {
+				ctx.nope(s.Results[0], "the only way for the number of values in a returnStmt to mismatch " +
+					"the function's signature is passing through a multiple-returning function")
+			}
+			for i := range tupleType.Len() {
+				unconvertedReturnValues = append(unconvertedReturnValues, exprWithInfo{
+					e: glang.IdentExpr(fmt.Sprintf("$ret%d", i)),
+					t: tupleType.At(i).Type(),
+					n: s.Results[0],
+				})
+			}
+			defer func() {
+				var names []string
+				for i := range tupleType.Len() {
+					names = append(names, fmt.Sprintf("$ret%d", i))
+				}
+				retExpr = glang.LetExpr{Names: names,
+					ValExpr: glang.ParenExpr{Inner: ctx.expr(s.Results[0])},
+					Cont:    retExpr,
+				}
+			}()
+		} else {
+			for _, result := range s.Results {
+				unconvertedReturnValues = append(unconvertedReturnValues, exprWithInfo{
+					e: ctx.expr(result),
+					t: ctx.typeOf(result),
+					n: result,
+				})
+			}
+		}
+
+		for i, e := range unconvertedReturnValues {
+			exprs = append(exprs, ctx.handleImplicitConversion(e.n, e.t, expectedReturnTypes[i], e.e))
+		}
+		if len(exprs) == 0 { // return #()
+			exprs = []glang.Expr{glang.Tt}
+		}
+		retExpr = glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
+	}()
+
+	return glang.LetExpr{ValExpr: retExpr, Cont: cont}
 }
 
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {

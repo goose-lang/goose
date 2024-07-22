@@ -86,6 +86,10 @@ func giveMultiple() (uint64, Fooer, *concreteFooer) {
 	return 0, &concreteFooer{}, &concreteFooer{}
 }
 
+func testConversionInMultipleReturnPassThrough() (uint64, Fooer, Fooer) {
+	return giveMultiple()
+}
+
 // See "special case" in https://go.dev/ref/spec#Calls
 func testConversionInMultiplePassThrough() {
 	takeMultiple(giveMultiple())
