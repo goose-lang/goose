@@ -479,15 +479,6 @@ func (l StringLiteral) Coq(needs_paren bool) string {
 	return fmt.Sprintf(`#(str "%s")`, l.Value)
 }
 
-type nullLiteral struct{}
-
-func (l nullLiteral) Coq(needs_paren bool) string {
-	return "#null"
-}
-
-// Null represents a nil pointer in Go
-var Null = nullLiteral{}
-
 // BinOp is an enum for a Coq binary operator
 type BinOp int
 

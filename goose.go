@@ -609,11 +609,19 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 
 	// Computes join on the lattice on type with the subtyping relation.
 	typeJoin := func(t1, t2 types.Type) types.Type {
-		panic("impl")
+		if types.AssignableTo(t1, t2) {
+			return t2
+		} else if types.AssignableTo(t2, t1) {
+			return t1
+		} else {
+			ctx.nope(e, "comparison between non-assignable types")
+			return nil
+		}
 	}
 
-	// XXX: comparisons can occur between types that are "assignable" to one
-	// another. This may require a conversion.
+	// XXX: according to the Go spec, comparisons can occur between types that
+	// are "assignable" to one another. This may require a conversion, so we
+	// here convert to the appropriate type here.
 	if isComparison(e.Op) {
 		xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
 		compType := typeJoin(xT, yT)
