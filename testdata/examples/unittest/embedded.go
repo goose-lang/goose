@@ -28,6 +28,10 @@ func returnEmbedVal() embedB {
 	return embedB{}
 }
 
+func returnEmbedValWithPointer() embedD {
+	return embedD{}
+}
+
 func useEmbeddedField(d embedD) uint64 {
 	x := d.embedB.a
 	x = d.a
@@ -35,7 +39,9 @@ func useEmbeddedField(d embedD) uint64 {
 }
 
 func useEmbeddedValField() uint64 {
-	return returnEmbedVal().a
+	x := returnEmbedVal().a
+	x = returnEmbedValWithPointer().a
+	return x
 }
 
 func useEmbeddedMethod(d embedD) bool {

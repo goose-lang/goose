@@ -528,7 +528,6 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	switch selection.Kind() {
 	case types.FieldVal:
 		curType := selectorType
-		fmt.Printf("iterating over %v\n", selection.Index())
 		for _, i := range selection.Index() {
 			info, ok := ctx.getStructInfo(curType)
 			ctx.dep.addDep(info.name)
@@ -537,16 +536,13 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 			}
 			if info.throughPointer {
 				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
-				fmt.Print(".deref()")
 			}
 			v := info.structType.Field(i)
 
-			fmt.Printf(".%s", v.Name())
 			expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
 				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
 			curType = v.Type()
 		}
-		fmt.Println()
 	case types.MethodVal:
 		ctx.nope(e, "method expr is not addressable")
 	case types.MethodExpr:
@@ -567,38 +563,74 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			Ident:   e.Sel.Name,
 		}
 	}
-	if !ctx.info.Types[e].Addressable() {
-		return glang.NewCallExpr(glang.GallinaIdent("struct.get"),
-			ctx.glangType(e, ctx.typeOf(e)),
-			glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
-		)
+
+	switch selection.Kind() {
+	case types.FieldVal:
+		if ctx.info.Types[e.X].Addressable() {
+			return glang.DerefExpr{
+				X:  ctx.exprAddr(e),
+				Ty: ctx.glangType(e, ctx.typeOf(e)),
+			}
+		}
+
+		curType := ctx.typeOf(e.X)
+		var expr glang.Expr = ctx.expr(e.X)
+		var j = 0
+		var idxs = selection.Index()
+
+		func() {
+			// do a bunch `struct.get`s to load from the (embedded) values
+			for ; j < len(idxs); j++ {
+				i := idxs[j]
+				info, ok := ctx.getStructInfo(curType)
+				ctx.dep.addDep(info.name)
+				if !ok {
+					ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
+				}
+				v := info.structType.Field(i)
+				if info.throughPointer {
+					defer func(){
+						expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
+					}()
+
+					// XXX: do the next struct.field_ref here to avoid the DerefExpr in the next loop
+					expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+						glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
+					j++
+					break
+				}
+				expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+					glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
+				curType = v.Type()
+			}
+			// do a bunch of struct.field_refs now that there was a pointer to a struct along the way.
+			for ; j < len(idxs); j++ {
+				i := idxs[j]
+				info, ok := ctx.getStructInfo(curType)
+				ctx.dep.addDep(info.name)
+				if !ok {
+					ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
+				}
+				if info.throughPointer {
+					expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
+				}
+				v := info.structType.Field(i)
+
+				expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+					glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
+				curType = v.Type()
+			}
+		}()
+
+		return expr
 	}
 
-	selectorType := ctx.typeOf(e.X)
-	return glang.DerefExpr{
-		X:  ctx.exprAddr(e),
-		Ty: ctx.glangType(e, ctx.typeOf(e)),
-	}
+	return glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+		ctx.glangType(e, ctx.typeOf(e)),
+		glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
+	)
 
 	// Check if select expression refers to a field of the struct
-	v, isField := ctx.info.ObjectOf(e.Sel).(*types.Var)
-	if isField {
-		fmt.Printf("Var: %s %t\n", e.X, v.Origin().Embedded())
-		if !ctx.info.Types[e].Addressable() {
-			return glang.NewCallExpr(glang.GallinaIdent("struct.get"),
-				ctx.glangType(e, ctx.typeOf(e)),
-				glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
-			)
-		}
-		return glang.DerefExpr{
-			X:  ctx.exprAddr(e),
-			Ty: ctx.glangType(e, ctx.typeOf(e)),
-		}
-	} else if _, ok := ctx.getInterfaceInfo(selectorType); ok {
-		return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
-			glang.StringLiteral{Value: e.Sel.Name}, ctx.expr(e.X),
-		)
-	}
 
 	// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
 	funcSig, ok := ctx.typeOf(e.Sel).Underlying().(*types.Signature)
@@ -606,6 +638,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
 	}
 
+	selectorType := ctx.typeOf(e.X)
 	if pointerT, ok := types.Unalias(selectorType).(*types.Pointer); ok {
 		t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
 		if !ok {
@@ -1264,6 +1297,7 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	case *ast.SelectorExpr:
 		return ctx.selectorExprAddr(e)
 	default:
+		panic("st")
 		ctx.unsupported(e, "address of unknown expression")
 	}
 	return nil
