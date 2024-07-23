@@ -153,9 +153,18 @@ func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
 	_, defName := d.DefName()
 	ctx.dep.setCurrentName(defName)
 	defer ctx.dep.unsetCurrentName()
-	for i := range t.NumMethods() {
-		d.MethodNames = append(d.MethodNames, t.Method(i).Name())
-		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), t.Method(i).Name()))
+	mset := types.NewMethodSet(t)
+	msetPtr := types.NewMethodSet(types.NewPointer(t))
+	if mset.Len() + msetPtr.Len() < t.NumMethods() {
+		ctx.nope(t.Obj(), "%d < %d", mset.Len(), t.NumMethods())
+	}
+	for i := range mset.Len() {
+		d.MethodNames = append(d.MethodNames, mset.At(i).Obj().Name())
+		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), mset.At(i).Obj().Name()))
+	}
+	for i := range msetPtr.Len() {
+		d.MethodNames = append(d.MethodNames, msetPtr.At(i).Obj().Name())
+		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), msetPtr.At(i).Obj().Name()))
 	}
 	return d
 }
@@ -694,6 +703,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			var typeName = ctx.qualifiedName(t.Obj())
 			m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
 			ctx.dep.addDep(m)
+
 			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
 				ctx.unsupported(e, "receiver must be pointer, but selectorExpr has non-addressable base")
 			} else {
