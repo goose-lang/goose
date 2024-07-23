@@ -732,6 +732,17 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Str
 	ctx.dep.addDep(info.name)
 	lit := glang.NewStructLiteral(info.name)
 	isUnkeyedStruct := false
+
+	getFieldType := func(fieldName string) types.Type {
+		for i := range info.structType.NumFields() {
+			if info.structType.Field(i).Name() == fieldName {
+				return info.structType.Field(i).Type()
+			}
+		}
+		ctx.nope(e, "field is not a part of the struct")
+		return types.NewTuple()
+	}
+
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
@@ -740,7 +751,11 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Str
 				ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
 				return glang.StructLiteral{}
 			}
-			lit.AddField(ident, ctx.expr(el.Value))
+			lit.AddField(ident,
+				ctx.handleImplicitConversion(el.Value,
+					ctx.typeOf(el.Value),
+					getFieldType(ident),
+					ctx.expr(el.Value)))
 		default:
 			isUnkeyedStruct = true
 		}
@@ -750,7 +765,12 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Str
 			ctx.nope(e, "expected as many elements are there are struct fields in unkeyed literal")
 		}
 		for i := range info.structType.NumFields() {
-			lit.AddField(info.structType.Field(i).Name(), ctx.expr(e.Elts[i]))
+			lit.AddField(info.structType.Field(i).Name(),
+				ctx.handleImplicitConversion(e.Elts[i],
+					ctx.typeOf(e.Elts[i]),
+					info.structType.Field(i).Type(),
+					ctx.expr(e.Elts[i]),
+				))
 		}
 	}
 	return lit
