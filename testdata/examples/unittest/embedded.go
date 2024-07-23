@@ -50,5 +50,5 @@ func useEmbeddedValField() uint64 {
 }
 
 func useEmbeddedMethod(d embedD) bool {
-	return d.Foo() == d.embedB.Foo()
+	return d.Foo() == d.embedA.Foo()
 }

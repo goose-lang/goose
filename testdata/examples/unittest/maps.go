@@ -28,3 +28,13 @@ func MapTypeAliases(m1 map[IntWrapper]bool, m2 MapWrapper) {
 func StringMap(m map[string]uint64) uint64 {
 	return m["foo"]
 }
+
+type mapElem struct {
+	a uint64
+	b uint64
+}
+
+func mapUpdateField() {
+	x := make(map[uint64]*mapElem)
+	x[0].a = 10
+}

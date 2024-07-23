@@ -524,9 +524,19 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 
 	switch selection.Kind() {
 	case types.FieldVal:
-		expr, t, index := ctx.exprAddr(e.X), selection.Recv(), selection.Index()
-		ctx.fieldAddrSelection(e, index, &t, &expr)
-		return expr
+		if ctx.info.Types[e.X].Addressable() {
+			expr, curType, index := ctx.exprAddr(e.X), selection.Recv(), selection.Index()
+			ctx.fieldAddrSelection(e, index, &curType, &expr)
+			return expr
+		} else {
+			expr, curType, index := ctx.expr(e.X), selection.Recv(), selection.Index()
+			ctx.fieldSelection(e.X, &index, &curType, &expr)
+			if len(index) == 0 {
+				ctx.nope(e, "expected addressable expression")
+			}
+			ctx.fieldAddrSelection(e.X, index, &curType, &expr)
+			return expr
+		}
 	case types.MethodVal:
 		ctx.nope(e, "method val is not addressable")
 	case types.MethodExpr:
@@ -573,6 +583,9 @@ func (ctx Ctx) fieldAddrSelection(n ast.Node, index []int, curType *types.Type, 
 		info, ok := ctx.getStructInfo(*curType)
 		ctx.dep.addDep(info.name)
 		if !ok {
+			if _, ok := (*curType).(*types.Struct); ok {
+				ctx.unsupported(n, "anonymous struct")
+			}
 			ctx.nope(n, "expected (pointer to) struct type for base of selector, got %s", *curType)
 		}
 		if info.throughPointer {
@@ -605,8 +618,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		ctx.unsupported(e, "method expr")
 	case types.FieldVal:
 		var expr glang.Expr
-		index := selection.Index()
-		curType := selection.Recv()
+		index, curType := selection.Index(), selection.Recv()
 
 		if ctx.info.Types[e.X].Addressable() {
 			expr = ctx.exprAddr(e.X)
@@ -621,38 +633,74 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		return expr
 
 	case types.MethodVal:
-		// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
+		// 2*2 cases: receiver type could be (T) or (*T), and e.X type
+		// (including embedded fields) could be (T) or (*T).
 		funcSig, ok := selection.Type().(*types.Signature)
 		if !ok {
 			ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
 		}
 
-		selectorType := ctx.typeOf(e.X)
-		if pointerT, ok := types.Unalias(selectorType).(*types.Pointer); ok {
+		index, curType := selection.Index(), selection.Recv()
+		fnIndex, index := index[len(index)-1], index[:len(index)-1]
+		var expr glang.Expr
+
+		if ctx.info.Types[e.X].Addressable() {
+			expr = ctx.exprAddr(e.X)
+			ctx.fieldAddrSelection(e.X, index, &curType, &expr)
+			// expr : ptrT<curType>
+			if _, ok := types.Unalias(curType).(*types.Pointer); ok {
+				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)}
+			} else {
+				curType = types.NewPointer(curType)
+			}
+			// now, (expr : curType), and there's no deref unless it's unavoidale.
+		} else {
+			expr = ctx.expr(e.X)
+			ctx.fieldSelection(e.X, &index, &curType, &expr)
+			if len(index) > 0 {
+				ctx.fieldAddrSelection(e.X, index, &curType, &expr)
+				// same as the addressable case above
+				if _, ok := types.Unalias(curType).(*types.Pointer); ok {
+					expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)}
+				} else {
+					curType = types.NewPointer(curType)
+				}
+			}
+		}
+
+		// At this point, (expr : curType), and (curType = ptr<named>) if the
+		// original expression is an address or is addressable, and (curType =
+		// named) otherwise.
+		if _, ok := ctx.getInterfaceInfo(curType); ok {
+			return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
+				glang.StringLiteral{Value: e.Sel.Name}, ctx.expr(e.X),
+			)
+		}
+
+		if pointerT, ok := types.Unalias(curType).(*types.Pointer); ok {
 			t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
 			if !ok {
 				ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
 			}
-			var typeName = ctx.qualifiedName(t.Obj())
-			m := glang.TypeMethod(typeName, e.Sel.Name)
+			m := glang.TypeMethod(ctx.qualifiedName(t.Obj()), t.Method(fnIndex).Name())
 			ctx.dep.addDep(m)
 
 			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+				return glang.NewCallExpr(glang.GallinaIdent(m), expr)
 			} else {
-				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.derefExpr(e.X))
+				return glang.NewCallExpr(glang.GallinaIdent(m), glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)})
 			}
-		} else if t, ok := types.Unalias(selectorType).(*types.Named); ok {
+		} else if t, ok := types.Unalias(curType).(*types.Named); ok {
 			var typeName = ctx.qualifiedName(t.Obj())
-			m := glang.TypeMethod(typeName, e.Sel.Name)
+			m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
 			ctx.dep.addDep(m)
 			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.exprAddr(e.X))
+				ctx.unsupported(e, "receiver must be pointer, but selectorExpr has non-addressable base")
 			} else {
-				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+				return glang.NewCallExpr(glang.GallinaIdent(m), expr)
 			}
 		}
-		ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", selectorType)
+		ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", curType)
 	}
 
 	panic("unreachable")
@@ -1288,7 +1336,6 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	case *ast.SelectorExpr:
 		return ctx.selectorExprAddr(e)
 	default:
-		panic("st")
 		ctx.unsupported(e, "address of unknown expression")
 	}
 	return nil
