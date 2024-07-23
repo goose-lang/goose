@@ -96,6 +96,7 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 				Position:    ctx.fset.Position(fs[id.fileIdx].Decls[id.declIdx].Pos()),
 			})
 			generated[name] = true
+			sortedDecls = append(sortedDecls, decls[name])
 			return
 		}
 		generating[name] = true
