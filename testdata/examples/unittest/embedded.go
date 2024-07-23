@@ -35,6 +35,11 @@ func returnEmbedValWithPointer() embedD {
 func useEmbeddedField(d embedD) uint64 {
 	x := d.a
 	x = d.embedB.a
+	d.a = 10
+
+	y := &embedD{}
+	y.a = 11
+
 	return x
 }
 

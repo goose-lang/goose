@@ -522,33 +522,69 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 		}
 	}
 
-	selectorType := ctx.typeOf(e.X)
-
-	var expr glang.Expr = ctx.exprAddr(e.X)
 	switch selection.Kind() {
 	case types.FieldVal:
-		curType := selectorType
-		for _, i := range selection.Index() {
-			info, ok := ctx.getStructInfo(curType)
-			ctx.dep.addDep(info.name)
-			if !ok {
-				ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", selectorType)
-			}
-			if info.throughPointer {
-				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
-			}
-			v := info.structType.Field(i)
-
-			expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-			curType = v.Type()
-		}
+		expr, t, index := ctx.exprAddr(e.X), selection.Recv(), selection.Index()
+		ctx.fieldAddrSelection(e, index, &t, &expr)
+		return expr
 	case types.MethodVal:
 		ctx.nope(e, "method val is not addressable")
 	case types.MethodExpr:
 		ctx.nope(e, "method expr is not addressable")
 	}
-	return expr
+	ctx.nope(e, "unexpected kinf of selection")
+	panic("unreachable")
+}
+
+// Requires that `baseExpr` be a `struct.val ...`. This walks down the selection
+// specified by `index` up until it sees a pointer field, then returns. Its
+// intent is to be combined with fieldAddrSelection to go the rest of the way.
+// If len(index) > 0, then curType is set so that `(*expr)` is a GooseLang
+// memory address pointing to a `(*curType)`.
+func (ctx Ctx) fieldSelection(n ast.Node, index *[]int, curType *types.Type, expr *glang.Expr) {
+	for ; len(*index) > 0; *index = (*index)[1:] {
+		i := (*index)[0]
+		info, ok := ctx.getStructInfo(*curType)
+		if !ok {
+			ctx.nope(n, "expected (pointer to) struct type for base of selector, got %s", *curType)
+		}
+		ctx.dep.addDep(info.name)
+
+		if info.throughPointer {
+			// XXX: this is to feed into fieldAddrSelection (see comment above this func).
+			*curType = (*curType).(*types.Pointer).Elem()
+			return
+		}
+		v := info.structType.Field(i)
+		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
+		*curType = v.Type()
+	}
+	return
+}
+
+// Requires that `(*expr)` be be a GooseLang address pointing to
+// `goose(*curType)`. This walks down the selection specified by `index` all the
+// way to the end,
+// returning an expression
+// representing the address of that selected field.
+func (ctx Ctx) fieldAddrSelection(n ast.Node, index []int, curType *types.Type, expr *glang.Expr) {
+	for _, i := range index {
+		info, ok := ctx.getStructInfo(*curType)
+		ctx.dep.addDep(info.name)
+		if !ok {
+			ctx.nope(n, "expected (pointer to) struct type for base of selector, got %s", *curType)
+		}
+		if info.throughPointer {
+			*expr = glang.DerefExpr{X: *expr, Ty: ctx.glangType(n, *curType)}
+		}
+		v := info.structType.Field(i)
+
+		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
+		*curType = v.Type()
+	}
+	return
 }
 
 func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
@@ -556,7 +592,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	if selection == nil {
 		pkg, ok := getIdent(e.X)
 		if !ok {
-			ctx.unsupported(e, "expected package selector with idtent, got %T", e.X)
+			ctx.unsupported(e, "expected package selector with ident, got %T", e.X)
 		}
 		return glang.PackageIdent{
 			Package: pkg,
@@ -568,59 +604,18 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	case types.MethodExpr:
 		ctx.unsupported(e, "method expr")
 	case types.FieldVal:
-		curType := ctx.typeOf(e.X)
-		var pointerMode bool
 		var expr glang.Expr
+		index := selection.Index()
+		curType := selection.Recv()
+
 		if ctx.info.Types[e.X].Addressable() {
-			pointerMode, expr = true, ctx.exprAddr(e.X)
+			expr = ctx.exprAddr(e.X)
 		} else {
-			pointerMode, expr = false, ctx.expr(e.X)
+			expr = ctx.expr(e.X)
+			ctx.fieldSelection(e.X, &index, &curType, &expr)
 		}
-
-		var j = 0
-		var idxs = selection.Index()
-
-		// do a bunch `struct.get`s to load from the (embedded) values
-		for ; j < len(idxs) && !pointerMode; j++ {
-			i := idxs[j]
-			info, ok := ctx.getStructInfo(curType)
-			ctx.dep.addDep(info.name)
-			if !ok {
-				ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
-			}
-			v := info.structType.Field(i)
-			if info.throughPointer {
-				// XXX: do the next struct.field_ref here to avoid the DerefExpr in the next loop
-				expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-					glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-				curType = v.Type()
-				pointerMode = true
-				j++
-				break
-			}
-			expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
-				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-			curType = v.Type()
-		}
-		// do a bunch of struct.field_refs now that there was a pointer to a struct along the way.
-		for ; j < len(idxs); j++ {
-			i := idxs[j]
-			info, ok := ctx.getStructInfo(curType)
-			ctx.dep.addDep(info.name)
-			if !ok {
-				ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
-			}
-			if info.throughPointer {
-				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
-			}
-			v := info.structType.Field(i)
-
-			expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-			curType = v.Type()
-		}
-		if pointerMode {
-			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
+		if len(index) > 0 {
+			ctx.fieldAddrSelection(e.X, index, &curType, &expr)
 		}
 		return expr
 
