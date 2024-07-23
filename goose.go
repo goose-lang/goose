@@ -616,6 +616,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		}
 		if len(index) > 0 {
 			ctx.fieldAddrSelection(e.X, index, &curType, &expr)
+			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
 		}
 		return expr
 
