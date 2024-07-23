@@ -544,7 +544,7 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 			curType = v.Type()
 		}
 	case types.MethodVal:
-		ctx.nope(e, "method expr is not addressable")
+		ctx.nope(e, "method val is not addressable")
 	case types.MethodExpr:
 		ctx.nope(e, "method expr is not addressable")
 	}
@@ -565,105 +565,100 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	}
 
 	switch selection.Kind() {
+	case types.MethodExpr:
+		ctx.unsupported(e, "method expr")
 	case types.FieldVal:
+		curType := ctx.typeOf(e.X)
+		var pointerMode bool
+		var expr glang.Expr
 		if ctx.info.Types[e.X].Addressable() {
-			return glang.DerefExpr{
-				X:  ctx.exprAddr(e),
-				Ty: ctx.glangType(e, ctx.typeOf(e)),
-			}
+			pointerMode, expr = true, ctx.exprAddr(e.X)
+		} else {
+			pointerMode, expr = false, ctx.expr(e.X)
 		}
 
-		curType := ctx.typeOf(e.X)
-		var expr glang.Expr = ctx.expr(e.X)
 		var j = 0
 		var idxs = selection.Index()
 
-		func() {
-			// do a bunch `struct.get`s to load from the (embedded) values
-			for ; j < len(idxs); j++ {
-				i := idxs[j]
-				info, ok := ctx.getStructInfo(curType)
-				ctx.dep.addDep(info.name)
-				if !ok {
-					ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
-				}
-				v := info.structType.Field(i)
-				if info.throughPointer {
-					defer func(){
-						expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
-					}()
-
-					// XXX: do the next struct.field_ref here to avoid the DerefExpr in the next loop
-					expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-						glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-					j++
-					break
-				}
-				expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
-					glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
-				curType = v.Type()
+		// do a bunch `struct.get`s to load from the (embedded) values
+		for ; j < len(idxs) && !pointerMode; j++ {
+			i := idxs[j]
+			info, ok := ctx.getStructInfo(curType)
+			ctx.dep.addDep(info.name)
+			if !ok {
+				ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
 			}
-			// do a bunch of struct.field_refs now that there was a pointer to a struct along the way.
-			for ; j < len(idxs); j++ {
-				i := idxs[j]
-				info, ok := ctx.getStructInfo(curType)
-				ctx.dep.addDep(info.name)
-				if !ok {
-					ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
-				}
-				if info.throughPointer {
-					expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
-				}
-				v := info.structType.Field(i)
-
+			v := info.structType.Field(i)
+			if info.throughPointer {
+				// XXX: do the next struct.field_ref here to avoid the DerefExpr in the next loop
 				expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
 					glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
 				curType = v.Type()
+				pointerMode = true
+				j++
+				break
 			}
-		}()
+			expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
+			curType = v.Type()
+		}
+		// do a bunch of struct.field_refs now that there was a pointer to a struct along the way.
+		for ; j < len(idxs); j++ {
+			i := idxs[j]
+			info, ok := ctx.getStructInfo(curType)
+			ctx.dep.addDep(info.name)
+			if !ok {
+				ctx.nope(e.X, "expected (pointer to) struct type for base of selector, got %s", curType)
+			}
+			if info.throughPointer {
+				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
+			}
+			v := info.structType.Field(i)
 
+			expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
+				glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), expr)
+			curType = v.Type()
+		}
+		if pointerMode {
+			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.Sel, curType)}
+		}
 		return expr
-	}
 
-	return glang.NewCallExpr(glang.GallinaIdent("struct.get"),
-		ctx.glangType(e, ctx.typeOf(e)),
-		glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
-	)
-
-	// Check if select expression refers to a field of the struct
-
-	// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
-	funcSig, ok := ctx.typeOf(e.Sel).Underlying().(*types.Signature)
-	if !ok {
-		ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
-	}
-
-	selectorType := ctx.typeOf(e.X)
-	if pointerT, ok := types.Unalias(selectorType).(*types.Pointer); ok {
-		t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
+	case types.MethodVal:
+		// 2*2 cases: receiver type could be (T) or (*T), and e.X type could be (T) or (*T).
+		funcSig, ok := selection.Type().(*types.Signature)
 		if !ok {
-			ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
+			ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
 		}
-		var typeName = ctx.qualifiedName(t.Obj())
-		m := glang.TypeMethod(typeName, e.Sel.Name)
-		ctx.dep.addDep(m)
 
-		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
-		} else {
-			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.derefExpr(e.X))
+		selectorType := ctx.typeOf(e.X)
+		if pointerT, ok := types.Unalias(selectorType).(*types.Pointer); ok {
+			t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
+			if !ok {
+				ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
+			}
+			var typeName = ctx.qualifiedName(t.Obj())
+			m := glang.TypeMethod(typeName, e.Sel.Name)
+			ctx.dep.addDep(m)
+
+			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+			} else {
+				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.derefExpr(e.X))
+			}
+		} else if t, ok := types.Unalias(selectorType).(*types.Named); ok {
+			var typeName = ctx.qualifiedName(t.Obj())
+			m := glang.TypeMethod(typeName, e.Sel.Name)
+			ctx.dep.addDep(m)
+			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.exprAddr(e.X))
+			} else {
+				return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
+			}
 		}
-	} else if t, ok := types.Unalias(selectorType).(*types.Named); ok {
-		var typeName = ctx.qualifiedName(t.Obj())
-		m := glang.TypeMethod(typeName, e.Sel.Name)
-		ctx.dep.addDep(m)
-		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.exprAddr(e.X))
-		} else {
-			return glang.NewCallExpr(glang.GallinaIdent(m), ctx.expr(e.X))
-		}
+		ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", selectorType)
 	}
-	ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", selectorType)
+
 	panic("unreachable")
 }
 
