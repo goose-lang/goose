@@ -799,19 +799,11 @@ Definition failing_testU32NewtypeLen : val :=
 
 Definition geometryInterface : go_type := interfaceT.
 
-Definition geometryInterface__mset : list (string * val) := [
-  ("Square", geometryInterface__Square);
-  ("Volume", geometryInterface__Volume)
-].
-
-Definition geometryInterface__mset_ptr : list (string * val) := [
-].
-
 (* go: interfaces.go:12:6 *)
 Definition measureArea : val :=
   rec: "measureArea" "t" :=
     exception_do (let: "t" := ref_ty geometryInterface "t" in
-    return: ((interface.get #(str "Square") (![geometryInterface] "t")) #());;;
+    return: ((interface.get "Square" (![geometryInterface] "t")) #());;;
     do:  #()).
 
 (* go: interfaces.go:16:6 *)
@@ -820,14 +812,14 @@ Definition measureVolumePlusNM : val :=
     exception_do (let: "m" := ref_ty uint64T "m" in
     let: "n" := ref_ty uint64T "n" in
     let: "t" := ref_ty geometryInterface "t" in
-    return: ((((interface.get #(str "Volume") (![geometryInterface] "t")) #()) + (![uint64T] "n")) + (![uint64T] "m"));;;
+    return: ((((interface.get "Volume" (![geometryInterface] "t")) #()) + (![uint64T] "n")) + (![uint64T] "m"));;;
     do:  #()).
 
 (* go: interfaces.go:20:6 *)
 Definition measureVolume : val :=
   rec: "measureVolume" "t" :=
     exception_do (let: "t" := ref_ty geometryInterface "t" in
-    return: ((interface.get #(str "Volume") (![geometryInterface] "t")) #());;;
+    return: ((interface.get "Volume" (![geometryInterface] "t")) #());;;
     do:  #()).
 
 Definition SquareStruct : go_type := structT [
@@ -2535,7 +2527,7 @@ Definition clearLog : val :=
     do:  ("header" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "header" in
-    (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  #()).
 
 (* go: wal.go:31:6 *)
@@ -2559,7 +2551,7 @@ Definition getLogEntry : val :=
     do:  ("diskAddr" <-[uint64T] "$r0");;;
     let: "aBlock" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := ![uint64T] "diskAddr" in
-    (interface.get #(str "Read") (![disk.Disk] "d")) "$a0" in
+    (interface.get "Read" (![disk.Disk] "d")) "$a0" in
     do:  ("aBlock" <-[sliceT byteT] "$r0");;;
     let: "a" := ref_ty uint64T (zero_val uint64T) in
     let: "$r0" := let: "$a0" := ![sliceT byteT] "aBlock" in
@@ -2567,7 +2559,7 @@ Definition getLogEntry : val :=
     do:  ("a" <-[uint64T] "$r0");;;
     let: "v" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := (![uint64T] "diskAddr") + #1 in
-    (interface.get #(str "Read") (![disk.Disk] "d")) "$a0" in
+    (interface.get "Read" (![disk.Disk] "d")) "$a0" in
     do:  ("v" <-[sliceT byteT] "$r0");;;
     return: (![uint64T] "a", ![sliceT byteT] "v");;;
     do:  #()).
@@ -2596,7 +2588,7 @@ Definition applyLog : val :=
         do:  ("v" <-[sliceT byteT] "$r1");;;
         do:  (let: "$a0" := logLength + (![uint64T] "a") in
         let: "$a1" := ![sliceT byteT] "v" in
-        (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
+        (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
         let: "$r0" := (![uint64T] "i") + #1 in
         do:  ("i" <-[uint64T] "$r0");;;
         continue: #();;;
@@ -2674,7 +2666,7 @@ Definition Log__Commit : val :=
     do:  ("header" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "header" in
-    (interface.get #(str "Write") (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
     do:  #()).
 
 (* Read from the logical disk.
@@ -2703,7 +2695,7 @@ Definition Log__Read : val :=
     do:  ((Log__unlock (![ptrT] "l")) #());;;
     let: "dv" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := logLength + (![uint64T] "a") in
-    (interface.get #(str "Read") (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" in
+    (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" in
     do:  ("dv" <-[sliceT byteT] "$r0");;;
     return: (![sliceT byteT] "dv");;;
     do:  #()).
@@ -2713,7 +2705,7 @@ Definition Log__Size : val :=
   rec: "Log__Size" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
     let: "sz" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := (interface.get #(str "Size") (![disk.Disk] (struct.field_ref Log "d" "l"))) #() in
+    let: "$r0" := (interface.get "Size" (![disk.Disk] (struct.field_ref Log "d" "l"))) #() in
     do:  ("sz" <-[uint64T] "$r0");;;
     return: ((![uint64T] "sz") - logLength);;;
     do:  #()).
@@ -2744,10 +2736,10 @@ Definition Log__Write : val :=
     do:  ("nextAddr" <-[uint64T] "$r0");;;
     do:  (let: "$a0" := ![uint64T] "nextAddr" in
     let: "$a1" := ![sliceT byteT] "aBlock" in
-    (interface.get #(str "Write") (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
     do:  (let: "$a0" := (![uint64T] "nextAddr") + #1 in
     let: "$a1" := ![sliceT byteT] "v" in
-    (interface.get #(str "Write") (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
     let: "$r0" := ![sliceT byteT] "v" in
     do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
     let: "$r0" := (![uint64T] "length") + #1 in
@@ -2786,7 +2778,7 @@ Definition New : val :=
     let: "$r0" := disk.Get #() in
     do:  ("d" <-[disk.Disk] "$r0");;;
     let: "diskSize" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := (interface.get #(str "Size") (![disk.Disk] "d")) #() in
+    let: "$r0" := (interface.get "Size" (![disk.Disk] "d")) #() in
     do:  ("diskSize" <-[uint64T] "$r0");;;
     (if: (![uint64T] "diskSize") ≤ logLength
     then
@@ -2802,7 +2794,7 @@ Definition New : val :=
     do:  ("header" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "header" in
-    (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     let: "lengthPtr" := ref_ty ptrT (zero_val ptrT) in
     let: "$r0" := ref_ty uint64T (zero_val uint64T) in
     do:  ("lengthPtr" <-[ptrT] "$r0");;;
@@ -2829,7 +2821,7 @@ Definition Open : val :=
     do:  ("d" <-[disk.Disk] "$r0");;;
     let: "header" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := #0 in
-    (interface.get #(str "Read") (![disk.Disk] "d")) "$a0" in
+    (interface.get "Read" (![disk.Disk] "d")) "$a0" in
     do:  ("header" <-[sliceT byteT] "$r0");;;
     let: "length" := ref_ty uint64T (zero_val uint64T) in
     let: "$r0" := let: "$a0" := ![sliceT byteT] "header" in
@@ -2881,12 +2873,12 @@ Definition disabled_testWal : val :=
     blockToInt "$a0") = #11) in
     do:  ("ok" <-[boolT] "$r0");;;
     let: "$r0" := (![boolT] "ok") && ((let: "$a0" := let: "$a0" := #0 in
-    (interface.get #(str "Read") (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0" in
+    (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0" in
     blockToInt "$a0") = #0) in
     do:  ("ok" <-[boolT] "$r0");;;
     do:  ((Log__Commit (![ptrT] "lg")) #());;;
     let: "$r0" := (![boolT] "ok") && ((let: "$a0" := let: "$a0" := #0 in
-    (interface.get #(str "Read") (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0" in
+    (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0" in
     blockToInt "$a0") = #1) in
     do:  ("ok" <-[boolT] "$r0");;;
     do:  ((Log__Apply (![ptrT] "lg")) #());;;

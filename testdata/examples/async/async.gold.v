@@ -19,6 +19,6 @@ Definition UseDisk : val :=
     do:  ("v" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "v" in
-    (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
-    do:  ((interface.get #(str "Barrier") (![disk.Disk] "d")) #());;;
+    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
+    do:  ((interface.get "Barrier" (![disk.Disk] "d")) #());;;
     do:  #()).

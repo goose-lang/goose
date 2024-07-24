@@ -416,11 +416,11 @@ Definition diskArgument : val :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in
     let: "b" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := #0 in
-    (interface.get #(str "Read") (![disk.Disk] "d")) "$a0" in
+    (interface.get "Read" (![disk.Disk] "d")) "$a0" in
     do:  ("b" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #1 in
     let: "$a1" := ![sliceT byteT] "b" in
-    (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
+    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  #()).
 
 Definition embedA : go_type := structT [
@@ -653,13 +653,6 @@ Definition TakesFunctionType : val :=
 
 Definition Fooer : go_type := interfaceT.
 
-Definition Fooer__mset : list (string * val) := [
-  ("Foo", Fooer__Foo)
-].
-
-Definition Fooer__mset_ptr : list (string * val) := [
-].
-
 Definition concreteFooer : go_type := structT [
   "a" :: uint64T
 ].
@@ -691,7 +684,7 @@ Definition FooerUser__mset_ptr : list (string * val) := [
 Definition fooConsumer : val :=
   rec: "fooConsumer" "f" :=
     exception_do (let: "f" := ref_ty Fooer "f" in
-    do:  ((interface.get #(str "Foo") (![Fooer] "f")) #());;;
+    do:  ((interface.get "Foo" (![Fooer] "f")) #());;;
     do:  #()).
 
 (* go: interfaces.go:22:6 *)
@@ -719,7 +712,7 @@ Definition testPassConcreteToInterfaceArg : val :=
     do:  (let: "$a0" := ![Fooer] "f" in
     fooConsumer "$a0");;;
     do:  ((concreteFooer__Foo (![ptrT] "c")) #());;;
-    do:  ((interface.get #(str "Foo") (![Fooer] "f")) #());;;
+    do:  ((interface.get "Foo" (![Fooer] "f")) #());;;
     do:  #()).
 
 (* go: interfaces.go:37:6 *)
@@ -755,7 +748,7 @@ Definition testPassConcreteToInterfaceArgSpecial : val :=
 Definition takesVarArgsInterface : val :=
   rec: "takesVarArgsInterface" "fs" :=
     exception_do (let: "fs" := ref_ty (sliceT Fooer) "fs" in
-    do:  ((interface.get #(str "Foo") (![Fooer] (slice.elem_ref Fooer (![sliceT Fooer] "fs") #0))) #());;;
+    do:  ((interface.get "Foo" (![Fooer] (slice.elem_ref Fooer (![sliceT Fooer] "fs") #0))) #());;;
     do:  #()).
 
 (* go: interfaces.go:55:6 *)
@@ -849,14 +842,6 @@ Definition testConversionInMultiplePassThrough : val :=
 
 Definition PointerInterface : go_type := interfaceT.
 
-Definition PointerInterface__mset : list (string * val) := [
-  ("B", PointerInterface__B);
-  ("Foo", PointerInterface__Foo)
-].
-
-Definition PointerInterface__mset_ptr : list (string * val) := [
-].
-
 Definition concrete1 : go_type := structT [
 ].
 
@@ -890,8 +875,8 @@ Definition testPtrMset : val :=
     do:  ("a" <-[ptrT] "$r0");;;
     let: "p" := ref_ty PointerInterface (interface.make concrete1__mset_ptr (![ptrT] "a")) in
     let: "f" := ref_ty Fooer (interface.make concrete1__mset (![concrete1] (![ptrT] "a"))) in
-    do:  ((interface.get #(str "B") (![PointerInterface] "p")) #());;;
-    do:  ((interface.get #(str "Foo") (![Fooer] "f")) #());;;
+    do:  ((interface.get "B" (![PointerInterface] "p")) #());;;
+    do:  ((interface.get "Foo" (![Fooer] "f")) #());;;
     do:  #()).
 
 (* go: ints.go:3:6 *)

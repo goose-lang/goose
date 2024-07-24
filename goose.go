@@ -147,6 +147,12 @@ func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 	typeName := t.Obj().Name()
 
+	// Don't try to generate msets for interfaces, since we'll never have to
+	// call `interface.make` on it.
+	if _, ok := t.Underlying().(*types.Interface); ok {
+		return nil
+	}
+
 	directMethods := make(map[string]bool)
 	// construct method set for T
 	mset := glang.MethodSetDecl{TypeName: typeName}
@@ -701,7 +707,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		// named) otherwise.
 		if _, ok := ctx.getInterfaceInfo(curType); ok {
 			return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
-				glang.StringLiteral{Value: e.Sel.Name}, ctx.expr(e.X),
+				glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
 			)
 		}
 
@@ -1369,7 +1375,7 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 		return glang.IdentExpr(e.Name)
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(e.X)
-		switch targetTy := targetTy.(type) {
+		switch targetTy := targetTy.Underlying().(type) {
 		case *types.Slice:
 			return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
 				ctx.glangType(e, targetTy.Elem()),
