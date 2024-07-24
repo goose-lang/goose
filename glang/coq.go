@@ -873,8 +873,12 @@ func (d MethodSetDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Definition %s__mset : list (string * val) := [", d.TypeName)
 	pp.Indent(2)
-	for _, name := range d.Methods {
-		pp.Add("(\"%s\", %s)", name, TypeMethod(d.TypeName, name))
+	for i, name := range d.Methods {
+		sep := ";"
+		if i == len(d.Methods) - 1 {
+			sep = ""
+		}
+		pp.Add("(\"%s\", %s)%s", name, TypeMethod(d.TypeName, name), sep)
 	}
 	pp.Indent(-2)
 	pp.Add("].")
@@ -895,11 +899,20 @@ func (d MethodPtrSetDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Definition %s__mset_ptr : list (string * val) := [", d.TypeName)
 	pp.Indent(2)
-	for _, name := range d.PtrMethods {
-		pp.Add("(\"%s\", %s)", name, TypeMethod(d.TypeName, name))
+
+	for i, name := range d.PtrMethods {
+		sep := ";"
+		if i == len(d.PtrMethods) - 1 {
+			sep = ""
+		}
+		pp.Add("(\"%s\", %s)%s", name, TypeMethod(d.TypeName, name), sep)
 	}
-	for _, name := range d.Methods {
-		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\")))", name, TypeMethod(d.TypeName, name), d.TypeName)
+	for i, name := range d.Methods {
+		sep := ";"
+		if i == len(d.PtrMethods) - 1 {
+			sep = ""
+		}
+		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\")))%s", name, TypeMethod(d.TypeName, name), d.TypeName, sep)
 	}
 	pp.Indent(-2)
 	pp.Add("].")

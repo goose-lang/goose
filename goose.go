@@ -1456,7 +1456,9 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 		if _, ok := toUnder.(*types.Slice); ok {
 			return glang.GallinaIdent("slice.nil")
 		} else if _, ok := toUnder.(*types.Pointer); ok {
-			return glang.GallinaIdent("null")
+			return glang.GallinaIdent("#null")
+		} else if _, ok := toUnder.(*types.Signature); ok {
+			return glang.GallinaIdent("nil")
 		}
 	}
 	ctx.unsupported(n, "implicit conversion from %s to %s", from, to)
