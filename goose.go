@@ -1436,18 +1436,20 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			// independent of the particular interface type.
 			return e
 		}
-		//
+
+		maybePtrSuffix := ""
 		if fromPointer, ok := from.(*types.Pointer); ok {
 			from = fromPointer.Elem()
+			maybePtrSuffix = "_ptr"
 		}
 		if fromNamed, ok := from.(*types.Named); ok {
-			msetName := ctx.qualifiedName(fromNamed.Obj()) + "__mset"
+			msetName := ctx.qualifiedName(fromNamed.Obj()) + "__mset" + maybePtrSuffix
 			ctx.dep.addDep(msetName)
-			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(msetName), e)
 		} else if fromBasic, ok := from.(*types.Basic); ok {
-			msetName := fromBasic.Name() + "__mset"
+			msetName := fromBasic.Name() + "__mset" + maybePtrSuffix
 			ctx.dep.addDep(msetName)
-			return glang.NewCallExpr(glang.GallinaIdent("list.val"), glang.GallinaIdent(msetName))
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(msetName), e)
 		}
 	}
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {

@@ -94,3 +94,25 @@ func testConversionInMultipleReturnPassThrough() (uint64, Fooer, Fooer) {
 func testConversionInMultiplePassThrough() {
 	takeMultiple(giveMultiple())
 }
+
+type PointerInterface interface {
+	Foo()
+	B()
+}
+
+type concrete1 struct {
+}
+
+func (c concrete1) Foo() {
+}
+
+func (c *concrete1) B() {
+}
+
+func testPtrMset() {
+	a := &concrete1{}
+	var p PointerInterface = a
+	var f Fooer = *a
+	p.B()
+	f.Foo()
+}

@@ -893,7 +893,7 @@ type MethodPtrSetDecl struct {
 
 func (d MethodPtrSetDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s__ptr_mset : list (string * val) := [", d.TypeName)
+	pp.Add("Definition %s__mset_ptr : list (string * val) := [", d.TypeName)
 	pp.Indent(2)
 	for _, name := range d.PtrMethods {
 		pp.Add("(\"%s\", %s)", name, TypeMethod(d.TypeName, name))
@@ -907,7 +907,7 @@ func (d MethodPtrSetDecl) CoqDecl() string {
 }
 
 func (d MethodPtrSetDecl) DefName() (bool, string) {
-	return true, fmt.Sprintf("%s__ptr_mset", d.TypeName)
+	return true, fmt.Sprintf("%s__mset_ptr", d.TypeName)
 }
 
 // Decl is a FuncDecl, StructDecl, CommentDecl, or ConstDecl
