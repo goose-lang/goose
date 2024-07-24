@@ -909,10 +909,10 @@ func (d MethodPtrSetDecl) CoqDecl() string {
 	}
 	for i, name := range d.Methods {
 		sep := ";"
-		if i == len(d.PtrMethods)-1 {
+		if i == len(d.Methods)-1 {
 			sep = ""
 		}
-		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\")))%s", name, TypeMethod(d.TypeName, name), d.TypeName, sep)
+		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\"))%%V)%s", name, TypeMethod(d.TypeName, name), d.TypeName, sep)
 	}
 	pp.Indent(-2)
 	pp.Add("].")
