@@ -15,8 +15,10 @@ Definition UseDisk : val :=
   rec: "UseDisk" "d" :=
     exception_do (let: "d" := ref_ty disk.Disk "d" in
     let: "v" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: "$a0" := slice.make2 byteT #4096 in
-    do:  "v" <-[sliceT byteT] "$a0";;;
-    do:  (__Write (![disk.Disk] "d")) #0 (![sliceT byteT] "v");;;
-    do:  (__Barrier (![disk.Disk] "d")) #();;;
+    let: "$r0" := slice.make2 byteT #4096 in
+    do:  ("v" <-[sliceT byteT] "$r0");;;
+    do:  (let: "$a0" := #0 in
+    let: "$a1" := ![sliceT byteT] "v" in
+    (interface.get #(str "Write") (![disk.Disk] "d")) "$a0" "$a1");;;
+    do:  ((interface.get #(str "Barrier") (![disk.Disk] "d")) #());;;
     do:  #()).

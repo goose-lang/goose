@@ -16,4 +16,7 @@ Definition Foo : go_type := structT [
 Definition Foo__mset : list (string * val) := [
 ].
 
+Definition Foo__mset_ptr : list (string * val) := [
+].
+
 End code.
