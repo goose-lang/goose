@@ -3,7 +3,7 @@ package semantics
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 )
 
 func testLinearize() bool {

@@ -1,7 +1,7 @@
 // async just uses the async disk FFI
 package async
 
-import "github.com/tchajed/goose/machine/async_disk"
+import "github.com/goose-lang/goose/machine/async_disk"
 
 func TakesDisk(d async_disk.Disk) {}
 

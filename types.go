@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/tchajed/goose/glang"
+	"github.com/goose-lang/goose/glang"
 )
 
 // this file has the translations for types themselves

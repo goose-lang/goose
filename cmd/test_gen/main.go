@@ -17,7 +17,7 @@ From Perennial.goose_lang Require Import ffi.disk_prelude.
 From Perennial.goose_lang.interpreter Require Import test_config.
 
 (* test functions *)
-From Goose.github_dot_com.tchajed.goose.internal.examples Require Import semantics.
+From Goose.github_dot_com.goose_lang.goose.internal.examples Require Import semantics.
 
 `
 
@@ -27,8 +27,8 @@ package semantics
 import (
 	"testing"
 
+	"github.com/goose-lang/goose/machine/disk"
 	"github.com/stretchr/testify/suite"
-	"github.com/tchajed/goose/machine/disk"
 )
 
 type GoTestSuite struct {

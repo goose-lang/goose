@@ -1,6 +1,6 @@
 package semantics
 
-import "github.com/tchajed/goose/machine"
+import "github.com/goose-lang/goose/machine"
 
 // helpers
 type Enc struct {

@@ -1,7 +1,7 @@
 package async_disk
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 )
 
 type MemDisk = disk.MemDisk

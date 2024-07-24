@@ -16,7 +16,7 @@ func testU32Len() bool {
 
 type Uint32 uint32
 
-// https://github.com/tchajed/goose/issues/14
+// https://github.com/goose-lang/goose/issues/14
 func failing_testU32NewtypeLen() bool {
 	s := make([]byte, 20)
 	return Uint32(len(s)) == Uint32(20)

@@ -322,7 +322,7 @@ type DoExpr struct {
 func (b DoExpr) Coq(needs_paren bool) string {
 	var pp buffer
 	pp.Add("do:  %s", b.Expr.Coq(true))
-	return pp.Build()
+	return addParens(needs_paren, pp.Build())
 }
 
 type LetExpr struct {
@@ -875,7 +875,7 @@ func (d MethodSetDecl) CoqDecl() string {
 	pp.Indent(2)
 	for i, name := range d.Methods {
 		sep := ";"
-		if i == len(d.Methods) - 1 {
+		if i == len(d.Methods)-1 {
 			sep = ""
 		}
 		pp.Add("(\"%s\", %s)%s", name, TypeMethod(d.TypeName, name), sep)
@@ -902,14 +902,14 @@ func (d MethodPtrSetDecl) CoqDecl() string {
 
 	for i, name := range d.PtrMethods {
 		sep := ";"
-		if i == len(d.PtrMethods) - 1 {
+		if i == len(d.PtrMethods)-1 {
 			sep = ""
 		}
 		pp.Add("(\"%s\", %s)%s", name, TypeMethod(d.TypeName, name), sep)
 	}
 	for i, name := range d.Methods {
 		sep := ";"
-		if i == len(d.PtrMethods) - 1 {
+		if i == len(d.PtrMethods)-1 {
 			sep = ""
 		}
 		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\")))%s", name, TypeMethod(d.TypeName, name), d.TypeName, sep)

@@ -11,8 +11,8 @@ package simpledb
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine"
-	"github.com/tchajed/goose/machine/filesys"
+	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/goose/machine/filesys"
 
 	"github.com/tchajed/marshal" // to test these imports
 )
