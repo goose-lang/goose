@@ -144,29 +144,48 @@ func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	*comment += "go: " + f.String()
 }
 
-func (ctx Ctx) methodSet(t *types.Named) glang.Decl {
+func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 	typeName := t.Obj().Name()
-	d := glang.MethodSetDecl{
-		TypeName:    typeName,
-		MethodNames: []string{},
-	}
-	_, defName := d.DefName()
-	ctx.dep.setCurrentName(defName)
-	defer ctx.dep.unsetCurrentName()
-	mset := types.NewMethodSet(t)
-	msetPtr := types.NewMethodSet(types.NewPointer(t))
-	if mset.Len() + msetPtr.Len() < t.NumMethods() {
-		ctx.nope(t.Obj(), "%d < %d", mset.Len(), t.NumMethods())
-	}
-	for i := range mset.Len() {
-		d.MethodNames = append(d.MethodNames, mset.At(i).Obj().Name())
-		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), mset.At(i).Obj().Name()))
-	}
-	for i := range msetPtr.Len() {
-		d.MethodNames = append(d.MethodNames, msetPtr.At(i).Obj().Name())
-		ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), msetPtr.At(i).Obj().Name()))
-	}
-	return d
+
+	directMethods := make(map[string]bool)
+	// construct method set for T
+	mset := glang.MethodSetDecl{TypeName: typeName}
+	func() {
+		_, defName := mset.DefName()
+		ctx.dep.setCurrentName(defName)
+		defer ctx.dep.unsetCurrentName()
+
+		goMset := types.NewMethodSet(t)
+
+		for i := range goMset.Len() {
+			name := goMset.At(i).Obj().Name()
+			directMethods[name] = true
+			mset.Methods = append(mset.Methods, name)
+			ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), name))
+		}
+	}()
+
+	// construct method set for *T
+	msetPtr := glang.MethodPtrSetDecl{TypeName: typeName}
+	func() {
+		_, defName := msetPtr.DefName()
+		ctx.dep.setCurrentName(defName)
+		defer ctx.dep.unsetCurrentName()
+
+		goMsetPtr := types.NewMethodSet(types.NewPointer(t))
+
+		for i := range goMsetPtr.Len() {
+			name := goMsetPtr.At(i).Obj().Name()
+			if directMethods[name] {
+				msetPtr.Methods = append(msetPtr.Methods, name)
+			} else {
+				msetPtr.PtrMethods = append(msetPtr.PtrMethods, name)
+			}
+			ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), name))
+		}
+	}()
+
+	return []glang.Decl{mset, msetPtr}
 }
 
 func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
@@ -185,7 +204,7 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	}()
 
 	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-		r = append(r, ctx.methodSet(t))
+		r = append(r, ctx.methodSet(t)...)
 	}
 
 	return r

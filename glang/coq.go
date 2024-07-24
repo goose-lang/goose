@@ -865,16 +865,16 @@ func (d ConstDecl) DefName() (bool, string) {
 }
 
 type MethodSetDecl struct {
-	TypeName    string
-	MethodNames []string
+	TypeName string
+	Methods  []string
 }
 
 func (d MethodSetDecl) CoqDecl() string {
 	var pp buffer
 	pp.Add("Definition %s__mset : list (string * val) := [", d.TypeName)
 	pp.Indent(2)
-	for _, methodName := range d.MethodNames {
-		pp.Add("(\"%s\", %s)", methodName, TypeMethod(d.TypeName, methodName))
+	for _, name := range d.Methods {
+		pp.Add("(\"%s\", %s)", name, TypeMethod(d.TypeName, name))
 	}
 	pp.Indent(-2)
 	pp.Add("].")
@@ -883,6 +883,31 @@ func (d MethodSetDecl) CoqDecl() string {
 
 func (d MethodSetDecl) DefName() (bool, string) {
 	return true, fmt.Sprintf("%s__mset", d.TypeName)
+}
+
+type MethodPtrSetDecl struct {
+	TypeName   string
+	Methods    []string
+	PtrMethods []string
+}
+
+func (d MethodPtrSetDecl) CoqDecl() string {
+	var pp buffer
+	pp.Add("Definition %s__ptr_mset : list (string * val) := [", d.TypeName)
+	pp.Indent(2)
+	for _, name := range d.PtrMethods {
+		pp.Add("(\"%s\", %s)", name, TypeMethod(d.TypeName, name))
+	}
+	for _, name := range d.Methods {
+		pp.Add("(\"%s\", (λ: \"r\", %s (![%s] \"r\")))", name, TypeMethod(d.TypeName, name), d.TypeName)
+	}
+	pp.Indent(-2)
+	pp.Add("].")
+	return pp.Build()
+}
+
+func (d MethodPtrSetDecl) DefName() (bool, string) {
+	return true, fmt.Sprintf("%s__ptr_mset", d.TypeName)
 }
 
 // Decl is a FuncDecl, StructDecl, CommentDecl, or ConstDecl
