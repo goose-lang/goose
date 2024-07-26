@@ -449,13 +449,13 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 
 		// handle `string(b)`, where b : []byte
 		if toType.Kind() == types.String && isByteSlice(fromType) {
-			return glang.NewCallExpr(glang.GallinaIdent("StringFromBytes"), ctx.expr(s.Args[0]))
+			return glang.NewCallExpr(glang.GallinaIdent("string.from_bytes"), ctx.expr(s.Args[0]))
 		}
 	case *types.Slice:
 		// handle `[]byte(s)`, where s : string
 		if eltType, ok := toType.Elem().Underlying().(*types.Basic); ok &&
 			eltType.Kind() == types.Byte && isString(fromType) {
-			return glang.NewCallExpr(glang.GallinaIdent("StringToBytes"), ctx.expr(s.Args[0]))
+			return glang.NewCallExpr(glang.GallinaIdent("string.to_bytes"), ctx.expr(s.Args[0]))
 		}
 	}
 
