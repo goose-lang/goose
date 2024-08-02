@@ -204,7 +204,7 @@ Definition stringToByteSlice : val :=
   rec: "stringToByteSlice" "s" :=
     exception_do (let: "s" := ref_ty stringT "s" in
     let: "p" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: "$r0" := StringToBytes (![stringT] "s") in
+    let: "$r0" := string.to_bytes (![stringT] "s") in
     do:  ("p" <-[sliceT byteT] "$r0");;;
     return: (![sliceT byteT] "p");;;
     do:  #()).
@@ -214,7 +214,7 @@ Definition byteSliceToString : val :=
   rec: "byteSliceToString" "p" :=
     exception_do (let: "p" := ref_ty (sliceT byteT) "p" in
     let: "s" := ref_ty stringT (zero_val stringT) in
-    let: "$r0" := StringFromBytes (![sliceT byteT] "p") in
+    let: "$r0" := string.from_bytes (![sliceT byteT] "p") in
     do:  ("s" <-[stringT] "$r0");;;
     return: (![stringT] "s");;;
     do:  #()).

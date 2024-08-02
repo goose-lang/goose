@@ -7,7 +7,6 @@ From New.code Require sync.
 
 Section code.
 Context `{ffi_syntax}.
-Local Coercion Var' s: expr := Var s.
 
 (* go: simpledb.go:20:6 *)
 Definition UseMarshal : val :=
@@ -878,7 +877,7 @@ Definition Compact : val :=
     let: "$r0" := ![stringT] "newTable" in
     do:  ((![ptrT] (struct.field_ref Database "tableName" "db")) <-[stringT] "$r0");;;
     let: "manifestData" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: "$r0" := StringToBytes (![stringT] "newTable") in
+    let: "$r0" := string.to_bytes (![stringT] "newTable") in
     do:  ("manifestData" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #(str "db") in
     let: "$a1" := #(str "manifest") in
@@ -908,7 +907,7 @@ Definition recoverManifest : val :=
     filesys.ReadAt "$a0" "$a1" "$a2" in
     do:  ("manifestData" <-[sliceT byteT] "$r0");;;
     let: "tableName" := ref_ty stringT (zero_val stringT) in
-    let: "$r0" := StringFromBytes (![sliceT byteT] "manifestData") in
+    let: "$r0" := string.from_bytes (![sliceT byteT] "manifestData") in
     do:  ("tableName" <-[stringT] "$r0");;;
     do:  (let: "$a0" := ![fileT] "f" in
     filesys.Close "$a0");;;

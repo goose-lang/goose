@@ -179,8 +179,7 @@ func translatePackage(pkg *packages.Package) (glang.File, error) {
 func ffiHeaderFooter(ffi string) (header string, footer string) {
 	if ffi == "none" {
 		header = "Section code.\n" +
-			"Context `{ffi_syntax}.\n" +
-			"Local Coercion Var' s: expr := Var s."
+			"Context `{ffi_syntax}."
 		footer = "\nEnd code.\n"
 	} else {
 		header += fmt.Sprintf("From New Require Import %s_prelude.", ffi)

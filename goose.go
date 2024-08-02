@@ -1288,7 +1288,7 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	default:
 		ctx.unsupported(s,
 			"range over %v (only maps and slices are supported)",
-			ctx.typeOf(s.X))
+			ctx.typeOf(s.X).Underlying())
 		return nil
 	}
 }
@@ -1404,7 +1404,7 @@ func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang
 			return glang.NewDoSeq(rhs, cont)
 		}
 	case *ast.IndexExpr:
-		targetTy := ctx.typeOf(lhs.X)
+		targetTy := ctx.typeOf(lhs.X).Underlying()
 		switch targetTy.(type) {
 		case *types.Map:
 			return glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("map.insert"),
