@@ -1180,14 +1180,14 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	if s.Else != nil {
 		elseExpr = ctx.stmt(s.Else, glang.Tt)
 	}
-	ife := glang.IfExpr{
+	var ife glang.Expr = glang.IfExpr{
 		Cond: ctx.expr(s.Cond),
 		Then: ctx.blockStmt(s.Body),
 		Else: elseExpr,
 	}
 
 	if s.Init != nil {
-		ctx.unsupported(s.Init, "if statement initializations")
+		ife = glang.ParenExpr{Inner: ctx.stmt(s.Init, ife)}
 	}
 	return glang.LetExpr{ValExpr: ife, Cont: cont}
 }

@@ -169,6 +169,52 @@ Definition elseIf : val :=
       #());;;
     do:  #()).
 
+(* go: control_flow.go:59:6 *)
+Definition ifStmtInitialization : val :=
+  rec: "ifStmtInitialization" "x" :=
+    exception_do (let: "x" := ref_ty uint64T "x" in
+    let: "f" := ref_ty funcT (zero_val funcT) in
+    let: "$r0" := (λ: <>,
+      return: (![uint64T] "x");;;
+      do:  #()
+      ) in
+    do:  ("f" <-[funcT] "$r0");;;
+    (do:  ((![funcT] "f") #());;;
+    (if: (![uint64T] "x") = #2
+    then do:  #()
+    else
+      (let: "z" := ref_ty uint64T (zero_val uint64T) in
+      let: "$r0" := ![uint64T] "x" in
+      do:  ("z" <-[uint64T] "$r0");;;
+      (if: (![uint64T] "z") = #1
+      then do:  #()
+      else
+        (let: "y" := ref_ty intT (zero_val intT) in
+        let: "$r0" := #94 in
+        do:  ("y" <-[intT] "$r0");;;
+        (if: (![intT] "y") = #30
+        then do:  #()
+        else
+          (let: "$r0" := #10 in
+          do:  ("z" <-[uint64T] "$r0");;;
+          (if: (![uint64T] "x") = #30
+          then do:  #()
+          else do:  #()));;;
+          #()));;;
+        #()));;;
+      #()));;;
+    (let: "y" := ref_ty uint64T (zero_val uint64T) in
+    let: "$r0" := #10 in
+    do:  ("y" <-[uint64T] "$r0");;;
+    (if: (![uint64T] "x") = #0
+    then
+      return: (![uint64T] "y");;;
+      do:  #()
+    else
+      return: ((![uint64T] "y") - #1);;;
+      do:  #()));;;
+    do:  #()).
+
 Definition stringWrapper : go_type := stringT.
 
 Definition stringWrapper__mset : list (string * val) := [

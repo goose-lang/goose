@@ -55,3 +55,21 @@ func elseIf(x, y bool) uint64 {
 		return 2
 	}
 }
+
+func ifStmtInitialization(x uint64) uint64 {
+	f := func() uint64 {
+		return x
+	}
+
+	if f(); x == 2 {
+	} else if z := x; z == 1 {
+	} else if y := 94; y == 30 {
+	} else if z = 10; x == 30 {
+	}
+
+	if y := uint64(10); x == 0 {
+		return y
+	} else {
+		return y - 1
+	}
+}
