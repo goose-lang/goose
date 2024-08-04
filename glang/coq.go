@@ -344,7 +344,14 @@ func (e LetExpr) isAnonymous() bool {
 
 func (b LetExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	// Printing for anonymous and multiple return values
+	if b.Cont == nil {
+		if !b.isAnonymous() {
+			panic("let expr with nil cont but non-anonymous binding")
+		}
+		pp.Add("%s", b.ValExpr.Coq(false))
+		return addParens(needs_paren, pp.Build())
+	}
+
 	// TODO: exception monad sequencing should be its own thing, not an anonymous let binding.
 	if b.isAnonymous() {
 		pp.Add("%s;;;", b.ValExpr.Coq(false))

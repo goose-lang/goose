@@ -1125,7 +1125,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	ctx.curFuncType = e.Type
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
-	fl.Body = ctx.blockStmt(e.Body)
+	fl.Body = ctx.blockStmt(e.Body, nil)
 	return fl
 }
 
@@ -1164,25 +1164,28 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt) glang.Expr {
+func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
 	ss := s.List
-	var e glang.Expr = glang.DoExpr{Expr: glang.Tt}
+	if len(ss) == 0 {
+		return glang.DoExpr{Expr: glang.Tt}
+	}
+	var e glang.Expr = nil
 	for len(ss) > 0 {
 		stmt := ss[len(ss)-1]
 		ss = ss[:len(ss)-1]
 		e = ctx.stmt(stmt, e)
 	}
-	return e
+	return glang.LetExpr{ValExpr: e, Cont: cont}
 }
 
 func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	var elseExpr glang.Expr = glang.DoExpr{Expr: glang.Tt}
 	if s.Else != nil {
-		elseExpr = ctx.stmt(s.Else, glang.Tt)
+		elseExpr = ctx.stmt(s.Else, nil)
 	}
 	var ife glang.Expr = glang.IfExpr{
 		Cond: ctx.expr(s.Cond),
-		Then: ctx.blockStmt(s.Body),
+		Then: ctx.blockStmt(s.Body, nil),
 		Else: elseExpr,
 	}
 
@@ -1199,10 +1202,10 @@ func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	}
 	var post glang.Expr = glang.Skip
 	if s.Post != nil {
-		post = ctx.stmt(s.Post, glang.Tt)
+		post = ctx.stmt(s.Post, nil)
 	}
 
-	body := ctx.blockStmt(s.Body)
+	body := ctx.blockStmt(s.Body, nil)
 	var e glang.Expr = glang.ForLoopExpr{
 		Cond: cond,
 		Post: post,
@@ -1236,7 +1239,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 		KeyIdent:   key,
 		ValueIdent: val,
 		Map:        ctx.expr(s.X),
-		Body:       ctx.blockStmt(s.Body),
+		Body:       ctx.blockStmt(s.Body, nil),
 	}
 }
 
@@ -1270,7 +1273,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 		Val:   valExpr,
 		Slice: glang.IdentExpr("$range"),
 		Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
-		Body:  ctx.blockStmt(s.Body),
+		Body:  ctx.blockStmt(s.Body, nil),
 	}
 	return glang.LetExpr{
 		Names:   []string{"$range"},
@@ -1690,7 +1693,7 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.RangeStmt:
 		return glang.NewDoSeq(ctx.rangeStmt(s), cont)
 	case *ast.BlockStmt:
-		return ctx.blockStmt(s)
+		return ctx.blockStmt(s, cont)
 	case *ast.SwitchStmt:
 		ctx.todo(s, "switch statement")
 	case *ast.TypeSwitchStmt:
@@ -1755,7 +1758,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-	fd.Body = ctx.blockStmt(d.Body)
+	fd.Body = ctx.blockStmt(d.Body, nil)
 	for _, arg := range fd.Args {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
