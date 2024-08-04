@@ -24,6 +24,12 @@ func (suite *GoTestSuite) TestAllocateFull() {
 	suite.Equal(true, testAllocateFull())
 }
 
+func (suite *GoTestSuite) TestExplicitBlockStmt() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testExplicitBlockStmt())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

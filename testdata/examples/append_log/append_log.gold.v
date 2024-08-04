@@ -27,8 +27,7 @@ Definition Log__mkHdr : val :=
     (marshal.Enc__PutInt (![ptrT] "enc")) "$a0");;;
     do:  (let: "$a0" := ![uint64T] (struct.field_ref Log "diskSz" (![ptrT] "log")) in
     (marshal.Enc__PutInt (![ptrT] "enc")) "$a0");;;
-    return: ((marshal.Enc__Finish (![ptrT] "enc")) #());;;
-    do:  #()).
+    return: ((marshal.Enc__Finish (![ptrT] "enc")) #())).
 
 (* go: append_log.go:29:17 *)
 Definition Log__writeHdr : val :=
@@ -36,8 +35,7 @@ Definition Log__writeHdr : val :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     do:  (let: "$a0" := #0 in
     let: "$a1" := (Log__mkHdr (![ptrT] "log")) #() in
-    disk.Write "$a0" "$a1");;;
-    do:  #()).
+    disk.Write "$a0" "$a1")).
 
 (* go: append_log.go:65:6 *)
 Definition writeAll : val :=
@@ -50,9 +48,7 @@ Definition writeAll : val :=
       let: "bk" := ref_ty (sliceT byteT) "bk" in
       do:  (let: "$a0" := (![uint64T] "off") + (![intT] "i") in
       let: "$a1" := ![sliceT byteT] "bk" in
-      disk.Write "$a0" "$a1");;;
-      do:  #()));;;
-    do:  #()).
+      disk.Write "$a0" "$a1")))).
 
 (* go: append_log.go:71:17 *)
 Definition Log__append : val :=
@@ -63,17 +59,14 @@ Definition Log__append : val :=
     let: "$r0" := ![uint64T] (struct.field_ref Log "sz" (![ptrT] "log")) in
     do:  ("sz" <-[uint64T] "$r0");;;
     (if: (slice.len (![sliceT (sliceT byteT)] "bks")) ≥ (((![uint64T] (struct.field_ref Log "diskSz" (![ptrT] "log"))) - #1) - (![uint64T] "sz"))
-    then
-      return: (#false);;;
-      do:  #()
+    then return: (#false)
     else do:  #());;;
     do:  (let: "$a0" := ![sliceT (sliceT byteT)] "bks" in
     let: "$a1" := #1 + (![uint64T] "sz") in
     writeAll "$a0" "$a1");;;
     do:  ((struct.field_ref Log "sz" (![ptrT] "log")) <-[uint64T] ((![uint64T] (struct.field_ref Log "sz" (![ptrT] "log"))) + (slice.len (![sliceT (sliceT byteT)] "bks"))));;;
     do:  ((Log__writeHdr (![ptrT] "log")) #());;;
-    return: (#true);;;
-    do:  #()).
+    return: (#true)).
 
 (* go: append_log.go:82:17 *)
 Definition Log__Append : val :=
@@ -86,8 +79,7 @@ Definition Log__Append : val :=
     (Log__append (![ptrT] "log")) "$a0" in
     do:  ("b" <-[boolT] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "m" (![ptrT] "log")))) #());;;
-    return: (![boolT] "b");;;
-    do:  #()).
+    return: (![boolT] "b")).
 
 (* go: append_log.go:50:17 *)
 Definition Log__get : val :=
@@ -100,11 +92,9 @@ Definition Log__get : val :=
     (if: (![uint64T] "i") < (![uint64T] "sz")
     then
       return: (let: "$a0" := #1 + (![uint64T] "i") in
-       disk.Read "$a0", #true);;;
-      do:  #()
+       disk.Read "$a0", #true)
     else do:  #());;;
-    return: (slice.nil, #false);;;
-    do:  #()).
+    return: (slice.nil, #false)).
 
 (* go: append_log.go:58:17 *)
 Definition Log__Get : val :=
@@ -121,8 +111,7 @@ Definition Log__Get : val :=
     do:  ("v" <-[sliceT byteT] "$r0");;;
     do:  ("b" <-[boolT] "$r1");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "m" (![ptrT] "log")))) #());;;
-    return: (![sliceT byteT] "v", ![boolT] "b");;;
-    do:  #()).
+    return: (![sliceT byteT] "v", ![boolT] "b")).
 
 (* go: append_log.go:89:17 *)
 Definition Log__reset : val :=
@@ -130,8 +119,7 @@ Definition Log__reset : val :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     let: "$r0" := #0 in
     do:  ((struct.field_ref Log "sz" (![ptrT] "log")) <-[uint64T] "$r0");;;
-    do:  ((Log__writeHdr (![ptrT] "log")) #());;;
-    do:  #()).
+    do:  ((Log__writeHdr (![ptrT] "log")) #())).
 
 (* go: append_log.go:94:17 *)
 Definition Log__Reset : val :=
@@ -139,8 +127,7 @@ Definition Log__Reset : val :=
     exception_do (let: "log" := ref_ty ptrT "log" in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "m" (![ptrT] "log")))) #());;;
     do:  ((Log__reset (![ptrT] "log")) #());;;
-    do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "m" (![ptrT] "log")))) #());;;
-    do:  #()).
+    do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "m" (![ptrT] "log")))) #())).
 
 Definition Log__mset_ptr : list (string * val) := [
   ("Append", Log__Append);
@@ -163,8 +150,7 @@ Definition Init : val :=
          "m" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
          "sz" ::= #0;
          "diskSz" ::= #0
-       }]), #false);;;
-      do:  #()
+       }]), #false)
     else do:  #());;;
     let: "log" := ref_ty ptrT (zero_val ptrT) in
     let: "$r0" := ref_ty Log (struct.make Log [{
@@ -174,8 +160,7 @@ Definition Init : val :=
     }]) in
     do:  ("log" <-[ptrT] "$r0");;;
     do:  ((Log__writeHdr (![ptrT] "log")) #());;;
-    return: (![ptrT] "log", #true);;;
-    do:  #()).
+    return: (![ptrT] "log", #true)).
 
 (* go: append_log.go:42:6 *)
 Definition Open : val :=
@@ -198,5 +183,4 @@ Definition Open : val :=
        "m" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
        "sz" ::= ![uint64T] "sz";
        "diskSz" ::= ![uint64T] "diskSz"
-     }]));;;
-    do:  #()).
+     }]))).

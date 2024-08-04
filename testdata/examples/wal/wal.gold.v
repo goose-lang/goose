@@ -22,8 +22,7 @@ Definition Log : go_type := structT [
 Definition Log__unlock : val :=
   rec: "Log__unlock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
-    do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "l" "l"))) #());;;
-    do:  #()).
+    do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "l" "l"))) #())).
 
 (* go: log.go:25:6 *)
 Definition intToBlock : val :=
@@ -35,8 +34,7 @@ Definition intToBlock : val :=
     do:  (let: "$a0" := ![sliceT byteT] "b" in
     let: "$a1" := ![uint64T] "a" in
     machine.UInt64Put "$a0" "$a1");;;
-    return: (![sliceT byteT] "b");;;
-    do:  #()).
+    return: (![sliceT byteT] "b")).
 
 (* go: log.go:142:6 *)
 Definition clearLog : val :=
@@ -48,8 +46,7 @@ Definition clearLog : val :=
     do:  ("header" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "header" in
-    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
-    do:  #()).
+    (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1")).
 
 (* go: log.go:31:6 *)
 Definition blockToInt : val :=
@@ -59,8 +56,7 @@ Definition blockToInt : val :=
     let: "$r0" := let: "$a0" := ![sliceT byteT] "v" in
     machine.UInt64Get "$a0" in
     do:  ("a" <-[uint64T] "$r0");;;
-    return: (![uint64T] "a");;;
-    do:  #()).
+    return: (![uint64T] "a")).
 
 (* go: log.go:122:6 *)
 Definition getLogEntry : val :=
@@ -82,8 +78,7 @@ Definition getLogEntry : val :=
     let: "$r0" := let: "$a0" := (![uint64T] "diskAddr") + #1 in
     (interface.get "Read" (![disk.Disk] "d")) "$a0" in
     do:  ("v" <-[sliceT byteT] "$r0");;;
-    return: (![uint64T] "a", ![sliceT byteT] "v");;;
-    do:  #()).
+    return: (![uint64T] "a", ![sliceT byteT] "v")).
 
 (* applyLog assumes we are running sequentially
 
@@ -112,19 +107,15 @@ Definition applyLog : val :=
         (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
         let: "$r0" := (![uint64T] "i") + #1 in
         do:  ("i" <-[uint64T] "$r0");;;
-        continue: #();;;
-        do:  #()
+        continue: #()
       else do:  #());;;
-      break: #();;;
-      do:  #()));;;
-    do:  #()).
+      break: #()))).
 
 (* go: log.go:52:14 *)
 Definition Log__lock : val :=
   rec: "Log__lock" "l" <> :=
     exception_do (let: "l" := ref_ty Log "l" in
-    do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "l" "l"))) #());;;
-    do:  #()).
+    do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "l" "l"))) #())).
 
 (* Apply all the committed transactions.
 
@@ -145,8 +136,7 @@ Definition Log__Apply : val :=
     clearLog "$a0");;;
     let: "$r0" := #0 in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((Log__unlock (![ptrT] "l")) #());;;
-    do:  #()).
+    do:  ((Log__unlock (![ptrT] "l")) #())).
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -163,12 +153,10 @@ Definition Log__BeginTxn : val :=
     (if: (![uint64T] "length") = #0
     then
       do:  ((Log__unlock (![ptrT] "l")) #());;;
-      return: (#true);;;
-      do:  #()
+      return: (#true)
     else do:  #());;;
     do:  ((Log__unlock (![ptrT] "l")) #());;;
-    return: (#false);;;
-    do:  #()).
+    return: (#false)).
 
 (* Commit the current transaction.
 
@@ -187,8 +175,7 @@ Definition Log__Commit : val :=
     do:  ("header" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := #0 in
     let: "$a1" := ![sliceT byteT] "header" in
-    (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
-    do:  #()).
+    (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1")).
 
 (* Read from the logical disk.
 
@@ -210,16 +197,14 @@ Definition Log__Read : val :=
     (if: ![boolT] "ok"
     then
       do:  ((Log__unlock (![ptrT] "l")) #());;;
-      return: (![sliceT byteT] "v");;;
-      do:  #()
+      return: (![sliceT byteT] "v")
     else do:  #());;;
     do:  ((Log__unlock (![ptrT] "l")) #());;;
     let: "dv" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := logLength + (![uint64T] "a") in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" in
     do:  ("dv" <-[sliceT byteT] "$r0");;;
-    return: (![sliceT byteT] "dv");;;
-    do:  #()).
+    return: (![sliceT byteT] "dv")).
 
 (* go: log.go:90:14 *)
 Definition Log__Size : val :=
@@ -228,8 +213,7 @@ Definition Log__Size : val :=
     let: "sz" := ref_ty uint64T (zero_val uint64T) in
     let: "$r0" := (interface.get "Size" (![disk.Disk] (struct.field_ref Log "d" "l"))) #() in
     do:  ("sz" <-[uint64T] "$r0");;;
-    return: ((![uint64T] "sz") - logLength);;;
-    do:  #()).
+    return: ((![uint64T] "sz") - logLength)).
 
 (* Write to the disk through the log.
 
@@ -244,9 +228,7 @@ Definition Log__Write : val :=
     let: "$r0" := ![uint64T] (![ptrT] (struct.field_ref Log "length" "l")) in
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") ≥ MaxTxnWrites
-    then
-      do:  (Panic "transaction is at capacity");;;
-      do:  #()
+    then do:  (Panic "transaction is at capacity")
     else do:  #());;;
     let: "aBlock" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
     let: "$r0" := let: "$a0" := ![uint64T] "a" in
@@ -265,8 +247,7 @@ Definition Log__Write : val :=
     do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
     let: "$r0" := (![uint64T] "length") + #1 in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((Log__unlock (![ptrT] "l")) #());;;
-    do:  #()).
+    do:  ((Log__unlock (![ptrT] "l")) #())).
 
 Definition Log__mset : list (string * val) := [
   ("Apply", Log__Apply);
@@ -302,9 +283,7 @@ Definition New : val :=
     let: "$r0" := (interface.get "Size" (![disk.Disk] "d")) #() in
     do:  ("diskSize" <-[uint64T] "$r0");;;
     (if: (![uint64T] "diskSize") ≤ logLength
-    then
-      do:  (Panic "disk is too small to host log");;;
-      do:  #()
+    then do:  (Panic "disk is too small to host log")
     else do:  #());;;
     let: "cache" := ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT))) in
     let: "$r0" := map.make uint64T (sliceT byteT) #() in
@@ -329,8 +308,7 @@ Definition New : val :=
        "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
        "length" ::= ![ptrT] "lengthPtr";
        "l" ::= ![ptrT] "l"
-     }]);;;
-    do:  #()).
+     }])).
 
 (* Open recovers the log following a crash or shutdown
 
@@ -369,5 +347,4 @@ Definition Open : val :=
        "cache" ::= ![mapT uint64T (sliceT byteT)] "cache";
        "length" ::= ![ptrT] "lengthPtr";
        "l" ::= ![ptrT] "l"
-     }]);;;
-    do:  #()).
+     }])).
