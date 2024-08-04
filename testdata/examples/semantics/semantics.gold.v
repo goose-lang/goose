@@ -2253,6 +2253,70 @@ Definition testStructFieldFunc : val :=
     return: ((let: "$a0" := #10 in
      (![funcT] (struct.field_ref StructWithFunc "fn" (![ptrT] "a"))) "$a0") = #20)).
 
+(* go: switch.go:3:6 *)
+Definition testSwitchVal : val :=
+  rec: "testSwitchVal" <> :=
+    exception_do (let: "x" := ref_ty uint64T (zero_val uint64T) in
+    let: "$r0" := #0 in
+    do:  ("x" <-[uint64T] "$r0");;;
+    let: "$sw" := ![uint64T] "x" in
+    (if: "$sw" = #0
+    then return: (#true)
+    else
+      (if: "$sw" = #1
+      then return: (#false)
+      else return: (#false)))).
+
+(* go: switch.go:15:6 *)
+Definition testSwitchDefaultTrue : val :=
+  rec: "testSwitchDefaultTrue" <> :=
+    exception_do (let: "x" := ref_ty uint64T (zero_val uint64T) in
+    let: "$r0" := #1 in
+    do:  ("x" <-[uint64T] "$r0");;;
+    let: "$sw" := #true in
+    (if: "$sw" = #false
+    then return: (#false)
+    else
+      (if: "$sw" = ((![uint64T] "x") = #2)
+      then return: (#false)
+      else return: (#true)))).
+
+Definition switchConcrete : go_type := structT [
+].
+
+Definition switchConcrete__mset : list (string * val) := [
+].
+
+(* go: switch.go:34:26 *)
+Definition switchConcrete__marker : val :=
+  rec: "switchConcrete__marker" "c" <> :=
+    exception_do (let: "c" := ref_ty ptrT "c" in
+    do:  #()).
+
+Definition switchConcrete__mset_ptr : list (string * val) := [
+  ("marker", switchConcrete__marker)
+].
+
+Definition switchInterface : go_type := interfaceT.
+
+(* go: switch.go:37:6 *)
+Definition testSwitchConversion : val :=
+  rec: "testSwitchConversion" <> :=
+    exception_do (let: "v" := ref_ty ptrT (zero_val ptrT) in
+    let: "$r0" := ref_ty switchConcrete (struct.make switchConcrete [{
+    }]) in
+    do:  ("v" <-[ptrT] "$r0");;;
+    let: "x" := ref_ty switchInterface (interface.make switchConcrete__mset_ptr (![ptrT] "v")) in
+    let: "$sw" := ![switchInterface] "x" in
+    (if: "$sw" = (interface.make switchConcrete__mset_ptr (![ptrT] "v"))
+    then do:  #()
+    else return: (#false));;;
+    let: "$sw" := ![ptrT] "v" in
+    (if: (interface.make switchConcrete__mset_ptr "$sw") = (![switchInterface] "x")
+    then do:  #()
+    else return: (#false));;;
+    return: (#true)).
+
 (* go: vars.go:3:6 *)
 Definition testPointerAssignment : val :=
   rec: "testPointerAssignment" <> :=

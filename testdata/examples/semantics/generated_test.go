@@ -546,6 +546,24 @@ func (suite *GoTestSuite) TestStructFieldFunc() {
 	suite.Equal(true, testStructFieldFunc())
 }
 
+func (suite *GoTestSuite) TestSwitchVal() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSwitchVal())
+}
+
+func (suite *GoTestSuite) TestSwitchDefaultTrue() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSwitchDefaultTrue())
+}
+
+func (suite *GoTestSuite) TestSwitchConversion() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSwitchConversion())
+}
+
 func (suite *GoTestSuite) TestPointerAssignment() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

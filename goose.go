@@ -868,6 +868,17 @@ func (ctx Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
 	return ctx.info.Types[e.Y].IsNil()
 }
 
+func (ctx Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
+	if types.AssignableTo(t1, t2) {
+		return t2
+	} else if types.AssignableTo(t2, t1) {
+		return t1
+	} else {
+		ctx.nope(n, "comparison between non-assignable types")
+		return nil
+	}
+}
+
 func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 	op, ok := map[token.Token]glang.BinOp{
 		token.LSS:  glang.OpLessThan,
@@ -911,24 +922,12 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 		return false
 	}
 
-	// Computes join on the lattice on type with the subtyping relation.
-	typeJoin := func(t1, t2 types.Type) types.Type {
-		if types.AssignableTo(t1, t2) {
-			return t2
-		} else if types.AssignableTo(t2, t1) {
-			return t1
-		} else {
-			ctx.nope(e, "comparison between non-assignable types")
-			return nil
-		}
-	}
-
 	// XXX: according to the Go spec, comparisons can occur between types that
 	// are "assignable" to one another. This may require a conversion, so we
 	// here convert to the appropriate type here.
 	if isComparison(e.Op) {
 		xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
-		compType := typeJoin(xT, yT)
+		compType := ctx.typeJoin(e, xT, yT)
 		return glang.BinaryExpr{
 			X:  ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
 			Op: op,
@@ -1164,8 +1163,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
-	ss := s.List
+func (ctx Ctx) stmtList(ss []ast.Stmt, cont glang.Expr) glang.Expr {
 	if len(ss) == 0 {
 		return glang.DoExpr{Expr: glang.Tt}
 	}
@@ -1176,6 +1174,77 @@ func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
 		e = ctx.stmt(stmt, e)
 	}
 	return glang.LetExpr{ValExpr: e, Cont: cont}
+}
+
+func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
+	return ctx.stmtList(s.List, cont)
+}
+
+func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
+	var tagExpr glang.Expr = glang.True
+
+	var tagType types.Type = types.Typ[types.Bool]
+
+	if s.Tag != nil {
+		tagType = ctx.typeOf(s.Tag)
+		tagExpr = ctx.expr(s.Tag)
+	}
+
+	// Get default handler
+	for i := len(s.Body.List) - 1; i >= 0; i-- {
+		c := s.Body.List[i].(*ast.CaseClause)
+		if c.List == nil {
+			e = ctx.stmtList(c.Body, nil)
+		}
+	}
+
+	for i := len(s.Body.List) - 1; i >= 0; i-- {
+		c := s.Body.List[i].(*ast.CaseClause)
+		if c.List == nil {
+			continue
+		}
+
+		t := ctx.typeOf(c.List[0])
+		eqType := ctx.typeJoin(c.List[0], t, tagType)
+		cond := glang.BinaryExpr{
+			X:  ctx.handleImplicitConversion(c.List[0], tagType, eqType, glang.IdentExpr("$sw")),
+			Op: glang.OpEquals,
+			Y:  ctx.handleImplicitConversion(c.List[0], t, eqType, ctx.expr(c.List[0])),
+		}
+
+		for _, y := range c.List[1:] {
+			t := ctx.typeOf(y)
+			eqType := ctx.typeJoin(y, t, tagType)
+			cond = glang.BinaryExpr{
+				Op: glang.OpOr,
+				X: glang.BinaryExpr{
+					X:  ctx.handleImplicitConversion(y, tagType, eqType, glang.IdentExpr("$sw")),
+					Op: glang.OpEquals,
+					Y:  ctx.handleImplicitConversion(y, t, eqType, ctx.expr(y)),
+				},
+				Y: cond,
+			}
+		}
+
+		e = glang.IfExpr{
+			Cond: cond,
+			Then: ctx.stmtList(c.Body, nil),
+			Else: e,
+		}
+	}
+
+	e = glang.LetExpr{
+		Names:   []string{"$sw"},
+		ValExpr: tagExpr,
+		Cont:    e,
+	}
+
+	if s.Init != nil {
+		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
+	}
+
+	e = glang.LetExpr{ValExpr: e, Cont: cont}
+	return
 }
 
 func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
@@ -1695,7 +1764,7 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.BlockStmt:
 		return ctx.blockStmt(s, cont)
 	case *ast.SwitchStmt:
-		ctx.todo(s, "switch statement")
+		return ctx.switchStmt(s, cont)
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "type switch statement")
 	default:
