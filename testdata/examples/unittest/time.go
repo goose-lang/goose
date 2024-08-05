@@ -1,7 +1,7 @@
 package unittest
 
-import "github.com/goose-lang/goose/machine"
+import "github.com/goose-lang/primitive"
 
 func sleep() {
-	machine.Sleep(1000)
+	primitive.Sleep(1000)
 }

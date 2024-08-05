@@ -1,6 +1,6 @@
 package semantics
 
-import "github.com/goose-lang/goose/machine"
+import "github.com/goose-lang/primitive"
 
 // helpers
 type Enc struct {
@@ -27,16 +27,16 @@ func roundtripEncDec32(x uint32) uint32 {
 	r := make([]byte, 4)
 	e := &Enc{p: r}
 	d := &Dec{p: r}
-	machine.UInt32Put(e.consume(4), x)
-	return machine.UInt32Get(d.consume(4))
+	primitive.UInt32Put(e.consume(4), x)
+	return primitive.UInt32Get(d.consume(4))
 }
 
 func roundtripEncDec64(x uint64) uint64 {
 	r := make([]byte, 8)
 	e := &Enc{p: r}
 	d := &Dec{p: r}
-	machine.UInt64Put(e.consume(8), x)
-	return machine.UInt64Get(d.consume(8))
+	primitive.UInt64Put(e.consume(8), x)
+	return primitive.UInt64Get(d.consume(8))
 }
 
 // tests

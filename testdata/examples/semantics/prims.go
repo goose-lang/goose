@@ -3,13 +3,13 @@ package semantics
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 )
 
 func testLinearize() bool {
 	m := new(sync.Mutex)
 	m.Lock()
-	machine.Linearize()
+	primitive.Linearize()
 	m.Unlock()
 	return true
 }

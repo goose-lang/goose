@@ -10,7 +10,7 @@ Definition TWO : expr := #2.
 
 Definition Foo : go_type := structT [
   "a" :: boolT
-].
+]%struct.
 
 Definition Foo__mset : list (string * val) := [
 ].

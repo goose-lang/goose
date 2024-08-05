@@ -1,7 +1,7 @@
 package logging2
 
 import (
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 )
 
 type Txn struct {

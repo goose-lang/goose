@@ -1,9 +1,9 @@
 package unittest
 
-import "github.com/goose-lang/goose/machine"
+import "github.com/goose-lang/primitive"
 
 func clearMap(m map[uint64]uint64) {
-	machine.MapClear(m)
+	primitive.MapClear(m)
 }
 
 func IterateMapKeys(m map[uint64]uint64, sum *uint64) {

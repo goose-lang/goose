@@ -3,9 +3,9 @@ package awol
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 )
 
 // MaxTxnWrites is a guaranteed reservation for each transaction.
@@ -24,12 +24,12 @@ type Log struct {
 
 func intToBlock(a uint64) disk.Block {
 	b := make([]byte, disk.BlockSize)
-	machine.UInt64Put(b, a)
+	primitive.UInt64Put(b, a)
 	return b
 }
 
 func blockToInt(v disk.Block) uint64 {
-	a := machine.UInt64Get(v)
+	a := primitive.UInt64Get(v)
 	return a
 }
 

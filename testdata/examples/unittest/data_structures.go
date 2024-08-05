@@ -1,7 +1,7 @@
 package unittest
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 )
 
 func atomicCreateStub(dir string, fname string, data []byte) {}
@@ -60,6 +60,6 @@ func iterMapKeys(m map[uint64]uint64) []uint64 {
 }
 
 func getRandom() uint64 {
-	r := machine.RandomUint64()
+	r := primitive.RandomUint64()
 	return r
 }

@@ -4,7 +4,7 @@ package semantics
 import (
 	"testing"
 
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -472,18 +472,6 @@ func (suite *GoTestSuite) TestSliceLiteral() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
 	suite.Equal(true, testSliceLiteral())
-}
-
-func (suite *GoTestSuite) TestStringAppend() {
-	d := disk.NewMemDisk(30)
-	disk.Init(d)
-	suite.Equal(true, failing_testStringAppend())
-}
-
-func (suite *GoTestSuite) TestStringLength() {
-	d := disk.NewMemDisk(30)
-	disk.Init(d)
-	suite.Equal(true, failing_testStringLength())
 }
 
 func (suite *GoTestSuite) TestFooBarMutation() {

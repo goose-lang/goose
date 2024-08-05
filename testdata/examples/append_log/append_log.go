@@ -10,7 +10,7 @@ import (
 
 	"github.com/tchajed/marshal"
 
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 )
 
 type Log struct {

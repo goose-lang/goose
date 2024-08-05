@@ -1,8 +1,8 @@
 package logging2
 
 import (
-	"github.com/goose-lang/goose/machine"
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive"
+	"github.com/goose-lang/primitive/disk"
 
 	"sync"
 )
@@ -24,7 +24,7 @@ type Log struct {
 
 func (log Log) writeHdr(len uint64) {
 	hdr := make([]byte, 4096)
-	machine.UInt64Put(hdr, len)
+	primitive.UInt64Put(hdr, len)
 	disk.Write(LOGCOMMIT, hdr)
 }
 
@@ -44,7 +44,7 @@ func Init(logSz uint64) Log {
 
 func (log Log) readHdr() uint64 {
 	hdr := disk.Read(LOGCOMMIT)
-	disklen := machine.UInt64Get(hdr)
+	disklen := primitive.UInt64Get(hdr)
 	return disklen
 }
 

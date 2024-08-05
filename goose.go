@@ -223,7 +223,7 @@ func (ctx Ctx) lenExpr(e *ast.CallExpr) glang.CallExpr {
 	case *types.Slice:
 		return glang.NewCallExpr(glang.GallinaIdent("slice.len"), ctx.expr(x))
 	case *types.Map:
-		return glang.NewCallExpr(glang.GallinaIdent("MapLen"), ctx.expr(x))
+		return glang.NewCallExpr(glang.GallinaIdent("map.len"), ctx.expr(x))
 	case *types.Basic:
 		if ty.Kind() == types.String {
 			return glang.NewCallExpr(glang.GallinaIdent("StringLength"), ctx.expr(x))
@@ -259,7 +259,9 @@ func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang
 		for i := 0; i < len(es); i++ {
 			sliceLitArgs = append(sliceLitArgs, glang.IdentExpr(fmt.Sprintf("$sl%d", i)))
 		}
-		expr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"), glang.ListExpr(sliceLitArgs))
+		expr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
+			ctx.glangType(es[0].n, expectedType),
+			glang.ListExpr(sliceLitArgs))
 
 		for i := len(es); i > 0; i-- {
 			expr = glang.LetExpr{
@@ -476,37 +478,14 @@ func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
 	case "cap":
 		return ctx.capExpr(s)
 	case "append":
-		elemTy := sliceElem(ctx.typeOf(s.Args[0]))
-		var xExpr glang.Expr = glang.GallinaIdent("slice.nil")
-
-		// append(s, x1, x2, xn)
-		if s.Ellipsis == token.NoPos {
-			if len(s.Args) > 1 {
-				var exprs []glang.Expr
-				for _, arg := range s.Args[1:] {
-					exprs = append(exprs, ctx.expr(arg))
-				}
-				xExpr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
-					// FIXME: get the type of the vararg
-					ctx.glangType(s.Args[1], ctx.typeOf(s.Args[1])),
-					glang.ListExpr(exprs))
-			}
-		} else {
-			// append(s1, s2...)
-			xExpr = ctx.expr(s.Args[1])
-		}
-		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
-			ctx.glangType(s, elemTy),
-			ctx.expr(s.Args[0]),
-			xExpr,
-		)
+		return ctx.methodExpr(s)
 	case "copy":
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	case "delete":
 		if _, ok := ctx.typeOf(s.Args[0]).Underlying().(*types.Map); !ok {
 			ctx.nope(s, "delete on non-map")
 		}
-		return glang.NewCallExpr(glang.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
+		return glang.NewCallExpr(glang.GallinaIdent("map.delete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
 	case "panic":
 		msg := "oops"
 		if e, ok := s.Args[0].(*ast.BasicLit); ok {
@@ -600,7 +579,7 @@ func (ctx Ctx) fieldSelection(n ast.Node, index *[]int, curType *types.Type, exp
 			return
 		}
 		v := info.structType.Field(i)
-		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.get"),
+		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
 			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
@@ -1006,7 +985,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 		if x, ok := e.X.(*ast.IndexExpr); ok {
 			// e is &a[b] where x is a.b
 			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
-				return glang.NewCallExpr(glang.GallinaIdent("SliceRef"),
+				return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
 					ctx.glangType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
@@ -1059,6 +1038,11 @@ func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
 			return glang.True
 		case "false":
 			return glang.False
+		case "append":
+			t := ctx.typeOf(e).(*types.Signature).Params().At(1).Type()
+			return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
+				ctx.glangType(e, t),
+			)
 		}
 		ctx.unsupported(e, "special identifier")
 	}
@@ -1903,9 +1887,9 @@ func stringLitValue(lit *ast.BasicLit) string {
 }
 
 var ffiMapping = map[string]string{
-	"github.com/mit-pdos/gokv/grove_ffi":             "grove",
-	"github.com/goose-lang/goose/machine/disk":       "disk",
-	"github.com/goose-lang/goose/machine/async_disk": "async_disk",
+	"github.com/mit-pdos/gokv/grove_ffi":         "grove",
+	"github.com/goose-lang/primitive/disk":       "disk",
+	"github.com/goose-lang/primitive/async_disk": "async_disk",
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {

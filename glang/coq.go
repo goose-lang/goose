@@ -131,7 +131,7 @@ func (d StructType) Coq(needs_paren bool) string {
 		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
-	pp.AddLine("]")
+	pp.AddLine("]%struct")
 	return pp.Build()
 }
 
@@ -710,7 +710,7 @@ type ForRangeMapExpr struct {
 
 func (e ForRangeMapExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("MapIter %s (λ: %s %s,",
+	pp.Add("map.for_range %s (λ: %s %s,",
 		e.Map.Coq(true),
 		binder(e.KeyIdent), binder(e.ValueIdent))
 	pp.Indent(2)
@@ -909,7 +909,7 @@ func (d MethodPtrSetDecl) CoqDecl() string {
 
 	for i, name := range d.PtrMethods {
 		sep := ";"
-		if i == len(d.PtrMethods)-1 {
+		if i == len(d.PtrMethods)-1 && len(d.Methods) == 0 {
 			sep = ""
 		}
 		pp.Add("(\"%s\", %s)%s", name, TypeMethod(d.TypeName, name), sep)
