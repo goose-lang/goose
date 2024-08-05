@@ -1739,9 +1739,34 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	return glang.LetExpr{ValExpr: retExpr, Cont: cont}
 }
 
-func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) glang.Expr {
-	ctx.unsupported(s, "defer statement")
-	return nil
+func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
+	args := make([]glang.Expr, 0, len(s.Call.Args))
+	for i := range len(s.Call.Args) {
+		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
+	}
+
+	expr = glang.LetExpr{
+		ValExpr: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$f"), args...)},
+		Cont:    glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$oldf"), glang.Tt)},
+	}
+
+	expr = glang.FuncLit{Body: glang.NewCallExpr(glang.GallinaIdent("exception_do"), expr)}
+
+	expr = glang.LetExpr{
+		Names:   []string{"$oldf"},
+		ValExpr: glang.DerefExpr{X: glang.IdentExpr("$deref"), Ty: glang.FuncType{}},
+		Cont:    expr,
+	}
+
+	expr = glang.StoreStmt{
+		Dst: glang.IdentExpr("$deref"),
+		Ty:  glang.FuncType{},
+		X:   expr,
+	}
+
+	expr = glang.DoExpr{Expr: expr}
+
+	return
 }
 
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
@@ -1842,6 +1867,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
+
 	fd.Body = ctx.blockStmt(d.Body, nil)
 	for _, arg := range fd.Args {
 		fd.Body = glang.LetExpr{
@@ -1858,7 +1884,29 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		}
 	}
 
-	fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
+	// prologue for running deferred code
+	fd.Body = glang.LetExpr{
+		Names:   []string{"$func_ret"},
+		ValExpr: glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body),
+		Cont: glang.LetExpr{
+			// FIXME: using "$u" because there's no way to have ";;" right now.
+			Names: []string{"$u"},
+			ValExpr: glang.DerefExpr{
+				X:  glang.IdentExpr("$defer"),
+				Ty: glang.FuncType{},
+			},
+			Cont: glang.IdentExpr("$func_ret"),
+		},
+	}
+	fd.Body = glang.LetExpr{
+		Names: []string{"$defer"},
+		ValExpr: glang.RefExpr{
+			X:  glang.FuncLit{Body: glang.Tt},
+			Ty: glang.FuncType{},
+		},
+		Cont: fd.Body,
+	}
+
 	return fd
 }
 
