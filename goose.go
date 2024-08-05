@@ -255,7 +255,9 @@ func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	return ctx.sliceLiteralAux(exprs, expectedType)
 }
 
-func (ctx Ctx) methodExpr(call *ast.CallExpr) (expr glang.Expr) {
+// Deals with the arguments, but does not actually invoke the function. That
+// should be done in the continuation. One can assume the arguments are in `args`.
+func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.Expr) {
 	if f, ok := call.Fun.(*ast.Ident); ok {
 		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
 			ctx.unsupported(f, "generic function")
@@ -267,11 +269,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) (expr glang.Expr) {
 		ctx.nope(call.Fun, "function should have signature type, got %T", types.Unalias(ctx.typeOf(call.Fun)))
 	}
 
-	var args []glang.Expr
-	for i := range funcSig.Params().Len() {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("$a%d", i)))
-	}
-	expr = glang.NewCallExpr(ctx.expr(call.Fun), args...)
+	expr = cont
 
 	var intermediates []exprWithInfo
 	intermediatesDone := false
@@ -441,13 +439,25 @@ func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
 	return nil, false
 }
 
+func (ctx Ctx) getNumParams(e ast.Expr) int {
+	funcSig, ok := ctx.typeOf(e).Underlying().(*types.Signature)
+	if !ok {
+		ctx.nope(e, "function should have signature type, got %T", types.Unalias(ctx.typeOf(e)))
+	}
+	return funcSig.Params().Len()
+}
+
 func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
 	} else if e, ok := ctx.maybeHandleMakeAndNew(s); ok {
 		return e
 	} else {
-		return ctx.methodExpr(s)
+		var args []glang.Expr
+		for i := range ctx.getNumParams(s.Fun) {
+			args = append(args, glang.IdentExpr(fmt.Sprintf("$a%d", i)))
+		}
+		return ctx.callExprPrelude(s, glang.NewCallExpr(ctx.expr(s.Fun), args...))
 	}
 }
 
@@ -1650,31 +1660,23 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 	return nil
 }
 
-// getSpawn returns a non-nil spawned thread if the expression is a go call
 func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 	args := make([]glang.Expr, 0, len(e.Call.Args))
 	for i := range len(e.Call.Args) {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("$arg%d", i)))
+		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
 	}
 	var expr glang.Expr = glang.NewDoSeq(glang.SpawnExpr{Body: glang.NewCallExpr(
 		glang.IdentExpr("$go"),
 		args...,
 	)}, cont)
+
 	expr = glang.LetExpr{
 		Names:   []string{"$go"},
 		ValExpr: ctx.expr(e.Call.Fun),
 		Cont:    expr,
 	}
 
-	// FIXME:(evaluation order)
-	// compute values left-to-right
-	for i := len(e.Call.Args); i > 0; i-- {
-		expr = glang.LetExpr{
-			Names:   []string{fmt.Sprintf("$arg%d", i-1)},
-			ValExpr: ctx.expr(e.Call.Args[i-1]),
-			Cont:    expr,
-		}
-	}
+	expr = ctx.callExprPrelude(e.Call, expr)
 
 	return expr
 }
@@ -1855,6 +1857,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 			Cont:    fd.Body,
 		}
 	}
+
 	fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	return fd
 }

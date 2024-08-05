@@ -356,25 +356,25 @@ func (b LetExpr) Coq(needs_paren bool) string {
 	if b.isAnonymous() {
 		pp.Add("%s;;;", b.ValExpr.Coq(false))
 	} else if len(b.Names) == 1 {
-		pp.Add("let: %s := %s in", binder(b.Names[0]), b.ValExpr.Coq(false))
+		pp.Add("let: %s := %s in", binder(b.Names[0]), b.ValExpr.Coq(true))
 	} else if len(b.Names) == 2 {
 		pp.Add("let: (%s, %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
-			b.ValExpr.Coq(false))
+			b.ValExpr.Coq(true))
 	} else if len(b.Names) == 3 {
 		pp.Add("let: ((%s, %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),
-			b.ValExpr.Coq(false))
+			b.ValExpr.Coq(true))
 	} else if len(b.Names) == 4 {
 		pp.Add("let: (((%s, %s), %s), %s) := %s in",
 			binder(b.Names[0]),
 			binder(b.Names[1]),
 			binder(b.Names[2]),
 			binder(b.Names[3]),
-			b.ValExpr.Coq(false))
+			b.ValExpr.Coq(true))
 	} else if len(b.Names) == 5 {
 		pp.Add("let: ((((%s, %s), %s), %s), %s) := %s in",
 			binder(b.Names[0]),
@@ -382,7 +382,7 @@ func (b LetExpr) Coq(needs_paren bool) string {
 			binder(b.Names[2]),
 			binder(b.Names[3]),
 			binder(b.Names[4]),
-			b.ValExpr.Coq(false))
+			b.ValExpr.Coq(true))
 	} else {
 		panic(fmt.Sprintf("no support for destructuring more than %d return values (up to 5 supported)", len(b.Names)))
 	}
