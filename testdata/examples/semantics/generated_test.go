@@ -90,6 +90,12 @@ func (suite *GoTestSuite) TestCopyShorterSrc() {
 	suite.Equal(true, testCopyShorterSrc())
 }
 
+func (suite *GoTestSuite) TestDefer() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testDefer())
+}
+
 func (suite *GoTestSuite) TestEncDec32Simple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

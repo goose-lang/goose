@@ -216,34 +216,6 @@ func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	return r
 }
 
-func (ctx Ctx) lenExpr(e *ast.CallExpr) glang.CallExpr {
-	x := e.Args[0]
-	xTy := ctx.typeOf(x)
-	switch ty := xTy.Underlying().(type) {
-	case *types.Slice:
-		return glang.NewCallExpr(glang.GallinaIdent("slice.len"), ctx.expr(x))
-	case *types.Map:
-		return glang.NewCallExpr(glang.GallinaIdent("map.len"), ctx.expr(x))
-	case *types.Basic:
-		if ty.Kind() == types.String {
-			return glang.NewCallExpr(glang.GallinaIdent("StringLength"), ctx.expr(x))
-		}
-	}
-	ctx.unsupported(e, "length of object of type %v", xTy)
-	return glang.CallExpr{}
-}
-
-func (ctx Ctx) capExpr(e *ast.CallExpr) glang.CallExpr {
-	x := e.Args[0]
-	xTy := ctx.typeOf(x)
-	switch xTy.Underlying().(type) {
-	case *types.Slice:
-		return glang.NewCallExpr(glang.GallinaIdent("slice.cap"), ctx.expr(x))
-	}
-	ctx.unsupported(e, "capacity of object of type %v", xTy)
-	return glang.CallExpr{}
-}
-
 // TODO: make this the input to handleImplicitConversion?
 type exprWithInfo struct {
 	e glang.Expr
@@ -362,39 +334,6 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) (expr glang.Expr) {
 	return
 }
 
-// makeExpr parses a call to make() into the appropriate data-structure Call
-func (ctx Ctx) makeExpr(args []ast.Expr) glang.Expr {
-	switch ty := ctx.typeOf(args[0]).Underlying().(type) {
-	case *types.Slice:
-		elt := ctx.glangType(args[0], ty.Elem())
-		if len(args) == 2 {
-			return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt, ctx.expr(args[1]))
-		} else if len(args) == 3 {
-			return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt, ctx.expr(args[1]), ctx.expr(args[2]))
-		} else {
-			ctx.nope(args[0], "Too many or too few arguments in slice construction")
-			return glang.CallExpr{}
-		}
-	case *types.Map:
-		return glang.NewCallExpr(glang.GallinaIdent("map.make"),
-			ctx.glangType(args[0], ty.Key()),
-			ctx.glangType(args[0], ty.Elem()),
-			glang.UnitLiteral{})
-	default:
-		ctx.unsupported(args[0],
-			"make of should be slice or map, got %v", ty)
-	}
-	return glang.CallExpr{}
-}
-
-// newExpr parses a call to new() into an appropriate allocation
-func (ctx Ctx) newExpr(ty ast.Expr) glang.Expr {
-	return glang.RefExpr{
-		X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.glangTypeFromExpr(ty)),
-		Ty: ctx.glangTypeFromExpr(ty),
-	}
-}
-
 // integerConversion generates an expression for converting x to an integer
 // of a specific width
 //
@@ -413,13 +352,6 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 	ctx.unsupported(s, "casts from unsupported type %v to uint%d",
 		ctx.typeOf(x), width)
 	return nil
-}
-
-func (ctx Ctx) copyExpr(n ast.Node, dst ast.Expr, src ast.Expr) glang.Expr {
-	e := sliceElem(ctx.typeOf(dst))
-	return glang.NewCallExpr(glang.GallinaIdent("slice.copy"),
-		ctx.glangType(n, e),
-		ctx.expr(dst), ctx.expr(src))
 }
 
 func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
@@ -466,46 +398,54 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 	// return nil
 }
 
-func (ctx Ctx) builtinCallExpr(s *ast.CallExpr) glang.Expr {
-	funName := s.Fun.(*ast.Ident).Name
-	switch funName {
-	case "make":
-		return ctx.makeExpr(s.Args)
-	case "new":
-		return ctx.newExpr(s.Args[0])
-	case "len":
-		return ctx.lenExpr(s)
-	case "cap":
-		return ctx.capExpr(s)
-	case "append":
-		return ctx.methodExpr(s)
-	case "copy":
-		return ctx.copyExpr(s, s.Args[0], s.Args[1])
-	case "delete":
-		if _, ok := ctx.typeOf(s.Args[0]).Underlying().(*types.Map); !ok {
-			ctx.nope(s, "delete on non-map")
-		}
-		return glang.NewCallExpr(glang.GallinaIdent("map.delete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))
-	case "panic":
-		msg := "oops"
-		if e, ok := s.Args[0].(*ast.BasicLit); ok {
-			if e.Kind == token.STRING {
-				v := ctx.info.Types[e].Value
-				msg = constant.StringVal(v)
-			}
-		}
-		return glang.NewCallExpr(glang.GallinaIdent("Panic"), glang.GallinaString(msg))
-	default:
-		ctx.unsupported(s, "builtin %s not supported", funName)
-		return nil
+// This handles specifically make() and new() because they uniquely take a type
+// as a normal parameter.
+func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
+	if !ctx.info.Types[s.Fun].IsBuiltin() {
+		return nil, false
 	}
+
+	sig := ctx.typeOf(s.Fun).(*types.Signature)
+	switch s.Fun.(*ast.Ident).Name {
+	case "make":
+		switch ty := sig.Params().At(0).Type().Underlying().(type) {
+		case *types.Slice:
+			elt := ctx.glangType(s.Fun, ty.Elem())
+			switch sig.Params().Len() {
+			case 2:
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt,
+					ctx.expr(s.Args[1])), true
+			case 3:
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt,
+					ctx.expr(s.Args[1]), ctx.expr(s.Args[2])), true
+			default:
+				ctx.nope(s, "Too many or too few arguments in slice construction")
+				return glang.CallExpr{}, true
+			}
+		case *types.Map:
+			return glang.NewCallExpr(glang.GallinaIdent("map.make"),
+				ctx.glangType(s.Args[0], ty.Key()),
+				ctx.glangType(s.Args[0], ty.Elem()),
+				glang.UnitLiteral{}), true
+		default:
+			ctx.unsupported(s, "make should be slice or map, got %v", ty)
+		}
+	case "new":
+		ty := ctx.glangType(s.Args[0], sig.Params().At(0).Type())
+		return glang.RefExpr{
+			X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty),
+			Ty: ty,
+		}, true
+	}
+
+	return nil, false
 }
 
 func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
-	} else if ctx.info.Types[s.Fun].IsBuiltin() {
-		return ctx.builtinCallExpr(s)
+	} else if e, ok := ctx.maybeHandleMakeAndNew(s); ok {
+		return e
 	} else {
 		return ctx.methodExpr(s)
 	}
@@ -1029,22 +969,104 @@ func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
 	return s.Parent() == types.Universe
 }
 
+func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
+	switch e.Name {
+	case "nil":
+		return ctx.nilExpr(e)
+	case "true":
+		return glang.True
+	case "false":
+		return glang.False
+	case "append":
+		sig := ctx.typeOf(e).(*types.Signature)
+		t := sig.Params().At(1).Type()
+		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
+			ctx.glangType(e, t),
+		)
+	case "make":
+		sig := ctx.typeOf(e).(*types.Signature)
+		switch ty := sig.Params().At(0).Type().Underlying().(type) {
+		case *types.Slice:
+			elt := ctx.glangType(e, ty.Elem())
+			switch sig.Params().Len() {
+			case 2:
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt)
+			case 3:
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt)
+			default:
+				ctx.nope(e, "Too many or too few arguments in slice construction")
+				return glang.CallExpr{}
+			}
+		case *types.Map:
+			return glang.NewCallExpr(glang.GallinaIdent("map.make"),
+				ctx.glangType(e, ty.Key()),
+				ctx.glangType(e, ty.Elem()),
+				glang.UnitLiteral{})
+		default:
+			ctx.unsupported(e, "make should be slice or map, got %v", ty)
+		}
+	case "new":
+		sig := ctx.typeOf(e).(*types.Signature)
+		ctx.todo(e, "new might be better as its own function")
+		t := ctx.glangType(e, sig.Params().At(0).Type())
+		return glang.RefExpr{
+			X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
+			Ty: t,
+		}
+	case "len":
+		sig := ctx.typeOf(e).(*types.Signature)
+		switch ty := sig.Params().At(0).Type().Underlying().(type) {
+		case *types.Slice:
+			return glang.GallinaIdent("slice.len")
+		case *types.Map:
+			return glang.GallinaIdent("map.len")
+		case *types.Basic:
+			if ty.Kind() == types.String {
+				return glang.GallinaIdent("StringLength")
+			}
+		default:
+			ctx.unsupported(e, "length of object of type %v", ty)
+		}
+	case "cap":
+		sig := ctx.typeOf(e).(*types.Signature)
+		switch ty := sig.Params().At(0).Type().Underlying().(type) {
+		case *types.Slice:
+			return glang.GallinaIdent("slice.cap")
+		default:
+			ctx.unsupported(e, "capacity of object of type %v", ty)
+		}
+	case "copy":
+		sig := ctx.typeOf(e).(*types.Signature)
+		switch ty := sig.Params().At(0).Type().Underlying().(type) {
+		case *types.Slice:
+			fromTy := sig.Params().At(1).Type().Underlying()
+			if types.Identical(ty, fromTy) {
+				return glang.NewCallExpr(
+					glang.GallinaIdent("slice.copy"),
+					ctx.glangType(e, ty.Elem()),
+				)
+			}
+			ctx.unsupported(e, "copy to %v from %v", ty, fromTy)
+		default:
+			ctx.nope(e, "copy of object of type %v", ty)
+		}
+	case "delete":
+		sig := ctx.typeOf(e).(*types.Signature)
+		if _, ok := sig.Params().At(0).Type().Underlying().(*types.Map); !ok {
+			ctx.nope(e, "delete on non-map")
+		}
+		return glang.GallinaIdent("map.delete")
+	case "panic":
+		return glang.GallinaIdent("Panic")
+	default:
+		ctx.unsupported(e, "special identifier")
+	}
+	return nil
+}
+
 func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
 	if ctx.goBuiltin(e) {
-		switch e.Name {
-		case "nil":
-			return ctx.nilExpr(e)
-		case "true":
-			return glang.True
-		case "false":
-			return glang.False
-		case "append":
-			t := ctx.typeOf(e).(*types.Signature).Params().At(1).Type()
-			return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
-				ctx.glangType(e, t),
-			)
-		}
-		ctx.unsupported(e, "special identifier")
+		return ctx.builtinIdent(e)
 	}
 
 	// check if e refers to a variable,
@@ -1715,6 +1737,11 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	return glang.LetExpr{ValExpr: retExpr, Cont: cont}
 }
 
+func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) glang.Expr {
+	ctx.unsupported(s, "defer statement")
+	return nil
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -1751,6 +1778,8 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 		return ctx.switchStmt(s, cont)
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "type switch statement")
+	case *ast.DeferStmt:
+		return ctx.deferStmt(s, cont)
 	default:
 		ctx.unsupported(s, "statement %T", s)
 	}
