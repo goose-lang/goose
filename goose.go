@@ -34,6 +34,11 @@ type Ctx struct {
 	// `returnStmt` so the appropriate conversion is inserted
 	curFuncType *ast.FuncType
 
+	// Should be set to true when encountering a defer statement in the body of
+	// a function to communicate to its top-level funcDecl that it should
+	// include a defer prelude+prologue.
+	usesDefer *bool
+
 	dep *depTracker
 }
 
@@ -1137,11 +1142,28 @@ func (ctx Ctx) expr(e ast.Expr) glang.Expr {
 func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	fl := glang.FuncLit{}
 
+	ctx.usesDefer = new(bool)
+
 	// ctx is by value, so no need to unset this
 	ctx.curFuncType = e.Type
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
 	fl.Body = ctx.blockStmt(e.Body, nil)
+
+	for _, arg := range fl.Args {
+		fl.Body = glang.LetExpr{
+			Names:   []string{arg.Name},
+			ValExpr: glang.RefExpr{Ty: arg.Type, X: glang.IdentExpr(arg.Name)},
+			Cont:    fl.Body,
+		}
+	}
+
+	if *ctx.usesDefer {
+		ctx.funcDeferWrap(&fl.Body)
+	} else {
+		fl.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fl.Body)
+	}
+
 	return fl
 }
 
@@ -1741,31 +1763,40 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
+	*ctx.usesDefer = true
 	args := make([]glang.Expr, 0, len(s.Call.Args))
 	for i := range len(s.Call.Args) {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
 	}
 
-	expr = glang.SeqExpr{
-		Expr: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$f"), args...)},
-		Cont: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$oldf"), glang.Tt)},
+	expr = glang.LetExpr{
+		ValExpr: glang.NewCallExpr(glang.IdentExpr("$f"), args...),
+		Cont:    glang.NewCallExpr(glang.IdentExpr("$oldf"), glang.Tt),
 	}
 
-	expr = glang.FuncLit{Body: glang.NewCallExpr(glang.GallinaIdent("exception_do"), expr)}
+	expr = glang.FuncLit{Body: expr}
 
 	expr = glang.LetExpr{
 		Names:   []string{"$oldf"},
-		ValExpr: glang.DerefExpr{X: glang.IdentExpr("$deref"), Ty: glang.FuncType{}},
+		ValExpr: glang.DerefExpr{X: glang.IdentExpr("$defer"), Ty: glang.FuncType{}},
 		Cont:    expr,
 	}
 
 	expr = glang.StoreStmt{
-		Dst: glang.IdentExpr("$deref"),
+		Dst: glang.IdentExpr("$defer"),
 		Ty:  glang.FuncType{},
 		X:   expr,
 	}
 
-	expr = glang.DoExpr{Expr: expr}
+	expr = glang.LetExpr{
+		Names:   []string{"$f"},
+		ValExpr: ctx.expr(s.Call.Fun),
+		Cont:    expr,
+	}
+
+	expr = ctx.callExprPrelude(s.Call, expr)
+
+	expr = glang.NewDoSeq(expr, cont)
 
 	return
 }
@@ -1837,7 +1868,35 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 	return glang.NewTupleType(ts)
 }
 
+func (ctx Ctx) funcDeferWrap(body *glang.Expr) {
+	// prologue for running deferred code
+	*body = glang.LetExpr{
+		Names:   []string{"$func_ret"},
+		ValExpr: glang.NewCallExpr(glang.GallinaIdent("exception_do"), *body),
+		Cont: glang.LetExpr{
+			ValExpr: glang.NewCallExpr(glang.DerefExpr{
+				X:  glang.IdentExpr("$defer"),
+				Ty: glang.FuncType{},
+			},
+				glang.Tt,
+			),
+			Cont: glang.IdentExpr("$func_ret"),
+		},
+	}
+	*body = glang.LetExpr{
+		Names: []string{"$defer"},
+		ValExpr: glang.RefExpr{
+			X:  glang.FuncLit{Body: glang.Tt},
+			Ty: glang.FuncType{},
+		},
+		Cont: *body,
+	}
+
+}
+
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
+	ctx.usesDefer = new(bool)
+
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
@@ -1885,27 +1944,11 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		}
 	}
 
-	// prologue for running deferred code
-	fd.Body = glang.LetExpr{
-		Names:   []string{"$func_ret"},
-		ValExpr: glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body),
-		Cont: glang.LetExpr{
-			ValExpr: glang.NewCallExpr(glang.DerefExpr{
-				X:  glang.IdentExpr("$defer"),
-				Ty: glang.FuncType{},
-			},
-				glang.Tt,
-			),
-			Cont: glang.IdentExpr("$func_ret"),
-		},
-	}
-	fd.Body = glang.LetExpr{
-		Names: []string{"$defer"},
-		ValExpr: glang.RefExpr{
-			X:  glang.FuncLit{Body: glang.Tt},
-			Ty: glang.FuncType{},
-		},
-		Cont: fd.Body,
+	if *ctx.usesDefer {
+		// prologue for running deferred code
+		ctx.funcDeferWrap(&fd.Body)
+	} else {
+		fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	}
 
 	return fd
