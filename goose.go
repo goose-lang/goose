@@ -291,7 +291,8 @@ func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.
 				for i := range tupleType.Len() {
 					names = append(names, fmt.Sprintf("$ret%d", i))
 				}
-				expr = glang.LetExpr{Names: names,
+				expr = glang.LetExpr{
+					Names:   names,
 					ValExpr: glang.ParenExpr{Inner: ctx.expr(call.Args[0])},
 					Cont:    expr,
 				}
@@ -1189,7 +1190,7 @@ func (ctx Ctx) stmtList(ss []ast.Stmt, cont glang.Expr) glang.Expr {
 		ss = ss[:len(ss)-1]
 		e = ctx.stmt(stmt, e)
 	}
-	return glang.LetExpr{ValExpr: e, Cont: cont}
+	return glang.SeqExpr{Expr: e, Cont: cont}
 }
 
 func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
@@ -1259,7 +1260,7 @@ func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
 	}
 
-	e = glang.LetExpr{ValExpr: e, Cont: cont}
+	e = glang.SeqExpr{Expr: e, Cont: cont}
 	return
 }
 
@@ -1277,7 +1278,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	if s.Init != nil {
 		ife = glang.ParenExpr{Inner: ctx.stmt(s.Init, ife)}
 	}
-	return glang.LetExpr{ValExpr: ife, Cont: cont}
+	return glang.SeqExpr{Expr: ife, Cont: cont}
 }
 
 func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
@@ -1299,7 +1300,7 @@ func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	if s.Init != nil {
 		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
 	}
-	return glang.LetExpr{ValExpr: e, Cont: cont}
+	return glang.SeqExpr{Expr: e, Cont: cont}
 }
 
 func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
@@ -1651,10 +1652,10 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 
 func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 	if s.Tok == token.CONTINUE {
-		return glang.LetExpr{ValExpr: glang.ContinueExpr{}, Cont: cont}
+		return glang.SeqExpr{Expr: glang.ContinueExpr{}, Cont: cont}
 	}
 	if s.Tok == token.BREAK {
-		return glang.LetExpr{ValExpr: glang.BreakExpr{}, Cont: cont}
+		return glang.SeqExpr{Expr: glang.BreakExpr{}, Cont: cont}
 	}
 	ctx.noExample(s, "unexpected control flow %v in loop", s.Tok)
 	return nil
@@ -1736,7 +1737,7 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 		retExpr = glang.ReturnExpr{Value: glang.TupleExpr(exprs)}
 	}()
 
-	return glang.LetExpr{ValExpr: retExpr, Cont: cont}
+	return glang.SeqExpr{Expr: retExpr, Cont: cont}
 }
 
 func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
@@ -1745,9 +1746,9 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
 	}
 
-	expr = glang.LetExpr{
-		ValExpr: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$f"), args...)},
-		Cont:    glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$oldf"), glang.Tt)},
+	expr = glang.SeqExpr{
+		Expr: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$f"), args...)},
+		Cont: glang.DoExpr{Expr: glang.NewCallExpr(glang.IdentExpr("$oldf"), glang.Tt)},
 	}
 
 	expr = glang.FuncLit{Body: glang.NewCallExpr(glang.GallinaIdent("exception_do"), expr)}
@@ -1889,12 +1890,12 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		Names:   []string{"$func_ret"},
 		ValExpr: glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body),
 		Cont: glang.LetExpr{
-			// FIXME: using "$u" because there's no way to have ";;" right now.
-			Names: []string{"$u"},
-			ValExpr: glang.DerefExpr{
+			ValExpr: glang.NewCallExpr(glang.DerefExpr{
 				X:  glang.IdentExpr("$defer"),
 				Ty: glang.FuncType{},
 			},
+				glang.Tt,
+			),
 			Cont: glang.IdentExpr("$func_ret"),
 		},
 	}

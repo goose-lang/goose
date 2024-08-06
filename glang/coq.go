@@ -325,6 +325,27 @@ func (b DoExpr) Coq(needs_paren bool) string {
 	return addParens(needs_paren, pp.Build())
 }
 
+func NewDoSeq(e, cont Expr) SeqExpr {
+	return SeqExpr{Expr: DoExpr{Expr: e}, Cont: cont}
+}
+
+type SeqExpr struct {
+	Expr, Cont Expr
+}
+
+func (b SeqExpr) Coq(needs_paren bool) string {
+	var pp buffer
+
+	if b.Cont == nil {
+		pp.Add("%s", b.Expr.Coq(false))
+		return addParens(needs_paren, pp.Build())
+	}
+
+	pp.Add("%s;;;", b.Expr.Coq(false))
+	pp.Add("%s", b.Cont.Coq(false))
+	return addParens(needs_paren, pp.Build())
+}
+
 type LetExpr struct {
 	// Names is a list to support anonymous and tuple-destructuring bindings.
 	//
@@ -332,10 +353,6 @@ type LetExpr struct {
 	Names   []string
 	ValExpr Expr
 	Cont    Expr
-}
-
-func NewDoSeq(e, cont Expr) LetExpr {
-	return LetExpr{ValExpr: DoExpr{Expr: e}, Cont: cont}
 }
 
 func (e LetExpr) isAnonymous() bool {
@@ -352,9 +369,8 @@ func (b LetExpr) Coq(needs_paren bool) string {
 		return addParens(needs_paren, pp.Build())
 	}
 
-	// TODO: exception monad sequencing should be its own thing, not an anonymous let binding.
 	if b.isAnonymous() {
-		pp.Add("%s;;;", b.ValExpr.Coq(false))
+		pp.Add("%s;;", b.ValExpr.Coq(false))
 	} else if len(b.Names) == 1 {
 		pp.Add("let: %s := %s in", binder(b.Names[0]), b.ValExpr.Coq(true))
 	} else if len(b.Names) == 2 {
