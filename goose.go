@@ -1159,7 +1159,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	}
 
 	if *ctx.usesDefer {
-		ctx.funcDeferWrap(&fl.Body)
+		fl.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fl.Body)
 	} else {
 		fl.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fl.Body)
 	}
@@ -1868,32 +1868,6 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 	return glang.NewTupleType(ts)
 }
 
-func (ctx Ctx) funcDeferWrap(body *glang.Expr) {
-	// prologue for running deferred code
-	*body = glang.LetExpr{
-		Names:   []string{"$func_ret"},
-		ValExpr: glang.NewCallExpr(glang.GallinaIdent("exception_do"), *body),
-		Cont: glang.LetExpr{
-			ValExpr: glang.NewCallExpr(glang.DerefExpr{
-				X:  glang.IdentExpr("$defer"),
-				Ty: glang.FuncType{},
-			},
-				glang.Tt,
-			),
-			Cont: glang.IdentExpr("$func_ret"),
-		},
-	}
-	*body = glang.LetExpr{
-		Names: []string{"$defer"},
-		ValExpr: glang.RefExpr{
-			X:  glang.FuncLit{Body: glang.Tt},
-			Ty: glang.FuncType{},
-		},
-		Cont: *body,
-	}
-
-}
-
 func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	ctx.usesDefer = new(bool)
 
@@ -1945,8 +1919,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	}
 
 	if *ctx.usesDefer {
-		// prologue for running deferred code
-		ctx.funcDeferWrap(&fd.Body)
+		fd.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fd.Body)
 	} else {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	}
