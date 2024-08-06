@@ -13,3 +13,14 @@ func deferSimple() *uint64 {
 func testDefer() bool {
 	return *(deferSimple()) == 10
 }
+
+func testDeferFuncLit() bool {
+	x := 10
+	f := func() {
+		defer func() {
+			x += 1
+		}()
+	}
+	f()
+	return x == 11
+}

@@ -96,6 +96,12 @@ func (suite *GoTestSuite) TestDefer() {
 	suite.Equal(true, testDefer())
 }
 
+func (suite *GoTestSuite) TestDeferFuncLit() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testDeferFuncLit())
+}
+
 func (suite *GoTestSuite) TestEncDec32Simple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

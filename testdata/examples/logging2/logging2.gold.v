@@ -29,10 +29,10 @@ Definition Log : go_type := structT [
    go: logging2.go:90:16 *)
 Definition Log__readLogTxnNxt : val :=
   rec: "Log__readLogTxnNxt" "log" <> :=
-    exception_do (let: "log" := ref_ty Log "log" in
+    exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-    let: "n" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := ![uint64T] (![ptrT] (struct.field_ref Log "logTxnNxt" "log")) in
+    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "logTxnNxt" "log"))) in
     do:  ("n" <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     return: (![uint64T] "n")).
@@ -40,11 +40,11 @@ Definition Log__readLogTxnNxt : val :=
 (* go: logging2.go:97:16 *)
 Definition Log__diskAppendWait : val :=
   rec: "Log__diskAppendWait" "log" "txn" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "txn" := ref_ty uint64T "txn" in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "txn" := (ref_ty uint64T "txn") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      let: "logtxn" := ref_ty uint64T (zero_val uint64T) in
-      let: "$r0" := (Log__readLogTxnNxt (![ptrT] "log")) #() in
+      let: "logtxn" := (ref_ty uint64T (zero_val uint64T)) in
+      let: "$r0" := ((Log__readLogTxnNxt (![ptrT] "log")) #()) in
       do:  ("logtxn" <-[uint64T] "$r0");;;
       (if: (![uint64T] "txn") < (![uint64T] "logtxn")
       then break: #()
@@ -54,23 +54,25 @@ Definition Log__diskAppendWait : val :=
 (* go: logging2.go:75:16 *)
 Definition Log__memAppend : val :=
   rec: "Log__memAppend" "log" "l" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "l" := ref_ty (sliceT (sliceT byteT)) "l" in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "l" := (ref_ty (sliceT (sliceT byteT)) "l") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-    (if: ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (slice.len (![sliceT (sliceT byteT)] "l"))) ≥ (![uint64T] (struct.field_ref Log "logSz" "log"))
+    (if: ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
+    slice.len "$a0")) ≥ (![uint64T] (struct.field_ref Log "logSz" "log"))
     then
       do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
       return: (#false, #0)
     else do:  #());;;
-    let: "txn" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := ![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log")) in
+    let: "txn" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) in
     do:  ("txn" <-[uint64T] "$r0");;;
-    let: "n" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (slice.len (![sliceT (sliceT byteT)] "l")) in
+    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
+    slice.len "$a0")) in
     do:  ("n" <-[uint64T] "$r0");;;
-    let: "$r0" := ![uint64T] "n" in
+    let: "$r0" := (![uint64T] "n") in
     do:  ((![ptrT] (struct.field_ref Log "memLen" "log")) <-[uint64T] "$r0");;;
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) + #1 in
+    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) + #1) in
     do:  ((![ptrT] (struct.field_ref Log "memTxnNxt" "log")) <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     return: (#true, ![uint64T] "txn")).
@@ -78,19 +80,19 @@ Definition Log__memAppend : val :=
 (* go: logging2.go:107:16 *)
 Definition Log__Append : val :=
   rec: "Log__Append" "log" "l" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "l" := ref_ty (sliceT (sliceT byteT)) "l" in
-    let: "txn" := ref_ty uint64T (zero_val uint64T) in
-    let: "ok" := ref_ty boolT (zero_val boolT) in
-    let: ("$ret0", "$ret1") := let: "$a0" := ![sliceT (sliceT byteT)] "l" in
-    (Log__memAppend (![ptrT] "log")) "$a0" in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "l" := (ref_ty (sliceT (sliceT byteT)) "l") in
+    let: "txn" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "ok" := (ref_ty boolT (zero_val boolT)) in
+    let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
+    (Log__memAppend (![ptrT] "log")) "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("ok" <-[boolT] "$r0");;;
     do:  ("txn" <-[uint64T] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  (let: "$a0" := ![uint64T] "txn" in
+      do:  (let: "$a0" := (![uint64T] "txn") in
       (Log__diskAppendWait (![ptrT] "log")) "$a0")
     else do:  #());;;
     return: (![boolT] "ok")).
@@ -98,123 +100,124 @@ Definition Log__Append : val :=
 (* go: logging2.go:25:16 *)
 Definition Log__writeHdr : val :=
   rec: "Log__writeHdr" "log" "len" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "len" := ref_ty uint64T "len" in
-    let: "hdr" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: "$r0" := slice.make2 byteT #4096 in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "len" := (ref_ty uint64T "len") in
+    let: "hdr" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "$r0" := (slice.make2 byteT #4096) in
     do:  ("hdr" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := ![sliceT byteT] "hdr" in
-    let: "$a1" := ![uint64T] "len" in
+    do:  (let: "$a0" := (![sliceT byteT] "hdr") in
+    let: "$a1" := (![uint64T] "len") in
     primitive.UInt64Put "$a0" "$a1");;;
     do:  (let: "$a0" := LOGCOMMIT in
-    let: "$a1" := ![sliceT byteT] "hdr" in
+    let: "$a1" := (![sliceT byteT] "hdr") in
     disk.Write "$a0" "$a1")).
 
 (* go: logging2.go:115:16 *)
 Definition Log__writeBlocks : val :=
   rec: "Log__writeBlocks" "log" "l" "pos" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "pos" := ref_ty uint64T "pos" in
-    let: "l" := ref_ty (sliceT (sliceT byteT)) "l" in
-    let: "n" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := slice.len (![sliceT (sliceT byteT)] "l") in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "pos" := (ref_ty uint64T "pos") in
+    let: "l" := (ref_ty (sliceT (sliceT byteT)) "l") in
+    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
+    slice.len "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
-    (let: "i" := ref_ty uint64T (zero_val uint64T) in
+    (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #0 in
     do:  ("i" <-[uint64T] "$r0");;;
     (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
-      let: "bk" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-      let: "$r0" := ![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i")) in
+      let: "bk" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+      let: "$r0" := (![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i"))) in
       do:  ("bk" <-[sliceT byteT] "$r0");;;
-      do:  (let: "$a0" := (![uint64T] "pos") + (![uint64T] "i") in
-      let: "$a1" := ![sliceT byteT] "bk" in
+      do:  (let: "$a0" := ((![uint64T] "pos") + (![uint64T] "i")) in
+      let: "$a1" := (![sliceT byteT] "bk") in
       disk.Write "$a0" "$a1")))).
 
 (* go: logging2.go:45:16 *)
 Definition Log__readHdr : val :=
   rec: "Log__readHdr" "log" <> :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "hdr" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: "$r0" := let: "$a0" := LOGCOMMIT in
-    disk.Read "$a0" in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "hdr" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "$r0" := (let: "$a0" := LOGCOMMIT in
+    disk.Read "$a0") in
     do:  ("hdr" <-[sliceT byteT] "$r0");;;
-    let: "disklen" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := let: "$a0" := ![sliceT byteT] "hdr" in
-    primitive.UInt64Get "$a0" in
+    let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (let: "$a0" := (![sliceT byteT] "hdr") in
+    primitive.UInt64Get "$a0") in
     do:  ("disklen" <-[uint64T] "$r0");;;
     return: (![uint64T] "disklen")).
 
 (* go: logging2.go:123:16 *)
 Definition Log__diskAppend : val :=
   rec: "Log__diskAppend" "log" <> :=
-    exception_do (let: "log" := ref_ty Log "log" in
+    exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
-    let: "disklen" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := (Log__readHdr (![ptrT] "log")) #() in
+    let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := ((Log__readHdr (![ptrT] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-    let: "memlen" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := ![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log")) in
+    let: "memlen" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) in
     do:  ("memlen" <-[uint64T] "$r0");;;
-    let: "allblks" := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT))) in
-    let: "$r0" := ![sliceT (sliceT byteT)] (![ptrT] (struct.field_ref Log "memLog" "log")) in
+    let: "allblks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
+    let: "$r0" := (![sliceT (sliceT byteT)] (![ptrT] (struct.field_ref Log "memLog" "log"))) in
     do:  ("allblks" <-[sliceT (sliceT byteT)] "$r0");;;
-    let: "blks" := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT))) in
-    let: "$r0" := let: "$s" := ![sliceT (sliceT byteT)] "allblks" in
-    slice.slice (sliceT byteT) "$s" (![uint64T] "disklen") (slice.len "$s") in
+    let: "blks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
+    let: "$r0" := (let: "$s" := (![sliceT (sliceT byteT)] "allblks") in
+    slice.slice (sliceT byteT) "$s" (![uint64T] "disklen") (slice.len "$s")) in
     do:  ("blks" <-[sliceT (sliceT byteT)] "$r0");;;
-    let: "memnxt" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := ![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log")) in
+    let: "memnxt" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) in
     do:  ("memnxt" <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-    do:  (let: "$a0" := ![sliceT (sliceT byteT)] "blks" in
-    let: "$a1" := ![uint64T] "disklen" in
+    do:  (let: "$a0" := (![sliceT (sliceT byteT)] "blks") in
+    let: "$a1" := (![uint64T] "disklen") in
     (Log__writeBlocks (![ptrT] "log")) "$a0" "$a1");;;
-    do:  (let: "$a0" := ![uint64T] "memlen" in
+    do:  (let: "$a0" := (![uint64T] "memlen") in
     (Log__writeHdr (![ptrT] "log")) "$a0");;;
-    let: "$r0" := ![uint64T] "memnxt" in
+    let: "$r0" := (![uint64T] "memnxt") in
     do:  ((![ptrT] (struct.field_ref Log "logTxnNxt" "log")) <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "logLock" "log"))) #())).
 
 (* go: logging2.go:142:16 *)
 Definition Log__Logger : val :=
   rec: "Log__Logger" "log" <> :=
-    exception_do (let: "log" := ref_ty Log "log" in
+    exception_do (let: "log" := (ref_ty Log "log") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       do:  ((Log__diskAppend (![ptrT] "log")) #()))).
 
 (* go: logging2.go:51:16 *)
 Definition Log__readBlocks : val :=
   rec: "Log__readBlocks" "log" "len" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "len" := ref_ty uint64T "len" in
-    let: "blks" := ref_ty (sliceT (sliceT byteT)) (slice.make2 (sliceT byteT) #0) in
-    (let: "i" := ref_ty uint64T (zero_val uint64T) in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "len" := (ref_ty uint64T "len") in
+    let: "blks" := (ref_ty (sliceT (sliceT byteT)) (slice.make2 (sliceT byteT) #0)) in
+    (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #0 in
     do:  ("i" <-[uint64T] "$r0");;;
     (for: (λ: <>, (![uint64T] "i") < (![uint64T] "len")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
-      let: "blk" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-      let: "$r0" := let: "$a0" := LOGSTART + (![uint64T] "i") in
-      disk.Read "$a0" in
+      let: "blk" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+      let: "$r0" := (let: "$a0" := (LOGSTART + (![uint64T] "i")) in
+      disk.Read "$a0") in
       do:  ("blk" <-[sliceT byteT] "$r0");;;
-      let: "$r0" := let: "$a0" := ![sliceT (sliceT byteT)] "blks" in
-      let: "$a1" := (let: "$sl0" := ![sliceT byteT] "blk" in
-      slice.literal (sliceT byteT) ["$sl0"]) in
-      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1" in
+      let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] "blks") in
+      let: "$a1" := ((let: "$sl0" := (![sliceT byteT] "blk") in
+      slice.literal (sliceT byteT) ["$sl0"])) in
+      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1") in
       do:  ("blks" <-[sliceT (sliceT byteT)] "$r0")));;;
     return: (![sliceT (sliceT byteT)] "blks")).
 
 (* go: logging2.go:60:16 *)
 Definition Log__Read : val :=
   rec: "Log__Read" "log" <> :=
-    exception_do (let: "log" := ref_ty Log "log" in
+    exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
-    let: "disklen" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := (Log__readHdr (![ptrT] "log")) #() in
+    let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := ((Log__readHdr (![ptrT] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
-    let: "blks" := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT))) in
-    let: "$r0" := let: "$a0" := ![uint64T] "disklen" in
-    (Log__readBlocks (![ptrT] "log")) "$a0" in
+    let: "blks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
+    let: "$r0" := (let: "$a0" := (![uint64T] "disklen") in
+    (Log__readBlocks (![ptrT] "log")) "$a0") in
     do:  ("blks" <-[sliceT (sliceT byteT)] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     return: (![sliceT (sliceT byteT)] "blks")).
@@ -222,19 +225,20 @@ Definition Log__Read : val :=
 (* go: logging2.go:68:16 *)
 Definition Log__memWrite : val :=
   rec: "Log__memWrite" "log" "l" :=
-    exception_do (let: "log" := ref_ty Log "log" in
-    let: "l" := ref_ty (sliceT (sliceT byteT)) "l" in
-    let: "n" := ref_ty uint64T (zero_val uint64T) in
-    let: "$r0" := slice.len (![sliceT (sliceT byteT)] "l") in
+    exception_do (let: "log" := (ref_ty Log "log") in
+    let: "l" := (ref_ty (sliceT (sliceT byteT)) "l") in
+    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
+    slice.len "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
-    (let: "i" := ref_ty uint64T (zero_val uint64T) in
+    (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #0 in
     do:  ("i" <-[uint64T] "$r0");;;
     (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
-      let: "$r0" := let: "$a0" := ![sliceT (sliceT byteT)] (![ptrT] (struct.field_ref Log "memLog" "log")) in
-      let: "$a1" := (let: "$sl0" := ![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i")) in
-      slice.literal (sliceT byteT) ["$sl0"]) in
-      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1" in
+      let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] (![ptrT] (struct.field_ref Log "memLog" "log"))) in
+      let: "$a1" := ((let: "$sl0" := (![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i"))) in
+      slice.literal (sliceT byteT) ["$sl0"])) in
+      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1") in
       do:  ((![ptrT] (struct.field_ref Log "memLog" "log")) <-[sliceT (sliceT byteT)] "$r0")))).
 
 Definition Log__mset : list (string * val) := [
@@ -270,9 +274,9 @@ Definition Log__mset_ptr : list (string * val) := [
 (* go: logging2.go:31:6 *)
 Definition Init : val :=
   rec: "Init" "logSz" :=
-    exception_do (let: "logSz" := ref_ty uint64T "logSz" in
-    let: "log" := ref_ty Log (zero_val Log) in
-    let: "$r0" := struct.make Log [{
+    exception_do (let: "logSz" := (ref_ty uint64T "logSz") in
+    let: "log" := (ref_ty Log (zero_val Log)) in
+    let: "$r0" := (struct.make Log [{
       "logLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
       "memLock" ::= ref_ty sync.Mutex (zero_val sync.Mutex);
       "logSz" ::= ![uint64T] "logSz";
@@ -280,7 +284,7 @@ Definition Init : val :=
       "memLen" ::= ref_ty uint64T (zero_val uint64T);
       "memTxnNxt" ::= ref_ty uint64T (zero_val uint64T);
       "logTxnNxt" ::= ref_ty uint64T (zero_val uint64T)
-    }] in
+    }]) in
     do:  ("log" <-[Log] "$r0");;;
     do:  (let: "$a0" := #0 in
     (Log__writeHdr (![ptrT] "log")) "$a0");;;
@@ -294,30 +298,30 @@ Definition Txn : go_type := structT [
 (* go: txn.go:47:16 *)
 Definition Txn__Commit : val :=
   rec: "Txn__Commit" "txn" <> :=
-    exception_do (let: "txn" := ref_ty Txn "txn" in
-    let: "blks" := ref_ty ptrT (zero_val ptrT) in
-    let: "$r0" := ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT))) in
+    exception_do (let: "txn" := (ref_ty Txn "txn") in
+    let: "blks" := (ref_ty ptrT (zero_val ptrT)) in
+    let: "$r0" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
     do:  ("blks" <-[ptrT] "$r0");;;
     do:  (map.for_range (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (λ: <> "v",
-      let: "$r0" := let: "$a0" := ![sliceT (sliceT byteT)] (![ptrT] "blks") in
-      let: "$a1" := (let: "$sl0" := ![sliceT byteT] "v" in
-      slice.literal (sliceT byteT) ["$sl0"]) in
-      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1" in
+      let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] (![ptrT] "blks")) in
+      let: "$a1" := ((let: "$sl0" := (![sliceT byteT] "v") in
+      slice.literal (sliceT byteT) ["$sl0"])) in
+      (slice.append (sliceT (sliceT byteT))) "$a0" "$a1") in
       do:  ((![ptrT] "blks") <-[sliceT (sliceT byteT)] "$r0")));;;
-    let: "ok" := ref_ty boolT (zero_val boolT) in
-    let: "$r0" := let: "$a0" := ![sliceT (sliceT byteT)] (![ptrT] "blks") in
-    (Log__Append (![ptrT] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0" in
+    let: "ok" := (ref_ty boolT (zero_val boolT)) in
+    let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] (![ptrT] "blks")) in
+    (Log__Append (![ptrT] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0") in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
 (* go: txn.go:38:16 *)
 Definition Txn__Read : val :=
   rec: "Txn__Read" "txn" "addr" :=
-    exception_do (let: "txn" := ref_ty Txn "txn" in
-    let: "addr" := ref_ty uint64T "addr" in
-    let: "ok" := ref_ty boolT (zero_val boolT) in
-    let: "v" := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: ("$ret0", "$ret1") := map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr") in
+    exception_do (let: "txn" := (ref_ty Txn "txn") in
+    let: "addr" := (ref_ty uint64T "addr") in
+    let: "ok" := (ref_ty boolT (zero_val boolT)) in
+    let: "v" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("v" <-[sliceT byteT] "$r0");;;
@@ -325,26 +329,26 @@ Definition Txn__Read : val :=
     (if: ![boolT] "ok"
     then return: (![sliceT byteT] "v")
     else
-      return: (let: "$a0" := (![uint64T] "addr") + LOGEND in
+      return: (let: "$a0" := ((![uint64T] "addr") + LOGEND) in
        disk.Read "$a0"))).
 
 (* go: txn.go:21:16 *)
 Definition Txn__Write : val :=
   rec: "Txn__Write" "txn" "addr" "blk" :=
-    exception_do (let: "txn" := ref_ty Txn "txn" in
-    let: "blk" := ref_ty ptrT "blk" in
-    let: "addr" := ref_ty uint64T "addr" in
-    let: "ret" := ref_ty boolT #true in
-    let: "ok" := ref_ty boolT (zero_val boolT) in
-    let: <> := ref_ty (sliceT byteT) (zero_val (sliceT byteT)) in
-    let: ("$ret0", "$ret1") := map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr") in
+    exception_do (let: "txn" := (ref_ty Txn "txn") in
+    let: "blk" := (ref_ty ptrT "blk") in
+    let: "addr" := (ref_ty uint64T "addr") in
+    let: "ret" := (ref_ty boolT #true) in
+    let: "ok" := (ref_ty boolT (zero_val boolT)) in
+    let: <> := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  "$r0";;;
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      let: "$r0" := ![sliceT byteT] (![ptrT] "blk") in
+      let: "$r0" := (![sliceT byteT] (![ptrT] "blk")) in
       do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr") "$r0")
     else do:  #());;;
     (if: (~ (![boolT] "ok"))
@@ -354,7 +358,7 @@ Definition Txn__Write : val :=
         let: "$r0" := #false in
         do:  ("ret" <-[boolT] "$r0")
       else
-        let: "$r0" := ![sliceT byteT] (![ptrT] "blk") in
+        let: "$r0" := (![sliceT byteT] (![ptrT] "blk")) in
         do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr") "$r0"))
     else do:  #());;;
     return: (![boolT] "ret")).
@@ -376,11 +380,11 @@ Definition Txn__mset_ptr : list (string * val) := [
    go: txn.go:13:6 *)
 Definition Begin : val :=
   rec: "Begin" "log" :=
-    exception_do (let: "log" := ref_ty ptrT "log" in
-    let: "txn" := ref_ty Txn (zero_val Txn) in
-    let: "$r0" := struct.make Txn [{
+    exception_do (let: "log" := (ref_ty ptrT "log") in
+    let: "txn" := (ref_ty Txn (zero_val Txn)) in
+    let: "$r0" := (struct.make Txn [{
       "log" ::= ![ptrT] "log";
       "blks" ::= map.make uint64T (sliceT byteT) #()
-    }] in
+    }]) in
     do:  ("txn" <-[Txn] "$r0");;;
     return: (![Txn] "txn")).
