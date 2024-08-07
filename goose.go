@@ -635,10 +635,6 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	case types.MethodVal:
 		// 2*2 cases: receiver type could be (T) or (*T), and e.X type
 		// (including embedded fields) could be (T) or (*T).
-		funcSig, ok := selection.Type().(*types.Signature)
-		if !ok {
-			ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
-		}
 
 		index, curType := selection.Index(), selection.Recv()
 		fnIndex, index := index[len(index)-1], index[:len(index)-1]
@@ -683,22 +679,52 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
 			}
 			m := glang.TypeMethod(ctx.qualifiedName(t.Obj()), t.Method(fnIndex).Name())
-			ctx.dep.addDep(m)
+
+			// check for recursive call
+			var f glang.Expr
+			if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(e.Pos()) {
+				f = glang.IdentExpr(m)
+			} else {
+				f = glang.GallinaIdent(m)
+				ctx.dep.addDep(m)
+			}
+
+			// XXX: The following line does not give the same result as
+			// `funcSig2, ok := selection.Type().(*types.Signature)`
+			// The latter seems has a different receiver type. It seems to rely
+			// on the method set of a struct already including the methods of its embedded fields.
+			funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
+			if !ok {
+				ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
+			}
 
 			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				return glang.NewCallExpr(glang.GallinaIdent(m), expr)
+				return glang.NewCallExpr(f, expr)
 			} else {
-				return glang.NewCallExpr(glang.GallinaIdent(m), glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)})
+				// ctx.unsupported(e, "%v", funcSig)
+				return glang.NewCallExpr(f, glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)})
 			}
 		} else if t, ok := types.Unalias(curType).(*types.Named); ok {
 			var typeName = ctx.qualifiedName(t.Obj())
 			m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
-			ctx.dep.addDep(m)
+
+			var f glang.Expr
+			if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(e.Pos()) {
+				f = glang.IdentExpr(m)
+			} else {
+				f = glang.GallinaIdent(m)
+				ctx.dep.addDep(m)
+			}
+
+			funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
+			if !ok {
+				ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
+			}
 
 			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				ctx.unsupported(e, "receiver must be pointer, but selectorExpr has non-addressable base")
+				ctx.nope(e, "receiver must be pointer, but selectorExpr has non-addressable base")
 			} else {
-				return glang.NewCallExpr(glang.GallinaIdent(m), expr)
+				return glang.NewCallExpr(f, expr)
 			}
 		}
 		ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", curType)

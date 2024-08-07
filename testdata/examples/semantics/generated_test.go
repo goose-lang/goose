@@ -489,7 +489,7 @@ func (suite *GoTestSuite) TestSliceLiteral() {
 func (suite *GoTestSuite) TestFooBarMutation() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
-	suite.Equal(true, failing_testFooBarMutation())
+	suite.Equal(true, testFooBarMutation())
 }
 
 func (suite *GoTestSuite) TestStructUpdates() {
@@ -550,6 +550,12 @@ func (suite *GoTestSuite) TestSwitchVal() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
 	suite.Equal(true, testSwitchVal())
+}
+
+func (suite *GoTestSuite) TestSwitchMultiple() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSwitchMultiple())
 }
 
 func (suite *GoTestSuite) TestSwitchDefaultTrue() {

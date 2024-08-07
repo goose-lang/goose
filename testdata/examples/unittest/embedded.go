@@ -24,6 +24,14 @@ func (a embedB) Foo() uint64 {
 	return 10
 }
 
+func (a *embedA) Bar() uint64 {
+	return 13
+}
+
+func (a *embedB) Car() uint64 {
+	return 14
+}
+
 func returnEmbedVal() embedB {
 	return embedB{}
 }
@@ -51,4 +59,9 @@ func useEmbeddedValField() uint64 {
 
 func useEmbeddedMethod(d embedD) bool {
 	return d.Foo() == d.embedA.Foo()
+}
+
+func useEmbeddedMethod2(d embedD) bool {
+	d.Car()
+	return d.Bar() == d.embedB.Bar()
 }
