@@ -88,9 +88,27 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 		}
 		if generating[name] {
 			id := declNameToId[name]
+
+			cycleDesc := name
+			printed := make(map[string]bool)
+		OuterLoop:
+			for n := name; ; {
+				for _, d := range ctx.dep.nameToDeps[n] {
+					if generating[d] {
+						if printed[n] {
+							break OuterLoop
+						}
+						printed[n] = true
+						cycleDesc += " -> " + d
+						fmt.Println(cycleDesc)
+						n = d
+					}
+				}
+			}
+
 			errs = append(errs, &ConversionError{
 				Category:    "unsupported",
-				Message:     fmt.Sprintf("cycle in dependencies while generating %s", name),
+				Message:     fmt.Sprintf("cycle in dependencies while generating %s (%v)", name, cycleDesc),
 				GoCode:      "???",
 				GooseCaller: "decls() in interface.go",
 				Position:    ctx.fset.Position(fs[id.fileIdx].Decls[id.declIdx].Pos()),
