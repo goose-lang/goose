@@ -673,21 +673,21 @@ Definition failing_testFunctionOrdering : val :=
     }]) in
     do:  ("e2" <-[Editor] "$r0");;;
     (if: ((let: "$a0" := #2 in
-    (Editor__AdvanceReturn (![ptrT] "e1")) "$a0") + (let: "$a0" := #102 in
-    (Editor__AdvanceReturn (![ptrT] "e2")) "$a0")) ≠ #102
+    (Editor__AdvanceReturn "e1") "$a0") + (let: "$a0" := #102 in
+    (Editor__AdvanceReturn "e2") "$a0")) ≠ #102
     then return: (#false)
     else do:  #());;;
     (if: (![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #0)) ≠ #101
     then return: (#false)
     else do:  #());;;
     (if: (let: "$a0" := (let: "$a0" := #3 in
-    (Editor__AdvanceReturn (![ptrT] "e1")) "$a0") in
+    (Editor__AdvanceReturn "e1") "$a0") in
     let: "$a1" := (let: "$a0" := #103 in
-    (Editor__AdvanceReturn (![ptrT] "e2")) "$a0") in
+    (Editor__AdvanceReturn "e2") "$a0") in
     let: "$a2" := (let: "$a0" := #104 in
-    (Editor__AdvanceReturn (![ptrT] "e2")) "$a0") in
+    (Editor__AdvanceReturn "e2") "$a0") in
     let: "$a3" := (let: "$a0" := #4 in
-    (Editor__AdvanceReturn (![ptrT] "e1")) "$a0") in
+    (Editor__AdvanceReturn "e1") "$a0") in
     addFour64 "$a0" "$a1" "$a2" "$a3") ≠ #210
     then return: (#false)
     else do:  #());;;
@@ -700,9 +700,9 @@ Definition failing_testFunctionOrdering : val :=
     let: "p" := (ref_ty Pair (zero_val Pair)) in
     let: "$r0" := (struct.make Pair [{
       "x" ::= let: "$a0" := #5 in
-      (Editor__AdvanceReturn (![ptrT] "e1")) "$a0";
+      (Editor__AdvanceReturn "e1") "$a0";
       "y" ::= let: "$a0" := #105 in
-      (Editor__AdvanceReturn (![ptrT] "e2")) "$a0"
+      (Editor__AdvanceReturn "e2") "$a0"
     }]) in
     do:  ("p" <-[Pair] "$r0");;;
     (if: (![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #3)) ≠ #104
@@ -711,9 +711,9 @@ Definition failing_testFunctionOrdering : val :=
     let: "q" := (ref_ty Pair (zero_val Pair)) in
     let: "$r0" := (struct.make Pair [{
       "y" ::= let: "$a0" := #6 in
-      (Editor__AdvanceReturn (![ptrT] "e1")) "$a0";
+      (Editor__AdvanceReturn "e1") "$a0";
       "x" ::= let: "$a0" := #106 in
-      (Editor__AdvanceReturn (![ptrT] "e2")) "$a0"
+      (Editor__AdvanceReturn "e2") "$a0"
     }]) in
     do:  ("q" <-[Pair] "$r0");;;
     (if: (![uint64T] (slice.elem_ref uint64T (![sliceT uint64T] "arr") #4)) ≠ #105
@@ -1984,7 +1984,7 @@ Definition Foo__mset : list (string * val) := [
 Definition Foo__mutateBar : val :=
   rec: "Foo__mutateBar" "foo" <> :=
     exception_do (let: "foo" := (ref_ty ptrT "foo") in
-    do:  ((Bar__mutate (![ptrT] (struct.field_ref Foo "bar" (![ptrT] "foo")))) #())).
+    do:  ((Bar__mutate (struct.field_ref Foo "bar" (![ptrT] "foo"))) #())).
 
 Definition Foo__mset_ptr : list (string * val) := [
   ("mutateBar", Foo__mutateBar)
@@ -2001,7 +2001,7 @@ Definition failing_testFooBarMutation : val :=
       }]
     }]) in
     do:  ("x" <-[Foo] "$r0");;;
-    do:  ((Foo__mutateBar (![ptrT] "x")) #());;;
+    do:  ((Foo__mutateBar "x") #());;;
     return: ((![uint64T] (struct.field_ref Bar "a" (struct.field_ref Foo "bar" "x"))) = #2)).
 
 Definition TwoInts : go_type := structT [
@@ -2103,7 +2103,7 @@ Definition testStructUpdates : val :=
     do:  ("ok" <-[boolT] "$r0");;;
     do:  (let: "$a0" := #4 in
     (S__updateBValX (![ptrT] "ns")) "$a0");;;
-    let: "$r0" := ((![boolT] "ok") && ((struct.field_get TwoInts "x" ((S__readBVal (![ptrT] "ns")) #())) = #4)) in
+    let: "$r0" := ((![boolT] "ok") && ((struct.field_get TwoInts "x" ((S__readBVal (![ptrT] (![ptrT] "ns"))) #())) = #4)) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 

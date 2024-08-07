@@ -434,7 +434,14 @@ Definition embedA__mset : list (string * val) := [
   ("Foo", embedA__Foo)
 ].
 
+(* go: embedded.go:27:18 *)
+Definition embedA__Bar : val :=
+  rec: "embedA__Bar" "a" <> :=
+    exception_do (let: "a" := (ref_ty ptrT "a") in
+    return: (#13)).
+
 Definition embedA__mset_ptr : list (string * val) := [
+  ("Bar", embedA__Bar);
   ("Foo", (λ: "r", embedA__Foo (![embedA] "r"))%V)
 ].
 
@@ -452,7 +459,15 @@ Definition embedB__mset : list (string * val) := [
   ("Foo", embedB__Foo)
 ].
 
+(* go: embedded.go:31:18 *)
+Definition embedB__Car : val :=
+  rec: "embedB__Car" "a" <> :=
+    exception_do (let: "a" := (ref_ty ptrT "a") in
+    return: (#14)).
+
 Definition embedB__mset_ptr : list (string * val) := [
+  ("Bar", embedB__Bar);
+  ("Car", embedB__Car);
   ("Foo", (λ: "r", embedB__Foo (![embedB] "r"))%V)
 ].
 
@@ -461,10 +476,14 @@ Definition embedC : go_type := structT [
 ]%struct.
 
 Definition embedC__mset : list (string * val) := [
+  ("Bar", embedC__Bar);
+  ("Car", embedC__Car);
   ("Foo", embedC__Foo)
 ].
 
 Definition embedC__mset_ptr : list (string * val) := [
+  ("Bar", (λ: "r", embedC__Bar (![embedC] "r"))%V);
+  ("Car", (λ: "r", embedC__Car (![embedC] "r"))%V);
   ("Foo", (λ: "r", embedC__Foo (![embedC] "r"))%V)
 ].
 
@@ -473,26 +492,30 @@ Definition embedD : go_type := structT [
 ]%struct.
 
 Definition embedD__mset : list (string * val) := [
+  ("Bar", embedD__Bar);
+  ("Car", embedD__Car);
   ("Foo", embedD__Foo)
 ].
 
 Definition embedD__mset_ptr : list (string * val) := [
+  ("Bar", (λ: "r", embedD__Bar (![embedD] "r"))%V);
+  ("Car", (λ: "r", embedD__Car (![embedD] "r"))%V);
   ("Foo", (λ: "r", embedD__Foo (![embedD] "r"))%V)
 ].
 
-(* go: embedded.go:27:6 *)
+(* go: embedded.go:35:6 *)
 Definition returnEmbedVal : val :=
   rec: "returnEmbedVal" <> :=
     exception_do (return: (struct.make embedB [{
      }])).
 
-(* go: embedded.go:31:6 *)
+(* go: embedded.go:39:6 *)
 Definition returnEmbedValWithPointer : val :=
   rec: "returnEmbedValWithPointer" <> :=
     exception_do (return: (struct.make embedD [{
      }])).
 
-(* go: embedded.go:35:6 *)
+(* go: embedded.go:43:6 *)
 Definition useEmbeddedField : val :=
   rec: "useEmbeddedField" "d" :=
     exception_do (let: "d" := (ref_ty embedD "d") in
@@ -511,7 +534,7 @@ Definition useEmbeddedField : val :=
     do:  ((struct.field_ref embedA "a" (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" (![ptrT] "y")))))) <-[uint64T] "$r0");;;
     return: (![uint64T] "x")).
 
-(* go: embedded.go:46:6 *)
+(* go: embedded.go:54:6 *)
 Definition useEmbeddedValField : val :=
   rec: "useEmbeddedValField" <> :=
     exception_do (let: "x" := (ref_ty uint64T (zero_val uint64T)) in
@@ -521,11 +544,18 @@ Definition useEmbeddedValField : val :=
     do:  ("x" <-[uint64T] "$r0");;;
     return: (![uint64T] "x")).
 
-(* go: embedded.go:52:6 *)
+(* go: embedded.go:60:6 *)
 Definition useEmbeddedMethod : val :=
   rec: "useEmbeddedMethod" "d" :=
     exception_do (let: "d" := (ref_ty embedD "d") in
     return: (((embedB__Foo (![ptrT] (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d"))))) #()) = ((embedA__Foo (![ptrT] (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d")))))) #()))).
+
+(* go: embedded.go:64:6 *)
+Definition useEmbeddedMethod2 : val :=
+  rec: "useEmbeddedMethod2" "d" :=
+    exception_do (let: "d" := (ref_ty embedD "d") in
+    do:  ((embedB__Car (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d")))) #());;;
+    return: (((embedA__Bar (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d"))))) #()) = ((embedA__Bar (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d"))))) #()))).
 
 (* go: empty_functions.go:3:6 *)
 Definition empty : val :=
@@ -1460,9 +1490,54 @@ Definition ReassignVars : val :=
     do:  ("x" <-[uint64T] "$r0")).
 
 (* go: recursive.go:3:6 *)
-Definition f : val :=
-  rec: "f" <> :=
-    exception_do (do:  ("f" #())).
+Definition recur : val :=
+  rec: "recur" <> :=
+    exception_do (do:  ("recur" #())).
+
+Definition R : go_type := structT [
+]%struct.
+
+Definition R__mset : list (string * val) := [
+].
+
+(* go: recursive.go:10:13 *)
+Definition R__recurMethod : val :=
+  rec: "R__recurMethod" "r" <> :=
+    exception_do (let: "r" := (ref_ty ptrT "r") in
+    do:  (("R__recurMethod" (![ptrT] "r")) #())).
+
+Definition R__mset_ptr : list (string * val) := [
+  ("recurMethod", R__recurMethod)
+].
+
+Definition Other : go_type := structT [
+  "RecursiveEmbedded" :: ptrT
+]%struct.
+
+Definition Other__mset : list (string * val) := [
+  ("recurEmbeddedMethod", Other__recurEmbeddedMethod)
+].
+
+Definition Other__mset_ptr : list (string * val) := [
+  ("recurEmbeddedMethod", (λ: "r", Other__recurEmbeddedMethod (![Other] "r"))%V)
+].
+
+Definition RecursiveEmbedded : go_type := structT [
+  "Other" :: Other
+]%struct.
+
+Definition RecursiveEmbedded__mset : list (string * val) := [
+].
+
+(* go: recursive.go:22:29 *)
+Definition RecursiveEmbedded__recurEmbeddedMethod : val :=
+  rec: "RecursiveEmbedded__recurEmbeddedMethod" "r" <> :=
+    exception_do (let: "r" := (ref_ty ptrT "r") in
+    do:  (("RecursiveEmbedded__recurEmbeddedMethod" (![ptrT] (struct.field_ref Other "RecursiveEmbedded" (struct.field_ref RecursiveEmbedded "Other" (![ptrT] "r"))))) #())).
+
+Definition RecursiveEmbedded__mset_ptr : list (string * val) := [
+  ("recurEmbeddedMethod", RecursiveEmbedded__recurEmbeddedMethod)
+].
 
 Definition Block : go_type := structT [
   "Value" :: uint64T
