@@ -12,6 +12,17 @@ func testSwitchVal() bool {
 	}
 }
 
+func testSwitchMultiple() bool {
+	x := uint64(0)
+	switch x {
+	case 10, 1:
+		return false
+	case 0:
+		return true
+	}
+	return false
+}
+
 func testSwitchDefaultTrue() bool {
 	x := uint64(1)
 	switch {

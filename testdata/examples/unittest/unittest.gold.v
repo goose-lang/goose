@@ -1459,6 +1459,11 @@ Definition ReassignVars : val :=
     let: "$r0" := (![uint64T] (struct.field_ref composite "a" "z")) in
     do:  ("x" <-[uint64T] "$r0")).
 
+(* go: recursive.go:3:6 *)
+Definition f : val :=
+  rec: "f" <> :=
+    exception_do (do:  ("f" #())).
+
 Definition Block : go_type := structT [
   "Value" :: uint64T
 ]%struct.

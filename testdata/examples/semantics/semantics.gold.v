@@ -2289,6 +2289,21 @@ Definition testSwitchVal : val :=
       else return: (#false)))).
 
 (* go: switch.go:15:6 *)
+Definition testSwitchMultiple : val :=
+  rec: "testSwitchMultiple" <> :=
+    exception_do (let: "x" := (ref_ty uint64T (zero_val uint64T)) in
+    let: "$r0" := #0 in
+    do:  ("x" <-[uint64T] "$r0");;;
+    let: "$sw" := (![uint64T] "x") in
+    (if: ("$sw" = #1) || ("$sw" = #10)
+    then return: (#false)
+    else
+      (if: "$sw" = #0
+      then return: (#true)
+      else #()));;;
+    return: (#false)).
+
+(* go: switch.go:26:6 *)
 Definition testSwitchDefaultTrue : val :=
   rec: "testSwitchDefaultTrue" <> :=
     exception_do (let: "x" := (ref_ty uint64T (zero_val uint64T)) in
@@ -2308,7 +2323,7 @@ Definition switchConcrete : go_type := structT [
 Definition switchConcrete__mset : list (string * val) := [
 ].
 
-(* go: switch.go:34:26 *)
+(* go: switch.go:45:26 *)
 Definition switchConcrete__marker : val :=
   rec: "switchConcrete__marker" "c" <> :=
     exception_do (let: "c" := (ref_ty ptrT "c") in
@@ -2320,7 +2335,7 @@ Definition switchConcrete__mset_ptr : list (string * val) := [
 
 Definition switchInterface : go_type := interfaceT.
 
-(* go: switch.go:37:6 *)
+(* go: switch.go:48:6 *)
 Definition testSwitchConversion : val :=
   rec: "testSwitchConversion" <> :=
     exception_do (let: "v" := (ref_ty ptrT (zero_val ptrT)) in

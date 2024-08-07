@@ -32,7 +32,7 @@ type Ctx struct {
 
 	// XXX: this is so we can determine the expected return type when handling a
 	// `returnStmt` so the appropriate conversion is inserted
-	curFuncType *ast.FuncType
+	curFuncType *types.Signature
 
 	// Should be set to true when encountering a defer statement in the body of
 	// a function to communicate to its top-level funcDecl that it should
@@ -261,7 +261,8 @@ func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 }
 
 // Deals with the arguments, but does not actually invoke the function. That
-// should be done in the continuation. One can assume the arguments are in `args`.
+// should be done in the continuation. The continuation can assume the arguments
+// are bound to "a0", "$a1", ....
 func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.Expr) {
 	if f, ok := call.Fun.(*ast.Ident); ok {
 		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
@@ -445,6 +446,34 @@ func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
 	return nil, false
 }
 
+func (ctx Ctx) maybeHandleMinMax(s *ast.CallExpr) (glang.Expr, bool) {
+	if !ctx.info.Types[s.Fun].IsBuiltin() {
+		return nil, false
+	}
+
+	sig := ctx.typeOf(s.Fun).(*types.Signature)
+	switch s.Fun.(*ast.Ident).Name {
+	case "min", "max":
+		if sig.Params().Len() < 0 {
+			ctx.nope(s, "min/max with no params")
+		}
+		// figure out the desired type by taking a type join of everything.
+		// XXX: the signature might always be (T, T, T, T, T).
+		var t types.Type = sig.Params().At(0).Type().Underlying()
+		for i := 0; i < sig.Params().Len(); i++ {
+			t = ctx.typeJoin(s, t, sig.Params().At(i).Type())
+		}
+		if types.Identical(t, types.Typ[types.Uint64]) {
+			var args []glang.Expr
+			for _, a := range s.Args {
+				args = append(args, ctx.expr(a))
+			}
+		}
+		ctx.unsupported(s, "%s max with final type %v", s.Fun.(*ast.Ident).Name, t)
+	}
+	return nil, false
+}
+
 func (ctx Ctx) getNumParams(e ast.Expr) int {
 	funcSig, ok := ctx.typeOf(e).Underlying().(*types.Signature)
 	if !ok {
@@ -457,6 +486,8 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
 	} else if e, ok := ctx.maybeHandleMakeAndNew(s); ok {
+		return e
+	} else if e, ok := ctx.maybeHandleMinMax(s); ok {
 		return e
 	} else {
 		var args []glang.Expr
@@ -973,6 +1004,10 @@ func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 }
 
 func (ctx Ctx) function(s *ast.Ident) glang.Expr {
+	fun := ctx.info.Uses[s].(*types.Func)
+	if sc := fun.Scope(); sc != nil && sc.Contains(s.Pos()) {
+		return glang.IdentExpr(s.Name)
+	}
 	ctx.dep.addDep(s.Name)
 	return glang.GallinaIdent(s.Name)
 }
@@ -1075,7 +1110,7 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 	case "panic":
 		return glang.GallinaIdent("Panic")
 	default:
-		ctx.unsupported(e, "special identifier")
+		ctx.unsupported(e, "builtin identifier of type %v", ctx.typeOf(e))
 	}
 	return nil
 }
@@ -1145,7 +1180,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	ctx.usesDefer = new(bool)
 
 	// ctx is by value, so no need to unset this
-	ctx.curFuncType = e.Type
+	ctx.curFuncType = ctx.typeOf(e.Type).(*types.Signature)
 	fl.Args = ctx.paramList(e.Type.Params)
 	// fl.ReturnType = ctx.returnType(d.Type.Results)
 	fl.Body = ctx.blockStmt(e.Body, nil)
@@ -1230,6 +1265,7 @@ func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 	}
 
 	// Get default handler
+	e = glang.Tt
 	for i := len(s.Body.List) - 1; i >= 0; i-- {
 		c := s.Body.List[i].(*ast.CaseClause)
 		if c.List == nil {
@@ -1255,7 +1291,7 @@ func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 			t := ctx.typeOf(y)
 			eqType := ctx.typeJoin(y, t, tagType)
 			cond = glang.BinaryExpr{
-				Op: glang.OpOr,
+				Op: glang.OpLOr,
 				X: glang.BinaryExpr{
 					X:  ctx.handleImplicitConversion(y, tagType, eqType, glang.IdentExpr("$sw")),
 					Op: glang.OpEquals,
@@ -1272,11 +1308,7 @@ func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 		}
 	}
 
-	e = glang.LetExpr{
-		Names:   []string{"$sw"},
-		ValExpr: tagExpr,
-		Cont:    e,
-	}
+	e = glang.LetExpr{Names: []string{"$sw"}, ValExpr: tagExpr, Cont: e}
 
 	if s.Init != nil {
 		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
@@ -1707,9 +1739,10 @@ func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	exprs := make([]glang.Expr, 0, len(s.Results))
 	var expectedReturnTypes []types.Type
-	if ctx.curFuncType.Results != nil {
-		for i := range ctx.curFuncType.Results.List {
-			expectedReturnTypes = append(expectedReturnTypes, ctx.typeOf(ctx.curFuncType.Results.List[i].Type))
+	if ctx.curFuncType.Results() != nil {
+		for i := range ctx.curFuncType.Results().Len() {
+
+			expectedReturnTypes = append(expectedReturnTypes, ctx.curFuncType.Results().At(i).Type())
 		}
 	}
 
@@ -2009,7 +2042,7 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
-		ctx.curFuncType = d.Type
+		ctx.curFuncType = ctx.typeOf(d.Name).(*types.Signature)
 		fd := ctx.funcDecl(d)
 		ctx.curFuncType = nil
 		return []glang.Decl{fd}
