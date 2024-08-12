@@ -1,4 +1,4 @@
-package go_test
+package golang_test
 
 /*
 Tests to demonstrate Go's behavior on various subtle examples.
@@ -225,4 +225,37 @@ func TestGoRecvClosedCheck(t *testing.T) {
 	x, ok := <-c
 	assert.Equal(t, uint64(0), x)
 	assert.False(t, ok, "receive should report channel closed")
+}
+
+type embedA struct {
+	a uint8
+}
+
+func (e embedA) AMethod() {
+	e.a += 1
+}
+
+type embedB struct {
+	embedA
+	b uint8
+}
+
+// XXX: this is not the same as the embedded method `B.AMethod`
+func (e embedB) AMethod2() {
+	e.embedA.AMethod()
+}
+
+func TestDataRace(t *testing.T) {
+	p := new(embedB)
+	go func() {
+		for {
+			p.b += 1
+		}
+	}()
+
+	p.AMethod()
+	(*p).AMethod()
+
+	// XXX: this one causes a data race, but the one above does not
+	// p.AMethod2()
 }

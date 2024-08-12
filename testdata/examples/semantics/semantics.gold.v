@@ -414,7 +414,7 @@ Definition Enc__consume : val :=
     return: (![sliceT byteT] "b")).
 
 Definition Enc__mset_ptr : list (string * val) := [
-  ("consume", Enc__consume)
+  ("consume", Enc__consume%V)
 ].
 
 Definition Dec : go_type := structT [
@@ -439,7 +439,7 @@ Definition Dec__consume : val :=
     return: (![sliceT byteT] "b")).
 
 Definition Dec__mset_ptr : list (string * val) := [
-  ("consume", Dec__consume)
+  ("consume", Dec__consume%V)
 ].
 
 (* go: encoding.go:26:6 *)
@@ -626,7 +626,7 @@ Definition Editor__AdvanceReturn : val :=
     return: (![uint64T] "tmp")).
 
 Definition Editor__mset_ptr : list (string * val) := [
-  ("AdvanceReturn", Editor__AdvanceReturn)
+  ("AdvanceReturn", Editor__AdvanceReturn%V)
 ].
 
 (* we call this function with side-effectful function calls as arguments,
@@ -838,13 +838,17 @@ Definition SquareStruct__Volume : val :=
     return: (((![uint64T] (struct.field_ref SquareStruct "Side" "t")) * (![uint64T] (struct.field_ref SquareStruct "Side" "t"))) * (![uint64T] (struct.field_ref SquareStruct "Side" "t")))).
 
 Definition SquareStruct__mset : list (string * val) := [
-  ("Square", SquareStruct__Square);
-  ("Volume", SquareStruct__Volume)
+  ("Square", SquareStruct__Square%V);
+  ("Volume", SquareStruct__Volume%V)
 ].
 
 Definition SquareStruct__mset_ptr : list (string * val) := [
-  ("Square", (λ: "r", SquareStruct__Square (![SquareStruct] "r"))%V);
-  ("Volume", (λ: "r", SquareStruct__Volume (![SquareStruct] "r"))%V)
+  ("Square", (λ: "$recvAddr",
+    SquareStruct__Square (![SquareStruct] "$recvAddr")
+    )%V);
+  ("Volume", (λ: "$recvAddr",
+    SquareStruct__Volume (![SquareStruct] "$recvAddr")
+    )%V)
 ].
 
 (* go: interfaces.go:40:6 *)
@@ -992,11 +996,13 @@ Definition LoopStruct__forLoopWait : val :=
       continue: #())).
 
 Definition LoopStruct__mset : list (string * val) := [
-  ("forLoopWait", LoopStruct__forLoopWait)
+  ("forLoopWait", LoopStruct__forLoopWait%V)
 ].
 
 Definition LoopStruct__mset_ptr : list (string * val) := [
-  ("forLoopWait", (λ: "r", LoopStruct__forLoopWait (![LoopStruct] "r"))%V)
+  ("forLoopWait", (λ: "$recvAddr",
+    LoopStruct__forLoopWait (![LoopStruct] "$recvAddr")
+    )%V)
 ].
 
 (* tests
@@ -1021,7 +1027,7 @@ Definition testForLoopWait : val :=
     }]) in
     do:  ("ls" <-[LoopStruct] "$r0");;;
     do:  (let: "$a0" := #3 in
-    (LoopStruct__forLoopWait (![ptrT] "ls")) "$a0");;;
+    (LoopStruct__forLoopWait (![LoopStruct] "ls")) "$a0");;;
     return: ((![uint64T] (![ptrT] (struct.field_ref LoopStruct "loopNext" "ls"))) = #4)).
 
 (* go: loops.go:59:6 *)
@@ -1796,7 +1802,7 @@ Definition ArrayEditor__Advance : val :=
     do:  ((struct.field_ref ArrayEditor "s" (![ptrT] "ae")) <-[sliceT uint64T] "$r0")).
 
 Definition ArrayEditor__mset_ptr : list (string * val) := [
-  ("Advance", ArrayEditor__Advance)
+  ("Advance", ArrayEditor__Advance%V)
 ].
 
 (* tests
@@ -1970,7 +1976,7 @@ Definition Bar__mutate : val :=
     do:  ((struct.field_ref Bar "b" (![ptrT] "bar")) <-[uint64T] "$r0")).
 
 Definition Bar__mset_ptr : list (string * val) := [
-  ("mutate", Bar__mutate)
+  ("mutate", Bar__mutate%V)
 ].
 
 Definition Foo : go_type := structT [
@@ -1987,7 +1993,7 @@ Definition Foo__mutateBar : val :=
     do:  ((Bar__mutate (struct.field_ref Foo "bar" (![ptrT] "foo"))) #())).
 
 Definition Foo__mset_ptr : list (string * val) := [
-  ("mutateBar", Foo__mutateBar)
+  ("mutateBar", Foo__mutateBar%V)
 ].
 
 (* go: struct_pointers.go:23:6 *)
@@ -2028,7 +2034,7 @@ Definition S__readBVal : val :=
     return: (![TwoInts] (struct.field_ref S "b" "s"))).
 
 Definition S__mset : list (string * val) := [
-  ("readBVal", S__readBVal)
+  ("readBVal", S__readBVal%V)
 ].
 
 (* go: structs.go:38:13 *)
@@ -2059,11 +2065,13 @@ Definition S__updateBValX : val :=
     do:  ((struct.field_ref TwoInts "x" (struct.field_ref S "b" (![ptrT] "s"))) <-[uint64T] "$r0")).
 
 Definition S__mset_ptr : list (string * val) := [
-  ("negateC", S__negateC);
-  ("readA", S__readA);
-  ("readB", S__readB);
-  ("updateBValX", S__updateBValX);
-  ("readBVal", (λ: "r", S__readBVal (![S] "r"))%V)
+  ("negateC", S__negateC%V);
+  ("readA", S__readA%V);
+  ("readB", S__readB%V);
+  ("readBVal", (λ: "$recvAddr",
+    S__readBVal (![S] "$recvAddr")
+    )%V);
+  ("updateBValX", S__updateBValX%V)
 ].
 
 (* go: structs.go:14:6 *)
@@ -2103,7 +2111,7 @@ Definition testStructUpdates : val :=
     do:  ("ok" <-[boolT] "$r0");;;
     do:  (let: "$a0" := #4 in
     (S__updateBValX (![ptrT] "ns")) "$a0");;;
-    let: "$r0" := ((![boolT] "ok") && ((struct.field_get TwoInts "x" ((S__readBVal (![ptrT] (![ptrT] "ns"))) #())) = #4)) in
+    let: "$r0" := ((![boolT] "ok") && ((struct.field_get TwoInts "x" ((S__readBVal (![S] (![ptrT] "ns"))) #())) = #4)) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -2330,7 +2338,7 @@ Definition switchConcrete__marker : val :=
     do:  #()).
 
 Definition switchConcrete__mset_ptr : list (string * val) := [
-  ("marker", switchConcrete__marker)
+  ("marker", switchConcrete__marker%V)
 ].
 
 Definition switchInterface : go_type := interfaceT.
@@ -2498,7 +2506,7 @@ Definition Log__lock : val :=
 Definition Log__Apply : val :=
   rec: "Log__Apply" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((Log__lock (![ptrT] "l")) #());;;
+    do:  ((Log__lock (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
@@ -2509,7 +2517,7 @@ Definition Log__Apply : val :=
     clearLog "$a0");;;
     let: "$r0" := #0 in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((Log__unlock (![ptrT] "l")) #())).
+    do:  ((Log__unlock (![Log] "l")) #())).
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -2519,16 +2527,16 @@ Definition Log__Apply : val :=
 Definition Log__BeginTxn : val :=
   rec: "Log__BeginTxn" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((Log__lock (![ptrT] "l")) #());;;
+    do:  ((Log__lock (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") = #0
     then
-      do:  ((Log__unlock (![ptrT] "l")) #());;;
+      do:  ((Log__unlock (![Log] "l")) #());;;
       return: (#true)
     else do:  #());;;
-    do:  ((Log__unlock (![ptrT] "l")) #());;;
+    do:  ((Log__unlock (![Log] "l")) #());;;
     return: (#false)).
 
 (* Commit the current transaction.
@@ -2537,11 +2545,11 @@ Definition Log__BeginTxn : val :=
 Definition Log__Commit : val :=
   rec: "Log__Commit" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((Log__lock (![ptrT] "l")) #());;;
+    do:  ((Log__lock (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
-    do:  ((Log__unlock (![ptrT] "l")) #());;;
+    do:  ((Log__unlock (![Log] "l")) #());;;
     let: "header" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (let: "$a0" := (![uint64T] "length") in
     intToBlock "$a0") in
@@ -2559,7 +2567,7 @@ Definition Log__Read : val :=
   rec: "Log__Read" "l" "a" :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((Log__lock (![ptrT] "l")) #());;;
+    do:  ((Log__lock (![Log] "l")) #());;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "v" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Log "cache" "l")) (![uint64T] "a")) in
@@ -2569,10 +2577,10 @@ Definition Log__Read : val :=
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  ((Log__unlock (![ptrT] "l")) #());;;
+      do:  ((Log__unlock (![Log] "l")) #());;;
       return: (![sliceT byteT] "v")
     else do:  #());;;
-    do:  ((Log__unlock (![ptrT] "l")) #());;;
+    do:  ((Log__unlock (![Log] "l")) #());;;
     let: "dv" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (let: "$a0" := (logLength + (![uint64T] "a")) in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0") in
@@ -2596,7 +2604,7 @@ Definition Log__Write : val :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "v" := (ref_ty (sliceT byteT) "v") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((Log__lock (![ptrT] "l")) #());;;
+    do:  ((Log__lock (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
@@ -2622,28 +2630,44 @@ Definition Log__Write : val :=
     do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
     let: "$r0" := ((![uint64T] "length") + #1) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((Log__unlock (![ptrT] "l")) #())).
+    do:  ((Log__unlock (![Log] "l")) #())).
 
 Definition Log__mset : list (string * val) := [
-  ("Apply", Log__Apply);
-  ("BeginTxn", Log__BeginTxn);
-  ("Commit", Log__Commit);
-  ("Read", Log__Read);
-  ("Size", Log__Size);
-  ("Write", Log__Write);
-  ("lock", Log__lock);
-  ("unlock", Log__unlock)
+  ("Apply", Log__Apply%V);
+  ("BeginTxn", Log__BeginTxn%V);
+  ("Commit", Log__Commit%V);
+  ("Read", Log__Read%V);
+  ("Size", Log__Size%V);
+  ("Write", Log__Write%V);
+  ("lock", Log__lock%V);
+  ("unlock", Log__unlock%V)
 ].
 
 Definition Log__mset_ptr : list (string * val) := [
-  ("Apply", (λ: "r", Log__Apply (![Log] "r"))%V);
-  ("BeginTxn", (λ: "r", Log__BeginTxn (![Log] "r"))%V);
-  ("Commit", (λ: "r", Log__Commit (![Log] "r"))%V);
-  ("Read", (λ: "r", Log__Read (![Log] "r"))%V);
-  ("Size", (λ: "r", Log__Size (![Log] "r"))%V);
-  ("Write", (λ: "r", Log__Write (![Log] "r"))%V);
-  ("lock", (λ: "r", Log__lock (![Log] "r"))%V);
-  ("unlock", (λ: "r", Log__unlock (![Log] "r"))%V)
+  ("Apply", (λ: "$recvAddr",
+    Log__Apply (![Log] "$recvAddr")
+    )%V);
+  ("BeginTxn", (λ: "$recvAddr",
+    Log__BeginTxn (![Log] "$recvAddr")
+    )%V);
+  ("Commit", (λ: "$recvAddr",
+    Log__Commit (![Log] "$recvAddr")
+    )%V);
+  ("Read", (λ: "$recvAddr",
+    Log__Read (![Log] "$recvAddr")
+    )%V);
+  ("Size", (λ: "$recvAddr",
+    Log__Size (![Log] "$recvAddr")
+    )%V);
+  ("Write", (λ: "$recvAddr",
+    Log__Write (![Log] "$recvAddr")
+    )%V);
+  ("lock", (λ: "$recvAddr",
+    Log__lock (![Log] "$recvAddr")
+    )%V);
+  ("unlock", (λ: "$recvAddr",
+    Log__unlock (![Log] "$recvAddr")
+    )%V)
 ].
 
 (* New initializes a fresh log
@@ -2735,27 +2759,27 @@ Definition disabled_testWal : val :=
     let: "lg" := (ref_ty Log (zero_val Log)) in
     let: "$r0" := (New #()) in
     do:  ("lg" <-[Log] "$r0");;;
-    (if: (Log__BeginTxn (![ptrT] "lg")) #()
+    (if: (Log__BeginTxn (![Log] "lg")) #()
     then
       do:  (let: "$a0" := #2 in
       let: "$a1" := (let: "$a0" := #11 in
       intToBlock "$a0") in
-      (Log__Write (![ptrT] "lg")) "$a0" "$a1")
+      (Log__Write (![Log] "lg")) "$a0" "$a1")
     else do:  #());;;
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (let: "$a0" := #2 in
-    (Log__Read (![ptrT] "lg")) "$a0") in
+    (Log__Read (![Log] "lg")) "$a0") in
     blockToInt "$a0") = #11)) in
     do:  ("ok" <-[boolT] "$r0");;;
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (let: "$a0" := #0 in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0") in
     blockToInt "$a0") = #0)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    do:  ((Log__Commit (![ptrT] "lg")) #());;;
+    do:  ((Log__Commit (![Log] "lg")) #());;;
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (let: "$a0" := #0 in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "lg"))) "$a0") in
     blockToInt "$a0") = #1)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    do:  ((Log__Apply (![ptrT] "lg")) #());;;
+    do:  ((Log__Apply (![Log] "lg")) #());;;
     let: "$r0" := ((![boolT] "ok") && ((![uint64T] (![ptrT] (struct.field_ref Log "length" "lg"))) = #0)) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).

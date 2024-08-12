@@ -44,7 +44,7 @@ Definition Log__diskAppendWait : val :=
     let: "txn" := (ref_ty uint64T "txn") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "logtxn" := (ref_ty uint64T (zero_val uint64T)) in
-      let: "$r0" := ((Log__readLogTxnNxt (![ptrT] "log")) #()) in
+      let: "$r0" := ((Log__readLogTxnNxt (![Log] "log")) #()) in
       do:  ("logtxn" <-[uint64T] "$r0");;;
       (if: (![uint64T] "txn") < (![uint64T] "logtxn")
       then break: #()
@@ -85,7 +85,7 @@ Definition Log__Append : val :=
     let: "txn" := (ref_ty uint64T (zero_val uint64T)) in
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT (sliceT byteT)] "l") in
-    (Log__memAppend (![ptrT] "log")) "$a0") in
+    (Log__memAppend (![Log] "log")) "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("ok" <-[boolT] "$r0");;;
@@ -93,7 +93,7 @@ Definition Log__Append : val :=
     (if: ![boolT] "ok"
     then
       do:  (let: "$a0" := (![uint64T] "txn") in
-      (Log__diskAppendWait (![ptrT] "log")) "$a0")
+      (Log__diskAppendWait (![Log] "log")) "$a0")
     else do:  #());;;
     return: (![boolT] "ok")).
 
@@ -153,7 +153,7 @@ Definition Log__diskAppend : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((Log__readHdr (![ptrT] "log")) #()) in
+    let: "$r0" := ((Log__readHdr (![Log] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     let: "memlen" := (ref_ty uint64T (zero_val uint64T)) in
@@ -172,9 +172,9 @@ Definition Log__diskAppend : val :=
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     do:  (let: "$a0" := (![sliceT (sliceT byteT)] "blks") in
     let: "$a1" := (![uint64T] "disklen") in
-    (Log__writeBlocks (![ptrT] "log")) "$a0" "$a1");;;
+    (Log__writeBlocks (![Log] "log")) "$a0" "$a1");;;
     do:  (let: "$a0" := (![uint64T] "memlen") in
-    (Log__writeHdr (![ptrT] "log")) "$a0");;;
+    (Log__writeHdr (![Log] "log")) "$a0");;;
     let: "$r0" := (![uint64T] "memnxt") in
     do:  ((![ptrT] (struct.field_ref Log "logTxnNxt" "log")) <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "logLock" "log"))) #())).
@@ -184,7 +184,7 @@ Definition Log__Logger : val :=
   rec: "Log__Logger" "log" <> :=
     exception_do (let: "log" := (ref_ty Log "log") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      do:  ((Log__diskAppend (![ptrT] "log")) #()))).
+      do:  ((Log__diskAppend (![Log] "log")) #()))).
 
 (* go: logging2.go:51:16 *)
 Definition Log__readBlocks : val :=
@@ -213,11 +213,11 @@ Definition Log__Read : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((Log__readHdr (![ptrT] "log")) #()) in
+    let: "$r0" := ((Log__readHdr (![Log] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
     let: "blks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
     let: "$r0" := (let: "$a0" := (![uint64T] "disklen") in
-    (Log__readBlocks (![ptrT] "log")) "$a0") in
+    (Log__readBlocks (![Log] "log")) "$a0") in
     do:  ("blks" <-[sliceT (sliceT byteT)] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     return: (![sliceT (sliceT byteT)] "blks")).
@@ -242,33 +242,57 @@ Definition Log__memWrite : val :=
       do:  ((![ptrT] (struct.field_ref Log "memLog" "log")) <-[sliceT (sliceT byteT)] "$r0")))).
 
 Definition Log__mset : list (string * val) := [
-  ("Append", Log__Append);
-  ("Logger", Log__Logger);
-  ("Read", Log__Read);
-  ("diskAppend", Log__diskAppend);
-  ("diskAppendWait", Log__diskAppendWait);
-  ("memAppend", Log__memAppend);
-  ("memWrite", Log__memWrite);
-  ("readBlocks", Log__readBlocks);
-  ("readHdr", Log__readHdr);
-  ("readLogTxnNxt", Log__readLogTxnNxt);
-  ("writeBlocks", Log__writeBlocks);
-  ("writeHdr", Log__writeHdr)
+  ("Append", Log__Append%V);
+  ("Logger", Log__Logger%V);
+  ("Read", Log__Read%V);
+  ("diskAppend", Log__diskAppend%V);
+  ("diskAppendWait", Log__diskAppendWait%V);
+  ("memAppend", Log__memAppend%V);
+  ("memWrite", Log__memWrite%V);
+  ("readBlocks", Log__readBlocks%V);
+  ("readHdr", Log__readHdr%V);
+  ("readLogTxnNxt", Log__readLogTxnNxt%V);
+  ("writeBlocks", Log__writeBlocks%V);
+  ("writeHdr", Log__writeHdr%V)
 ].
 
 Definition Log__mset_ptr : list (string * val) := [
-  ("Append", (λ: "r", Log__Append (![Log] "r"))%V);
-  ("Logger", (λ: "r", Log__Logger (![Log] "r"))%V);
-  ("Read", (λ: "r", Log__Read (![Log] "r"))%V);
-  ("diskAppend", (λ: "r", Log__diskAppend (![Log] "r"))%V);
-  ("diskAppendWait", (λ: "r", Log__diskAppendWait (![Log] "r"))%V);
-  ("memAppend", (λ: "r", Log__memAppend (![Log] "r"))%V);
-  ("memWrite", (λ: "r", Log__memWrite (![Log] "r"))%V);
-  ("readBlocks", (λ: "r", Log__readBlocks (![Log] "r"))%V);
-  ("readHdr", (λ: "r", Log__readHdr (![Log] "r"))%V);
-  ("readLogTxnNxt", (λ: "r", Log__readLogTxnNxt (![Log] "r"))%V);
-  ("writeBlocks", (λ: "r", Log__writeBlocks (![Log] "r"))%V);
-  ("writeHdr", (λ: "r", Log__writeHdr (![Log] "r"))%V)
+  ("Append", (λ: "$recvAddr",
+    Log__Append (![Log] "$recvAddr")
+    )%V);
+  ("Logger", (λ: "$recvAddr",
+    Log__Logger (![Log] "$recvAddr")
+    )%V);
+  ("Read", (λ: "$recvAddr",
+    Log__Read (![Log] "$recvAddr")
+    )%V);
+  ("diskAppend", (λ: "$recvAddr",
+    Log__diskAppend (![Log] "$recvAddr")
+    )%V);
+  ("diskAppendWait", (λ: "$recvAddr",
+    Log__diskAppendWait (![Log] "$recvAddr")
+    )%V);
+  ("memAppend", (λ: "$recvAddr",
+    Log__memAppend (![Log] "$recvAddr")
+    )%V);
+  ("memWrite", (λ: "$recvAddr",
+    Log__memWrite (![Log] "$recvAddr")
+    )%V);
+  ("readBlocks", (λ: "$recvAddr",
+    Log__readBlocks (![Log] "$recvAddr")
+    )%V);
+  ("readHdr", (λ: "$recvAddr",
+    Log__readHdr (![Log] "$recvAddr")
+    )%V);
+  ("readLogTxnNxt", (λ: "$recvAddr",
+    Log__readLogTxnNxt (![Log] "$recvAddr")
+    )%V);
+  ("writeBlocks", (λ: "$recvAddr",
+    Log__writeBlocks (![Log] "$recvAddr")
+    )%V);
+  ("writeHdr", (λ: "$recvAddr",
+    Log__writeHdr (![Log] "$recvAddr")
+    )%V)
 ].
 
 (* go: logging2.go:31:6 *)
@@ -287,7 +311,7 @@ Definition Init : val :=
     }]) in
     do:  ("log" <-[Log] "$r0");;;
     do:  (let: "$a0" := #0 in
-    (Log__writeHdr (![ptrT] "log")) "$a0");;;
+    (Log__writeHdr (![Log] "log")) "$a0");;;
     return: (![Log] "log")).
 
 Definition Txn : go_type := structT [
@@ -310,7 +334,7 @@ Definition Txn__Commit : val :=
       do:  ((![ptrT] "blks") <-[sliceT (sliceT byteT)] "$r0")));;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] (![ptrT] "blks")) in
-    (Log__Append (![ptrT] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0") in
+    (Log__Append (![Log] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0") in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -364,15 +388,21 @@ Definition Txn__Write : val :=
     return: (![boolT] "ret")).
 
 Definition Txn__mset : list (string * val) := [
-  ("Commit", Txn__Commit);
-  ("Read", Txn__Read);
-  ("Write", Txn__Write)
+  ("Commit", Txn__Commit%V);
+  ("Read", Txn__Read%V);
+  ("Write", Txn__Write%V)
 ].
 
 Definition Txn__mset_ptr : list (string * val) := [
-  ("Commit", (λ: "r", Txn__Commit (![Txn] "r"))%V);
-  ("Read", (λ: "r", Txn__Read (![Txn] "r"))%V);
-  ("Write", (λ: "r", Txn__Write (![Txn] "r"))%V)
+  ("Commit", (λ: "$recvAddr",
+    Txn__Commit (![Txn] "$recvAddr")
+    )%V);
+  ("Read", (λ: "$recvAddr",
+    Txn__Read (![Txn] "$recvAddr")
+    )%V);
+  ("Write", (λ: "$recvAddr",
+    Txn__Write (![Txn] "$recvAddr")
+    )%V)
 ].
 
 (* XXX wait if cannot reserve space in log

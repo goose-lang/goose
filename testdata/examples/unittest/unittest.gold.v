@@ -431,7 +431,7 @@ Definition embedA__Foo : val :=
     return: (#0)).
 
 Definition embedA__mset : list (string * val) := [
-  ("Foo", embedA__Foo)
+  ("Foo", embedA__Foo%V)
 ].
 
 (* go: embedded.go:27:18 *)
@@ -441,8 +441,10 @@ Definition embedA__Bar : val :=
     return: (#13)).
 
 Definition embedA__mset_ptr : list (string * val) := [
-  ("Bar", embedA__Bar);
-  ("Foo", (λ: "r", embedA__Foo (![embedA] "r"))%V)
+  ("Bar", embedA__Bar%V);
+  ("Foo", (λ: "$recvAddr",
+    embedA__Foo (![embedA] "$recvAddr")
+    )%V)
 ].
 
 Definition embedB : go_type := structT [
@@ -456,7 +458,7 @@ Definition embedB__Foo : val :=
     return: (#10)).
 
 Definition embedB__mset : list (string * val) := [
-  ("Foo", embedB__Foo)
+  ("Foo", embedB__Foo%V)
 ].
 
 (* go: embedded.go:31:18 *)
@@ -466,9 +468,13 @@ Definition embedB__Car : val :=
     return: (#14)).
 
 Definition embedB__mset_ptr : list (string * val) := [
-  ("Bar", embedB__Bar);
-  ("Car", embedB__Car);
-  ("Foo", (λ: "r", embedB__Foo (![embedB] "r"))%V)
+  ("Bar", (λ: "$recvAddr",
+    embedA__Bar (struct.field_ref embedB "embedA" "$recvAddr")
+    )%V);
+  ("Car", embedB__Car%V);
+  ("Foo", (λ: "$recvAddr",
+    embedB__Foo (![embedB] "$recvAddr")
+    )%V)
 ].
 
 Definition embedC : go_type := structT [
@@ -476,15 +482,27 @@ Definition embedC : go_type := structT [
 ]%struct.
 
 Definition embedC__mset : list (string * val) := [
-  ("Bar", embedC__Bar);
-  ("Car", embedC__Car);
-  ("Foo", embedC__Foo)
+  ("Bar", (λ: "$recv",
+    embedA__Bar (struct.field_ref embedB "embedA" (struct.field_get embedC "embedB" "$recv"))
+    )%V);
+  ("Car", (λ: "$recv",
+    embedB__Car (struct.field_get embedC "embedB" "$recv")
+    )%V);
+  ("Foo", (λ: "$recv",
+    embedB__Foo (![embedB] (struct.field_get embedC "embedB" "$recv"))
+    )%V)
 ].
 
 Definition embedC__mset_ptr : list (string * val) := [
-  ("Bar", (λ: "r", embedC__Bar (![embedC] "r"))%V);
-  ("Car", (λ: "r", embedC__Car (![embedC] "r"))%V);
-  ("Foo", (λ: "r", embedC__Foo (![embedC] "r"))%V)
+  ("Bar", (λ: "$recvAddr",
+    embedA__Bar (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" "$recvAddr")))
+    )%V);
+  ("Car", (λ: "$recvAddr",
+    embedB__Car (![ptrT] (struct.field_ref embedC "embedB" "$recvAddr"))
+    )%V);
+  ("Foo", (λ: "$recvAddr",
+    embedB__Foo (![embedB] (![ptrT] (struct.field_ref embedC "embedB" "$recvAddr")))
+    )%V)
 ].
 
 Definition embedD : go_type := structT [
@@ -492,15 +510,27 @@ Definition embedD : go_type := structT [
 ]%struct.
 
 Definition embedD__mset : list (string * val) := [
-  ("Bar", embedD__Bar);
-  ("Car", embedD__Car);
-  ("Foo", embedD__Foo)
+  ("Bar", (λ: "$recv",
+    embedA__Bar (struct.field_ref embedB "embedA" (struct.field_get embedC "embedB" (struct.field_get embedD "embedC" "$recv")))
+    )%V);
+  ("Car", (λ: "$recv",
+    embedB__Car (struct.field_get embedC "embedB" (struct.field_get embedD "embedC" "$recv"))
+    )%V);
+  ("Foo", (λ: "$recv",
+    embedB__Foo (![embedB] (struct.field_get embedC "embedB" (struct.field_get embedD "embedC" "$recv")))
+    )%V)
 ].
 
 Definition embedD__mset_ptr : list (string * val) := [
-  ("Bar", (λ: "r", embedD__Bar (![embedD] "r"))%V);
-  ("Car", (λ: "r", embedD__Car (![embedD] "r"))%V);
-  ("Foo", (λ: "r", embedD__Foo (![embedD] "r"))%V)
+  ("Bar", (λ: "$recvAddr",
+    embedA__Bar (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "$recvAddr"))))
+    )%V);
+  ("Car", (λ: "$recvAddr",
+    embedB__Car (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "$recvAddr")))
+    )%V);
+  ("Foo", (λ: "$recvAddr",
+    embedB__Foo (![embedB] (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "$recvAddr"))))
+    )%V)
 ].
 
 (* go: embedded.go:35:6 *)
@@ -548,7 +578,7 @@ Definition useEmbeddedValField : val :=
 Definition useEmbeddedMethod : val :=
   rec: "useEmbeddedMethod" "d" :=
     exception_do (let: "d" := (ref_ty embedD "d") in
-    return: (((embedB__Foo (![ptrT] (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d"))))) #()) = ((embedA__Foo (![ptrT] (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d")))))) #()))).
+    return: (((embedB__Foo (![embedB] (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d"))))) #()) = ((embedA__Foo (![embedA] (struct.field_ref embedB "embedA" (![ptrT] (struct.field_ref embedC "embedB" (struct.field_ref embedD "embedC" "d")))))) #()))).
 
 (* go: embedded.go:64:6 *)
 Definition useEmbeddedMethod2 : val :=
@@ -609,9 +639,9 @@ Definition Enc__UInt64 : val :=
     primitive.UInt64Put "$a0" "$a1")).
 
 Definition Enc__mset_ptr : list (string * val) := [
-  ("UInt32", Enc__UInt32);
-  ("UInt64", Enc__UInt64);
-  ("consume", Enc__consume)
+  ("UInt32", Enc__UInt32%V);
+  ("UInt64", Enc__UInt64%V);
+  ("consume", Enc__consume%V)
 ].
 
 Definition Dec : go_type := structT [
@@ -652,9 +682,9 @@ Definition Dec__UInt64 : val :=
      primitive.UInt64Get "$a0")).
 
 Definition Dec__mset_ptr : list (string * val) := [
-  ("UInt32", Dec__UInt32);
-  ("UInt64", Dec__UInt64);
-  ("consume", Dec__consume)
+  ("UInt32", Dec__UInt32%V);
+  ("UInt64", Dec__UInt64%V);
+  ("consume", Dec__consume%V)
 ].
 
 (* go: higher_order.go:3:6 *)
@@ -679,7 +709,7 @@ Definition concreteFooer__Foo : val :=
     do:  #()).
 
 Definition concreteFooer__mset_ptr : list (string * val) := [
-  ("Foo", concreteFooer__Foo)
+  ("Foo", concreteFooer__Foo%V)
 ].
 
 Definition FooerUser : go_type := structT [
@@ -851,7 +881,7 @@ Definition concrete1__Foo : val :=
     do:  #()).
 
 Definition concrete1__mset : list (string * val) := [
-  ("Foo", concrete1__Foo)
+  ("Foo", concrete1__Foo%V)
 ].
 
 (* go: interfaces.go:109:21 *)
@@ -861,8 +891,10 @@ Definition concrete1__B : val :=
     do:  #()).
 
 Definition concrete1__mset_ptr : list (string * val) := [
-  ("B", concrete1__B);
-  ("Foo", (λ: "r", concrete1__Foo (![concrete1] "r"))%V)
+  ("B", concrete1__B%V);
+  ("Foo", (λ: "$recvAddr",
+    concrete1__Foo (![concrete1] "$recvAddr")
+    )%V)
 ].
 
 (* go: interfaces.go:112:6 *)
@@ -1202,8 +1234,7 @@ Definition breakFromLoop : val :=
 Definition clearMap : val :=
   rec: "clearMap" "m" :=
     exception_do (let: "m" := (ref_ty (mapT uint64T uint64T) "m") in
-    do:  (let: "$a0" := (![mapT uint64T uint64T] "m") in
-    primitive.MapClear "$a0")).
+    do:  #()).
 
 (* go: maps.go:9:6 *)
 Definition IterateMapKeys : val :=
@@ -1419,15 +1450,17 @@ Definition wrapExternalStruct : go_type := structT [
 Definition wrapExternalStruct__moveUint64 : val :=
   rec: "wrapExternalStruct__moveUint64" "w" <> :=
     exception_do (let: "w" := (ref_ty wrapExternalStruct "w") in
-    do:  (let: "$a0" := ((marshal.Dec__GetInt (![ptrT] (struct.field_ref wrapExternalStruct "d" "w"))) #()) in
-    (marshal.Enc__PutInt (![ptrT] (struct.field_ref wrapExternalStruct "e" "w"))) "$a0")).
+    do:  (let: "$a0" := ((marshal.Dec__GetInt (![marshal.Dec] (struct.field_ref wrapExternalStruct "d" "w"))) #()) in
+    (marshal.Enc__PutInt (![marshal.Enc] (struct.field_ref wrapExternalStruct "e" "w"))) "$a0")).
 
 Definition wrapExternalStruct__mset : list (string * val) := [
-  ("moveUint64", wrapExternalStruct__moveUint64)
+  ("moveUint64", wrapExternalStruct__moveUint64%V)
 ].
 
 Definition wrapExternalStruct__mset_ptr : list (string * val) := [
-  ("moveUint64", (λ: "r", wrapExternalStruct__moveUint64 (![wrapExternalStruct] "r"))%V)
+  ("moveUint64", (λ: "$recvAddr",
+    wrapExternalStruct__moveUint64 (![wrapExternalStruct] "$recvAddr")
+    )%V)
 ].
 
 (* go: panic.go:3:6 *)
@@ -1507,27 +1540,16 @@ Definition R__recurMethod : val :=
     do:  (("R__recurMethod" (![ptrT] "r")) #())).
 
 Definition R__mset_ptr : list (string * val) := [
-  ("recurMethod", R__recurMethod)
+  ("recurMethod", R__recurMethod%V)
 ].
 
 Definition Other : go_type := structT [
   "RecursiveEmbedded" :: ptrT
 ]%struct.
 
-Definition Other__mset : list (string * val) := [
-  ("recurEmbeddedMethod", Other__recurEmbeddedMethod)
-].
-
-Definition Other__mset_ptr : list (string * val) := [
-  ("recurEmbeddedMethod", (λ: "r", Other__recurEmbeddedMethod (![Other] "r"))%V)
-].
-
 Definition RecursiveEmbedded : go_type := structT [
   "Other" :: Other
 ]%struct.
-
-Definition RecursiveEmbedded__mset : list (string * val) := [
-].
 
 (* go: recursive.go:22:29 *)
 Definition RecursiveEmbedded__recurEmbeddedMethod : val :=
@@ -1535,8 +1557,23 @@ Definition RecursiveEmbedded__recurEmbeddedMethod : val :=
     exception_do (let: "r" := (ref_ty ptrT "r") in
     do:  (("RecursiveEmbedded__recurEmbeddedMethod" (![ptrT] (struct.field_ref Other "RecursiveEmbedded" (struct.field_ref RecursiveEmbedded "Other" (![ptrT] "r"))))) #())).
 
+Definition Other__mset : list (string * val) := [
+  ("recurEmbeddedMethod", (λ: "$recv",
+    RecursiveEmbedded__recurEmbeddedMethod (struct.field_get Other "RecursiveEmbedded" "$recv")
+    )%V)
+].
+
+Definition Other__mset_ptr : list (string * val) := [
+  ("recurEmbeddedMethod", (λ: "$recvAddr",
+    RecursiveEmbedded__recurEmbeddedMethod (![ptrT] (struct.field_ref Other "RecursiveEmbedded" "$recvAddr"))
+    )%V)
+].
+
+Definition RecursiveEmbedded__mset : list (string * val) := [
+].
+
 Definition RecursiveEmbedded__mset_ptr : list (string * val) := [
-  ("recurEmbeddedMethod", RecursiveEmbedded__recurEmbeddedMethod)
+  ("recurEmbeddedMethod", RecursiveEmbedded__recurEmbeddedMethod%V)
 ].
 
 Definition Block : go_type := structT [
@@ -1737,11 +1774,13 @@ Definition sliceOfThings__getThingRef : val :=
     return: (slice.elem_ref thing (![sliceT thing] (struct.field_ref sliceOfThings "things" "ts")) (![uint64T] "i"))).
 
 Definition sliceOfThings__mset : list (string * val) := [
-  ("getThingRef", sliceOfThings__getThingRef)
+  ("getThingRef", sliceOfThings__getThingRef%V)
 ].
 
 Definition sliceOfThings__mset_ptr : list (string * val) := [
-  ("getThingRef", (λ: "r", sliceOfThings__getThingRef (![sliceOfThings] "r"))%V)
+  ("getThingRef", (λ: "$recvAddr",
+    sliceOfThings__getThingRef (![sliceOfThings] "$recvAddr")
+    )%V)
 ].
 
 (* go: slices.go:30:6 *)
@@ -1850,13 +1889,17 @@ Definition Point__GetField : val :=
     return: ((![uint64T] "x") + (![uint64T] "y"))).
 
 Definition Point__mset : list (string * val) := [
-  ("Add", Point__Add);
-  ("GetField", Point__GetField)
+  ("Add", Point__Add%V);
+  ("GetField", Point__GetField%V)
 ].
 
 Definition Point__mset_ptr : list (string * val) := [
-  ("Add", (λ: "r", Point__Add (![Point] "r"))%V);
-  ("GetField", (λ: "r", Point__GetField (![Point] "r"))%V)
+  ("Add", (λ: "$recvAddr",
+    Point__Add (![Point] "$recvAddr")
+    )%V);
+  ("GetField", (λ: "$recvAddr",
+    Point__GetField (![Point] "$recvAddr")
+    )%V)
 ].
 
 (* go: struct_method.go:18:6 *)
@@ -1870,7 +1913,7 @@ Definition UseAdd : val :=
     do:  ("c" <-[Point] "$r0");;;
     let: "r" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := #4 in
-    (Point__Add (![ptrT] "c")) "$a0") in
+    (Point__Add (![Point] "c")) "$a0") in
     do:  ("r" <-[uint64T] "$r0");;;
     return: (![uint64T] "r")).
 
@@ -1910,7 +1953,7 @@ Definition S__readBVal : val :=
     return: (![TwoInts] (struct.field_ref S "b" "s"))).
 
 Definition S__mset : list (string * val) := [
-  ("readBVal", S__readBVal)
+  ("readBVal", S__readBVal%V)
 ].
 
 (* go: struct_pointers.go:38:13 *)
@@ -1947,12 +1990,14 @@ Definition S__writeB : val :=
     do:  ((struct.field_ref S "b" (![ptrT] "s")) <-[TwoInts] "$r0")).
 
 Definition S__mset_ptr : list (string * val) := [
-  ("negateC", S__negateC);
-  ("readA", S__readA);
-  ("readB", S__readB);
-  ("refC", S__refC);
-  ("writeB", S__writeB);
-  ("readBVal", (λ: "r", S__readBVal (![S] "r"))%V)
+  ("negateC", S__negateC%V);
+  ("readA", S__readA%V);
+  ("readB", S__readB%V);
+  ("readBVal", (λ: "$recvAddr",
+    S__readBVal (![S] "$recvAddr")
+    )%V);
+  ("refC", S__refC%V);
+  ("writeB", S__writeB%V)
 ].
 
 (* go: struct_pointers.go:14:6 *)
