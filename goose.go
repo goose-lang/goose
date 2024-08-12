@@ -152,49 +152,68 @@ func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 	typeName := t.Obj().Name()
 
-	// Don't try to generate msets for interfaces, since we'll never have to
-	// call `interface.make` on it.
+	// Don't try to generate msets for interfaces, since Goosed code will never
+	// have to call `interface.make` on it.
 	if _, ok := t.Underlying().(*types.Interface); ok {
 		return nil
 	}
 
 	directMethods := make(map[string]bool)
 	// construct method set for T
-	mset := glang.MethodSetDecl{TypeName: typeName}
+	mset := glang.MethodSetDecl{DeclName: fmt.Sprintf("%s__mset", typeName)}
+	msetPtr := glang.MethodSetDecl{DeclName: fmt.Sprintf("%s__mset_ptr", typeName)}
 	func() {
 		_, defName := mset.DefName()
 		ctx.dep.setCurrentName(defName)
 		defer ctx.dep.unsetCurrentName()
 
 		goMset := types.NewMethodSet(t)
-
 		for i := range goMset.Len() {
-			name := goMset.At(i).Obj().Name()
+			selection := goMset.At(i)
+
+			var expr glang.Expr
+			if len(selection.Index()) > 1 {
+				expr = glang.IdentExpr("$recv")
+				expr = ctx.selectionMethod(false, expr, selection, t.Obj())
+				expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr}
+			} else {
+				n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
+				expr = glang.GallinaIdent(n)
+				ctx.dep.addDep(n)
+			}
+
+			name := selection.Obj().Name()
 			directMethods[name] = true
-			mset.Methods = append(mset.Methods, name)
-			ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), name))
+			mset.MethodNames = append(mset.MethodNames, name)
+			mset.Methods = append(mset.Methods, expr)
 		}
 	}()
 
 	// construct method set for *T
-	msetPtr := glang.MethodPtrSetDecl{TypeName: typeName}
-	func() {
-		_, defName := msetPtr.DefName()
-		ctx.dep.setCurrentName(defName)
-		defer ctx.dep.unsetCurrentName()
+	_, defName := msetPtr.DefName()
+	ctx.dep.setCurrentName(defName)
+	defer ctx.dep.unsetCurrentName()
 
-		goMsetPtr := types.NewMethodSet(types.NewPointer(t))
+	goMsetPtr := types.NewMethodSet(types.NewPointer(t))
+	for i := range goMsetPtr.Len() {
+		selection := goMsetPtr.At(i)
 
-		for i := range goMsetPtr.Len() {
-			name := goMsetPtr.At(i).Obj().Name()
-			if directMethods[name] {
-				msetPtr.Methods = append(msetPtr.Methods, name)
-			} else {
-				msetPtr.PtrMethods = append(msetPtr.PtrMethods, name)
-			}
-			ctx.dep.addDep(glang.TypeMethod(t.Obj().Name(), name))
+		var expr glang.Expr
+
+		if len(selection.Index()) == 1 && !directMethods[selection.Obj().Name()] {
+			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
+			expr = glang.GallinaIdent(n)
+			ctx.dep.addDep(n)
+		} else {
+			expr = glang.IdentExpr("$recvAddr")
+			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
+			expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvAddr"}}, Body: expr}
 		}
-	}()
+
+		name := goMsetPtr.At(i).Obj().Name()
+		msetPtr.MethodNames = append(msetPtr.MethodNames, name)
+		msetPtr.Methods = append(msetPtr.Methods, expr)
+	}
 
 	return []glang.Decl{mset, msetPtr}
 }
@@ -546,19 +565,20 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	panic("unreachable")
 }
 
-// Requires that `baseExpr` be a `struct.val ...`. This walks down the selection
-// specified by `index` up until it sees a pointer field, then returns. Its
-// intent is to be combined with fieldAddrSelection to go the rest of the way.
-// If len(index) > 0, then curType is set so that `(*expr)` is a GooseLang
-// memory address pointing to a `(*curType)`.
-func (ctx Ctx) fieldSelection(n ast.Node, index *[]int, curType *types.Type, expr *glang.Expr) {
+// Requires that `old(expr) : old(curType)` and that `old(curType)` be a struct
+// type. This walks down the selection specified by `index` up until it sees a
+// pointer field, then returns. Its intent is to be combined with
+// fieldAddrSelection to go the rest of the way.
+//
+// If len(index) > 0, then `expr : ptr<curType>`.
+// If len(index) == 0, then `expr : curType`.
+func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, expr *glang.Expr) {
 	for ; len(*index) > 0; *index = (*index)[1:] {
 		i := (*index)[0]
 		info, ok := ctx.getStructInfo(*curType)
 		if !ok {
 			ctx.nope(n, "expected (pointer to) struct type for base of selector, got %s", *curType)
 		}
-		ctx.dep.addDep(info.name)
 
 		if info.throughPointer {
 			// XXX: this is to feed into fieldAddrSelection (see comment above this func).
@@ -568,17 +588,16 @@ func (ctx Ctx) fieldSelection(n ast.Node, index *[]int, curType *types.Type, exp
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
 			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
+		ctx.dep.addDep(info.name)
 		*curType = v.Type()
 	}
 	return
 }
 
-// Requires that `(*expr)` be be a GooseLang address pointing to
-// `goose(*curType)`. This walks down the selection specified by `index` all the
-// way to the end,
-// returning an expression
-// representing the address of that selected field.
-func (ctx Ctx) fieldAddrSelection(n ast.Node, index []int, curType *types.Type, expr *glang.Expr) {
+// Requires `old(expr) : ptr<old(curType)>`.
+// This walks down the selection specified by `index` all the way to the end,
+// returning an expression representing the address of that selected field.
+func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type, expr *glang.Expr) {
 	for _, i := range index {
 		info, ok := ctx.getStructInfo(*curType)
 		ctx.dep.addDep(info.name)
@@ -598,6 +617,108 @@ func (ctx Ctx) fieldAddrSelection(n ast.Node, index []int, curType *types.Type, 
 		*curType = v.Type()
 	}
 	return
+}
+
+// requires `!addressable -> (expr : selection.Recv())`
+// requires `addressable -> (expr : ptr<selection.Recv()>)`
+func (ctx Ctx) selectionMethod(addressable bool, expr glang.Expr,
+	selection *types.Selection, l locatable) glang.Expr {
+
+	index, curType := selection.Index(), selection.Recv()
+	fnIndex, index := index[len(index)-1], index[:len(index)-1]
+
+	if !addressable {
+		ctx.fieldSelection(l, &index, &curType, &expr)
+	}
+	if addressable || len(index) > 0 {
+		ctx.fieldAddrSelection(l, index, &curType, &expr)
+		// expr : ptrT<curType>
+		if _, ok := types.Unalias(curType).(*types.Pointer); ok {
+			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(l, curType)}
+		} else {
+			curType = types.NewPointer(curType)
+		}
+	}
+	// now, (expr : curType), and there's no deref unless it's unavoidale.
+
+	// At this point, (expr : curType), and (curType = ptr<named>) if the
+	// original expression is an address or is addressable, and (curType =
+	// named) otherwise.
+	if info, ok := ctx.getInterfaceInfo(curType); ok {
+		if info.throughPointer {
+			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(l, curType.(*types.Pointer).Elem())}
+		}
+		return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
+			glang.GallinaString(info.interfaceType.Method(fnIndex).Name()), expr,
+		)
+	}
+
+	if pointerT, ok := types.Unalias(curType).(*types.Pointer); ok {
+		// FIXME: the unaliased version might be preferred for consistent
+		// naming, but that breaks the way `prophId` works in `primitive` at the
+		// moment.
+		// t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
+		t, ok := pointerT.Elem().(*types.Named)
+		if !ok {
+			ctx.nope(l, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
+		}
+		m := glang.TypeMethod(ctx.qualifiedName(t.Obj()), t.Method(fnIndex).Name())
+		fmt.Println(ctx.qualifiedName(t.Obj()))
+
+		// check for recursive call
+		var f glang.Expr
+		if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(l.Pos()) {
+			f = glang.IdentExpr(m)
+		} else {
+			f = glang.GallinaIdent(m)
+			ctx.dep.addDep(m)
+		}
+
+		// XXX: The following line does not give the same result as
+		// `funcSig2, ok := selection.Type().(*types.Signature)`
+		// The latter seems has a different receiver type. It seems to rely
+		// on the method set of a struct already including the methods of its embedded fields.
+		funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
+		if !ok {
+			ctx.nope(l, "func should have signature type, got %s", t.Method(fnIndex).Type())
+		}
+
+		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+			return glang.NewCallExpr(f, expr)
+		} else {
+			// ctx.unsupported(e, "%v", funcSig)
+			return glang.NewCallExpr(f, glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)})
+		}
+	} else if t, ok := curType.(*types.Named); ok {
+		// else if t, ok := types.Unalias(curType).(*types.Named); ok {
+		// FIXME: the unaliased version might be preferred for consistent
+		// naming, but that breaks the way `prophId` works in `primitive` at the
+		// moment.
+		var typeName = ctx.qualifiedName(t.Obj())
+		fmt.Println(typeName)
+		m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
+
+		var f glang.Expr
+		if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(l.Pos()) {
+			f = glang.IdentExpr(m)
+		} else {
+			f = glang.GallinaIdent(m)
+			ctx.dep.addDep(m)
+		}
+
+		funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
+		if !ok {
+			ctx.nope(l, "func should have signature type, got %s", t.Method(fnIndex).Type())
+		}
+
+		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
+			ctx.nope(l, "receiver must be pointer, but selectorExpr has non-addressable base")
+		} else {
+			return glang.NewCallExpr(f, expr)
+		}
+	}
+	ctx.nope(l, "methods can only be called on (pointers to) defined types, not %s", curType)
+	return nil
 }
 
 func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
@@ -636,98 +757,11 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		// 2*2 cases: receiver type could be (T) or (*T), and e.X type
 		// (including embedded fields) could be (T) or (*T).
 
-		index, curType := selection.Index(), selection.Recv()
-		fnIndex, index := index[len(index)-1], index[:len(index)-1]
-		var expr glang.Expr
-
 		if ctx.info.Types[e.X].Addressable() {
-			expr = ctx.exprAddr(e.X)
-			ctx.fieldAddrSelection(e.X, index, &curType, &expr)
-			// expr : ptrT<curType>
-			if _, ok := types.Unalias(curType).(*types.Pointer); ok {
-				expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)}
-			} else {
-				curType = types.NewPointer(curType)
-			}
-			// now, (expr : curType), and there's no deref unless it's unavoidale.
+			return ctx.selectionMethod(true, ctx.exprAddr(e.X), selection, e)
 		} else {
-			expr = ctx.expr(e.X)
-			ctx.fieldSelection(e.X, &index, &curType, &expr)
-			if len(index) > 0 {
-				ctx.fieldAddrSelection(e.X, index, &curType, &expr)
-				// same as the addressable case above
-				if _, ok := types.Unalias(curType).(*types.Pointer); ok {
-					expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)}
-				} else {
-					curType = types.NewPointer(curType)
-				}
-			}
+			return ctx.selectionMethod(false, ctx.expr(e.X), selection, e)
 		}
-
-		// At this point, (expr : curType), and (curType = ptr<named>) if the
-		// original expression is an address or is addressable, and (curType =
-		// named) otherwise.
-		if _, ok := ctx.getInterfaceInfo(curType); ok {
-			return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
-				glang.GallinaString(e.Sel.Name), ctx.expr(e.X),
-			)
-		}
-
-		if pointerT, ok := types.Unalias(curType).(*types.Pointer); ok {
-			t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
-			if !ok {
-				ctx.nope(e, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
-			}
-			m := glang.TypeMethod(ctx.qualifiedName(t.Obj()), t.Method(fnIndex).Name())
-
-			// check for recursive call
-			var f glang.Expr
-			if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(e.Pos()) {
-				f = glang.IdentExpr(m)
-			} else {
-				f = glang.GallinaIdent(m)
-				ctx.dep.addDep(m)
-			}
-
-			// XXX: The following line does not give the same result as
-			// `funcSig2, ok := selection.Type().(*types.Signature)`
-			// The latter seems has a different receiver type. It seems to rely
-			// on the method set of a struct already including the methods of its embedded fields.
-			funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
-			if !ok {
-				ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
-			}
-
-			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				return glang.NewCallExpr(f, expr)
-			} else {
-				// ctx.unsupported(e, "%v", funcSig)
-				return glang.NewCallExpr(f, glang.DerefExpr{X: expr, Ty: ctx.glangType(e.X, curType)})
-			}
-		} else if t, ok := types.Unalias(curType).(*types.Named); ok {
-			var typeName = ctx.qualifiedName(t.Obj())
-			m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
-
-			var f glang.Expr
-			if sc := t.Method(fnIndex).Scope(); sc != nil && sc.Contains(e.Pos()) {
-				f = glang.IdentExpr(m)
-			} else {
-				f = glang.GallinaIdent(m)
-				ctx.dep.addDep(m)
-			}
-
-			funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
-			if !ok {
-				ctx.nope(e, "func should have signature type, got %s", ctx.typeOf(e.Sel))
-			}
-
-			if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-				ctx.nope(e, "receiver must be pointer, but selectorExpr has non-addressable base")
-			} else {
-				return glang.NewCallExpr(f, expr)
-			}
-		}
-		ctx.nope(e, "methods can only be called on (pointers to) defined types, not %s", curType)
 	}
 
 	panic("unreachable")

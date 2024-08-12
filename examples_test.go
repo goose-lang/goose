@@ -210,6 +210,9 @@ func getExpectedError(pkgDir string) *errorExpectation {
 }
 
 func getFirstConversionError(err error) *goose.ConversionError {
+	if err == nil {
+		panic("Expected error, but got nil")
+	}
 	var cerr *goose.ConversionError
 	var merr goose.MultipleErrors
 	if errors.As(err, &merr) {

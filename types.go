@@ -201,20 +201,24 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 }
 
 type interfaceTypeInfo struct {
-	name          string
-	interfaceType *types.Interface
+	name           string
+	interfaceType  *types.Interface
+	throughPointer bool
 }
 
 func (ctx Ctx) getInterfaceInfo(t types.Type) (interfaceTypeInfo, bool) {
+	throughPointer := false
 	if pt, ok := t.(*types.Pointer); ok {
+		throughPointer = true
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
 		name := ctx.qualifiedName(t.Obj())
 		if interfaceType, ok := t.Underlying().(*types.Interface); ok {
 			return interfaceTypeInfo{
-				name:          name,
-				interfaceType: interfaceType,
+				name:           name,
+				interfaceType:  interfaceType,
+				throughPointer: throughPointer,
 			}, true
 		}
 	}

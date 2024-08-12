@@ -100,7 +100,6 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 						}
 						printed[n] = true
 						cycleDesc += " -> " + d
-						fmt.Println(cycleDesc)
 						n = d
 					}
 				}
