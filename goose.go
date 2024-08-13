@@ -469,34 +469,6 @@ func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
 	return nil, false
 }
 
-func (ctx Ctx) maybeHandleMinMax(s *ast.CallExpr) (glang.Expr, bool) {
-	if !ctx.info.Types[s.Fun].IsBuiltin() {
-		return nil, false
-	}
-
-	sig := ctx.typeOf(s.Fun).(*types.Signature)
-	switch s.Fun.(*ast.Ident).Name {
-	case "min", "max":
-		if sig.Params().Len() < 0 {
-			ctx.nope(s, "min/max with no params")
-		}
-		// figure out the desired type by taking a type join of everything.
-		// XXX: the signature might always be (T, T, T, T, T).
-		var t types.Type = sig.Params().At(0).Type().Underlying()
-		for i := 0; i < sig.Params().Len(); i++ {
-			t = ctx.typeJoin(s, t, sig.Params().At(i).Type())
-		}
-		if types.Identical(t, types.Typ[types.Uint64]) {
-			var args []glang.Expr
-			for _, a := range s.Args {
-				args = append(args, ctx.expr(a))
-			}
-		}
-		ctx.unsupported(s, "%s with final type %v", s.Fun.(*ast.Ident).Name, t)
-	}
-	return nil, false
-}
-
 func (ctx Ctx) getNumParams(e ast.Expr) int {
 	funcSig, ok := ctx.typeOf(e).Underlying().(*types.Signature)
 	if !ok {
@@ -509,8 +481,6 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
 	} else if e, ok := ctx.maybeHandleMakeAndNew(s); ok {
-		return e
-	} else if e, ok := ctx.maybeHandleMinMax(s); ok {
 		return e
 	} else {
 		var args []glang.Expr
@@ -1144,6 +1114,22 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		return glang.GallinaIdent("map.delete")
 	case "panic":
 		return glang.GallinaIdent("Panic")
+	case "min", "max":
+		sig := ctx.typeOf(e).(*types.Signature)
+		if sig.Params().Len() == 0 {
+			ctx.nope(e, "min/max with no params")
+		}
+		// figure out the desired type by taking a type join of everything.
+		// XXX: the signature might always be (T, T, T, T, T).
+		var t types.Type = sig.Params().At(0).Type().Underlying()
+		for i := 0; i < sig.Params().Len(); i++ {
+			t = ctx.typeJoin(e, t, sig.Params().At(i).Type())
+		}
+		if types.Identical(t, types.Typ[types.Uint64]) {
+			return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("%sUint64", e.Name)),
+				glang.GallinaIdent(fmt.Sprintf("%d", sig.Params().Len())))
+		}
+		ctx.unsupported(e, "%s with final type %v", e.Name, t)
 	default:
 		ctx.unsupported(e, "builtin identifier of type %v", ctx.typeOf(e))
 	}
