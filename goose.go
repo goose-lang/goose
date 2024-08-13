@@ -1499,14 +1499,15 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	if decl.Tok != token.VAR {
 		ctx.unsupported(s, "non-var declaration for %v", decl.Tok)
 	}
-	if len(decl.Specs) > 1 {
-		ctx.unsupported(s, "multiple declarations in one var statement")
+	var expr glang.Expr = cont
+	for _, spec := range decl.Specs {
+		// guaranteed to be a *Ast.ValueSpec due to decl.Tok
+		//
+		// https://golang.org/pkg/go/ast/#GenDecl
+		// TODO: handle TypeSpec
+		expr = ctx.varSpec(spec.(*ast.ValueSpec), expr)
 	}
-	// guaranteed to be a *Ast.ValueSpec due to decl.Tok
-	//
-	// https://golang.org/pkg/go/ast/#GenDecl
-	// TODO: handle TypeSpec
-	return ctx.varSpec(decl.Specs[0].(*ast.ValueSpec), cont)
+	return expr
 }
 
 // Returns the address of the given expression.
