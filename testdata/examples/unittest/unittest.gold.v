@@ -1475,10 +1475,8 @@ Definition Oracle : val :=
     exception_do (let: "p" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (primitive.NewProph #()) in
     do:  ("p" <-[ptrT] "$r0");;;
-    do:  (let: "$a0" := #false in
-    (primitive.prophId__ResolveBool (![ptrT] "p")) "$a0");;;
-    do:  (let: "$a0" := #0 in
-    (primitive.prophId__ResolveU64 (![ptrT] "p")) "$a0")).
+    let: "$r0" := (![ptrT] "p") in
+    do:  ("p" <-[ptrT] "$r0")).
 
 Definition typing : go_type := structT [
   "proph" :: ptrT
@@ -1849,15 +1847,13 @@ Definition loopSpawn : val :=
       do:  ("dummy" <-[boolT] "$r0");;;
       continue: #()))).
 
-(* go: strings.go:5:6 *)
+(* go: strings.go:3:6 *)
 Definition stringAppend : val :=
-  rec: "stringAppend" "s" "x" :=
-    exception_do (let: "x" := (ref_ty uint64T "x") in
-    let: "s" := (ref_ty stringT "s") in
-    return: (((#(str "prefix ") + (![stringT] "s")) + #(str " ")) + (let: "$a0" := (![uint64T] "x") in
-     primitive.UInt64ToString "$a0"))).
+  rec: "stringAppend" "s" :=
+    exception_do (let: "s" := (ref_ty stringT "s") in
+    return: ((#(str "prefix ") + (![stringT] "s")) + #(str " "))).
 
-(* go: strings.go:9:6 *)
+(* go: strings.go:7:6 *)
 Definition stringLength : val :=
   rec: "stringLength" "s" :=
     exception_do (let: "s" := (ref_ty stringT "s") in

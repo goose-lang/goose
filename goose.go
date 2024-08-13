@@ -654,16 +654,11 @@ func (ctx Ctx) selectionMethod(addressable bool, expr glang.Expr,
 	}
 
 	if pointerT, ok := types.Unalias(curType).(*types.Pointer); ok {
-		// FIXME: the unaliased version might be preferred for consistent
-		// naming, but that breaks the way `prophId` works in `primitive` at the
-		// moment.
-		// t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
-		t, ok := pointerT.Elem().(*types.Named)
+		t, ok := types.Unalias(pointerT.Elem()).(*types.Named)
 		if !ok {
 			ctx.nope(l, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
 		}
 		m := glang.TypeMethod(ctx.qualifiedName(t.Obj()), t.Method(fnIndex).Name())
-		fmt.Println(ctx.qualifiedName(t.Obj()))
 
 		// check for recursive call
 		var f glang.Expr
@@ -689,13 +684,8 @@ func (ctx Ctx) selectionMethod(addressable bool, expr glang.Expr,
 			// ctx.unsupported(e, "%v", funcSig)
 			return glang.NewCallExpr(f, glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)})
 		}
-	} else if t, ok := curType.(*types.Named); ok {
-		// else if t, ok := types.Unalias(curType).(*types.Named); ok {
-		// FIXME: the unaliased version might be preferred for consistent
-		// naming, but that breaks the way `prophId` works in `primitive` at the
-		// moment.
+	} else if t, ok := types.Unalias(curType).(*types.Named); ok {
 		var typeName = ctx.qualifiedName(t.Obj())
-		fmt.Println(typeName)
 		m := glang.TypeMethod(typeName, t.Method(fnIndex).Name())
 
 		var f glang.Expr

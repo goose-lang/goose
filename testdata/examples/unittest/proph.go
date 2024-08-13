@@ -4,8 +4,7 @@ import "github.com/goose-lang/primitive"
 
 func Oracle() {
 	p := primitive.NewProph()
-	p.ResolveBool(false)
-	p.ResolveU64(0)
+	p = p
 }
 
 type typing struct {
