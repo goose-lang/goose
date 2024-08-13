@@ -1483,31 +1483,11 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
-	if len(s.Names) > 1 {
-		ctx.unsupported(s, "multiple declarations in one block")
+	var lhs []ast.Expr
+	for _, l := range s.Names {
+		lhs = append(lhs, l)
 	}
-	lhs := s.Names[0]
-	var rhs glang.Expr
-	if len(s.Values) == 0 {
-		ty := ctx.glangTypeFromExpr(lhs)
-		rhs = glang.NewCallExpr(glang.GallinaIdent("ref_ty"), ty,
-			glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty))
-	} else {
-		rhs = glang.RefExpr{
-			X: ctx.handleImplicitConversion(
-				s.Values[0],
-				ctx.typeOf(s.Values[0]),
-				ctx.typeOf(s.Names[0]),
-				ctx.expr(s.Values[0]),
-			),
-			Ty: ctx.glangType(s.Names[0], ctx.typeOf(s.Names[0])),
-		}
-	}
-	return glang.LetExpr{
-		Names:   []string{lhs.Name},
-		ValExpr: rhs,
-		Cont:    cont,
-	}
+	return ctx.defineStmt(&ast.AssignStmt{Lhs: lhs, Rhs: s.Values}, cont)
 }
 
 // varDeclStmt translates declarations within functions
@@ -1637,6 +1617,9 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 
 func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	e := cont
+	if len(s.Rhs) == 0 {
+		return e
+	}
 
 	// Determine RHS types, specially handling multiple returns from a function call.
 	var rhsTypes []types.Type
@@ -1858,7 +1841,7 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
 	var sends glang.ListExpr
 	var recvs glang.ListExpr
-	var def glang.Expr
+	var def glang.Expr = glang.GallinaIdent("TODO")
 
 	for _, s := range s.Body.List {
 		s := s.(*ast.CommClause)
