@@ -187,6 +187,14 @@ func (t MapType) Coq(needs_paren bool) string {
 	return NewCallExpr(GallinaIdent("mapT"), t.Key, t.Value).Coq(needs_paren)
 }
 
+type ChanType struct {
+	Elem Type
+}
+
+func (t ChanType) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("chanT"), t.Elem).Coq(needs_paren)
+}
+
 type FuncType struct {
 }
 

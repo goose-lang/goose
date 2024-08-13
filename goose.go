@@ -451,6 +451,10 @@ func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
 				ctx.glangType(s.Args[0], ty.Key()),
 				ctx.glangType(s.Args[0], ty.Elem()),
 				glang.UnitLiteral{}), true
+		case *types.Chan:
+			return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
+				ctx.glangType(s.Args[0], ty.Elem()),
+				glang.UnitLiteral{}), true
 		default:
 			ctx.unsupported(s, "make should be slice or map, got %v", ty)
 		}
@@ -488,7 +492,7 @@ func (ctx Ctx) maybeHandleMinMax(s *ast.CallExpr) (glang.Expr, bool) {
 				args = append(args, ctx.expr(a))
 			}
 		}
-		ctx.unsupported(s, "%s max with final type %v", s.Fun.(*ast.Ident).Name, t)
+		ctx.unsupported(s, "%s with final type %v", s.Fun.(*ast.Ident).Name, t)
 	}
 	return nil, false
 }
@@ -1041,6 +1045,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 		// e is something else
 		return ctx.exprAddr(e.X)
 	}
+	if e.Op == token.ARROW {
+		return glang.NewCallExpr(glang.GallinaIdent("chan.receive"), ctx.expr(e.X))
+	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
@@ -1084,28 +1091,6 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
 			ctx.glangType(e, t),
 		)
-	case "make":
-		sig := ctx.typeOf(e).(*types.Signature)
-		switch ty := sig.Params().At(0).Type().Underlying().(type) {
-		case *types.Slice:
-			elt := ctx.glangType(e, ty.Elem())
-			switch sig.Params().Len() {
-			case 2:
-				return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt)
-			case 3:
-				return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt)
-			default:
-				ctx.nope(e, "Too many or too few arguments in slice construction")
-				return glang.CallExpr{}
-			}
-		case *types.Map:
-			return glang.NewCallExpr(glang.GallinaIdent("map.make"),
-				ctx.glangType(e, ty.Key()),
-				ctx.glangType(e, ty.Elem()),
-				glang.UnitLiteral{})
-		default:
-			ctx.unsupported(e, "make should be slice or map, got %v", ty)
-		}
 	case "new":
 		sig := ctx.typeOf(e).(*types.Signature)
 		ctx.todo(e, "new might be better as its own function")
@@ -1884,6 +1869,37 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 	return
 }
 
+func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
+	var sends glang.ListExpr
+	var recvs glang.ListExpr
+	var def glang.Expr
+
+	for _, s := range s.Body.List {
+		s := s.(*ast.CommClause)
+		if s.Comm == nil {
+			def = glang.FuncLit{Body: ctx.stmtList(s.Body, nil)}
+		} else if _, ok := s.Comm.(*ast.SendStmt); ok {
+			sends = append(sends, nil...)
+		} else { // must be a receive stmt
+			recvs = append(recvs, nil...)
+		}
+	}
+
+	// FIXME: if no def, then should block
+	expr = glang.NewCallExpr(glang.GallinaIdent("chan.select"), sends, recvs, def)
+	expr = glang.NewDoSeq(expr, cont)
+	return
+}
+
+func (ctx Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
+	expr = glang.NewCallExpr(glang.GallinaIdent("chan.send"), glang.IdentExpr("$chan"), glang.IdentExpr("$v"))
+	// XXX: left-to-right evaluation, might not match Go
+	expr = glang.LetExpr{Names: []string{"$v"}, ValExpr: ctx.expr(s.Value), Cont: expr}
+	expr = glang.LetExpr{Names: []string{"$chan"}, ValExpr: ctx.expr(s.Chan), Cont: expr}
+	expr = glang.NewDoSeq(expr, cont)
+	return
+}
+
 func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -1922,6 +1938,10 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 		ctx.todo(s, "type switch statement")
 	case *ast.DeferStmt:
 		return ctx.deferStmt(s, cont)
+	case *ast.SelectStmt:
+		return ctx.selectStmt(s, cont)
+	case *ast.SendStmt:
+		return ctx.sendStmt(s, cont)
 	default:
 		ctx.unsupported(s, "statement %T", s)
 	}
@@ -2043,16 +2063,8 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 }
 
 func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
-	// FIXME: this treats globals as constants, which is unsound but used for a
-	// configurable Debug level in goose-nfsd. Configuration variables should
-	// instead be treated as a non-deterministic constant, assuming they aren't
-	// changed after startup.
-	var specs []glang.Decl
-	for _, spec := range d.Specs {
-		vs := spec.(*ast.ValueSpec)
-		specs = append(specs, ctx.constSpec(vs))
-	}
-	return specs
+	ctx.unsupported(d, "global vars")
+	return nil
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
