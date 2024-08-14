@@ -1625,6 +1625,8 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			return glang.GallinaIdent("#null")
 		} else if _, ok := toUnder.(*types.Chan); ok {
 			return glang.GallinaIdent("chan.nil")
+		} else if _, ok := toUnder.(*types.Map); ok {
+			return glang.GallinaIdent("map.nil")
 		} else if _, ok := toUnder.(*types.Signature); ok {
 			return glang.GallinaIdent("nil")
 		}
