@@ -985,7 +985,7 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	}
 }
 
-func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
+func (ctx Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 	if e.Op == token.NOT {
 		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
@@ -1016,7 +1016,11 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) glang.Expr {
 		return ctx.exprAddr(e.X)
 	}
 	if e.Op == token.ARROW {
-		return glang.NewCallExpr(glang.GallinaIdent("chan.receive"), ctx.expr(e.X))
+		var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("chan.receive"), ctx.expr(e.X))
+		if !isSpecial {
+			expr = glang.NewCallExpr(glang.GallinaIdent("Fst"), expr)
+		}
+		return expr
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
@@ -1130,13 +1134,24 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 				glang.GallinaIdent(fmt.Sprintf("%d", sig.Params().Len())))
 		}
 		ctx.unsupported(e, "%s with final type %v", e.Name, t)
+	case "close":
+		return glang.GallinaIdent("chan.close")
 	default:
 		ctx.unsupported(e, "builtin identifier of type %v", ctx.typeOf(e))
 	}
 	return nil
 }
 
-func (ctx Ctx) identExpr(e *ast.Ident) glang.Expr {
+func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
+	// XXX: special case for a manually constructed Ident from select recv clause
+	if len(e.Name) > 0 && e.Name[0] == '$' {
+		var expr glang.Expr = glang.IdentExpr(e.Name)
+		if !isSpecial {
+			expr = glang.NewCallExpr(glang.GallinaIdent("Fst"), expr)
+		}
+		return expr
+	}
+
 	if ctx.goBuiltin(e) {
 		return ctx.builtinIdent(e)
 	}
@@ -1228,7 +1243,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.CallExpr:
 		return ctx.callExpr(e)
 	case *ast.Ident:
-		return ctx.identExpr(e)
+		return ctx.identExpr(e, isSpecial)
 	case *ast.SelectorExpr:
 		return ctx.selectorExpr(e)
 	case *ast.CompositeLit:
@@ -1242,7 +1257,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.IndexExpr:
 		return ctx.indexExpr(e, isSpecial)
 	case *ast.UnaryExpr:
-		return ctx.unaryExpr(e)
+		return ctx.unaryExpr(e, isSpecial)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
@@ -1608,8 +1623,17 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			return glang.GallinaIdent("slice.nil")
 		} else if _, ok := toUnder.(*types.Pointer); ok {
 			return glang.GallinaIdent("#null")
+		} else if _, ok := toUnder.(*types.Chan); ok {
+			return glang.GallinaIdent("chan.nil")
 		} else if _, ok := toUnder.(*types.Signature); ok {
 			return glang.GallinaIdent("nil")
+		}
+	}
+	fromChan, ok1 := fromUnder.(*types.Chan)
+	toChan, ok2 := toUnder.(*types.Chan)
+	if ok1 && ok2 {
+		if types.Identical(fromChan.Elem(), toChan.Elem()) {
+			return e
 		}
 	}
 	ctx.unsupported(n, "implicit conversion from %s to %s", from, to)
@@ -1842,20 +1866,74 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
 	var sends glang.ListExpr
 	var recvs glang.ListExpr
-	var def glang.Expr = glang.GallinaIdent("TODO")
+	// FIXME: if no def, then should block
+	var def glang.Expr = glang.NewCallExpr(glang.GallinaIdent("InjLV"), glang.Tt)
 
+	// build up select statement itself
 	for _, s := range s.Body.List {
 		s := s.(*ast.CommClause)
 		if s.Comm == nil {
-			def = glang.FuncLit{Body: ctx.stmtList(s.Body, nil)}
+			def = glang.NewCallExpr(glang.GallinaIdent("InjR"), glang.FuncLit{Body: ctx.stmtList(s.Body, nil)})
 		} else if _, ok := s.Comm.(*ast.SendStmt); ok {
-			sends = append(sends, nil...)
+			sendIndex := len(sends)
+			sends = append(sends, glang.TupleExpr([]glang.Expr{
+				glang.IdentExpr(fmt.Sprintf("$sendVal%d", sendIndex)),
+				glang.IdentExpr(fmt.Sprintf("$sendChan%d", sendIndex)),
+				glang.FuncLit{Body: ctx.stmtList(s.Body, nil)},
+			}))
 		} else { // must be a receive stmt
-			recvs = append(recvs, nil...)
+			recvIndex := len(recvs)
+			body := ctx.stmtList(s.Body, nil)
+
+			// want to figure out the first statment to run in the body
+			switch comm := s.Comm.(type) {
+			case *ast.ExprStmt:
+				recvExpr := comm.X.(*ast.UnaryExpr)
+				if recvExpr.Op != token.ARROW {
+					ctx.nope(comm.X, "expected recv statement")
+				}
+				// nothing to run in the body
+			case *ast.AssignStmt:
+				// XXX: replace the RHS in the assignment statement with an
+				// ident, so we can put this straight in the the body list
+				if len(comm.Rhs) != 1 {
+					ctx.unsupported(comm, "expected a single receive operation on RHS")
+				}
+				var rhs ast.Expr = comm.Rhs[0]
+				for {
+					if r, ok := rhs.(*ast.ParenExpr); ok {
+						rhs = r.X
+					} else {
+						break
+					}
+				}
+				recvExpr := rhs.(*ast.UnaryExpr)
+				if recvExpr.Op != token.ARROW {
+					ctx.nope(comm.Rhs[0], "expected recv statement")
+				}
+
+				// XXX: create a new AST node and enough typing information for
+				// an assignStmt to translate.
+				t := ctx.info.Types[recvExpr]
+				comm.Rhs[0] = ast.NewIdent("$recvVal")
+				ctx.info.Types[comm.Rhs[0]] = t
+
+				if comm.Tok == token.DEFINE {
+					body = ctx.defineStmt(comm, body)
+				} else if comm.Tok == token.ASSIGN {
+					body = ctx.assignStmt(comm, body)
+				}
+			default:
+				ctx.unsupported(s.Comm, "unexpected statement in select clause")
+			}
+
+			recvs = append(recvs, glang.TupleExpr([]glang.Expr{
+				glang.IdentExpr(fmt.Sprintf("$recvChan%d", recvIndex)),
+				glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvVal"}}, Body: body},
+			}))
 		}
 	}
 
-	// FIXME: if no def, then should block
 	expr = glang.NewCallExpr(glang.GallinaIdent("chan.select"), sends, recvs, def)
 	expr = glang.NewDoSeq(expr, cont)
 	return

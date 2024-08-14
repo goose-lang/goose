@@ -2,23 +2,31 @@ package unittest
 
 import "fmt"
 
-func testChanBasic() {
+func chanBasic() {
 	var x chan string
 	x = make(chan string)
-	x <- "Foo"
-	<-x
+	go func() {
+		x <- "Foo"
+		x <- "Foo"
+	}()
+	y, ok := <-x
+	y = <-x
+	if ok {
+		y = y + " "
+	}
 }
 
 func f() int {
 	return 0
 }
 
-// from Go spec: https://go.dev/ref/spec#Select_statements
-func testChanSelect() {
+// modified version of example from https://go.dev/ref/spec#Select_statements
+func chanSelect() {
 	var a []int
 	var c, c1, c2, c3, c4 chan int
 	var i1, i2 int
 	select {
+	case <-c3:
 	case i1 = <-c1:
 		fmt.Print("received ", i1, " from c1\n")
 	case c2 <- i2:
@@ -47,7 +55,7 @@ func testChanSelect() {
 	select {} // block forever
 }
 
-func testChanDirectional() {
+func chanDirectional() {
 	var x <-chan uint64
 	var y chan<- string
 	<-x
