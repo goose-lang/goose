@@ -30,6 +30,18 @@ func (suite *GoTestSuite) TestExplicitBlockStmt() {
 	suite.Equal(true, testExplicitBlockStmt())
 }
 
+func (suite *GoTestSuite) TestMinUint64() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testMinUint64())
+}
+
+func (suite *GoTestSuite) TestMaxUint64() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testMaxUint64())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

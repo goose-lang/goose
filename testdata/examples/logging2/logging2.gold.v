@@ -191,7 +191,9 @@ Definition Log__readBlocks : val :=
   rec: "Log__readBlocks" "log" "len" :=
     exception_do (let: "log" := (ref_ty Log "log") in
     let: "len" := (ref_ty uint64T "len") in
-    let: "blks" := (ref_ty (sliceT (sliceT byteT)) (slice.make2 (sliceT byteT) #0)) in
+    let: "blks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
+    let: "$r0" := (slice.make2 (sliceT byteT) #0) in
+    do:  ("blks" <-[sliceT (sliceT byteT)] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #0 in
     do:  ("i" <-[uint64T] "$r0");;;
@@ -362,7 +364,9 @@ Definition Txn__Write : val :=
     exception_do (let: "txn" := (ref_ty Txn "txn") in
     let: "blk" := (ref_ty ptrT "blk") in
     let: "addr" := (ref_ty uint64T "addr") in
-    let: "ret" := (ref_ty boolT #true) in
+    let: "ret" := (ref_ty boolT (zero_val boolT)) in
+    let: "$r0" := #true in
+    do:  ("ret" <-[boolT] "$r0");;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: <> := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr")) in
