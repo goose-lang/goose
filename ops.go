@@ -51,6 +51,9 @@ var signedIntOps = map[token.Token]glang.BinOp{
 	token.EQL: glang.OpEquals,
 	token.NEQ: glang.OpNotEquals,
 	token.MUL: glang.OpMul,
+	token.AND:  glang.OpAnd,
+	token.OR:   glang.OpOr,
+	token.XOR:  glang.OpXor,
 }
 
 var stringOps = map[token.Token]glang.BinOp{
