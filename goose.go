@@ -16,6 +16,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math/big"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -791,64 +792,14 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Str
 	return lit
 }
 
-// basicLiteral translates a basic literal
-//
-// (unsigned) ints, strings, and booleans are supported
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
-	if e.Kind == token.STRING {
-		v := ctx.info.Types[e].Value
-		s := constant.StringVal(v)
-		if strings.ContainsRune(s, '"') {
-			ctx.unsupported(e, "string literals with quotes")
-		}
-		return glang.StringLiteral{Value: s}
+	tv := ctx.info.Types[e]
+	if tv.Value == nil {
+		ctx.nope(e, "basic literal should have a const val")
 	}
-	if e.Kind == token.INT {
-		tv := ctx.info.Types[e]
-		switch t := tv.Type.Underlying().(type) {
-		case *types.Basic:
-			switch t.Name() {
-			case "uint64":
-				n, ok := constant.Uint64Val(tv.Value)
-				if !ok {
-					ctx.nope(e, "uint64 literal with failed constant.Uint64Val")
-				}
-				return glang.IntLiteral{Value: n}
-			case "uint32":
-				n, ok := constant.Uint64Val(tv.Value)
-				if !ok {
-					ctx.nope(e, "uint32 literal with failed constant.Uint64Val")
-				}
-				return glang.Int32Literal{Value: uint32(n)}
-			case "uint8":
-				fallthrough
-			case "byte":
-				n, ok := constant.Uint64Val(tv.Value)
-				if !ok {
-					ctx.nope(e, "uint8 literal with failed constant.Uint64Val")
-				}
-				return glang.ByteLiteral{Value: uint8(n)}
-			case "int": // FIXME: this case is a temporary hack to support e.g. the int in `make([]byte, 20)`
-				n, ok := constant.Uint64Val(tv.Value)
-				if !ok {
-					ctx.todo(e, "int literal with negative value")
-				}
-				return glang.IntLiteral{Value: n}
-			case "untyped int": // FIXME: this case is a temporary hack to support e.g. the int in `make([]byte, 20)`
-				n, ok := constant.Uint64Val(tv.Value)
-				if !ok {
-					ctx.todo(e, "int literal with negative value")
-				}
-				return glang.IntLiteral{Value: n}
-			default:
-				ctx.todo(e, "%s integer literal", t.Name())
-				return glang.Tt
-			}
-		}
-		ctx.nope(e, "integer literal with unexpected underlying type that's %T", tv.Type.Underlying())
-	}
-	ctx.unsupported(e, "literal with kind %s", e.Kind)
-	return nil
+	t, v := ctx.constantLiteral(e, tv.Value)
+	// fmt.Printf("%s has type %v to %v\n", e.Value, t, tv.Type)
+	return ctx.handleImplicitConversion(e, t, tv.Type, v)
 }
 
 func (ctx Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
@@ -902,34 +853,26 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
 		return nil
 	}
 
-	// copied from go/types/expr.go
-	isComparison := func(op token.Token) bool {
-		// Note: tokens are not ordered well to make this much easier
-		switch op {
-		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
-			return true
-		}
-		return false
-	}
-
 	// XXX: according to the Go spec, comparisons can occur between types that
 	// are "assignable" to one another. This may require a conversion, so we
 	// here convert to the appropriate type here.
-	if isComparison(e.Op) {
-		xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
-		compType := ctx.typeJoin(e, xT, yT)
-		return glang.BinaryExpr{
-			X:  ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
-			Op: op,
-			Y:  ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
-		}
+	//
+	// XXX: this also handles converting untyped constants to a typed constant
+	xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
+	compType := ctx.typeJoin(e, xT, yT)
+	expr := glang.BinaryExpr{
+		X:  ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
+		Op: op,
+		Y:  ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
 	}
 
-	return glang.BinaryExpr{
-		X:  ctx.expr(e.X),
-		Op: op,
-		Y:  ctx.expr(e.Y),
+	switch op {
+	case glang.OpMinus, glang.OpMul, glang.OpRem, glang.OpPlus, glang.OpQuot:
+		// XXX: another conversion here because it's possible to have
+		// `e` of type `uint64` but with `e.X : (untyped int)` and  `e.Y : (untyped int)`.
+		return ctx.handleImplicitConversion(e, compType, ctx.typeOf(e), expr)
 	}
+	return expr
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
@@ -946,7 +889,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	}
 
 	x := ctx.expr(e.X)
-	var lowExpr glang.Expr = glang.IntLiteral{Value: 0}
+	var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
 	var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
 	if e.Low != nil {
 		lowExpr = ctx.expr(e.Low)
@@ -1136,6 +1079,10 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		ctx.unsupported(e, "%s with final type %v", e.Name, t)
 	case "close":
 		return glang.GallinaIdent("chan.close")
+	case "iota":
+		o := ctx.info.ObjectOf(e)
+		t, v := ctx.constantLiteral(e, o.(*types.Const).Val())
+		return ctx.handleImplicitConversion(e, t, ctx.typeOf(e), v)
 	default:
 		ctx.unsupported(e, "builtin identifier of type %v", ctx.typeOf(e))
 	}
@@ -1158,13 +1105,16 @@ func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 
 	// check if e refers to a variable,
 	obj := ctx.info.ObjectOf(e)
-	if _, ok := obj.(*types.Const); ok {
-		// is a variable
-		return ctx.variable(e)
+	if constObj, ok := obj.(*types.Const); ok {
+		// is a constant
+		ctx.dep.addDep(e.Name)
+		fmt.Printf("%v and %v\n", ctx.typeOf(e), constObj.Type())
+		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), glang.GallinaIdent(e.Name))
+
 	}
 	if _, ok := obj.(*types.Var); ok {
 		// is a variable
-		return ctx.variable(e)
+		return glang.DerefExpr{X: glang.IdentExpr(e.Name), Ty: ctx.glangType(e, ctx.typeOf(e))}
 	}
 	if _, ok := obj.(*types.Func); ok {
 		// is a function
@@ -1249,6 +1199,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.CompositeLit:
 		return ctx.compositeLiteral(e)
 	case *ast.BasicLit:
+		// ctx.nope(e, "all basic literal should have a const value")
 		return ctx.basicLiteral(e)
 	case *ast.BinaryExpr:
 		return ctx.binExpr(e)
@@ -1360,6 +1311,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 		elseExpr = ctx.stmt(s.Else, nil)
 	}
 	var ife glang.Expr = glang.IfExpr{
+		// Cond: ctx.handleImplicitConversion(s.Cond, ctx.typeOf(s.Cond), types.Typ[types.Bool], ctx.expr(s.Cond)),
 		Cond: ctx.expr(s.Cond),
 		Then: ctx.blockStmt(s.Body, nil),
 		Else: elseExpr,
@@ -1631,6 +1583,37 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			return glang.GallinaIdent("nil")
 		}
 	}
+
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedBool {
+		if toBasic, ok := toUnder.(*types.Basic); ok && toBasic.Kind() == types.Bool {
+			eb, ok := e.(glang.BoolLiteral)
+			if !ok {
+				ctx.nope(n, "expected untyped bool literal value, got %T", e)
+			}
+			return glang.TypedBoolLiteral(bool(eb))
+		}
+	}
+
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedString {
+		if toBasic, ok := toUnder.(*types.Basic); ok && toBasic.Kind() == types.String {
+			return glang.StringVal{Value: e}
+		}
+	}
+
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedInt {
+		if toBasic, ok := toUnder.(*types.Basic); ok {
+			switch toBasic.Kind() {
+			case types.Uint64, types.Int64, types.Int:
+				// XXX: treat an `int` as a `int64`
+				return glang.Int64Val{Value: e}
+			case types.Uint32, types.Int32:
+				return glang.Int32Val{Value: e}
+			case types.Uint8, types.Int8:
+				return glang.Int8Val{Value: e}
+			}
+		}
+	}
+
 	fromChan, ok1 := fromUnder.(*types.Chan)
 	toChan, ok2 := toUnder.(*types.Chan)
 	if ok1 && ok2 {
@@ -1638,6 +1621,7 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			return e
 		}
 	}
+
 	ctx.unsupported(n, "implicit conversion from %s to %s", from, to)
 	panic("unreachable")
 }
@@ -1731,7 +1715,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
 		X:  ctx.expr(stmt.X),
 		Op: op,
-		Y:  glang.IntLiteral{Value: 1},
+		Y:  glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
 	}, cont)
 }
 
@@ -2080,34 +2064,72 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	return fd
 }
 
-func (ctx Ctx) constSpec(spec *ast.ValueSpec) glang.ConstDecl {
-	ident := spec.Names[0]
-	cd := glang.ConstDecl{
-		Name: ident.Name,
+// this should only be used for untyped constant literals
+func (ctx Ctx) constantLiteral(l locatable, v constant.Value) (types.Type, glang.Expr) {
+	switch v.Kind() {
+	case constant.Bool:
+		return types.Typ[types.UntypedBool], glang.BoolLiteral(constant.Val(v).(bool))
+	case constant.String:
+		return types.Typ[types.UntypedString], glang.StringLiteral{Value: constant.Val(v).(string)}
+	case constant.Int:
+		switch v := constant.Val(v).(type) {
+		case *big.Int:
+			return types.Typ[types.UntypedInt], glang.ZLiteral{Value: v}
+		case int64:
+			return types.Typ[types.UntypedInt], glang.ZLiteral{Value: big.NewInt(v)}
+		default:
+			ctx.nope(l, "untyped int const with unexpected type")
+		}
 	}
-	ctx.dep.setCurrentName(cd.Name)
-	defer ctx.dep.unsetCurrentName()
+	ctx.unsupported(l, "unsupported constant val")
+	return nil, nil
+}
 
-	addSourceDoc(spec.Comment, &cd.Comment)
-	if len(spec.Values) == 0 {
-		ctx.todo(spec, "global var/const with no values")
+func (ctx Ctx) declType(t types.Type) glang.Expr {
+	switch t := t.(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.UntypedBool:
+			return glang.GallinaIdent("bool")
+		case types.UntypedString:
+			return glang.GallinaIdent("string")
+		case types.UntypedInt:
+			return glang.GallinaIdent("Z")
+		}
 	}
-	val := spec.Values[0]
-	cd.Val = ctx.expr(val)
-	if spec.Type == nil {
-		cd.Type = ctx.glangType(spec, ctx.typeOf(val))
-	} else {
-		cd.Type = ctx.glangTypeFromExpr(spec.Type)
+	return glang.GallinaIdent("expr")
+}
+
+func (ctx Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
+	var cds []glang.Decl
+	for i := range spec.Names {
+		cd := glang.ConstDecl{
+			Name: spec.Names[i].Name,
+		}
+		ctx.dep.setCurrentName(cd.Name)
+		defer ctx.dep.unsetCurrentName()
+
+		addSourceDoc(spec.Comment, &cd.Comment)
+		if len(spec.Values) > 0 {
+			cd.Val =
+				ctx.handleImplicitConversion(spec.Names[i],
+					ctx.typeOf(spec.Values[i]), ctx.typeOf(spec.Names[i]),
+					ctx.expr(spec.Values[i]))
+		} else {
+			fromT, v := ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
+			cd.Val = ctx.handleImplicitConversion(spec.Names[i], fromT, ctx.typeOf(spec.Names[i]), v)
+		}
+		cd.Type = ctx.declType(ctx.typeOf(spec.Names[i]))
+		cds = append(cds, cd)
 	}
-	cd.Val = ctx.expr(spec.Values[0])
-	return cd
+	return cds
 }
 
 func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	var specs []glang.Decl
 	for _, spec := range d.Specs {
-		vs := spec.(*ast.ValueSpec)
-		specs = append(specs, ctx.constSpec(vs))
+		spec := spec.(*ast.ValueSpec)
+		specs = append(specs, ctx.constSpec(spec)...)
 	}
 	return specs
 }

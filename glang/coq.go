@@ -3,6 +3,7 @@ package glang
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"path"
 	"path/filepath"
 	"sort"
@@ -457,12 +458,22 @@ func (sl StructLiteral) Coq(needs_paren bool) string {
 
 type BoolLiteral bool
 
+func (b BoolLiteral) Coq(needs_paren bool) string {
+	if b {
+		return "true"
+	} else {
+		return "false"
+	}
+}
+
+type TypedBoolLiteral bool
+
 var (
-	False BoolLiteral = false
-	True  BoolLiteral = true
+	False TypedBoolLiteral = false
+	True  TypedBoolLiteral = true
 )
 
-func (b BoolLiteral) Coq(needs_paren bool) string {
+func (b TypedBoolLiteral) Coq(needs_paren bool) string {
 	if b {
 		return "#true"
 	} else {
@@ -478,36 +489,52 @@ func (tt UnitLiteral) Coq(needs_paren bool) string {
 	return "#()"
 }
 
-type IntLiteral struct {
-	Value uint64
+type ZLiteral struct {
+	Value *big.Int
 }
 
-func (l IntLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf("#%d", l.Value)
-}
-
-type Int32Literal struct {
-	Value uint32
-}
-
-func (l Int32Literal) Coq(needs_paren bool) string {
-	return fmt.Sprintf("#(U32 %d)", l.Value)
-}
-
-type ByteLiteral struct {
-	Value uint8
-}
-
-func (l ByteLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf("#(U8 %v)", l.Value)
+func (z ZLiteral) Coq(needs_paren bool) string {
+	return z.Value.String()
 }
 
 type StringLiteral struct {
 	Value string
 }
 
-func (l StringLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf(`#(str "%s")`, l.Value)
+func (s StringLiteral) Coq(needs_paren bool) string {
+	return fmt.Sprintf(`"%s"`, s.Value)
+}
+
+type Int64Val struct {
+	Value Expr
+}
+
+func (l Int64Val) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#(W64 %s)", l.Value.Coq(true))
+}
+
+type Int32Val struct {
+	Value Expr
+}
+
+func (l Int32Val) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#(W32 %s)", l.Value.Coq(true))
+}
+
+type Int8Val struct {
+	Value Expr
+}
+
+func (l Int8Val) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#(W8 %s)", l.Value.Coq(true))
+}
+
+type StringVal struct {
+	Value Expr
+}
+
+func (l StringVal) Coq(needs_paren bool) string {
+	return fmt.Sprintf(`#(str %s)`, l.Value.Coq(true))
 }
 
 // BinOp is an enum for a Coq binary operator
@@ -877,16 +904,16 @@ func (d CommentDecl) DefName() (bool, string) {
 
 type ConstDecl struct {
 	Name    string
-	Type    Type
 	Val     Expr
+	Type    Expr
 	Comment string
 }
 
 func (d ConstDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	indent := pp.Block("Definition ", "%s : expr := %s.",
-		d.Name, d.Val.Coq(false))
+	indent := pp.Block("Definition ", "%s : %s := %s.",
+		d.Name, d.Type.Coq(false), d.Val.Coq(false))
 	pp.Indent(-indent)
 	return pp.Build()
 }
