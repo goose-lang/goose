@@ -6,11 +6,11 @@ From New.code Require sync.
 
 From New Require Import disk_prelude.
 
-Definition LOGCOMMIT : expr := #0.
+Definition LOGCOMMIT : expr := #(W64 0).
 
-Definition LOGSTART : expr := #1.
+Definition LOGSTART : expr := #(W64 1).
 
-Definition LOGMAXBLK : expr := #510.
+Definition LOGMAXBLK : expr := #(W64 510).
 
 Definition LOGEND : expr := LOGMAXBLK + LOGSTART.
 
@@ -61,7 +61,7 @@ Definition Log__memAppend : val :=
     slice.len "$a0")) ≥ (![uint64T] (struct.field_ref Log "logSz" "log"))
     then
       do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-      return: (#false, #0)
+      return: (#false, #(W64 0))
     else do:  #());;;
     let: "txn" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) in
@@ -72,7 +72,7 @@ Definition Log__memAppend : val :=
     do:  ("n" <-[uint64T] "$r0");;;
     let: "$r0" := (![uint64T] "n") in
     do:  ((![ptrT] (struct.field_ref Log "memLen" "log")) <-[uint64T] "$r0");;;
-    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) + #1) in
+    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) + #(W64 1)) in
     do:  ((![ptrT] (struct.field_ref Log "memTxnNxt" "log")) <-[uint64T] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     return: (#true, ![uint64T] "txn")).
@@ -103,7 +103,7 @@ Definition Log__writeHdr : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     let: "len" := (ref_ty uint64T "len") in
     let: "hdr" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (slice.make2 byteT #4096) in
+    let: "$r0" := (slice.make2 byteT #(W64 4096)) in
     do:  ("hdr" <-[sliceT byteT] "$r0");;;
     do:  (let: "$a0" := (![sliceT byteT] "hdr") in
     let: "$a1" := (![uint64T] "len") in
@@ -123,9 +123,9 @@ Definition Log__writeBlocks : val :=
     slice.len "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ("i" <-[uint64T] "$r0");;;
-    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
+    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
       let: "bk" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
       let: "$r0" := (![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i"))) in
       do:  ("bk" <-[sliceT byteT] "$r0");;;
@@ -192,12 +192,12 @@ Definition Log__readBlocks : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     let: "len" := (ref_ty uint64T "len") in
     let: "blks" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
-    let: "$r0" := (slice.make2 (sliceT byteT) #0) in
+    let: "$r0" := (slice.make2 (sliceT byteT) #(W64 0)) in
     do:  ("blks" <-[sliceT (sliceT byteT)] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ("i" <-[uint64T] "$r0");;;
-    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "len")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
+    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "len")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
       let: "blk" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
       let: "$r0" := (let: "$a0" := (LOGSTART + (![uint64T] "i")) in
       disk.Read "$a0") in
@@ -234,9 +234,9 @@ Definition Log__memWrite : val :=
     slice.len "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ("i" <-[uint64T] "$r0");;;
-    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #1))) := λ: <>,
+    (for: (λ: <>, (![uint64T] "i") < (![uint64T] "n")); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
       let: "$r0" := (let: "$a0" := (![sliceT (sliceT byteT)] (![ptrT] (struct.field_ref Log "memLog" "log"))) in
       let: "$a1" := ((let: "$sl0" := (![sliceT byteT] (slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "l") (![uint64T] "i"))) in
       slice.literal (sliceT byteT) ["$sl0"])) in
@@ -312,7 +312,7 @@ Definition Init : val :=
       "logTxnNxt" ::= ref_ty uint64T (zero_val uint64T)
     }]) in
     do:  ("log" <-[Log] "$r0");;;
-    do:  (let: "$a0" := #0 in
+    do:  (let: "$a0" := #(W64 0) in
     (Log__writeHdr (![Log] "log")) "$a0");;;
     return: (![Log] "log")).
 

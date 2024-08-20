@@ -9,7 +9,8 @@ func LogicalAndEqualityOperators(b1 bool, x uint64) bool {
 }
 
 func ArithmeticShifts(x uint32, y uint64) uint64 {
-	return uint64(x<<3) + (y << uint64(x)) + (y << 1)
+	return 0
+	// return uint64(x<<3) + (y << uint64(x)) + (y << 1)
 }
 
 func BitwiseOps(x uint32, y uint64) uint64 {

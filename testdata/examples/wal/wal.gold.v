@@ -7,9 +7,9 @@ From New.code Require sync.
 From New Require Import disk_prelude.
 
 (* 10 is completely arbitrary *)
-Definition MaxTxnWrites : expr := #10.
+Definition MaxTxnWrites : expr := #(W64 10).
 
-Definition logLength : expr := #1 + (#2 * MaxTxnWrites).
+Definition logLength : expr := #(W64 1) + (#(W64 2) * MaxTxnWrites).
 
 Definition Log : go_type := structT [
   "d" :: disk.Disk;
@@ -41,10 +41,10 @@ Definition clearLog : val :=
   rec: "clearLog" "d" :=
     exception_do (let: "d" := (ref_ty disk.Disk "d") in
     let: "header" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := #0 in
+    let: "$r0" := (let: "$a0" := #(W64 0) in
     intToBlock "$a0") in
     do:  ("header" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := #0 in
+    do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT byteT] "header") in
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1")).
 
@@ -64,7 +64,7 @@ Definition getLogEntry : val :=
     exception_do (let: "logOffset" := (ref_ty uint64T "logOffset") in
     let: "d" := (ref_ty disk.Disk "d") in
     let: "diskAddr" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (#1 + (#2 * (![uint64T] "logOffset"))) in
+    let: "$r0" := (#(W64 1) + (#(W64 2) * (![uint64T] "logOffset"))) in
     do:  ("diskAddr" <-[uint64T] "$r0");;;
     let: "aBlock" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (let: "$a0" := (![uint64T] "diskAddr") in
@@ -75,7 +75,7 @@ Definition getLogEntry : val :=
     blockToInt "$a0") in
     do:  ("a" <-[uint64T] "$r0");;;
     let: "v" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := ((![uint64T] "diskAddr") + #1) in
+    let: "$r0" := (let: "$a0" := ((![uint64T] "diskAddr") + #(W64 1)) in
     (interface.get "Read" (![disk.Disk] "d")) "$a0") in
     do:  ("v" <-[sliceT byteT] "$r0");;;
     return: (![uint64T] "a", ![sliceT byteT] "v")).
@@ -88,7 +88,7 @@ Definition applyLog : val :=
     exception_do (let: "length" := (ref_ty uint64T "length") in
     let: "d" := (ref_ty disk.Disk "d") in
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ("i" <-[uint64T] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: (![uint64T] "i") < (![uint64T] "length")
@@ -105,7 +105,7 @@ Definition applyLog : val :=
         do:  (let: "$a0" := (logLength + (![uint64T] "a")) in
         let: "$a1" := (![sliceT byteT] "v") in
         (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
-        let: "$r0" := ((![uint64T] "i") + #1) in
+        let: "$r0" := ((![uint64T] "i") + #(W64 1)) in
         do:  ("i" <-[uint64T] "$r0");;;
         continue: #()
       else do:  #());;;
@@ -134,7 +134,7 @@ Definition Log__Apply : val :=
     applyLog "$a0" "$a1");;;
     do:  (let: "$a0" := (![disk.Disk] (struct.field_ref Log "d" "l")) in
     clearLog "$a0");;;
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
     do:  ((Log__unlock (![Log] "l")) #())).
 
@@ -150,7 +150,7 @@ Definition Log__BeginTxn : val :=
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
-    (if: (![uint64T] "length") = #0
+    (if: (![uint64T] "length") = #(W64 0)
     then
       do:  ((Log__unlock (![Log] "l")) #());;;
       return: (#true)
@@ -173,7 +173,7 @@ Definition Log__Commit : val :=
     let: "$r0" := (let: "$a0" := (![uint64T] "length") in
     intToBlock "$a0") in
     do:  ("header" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := #0 in
+    do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT byteT] "header") in
     (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1")).
 
@@ -237,17 +237,17 @@ Definition Log__Write : val :=
     intToBlock "$a0") in
     do:  ("aBlock" <-[sliceT byteT] "$r0");;;
     let: "nextAddr" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (#1 + (#2 * (![uint64T] "length"))) in
+    let: "$r0" := (#(W64 1) + (#(W64 2) * (![uint64T] "length"))) in
     do:  ("nextAddr" <-[uint64T] "$r0");;;
     do:  (let: "$a0" := (![uint64T] "nextAddr") in
     let: "$a1" := (![sliceT byteT] "aBlock") in
     (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
-    do:  (let: "$a0" := ((![uint64T] "nextAddr") + #1) in
+    do:  (let: "$a0" := ((![uint64T] "nextAddr") + #(W64 1)) in
     let: "$a1" := (![sliceT byteT] "v") in
     (interface.get "Write" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
     let: "$r0" := (![sliceT byteT] "v") in
     do:  (map.insert (![mapT uint64T (sliceT byteT)] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
-    let: "$r0" := ((![uint64T] "length") + #1) in
+    let: "$r0" := ((![uint64T] "length") + #(W64 1)) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
     do:  ((Log__unlock (![Log] "l")) #())).
 
@@ -309,16 +309,16 @@ Definition New : val :=
     let: "$r0" := (map.make uint64T (sliceT byteT) #()) in
     do:  ("cache" <-[mapT uint64T (sliceT byteT)] "$r0");;;
     let: "header" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := #0 in
+    let: "$r0" := (let: "$a0" := #(W64 0) in
     intToBlock "$a0") in
     do:  ("header" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := #0 in
+    do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT byteT] "header") in
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     let: "lengthPtr" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
     do:  ("lengthPtr" <-[ptrT] "$r0");;;
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ((![ptrT] "lengthPtr") <-[uint64T] "$r0");;;
     let: "l" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
@@ -339,7 +339,7 @@ Definition Open : val :=
     let: "$r0" := (disk.Get #()) in
     do:  ("d" <-[disk.Disk] "$r0");;;
     let: "header" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := #0 in
+    let: "$r0" := (let: "$a0" := #(W64 0) in
     (interface.get "Read" (![disk.Disk] "d")) "$a0") in
     do:  ("header" <-[sliceT byteT] "$r0");;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
@@ -357,7 +357,7 @@ Definition Open : val :=
     let: "lengthPtr" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
     do:  ("lengthPtr" <-[ptrT] "$r0");;;
-    let: "$r0" := #0 in
+    let: "$r0" := #(W64 0) in
     do:  ((![ptrT] "lengthPtr") <-[uint64T] "$r0");;;
     let: "l" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
