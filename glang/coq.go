@@ -460,25 +460,23 @@ type BoolLiteral bool
 
 func (b BoolLiteral) Coq(needs_paren bool) string {
 	if b {
-		return "true"
-	} else {
-		return "false"
-	}
-}
-
-type TypedBoolLiteral bool
-
-var (
-	False TypedBoolLiteral = false
-	True  TypedBoolLiteral = true
-)
-
-func (b TypedBoolLiteral) Coq(needs_paren bool) string {
-	if b {
 		return "#true"
 	} else {
 		return "#false"
 	}
+}
+
+var (
+	False BoolLiteral = BoolLiteral(false)
+	True  BoolLiteral = BoolLiteral(true)
+)
+
+type BoolVal struct {
+	Value Expr
+}
+
+func (b BoolVal) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#%s", b.Value.Coq(true))
 }
 
 type UnitLiteral struct{}
@@ -550,6 +548,13 @@ const (
 	OpGreaterThan
 	OpLessEq
 	OpGreaterEq
+
+	OpEqualsZ
+	OpLessThanZ
+	OpGreaterThanZ
+	OpLessEqZ
+	OpGreaterEqZ
+
 	OpAppend
 	OpMul
 	OpQuot
@@ -583,13 +588,20 @@ func (be BinaryExpr) Coq(needs_paren bool) string {
 		OpGreaterThan: ">",
 		OpLessEq:      "≤",
 		OpGreaterEq:   "≥",
-		OpAnd:         "`and`",
-		OpOr:          "`or`",
-		OpXor:         "`xor`",
-		OpLAnd:        "&&",
-		OpLOr:         "||",
-		OpShl:         "≪",
-		OpShr:         "≫",
+
+		OpEqualsZ:      "=?",
+		OpLessThanZ:    "<?",
+		OpGreaterThanZ: ">?",
+		OpLessEqZ:      "<=?",
+		OpGreaterEqZ:   ">=?",
+
+		OpAnd:  "`and`",
+		OpOr:   "`or`",
+		OpXor:  "`xor`",
+		OpLAnd: "&&",
+		OpLOr:  "||",
+		OpShl:  "≪",
+		OpShr:  "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
 		expr := fmt.Sprintf("%s %s %s",
@@ -598,6 +610,14 @@ func (be BinaryExpr) Coq(needs_paren bool) string {
 	}
 
 	panic(fmt.Sprintf("unknown binop %d", be.Op))
+}
+
+type GallinaNotExpr struct {
+	X Expr
+}
+
+func (e GallinaNotExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("(negb %s)", e.X.Coq(true))
 }
 
 type NotExpr struct {

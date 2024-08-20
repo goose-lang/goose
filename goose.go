@@ -798,7 +798,6 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 		ctx.nope(e, "basic literal should have a const val")
 	}
 	t, v := ctx.constantLiteral(e, tv.Value)
-	// fmt.Printf("%s has type %v to %v\n", e.Value, t, tv.Type)
 	return ctx.handleImplicitConversion(e, t, tv.Type, v)
 }
 
@@ -820,58 +819,84 @@ func (ctx Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
 	}
 }
 
-func (ctx Ctx) binExpr(e *ast.BinaryExpr) glang.Expr {
-	op, ok := map[token.Token]glang.BinOp{
-		token.LSS:  glang.OpLessThan,
-		token.GTR:  glang.OpGreaterThan,
-		token.SUB:  glang.OpMinus,
-		token.EQL:  glang.OpEquals,
-		token.NEQ:  glang.OpNotEquals,
-		token.MUL:  glang.OpMul,
-		token.QUO:  glang.OpQuot,
-		token.REM:  glang.OpRem,
-		token.LEQ:  glang.OpLessEq,
-		token.GEQ:  glang.OpGreaterEq,
-		token.AND:  glang.OpAnd,
-		token.LAND: glang.OpLAnd,
-		token.OR:   glang.OpOr,
-		token.LOR:  glang.OpLOr,
-		token.XOR:  glang.OpXor,
-		token.SHL:  glang.OpShl,
-		token.SHR:  glang.OpShr,
-	}[e.Op]
-	if e.Op == token.ADD {
-		if isString(ctx.typeOf(e.X)) {
-			op = glang.OpAppend
-		} else {
-			op = glang.OpPlus
-		}
-		ok = true
-	}
-	if !ok {
-		ctx.unsupported(e, "binary operator %v", e.Op)
-		return nil
-	}
-
+func (ctx Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	// XXX: according to the Go spec, comparisons can occur between types that
 	// are "assignable" to one another. This may require a conversion, so we
 	// here convert to the appropriate type here.
 	//
 	// XXX: this also handles converting untyped constants to a typed constant
 	xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
-	compType := ctx.typeJoin(e, xT, yT)
-	expr := glang.BinaryExpr{
+	compType := ctx.typeJoin(e, xT, yT).Underlying()
+	var op glang.BinOp = -1
+	if t, ok := compType.(*types.Basic); ok {
+		switch t.Kind() {
+		case types.UntypedInt:
+			op, ok = untypedIntOps[e.Op]
+			if !ok {
+				// use const
+				tv := ctx.info.Types[e]
+				if tv.Value == nil {
+					ctx.nope(e, "untyped integer expression without constant value")
+				}
+				t, v := ctx.constantLiteral(e, tv.Value)
+				return ctx.handleImplicitConversion(e, t, tv.Type, v)
+			}
+			switch op {
+			case glang.OpEqualsZ, glang.OpLessThanZ, glang.OpLessEqZ, glang.OpGreaterThanZ, glang.OpGreaterEqZ:
+				defer func() {
+					expr = glang.BoolVal{Value: expr}
+				}()
+			case glang.OpNotEquals:
+				op = glang.OpEqualsZ
+				defer func() {
+					expr = glang.BoolVal{Value: glang.GallinaNotExpr{X: expr}}
+				}()
+			}
+		case types.Uint, types.Uint64, types.Uint32, types.Uint16, types.Uint8:
+			op, ok = unsignedIntOps[e.Op]
+			if !ok {
+				ctx.unsupported(e, "unsupported binary operation on unsinged integers")
+			}
+		case types.Int, types.Int64, types.Int32, types.Int16, types.Int8:
+			op, ok = signedIntOps[e.Op]
+			if !ok {
+				ctx.unsupported(e, "unsupported binary operation on singed integers")
+			}
+		case types.UntypedBool, types.Bool:
+			op, ok = boolOps[e.Op]
+			if !ok {
+				ctx.unsupported(e, "unsupported binary operation on booleans")
+			}
+		case types.String, types.UntypedString:
+			op, ok = stringOps[e.Op]
+			if !ok {
+				ctx.unsupported(e, "unsupported binary operation on strings")
+			}
+		}
+		if (t.Info() & types.IsInteger) != 0 {
+			switch op {
+			case glang.OpMinus, glang.OpMul, glang.OpRem, glang.OpPlus, glang.OpQuot:
+				defer func() {
+					expr = ctx.handleImplicitConversion(e, compType, ctx.typeOf(e), expr)
+				}()
+			}
+		}
+	} else {
+		op, ok = generalOps[e.Op]
+		if !ok {
+			ctx.unsupported(e, "binary operation on general type")
+		}
+	}
+	if op == -1 {
+		ctx.unsupported(e, "unknown op")
+	}
+
+	expr = glang.BinaryExpr{
 		X:  ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
 		Op: op,
 		Y:  ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
 	}
 
-	switch op {
-	case glang.OpMinus, glang.OpMul, glang.OpRem, glang.OpPlus, glang.OpQuot:
-		// XXX: another conversion here because it's possible to have
-		// `e` of type `uint64` but with `e.X : (untyped int)` and  `e.Y : (untyped int)`.
-		return ctx.handleImplicitConversion(e, compType, ctx.typeOf(e), expr)
-	}
 	return expr
 }
 
@@ -1108,9 +1133,7 @@ func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 	if constObj, ok := obj.(*types.Const); ok {
 		// is a constant
 		ctx.dep.addDep(e.Name)
-		fmt.Printf("%v and %v\n", ctx.typeOf(e), constObj.Type())
 		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), glang.GallinaIdent(e.Name))
-
 	}
 	if _, ok := obj.(*types.Var); ok {
 		// is a variable
@@ -1168,7 +1191,6 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	// ctx is by value, so no need to unset this
 	ctx.curFuncType = ctx.typeOf(e.Type).(*types.Signature)
 	fl.Args = ctx.paramList(e.Type.Params)
-	// fl.ReturnType = ctx.returnType(d.Type.Results)
 	fl.Body = ctx.blockStmt(e.Body, nil)
 
 	for _, arg := range fl.Args {
@@ -1311,8 +1333,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 		elseExpr = ctx.stmt(s.Else, nil)
 	}
 	var ife glang.Expr = glang.IfExpr{
-		// Cond: ctx.handleImplicitConversion(s.Cond, ctx.typeOf(s.Cond), types.Typ[types.Bool], ctx.expr(s.Cond)),
-		Cond: ctx.expr(s.Cond),
+		Cond: ctx.handleImplicitConversion(s.Cond, ctx.typeOf(s.Cond), types.Typ[types.Bool], ctx.expr(s.Cond)),
 		Then: ctx.blockStmt(s.Body, nil),
 		Else: elseExpr,
 	}
@@ -1586,11 +1607,10 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedBool {
 		if toBasic, ok := toUnder.(*types.Basic); ok && toBasic.Kind() == types.Bool {
-			eb, ok := e.(glang.BoolLiteral)
-			if !ok {
-				ctx.nope(n, "expected untyped bool literal value, got %T", e)
-			}
-			return glang.TypedBoolLiteral(bool(eb))
+			// XXX: not making a distinction between typed and untyped bool.
+			// Untyped bool are the runtime result of comparison operators,
+			// whereas other untyped types are only used in constants.
+			return e
 		}
 	}
 
