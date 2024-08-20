@@ -207,15 +207,15 @@ Definition testCompareAll : val :=
     let: "nok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := #false in
     do:  ("nok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (1 < 2)) in
+    let: "$r0" := ((![boolT] "ok") && #(1 <? 2)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (2 < 1)) in
+    let: "$r0" := ((![boolT] "ok") && #(2 <? 1)) in
     do:  ("nok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (1 ≤ 2)) in
+    let: "$r0" := ((![boolT] "ok") && #(1 <=? 2)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (2 ≤ 2)) in
+    let: "$r0" := ((![boolT] "ok") && #(2 <=? 2)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (2 ≤ 1)) in
+    let: "$r0" := ((![boolT] "ok") && #(2 <=? 1)) in
     do:  ("nok" <-[boolT] "$r0");;;
     (if: ![boolT] "nok"
     then return: (#false)
@@ -406,10 +406,10 @@ Definition deferSimple : val :=
     with_defer: (let: "x" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
     do:  ("x" <-[ptrT] "$r0");;;
-    (let: "i" := (ref_ty intT (zero_val intT)) in
+    (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 0) in
-    do:  ("i" <-[intT] "$r0");;;
-    (for: (λ: <>, (![intT] "i") < #(W64 10)); (λ: <>, do:  ("i" <-[intT] ((![intT] "i") + #(W64 1)))) := λ: <>,
+    do:  ("i" <-[uint64T] "$r0");;;
+    (for: (λ: <>, (![uint64T] "i") < #(W64 10)); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
       do:  (let: "$f" := (λ: <>,
         exception_do (do:  ((![ptrT] "x") <-[uint64T] ((![uint64T] (![ptrT] "x")) + #(W64 1))))
         ) in
@@ -574,20 +574,20 @@ Definition failing_testEncDec32 : val :=
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 3434807466) in
     roundtripEncDec32 "$a0") = #(W32 3434807466))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 20) in
-    roundtripEncDec32 "$a0") = (1 ≪ 20))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1048576) in
+    roundtripEncDec32 "$a0") = #(W32 1048576))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 18) in
-    roundtripEncDec32 "$a0") = (1 ≪ 18))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 262144) in
+    roundtripEncDec32 "$a0") = #(W32 262144))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 10) in
-    roundtripEncDec32 "$a0") = (1 ≪ 10))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1024) in
+    roundtripEncDec32 "$a0") = #(W32 1024))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 0) in
-    roundtripEncDec32 "$a0") = (1 ≪ 0))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1) in
+    roundtripEncDec32 "$a0") = #(W32 1))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 ((1 ≪ 32) - 1)) in
-    roundtripEncDec32 "$a0") = #(W32 ((1 ≪ 32) - 1)))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 (4294967296 - 1)) in
+    roundtripEncDec32 "$a0") = #(W32 (4294967296 - 1)))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -617,26 +617,26 @@ Definition testEncDec64 : val :=
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 62206846038638762) in
     roundtripEncDec64 "$a0") = #(W64 62206846038638762))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 63) in
-    roundtripEncDec64 "$a0") = (1 ≪ 63))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 9223372036854775808) in
+    roundtripEncDec64 "$a0") = #(W64 9223372036854775808))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 47) in
-    roundtripEncDec64 "$a0") = (1 ≪ 47))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 140737488355328) in
+    roundtripEncDec64 "$a0") = #(W64 140737488355328))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 20) in
-    roundtripEncDec64 "$a0") = (1 ≪ 20))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1048576) in
+    roundtripEncDec64 "$a0") = #(W64 1048576))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 18) in
-    roundtripEncDec64 "$a0") = (1 ≪ 18))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 262144) in
+    roundtripEncDec64 "$a0") = #(W64 262144))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 10) in
-    roundtripEncDec64 "$a0") = (1 ≪ 10))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1024) in
+    roundtripEncDec64 "$a0") = #(W64 1024))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 0) in
-    roundtripEncDec64 "$a0") = (1 ≪ 0))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1) in
+    roundtripEncDec64 "$a0") = #(W64 1))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 ((1 ≪ 64) - 1)) in
-    roundtripEncDec64 "$a0") = #(W64 ((1 ≪ 64) - 1)))) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 (18446744073709551616 - 1)) in
+    roundtripEncDec64 "$a0") = #(W64 (18446744073709551616 - 1)))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -1558,25 +1558,25 @@ Definition testReverseAssignOps64 : val :=
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 62206846038638762) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 63) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 9223372036854775808) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 47) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 140737488355328) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 20) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1048576) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 18) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 262144) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 10) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1024) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 0) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 1) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 ((1 ≪ 64) - 1)) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W64 (18446744073709551616 - 1)) in
     reverseAssignOps64 "$a0") = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
@@ -1599,19 +1599,19 @@ Definition failing_testReverseAssignOps32 : val :=
     let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 3434807466) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 20) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1048576) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 18) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 262144) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 10) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1024) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := (1 ≪ 0) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 1) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 ((1 ≪ 32) - 1)) in
+    let: "$r0" := ((![boolT] "ok") && ((let: "$a0" := #(W32 (4294967296 - 1)) in
     reverseAssignOps32 "$a0") = #(W32 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
@@ -1627,7 +1627,7 @@ Definition testAdd64Equals : val :=
     let: "$a2" := #(W64 5) in
     add64Equals "$a0" "$a1" "$a2")) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (let: "$a0" := #(W64 ((1 ≪ 64) - 1)) in
+    let: "$r0" := ((![boolT] "ok") && (let: "$a0" := #(W64 (18446744073709551616 - 1)) in
     let: "$a1" := #(W64 1) in
     let: "$a2" := #(W64 0) in
     add64Equals "$a0" "$a1" "$a2")) in
@@ -1645,14 +1645,14 @@ Definition testSub64Equals : val :=
     let: "$a2" := #(W64 1) in
     sub64Equals "$a0" "$a1" "$a2")) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (let: "$a0" := #(W64 ((1 ≪ 64) - 1)) in
-    let: "$a1" := (1 ≪ 63) in
-    let: "$a2" := #(W64 ((1 ≪ 63) - 1)) in
+    let: "$r0" := ((![boolT] "ok") && (let: "$a0" := #(W64 (18446744073709551616 - 1)) in
+    let: "$a1" := #(W64 9223372036854775808) in
+    let: "$a2" := #(W64 (9223372036854775808 - 1)) in
     sub64Equals "$a0" "$a1" "$a2")) in
     do:  ("ok" <-[boolT] "$r0");;;
     let: "$r0" := ((![boolT] "ok") && (let: "$a0" := #(W64 2) in
     let: "$a1" := #(W64 8) in
-    let: "$a2" := #(W64 ((1 ≪ 64) - 6)) in
+    let: "$a2" := #(W64 (18446744073709551616 - 6)) in
     sub64Equals "$a0" "$a1" "$a2")) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
@@ -1688,17 +1688,17 @@ Definition testBitwiseOpsPrecedence : val :=
     exception_do (let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := #true in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((222 `or` 327) = 479)) in
+    let: "$r0" := ((![boolT] "ok") && #(479 =? 479)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((468 `and` 1191) = 132)) in
+    let: "$r0" := ((![boolT] "ok") && #(132 =? 132)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((453 `xor` 761) = 828)) in
+    let: "$r0" := ((![boolT] "ok") && #(828 =? 828)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (((453 `xor` 761) `or` 121) = 893)) in
+    let: "$r0" := ((![boolT] "ok") && #(893 =? 893)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (((468 `and` 1191) `or` 333) = 461)) in
+    let: "$r0" := ((![boolT] "ok") && #(461 =? 461)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((222 `or` (327 `and` 421)) ≠ 389)) in
+    let: "$r0" := ((![boolT] "ok") && #(negb (479 =? 389))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -1708,43 +1708,43 @@ Definition testArithmeticShifts : val :=
     exception_do (let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := #true in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((672 ≪ 3) = 5376)) in
+    let: "$r0" := ((![boolT] "ok") && #(5376 =? 5376)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((672 ≪ 51) = 1513209474796486656)) in
+    let: "$r0" := ((![boolT] "ok") && #(1513209474796486656 =? 1513209474796486656)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((672 ≫ 4) = 42)) in
+    let: "$r0" := ((![boolT] "ok") && #(42 =? 42)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && ((672 ≫ 12) = 0)) in
+    let: "$r0" := ((![boolT] "ok") && #(0 =? 0)) in
     do:  ("ok" <-[boolT] "$r0");;;
-    let: "$r0" := ((![boolT] "ok") && (((672 ≫ 4) ≪ 4) = 672)) in
+    let: "$r0" := ((![boolT] "ok") && #(672 =? 672)) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
 (* go: operations.go:114:6 *)
 Definition testBitAddAnd : val :=
   rec: "testBitAddAnd" <> :=
-    exception_do (let: "tid" := (ref_ty intT (zero_val intT)) in
+    exception_do (let: "tid" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 17) in
-    do:  ("tid" <-[intT] "$r0");;;
-    let: "n" := (ref_ty intT (zero_val intT)) in
+    do:  ("tid" <-[uint64T] "$r0");;;
+    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 16) in
-    do:  ("n" <-[intT] "$r0");;;
-    return: ((((![intT] "tid") + (![intT] "n")) `and` (~ ((![intT] "n") - #(W64 1)))) = #(W64 32))).
+    do:  ("n" <-[uint64T] "$r0");;;
+    return: ((((![uint64T] "tid") + (![uint64T] "n")) `and` (~ ((![uint64T] "n") - #(W64 1)))) = #(W64 32))).
 
 (* go: operations.go:120:6 *)
 Definition testManyParentheses : val :=
   rec: "testManyParentheses" <> :=
-    exception_do (return: ((((1 `rem` 2) `or` (3 `rem` 4)) * 6) = (3 * 6))).
+    exception_do (return: (#((3 * 6) =? (3 * 6)))).
 
 (* go: operations.go:124:6 *)
 Definition testPlusTimes : val :=
   rec: "testPlusTimes" <> :=
-    exception_do (return: (((2 + 5) * 2) = 14)).
+    exception_do (return: (#(((2 + 5) * 2) =? 14))).
 
 (* go: precedence.go:3:6 *)
 Definition testOrCompareSimple : val :=
   rec: "testOrCompareSimple" <> :=
-    exception_do ((if: (3 > 4) || (4 > 3)
+    exception_do ((if: #(3 >? 4) || #(4 >? 3)
     then return: (#true)
     else do:  #());;;
     return: (#false)).
@@ -1755,12 +1755,12 @@ Definition testOrCompare : val :=
     exception_do (let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := #true in
     do:  ("ok" <-[boolT] "$r0");;;
-    (if: (~ ((3 > 4) || (4 > 3)))
+    (if: (~ (#(3 >? 4) || #(4 >? 3)))
     then
       let: "$r0" := #false in
       do:  ("ok" <-[boolT] "$r0")
     else do:  #());;;
-    (if: (4 < 3) || (2 > 3)
+    (if: #(4 <? 3) || #(2 >? 3)
     then
       let: "$r0" := #false in
       do:  ("ok" <-[boolT] "$r0")
@@ -1773,12 +1773,12 @@ Definition testAndCompare : val :=
     exception_do (let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := #true in
     do:  ("ok" <-[boolT] "$r0");;;
-    (if: (3 > 4) && (4 > 3)
+    (if: #(3 >? 4) && #(4 >? 3)
     then
       let: "$r0" := #false in
       do:  ("ok" <-[boolT] "$r0")
     else do:  #());;;
-    (if: (4 > 3) || (2 < 3)
+    (if: #(4 >? 3) || #(2 <? 3)
     then do:  #()
     else
       let: "$r0" := #false in
@@ -1788,7 +1788,7 @@ Definition testAndCompare : val :=
 (* go: precedence.go:34:6 *)
 Definition testShiftMod : val :=
   rec: "testShiftMod" <> :=
-    exception_do (return: ((20 ≫ (8 `rem` 4)) = 20)).
+    exception_do (return: (#(20 =? 20))).
 
 (* go: prims.go:9:6 *)
 Definition testLinearize : val :=

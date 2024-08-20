@@ -2,7 +2,7 @@ package semantics
 
 func deferSimple() *uint64 {
 	x := new(uint64)
-	for i := 0; i < 10; i++ {
+	for i := uint64(0); i < 10; i++ {
 		defer func() {
 			*x += 1
 		}()

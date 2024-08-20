@@ -112,8 +112,8 @@ func testArithmeticShifts() bool {
 }
 
 func testBitAddAnd() bool {
-	tid := 17
-	n := 16
+	tid := uint64(17)
+	n := uint64(16)
 	return ((tid + n) & ^(n - 1)) == 32
 }
 

@@ -66,27 +66,6 @@ Definition Entry__mset : list (string * val) := [
 Definition Entry__mset_ptr : list (string * val) := [
 ].
 
-(* DecodeUInt64 is a Decoder(uint64)
-
-   All decoders have the shape func(p []byte) (T, uint64)
-
-   The uint64 represents the number of bytes consumed; if 0,
-   then decoding failed, and the value of type T should be ignored.
-
-   go: simpledb.go:52:6 *)
-Definition DecodeUInt64 : val :=
-  rec: "DecodeUInt64" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
-    (if: (let: "$a0" := (![sliceT byteT] "p") in
-    slice.len "$a0") < #(W64 8)
-    then return: (#(W64 0), #(W64 0))
-    else do:  #());;;
-    let: "n" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "p") in
-    primitive.UInt64Get "$a0") in
-    do:  ("n" <-[uint64T] "$r0");;;
-    return: (![uint64T] "n", #(W64 8))).
-
 (* DecodeEntry is a Decoder(Entry)
 
    go: simpledb.go:61:6 *)
