@@ -280,6 +280,26 @@ func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	return ctx.sliceLiteralAux(exprs, expectedType)
 }
 
+func (ctx Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.Expr {
+	var arrayLitArgs []glang.Expr
+	for i := 0; i < len(e.Elts); i++ {
+		arrayLitArgs = append(arrayLitArgs, glang.IdentExpr(fmt.Sprintf("$ar%d", i)))
+	}
+	var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.literal"),
+		glang.ListExpr(arrayLitArgs))
+
+	for i := len(e.Elts); i > 0; i-- {
+		elt := e.Elts[i-1]
+		expr = glang.LetExpr{
+			Names:   []string{fmt.Sprintf("$ar%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(elt, ctx.typeOf(elt), expectedType, ctx.expr(elt)),
+			Cont:    expr,
+		}
+	}
+	expr = glang.ParenExpr{Inner: expr}
+	return expr
+}
+
 // Deals with the arguments, but does not actually invoke the function. That
 // should be done in the continuation. The continuation can assume the arguments
 // are bound to "a0", "$a1", ....
@@ -423,16 +443,17 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 	// return nil
 }
 
-// This handles specifically make() and new() because they uniquely take a type
-// as a normal parameter.
-func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
+// This handles:
+// - make() and new() because they uniquely take a type as a normal parameter.
+// - array len() and cap() because they are untyped functions
+func (ctx Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 	if !ctx.info.Types[s.Fun].IsBuiltin() {
 		return nil, false
 	}
 
-	sig := ctx.typeOf(s.Fun).(*types.Signature)
 	switch s.Fun.(*ast.Ident).Name {
 	case "make":
+		sig := ctx.typeOf(s.Fun).(*types.Signature)
 		switch ty := sig.Params().At(0).Type().Underlying().(type) {
 		case *types.Slice:
 			elt := ctx.glangType(s.Fun, ty.Elem())
@@ -460,11 +481,21 @@ func (ctx Ctx) maybeHandleMakeAndNew(s *ast.CallExpr) (glang.Expr, bool) {
 			ctx.unsupported(s, "make should be slice or map, got %v", ty)
 		}
 	case "new":
+		sig := ctx.typeOf(s.Fun).(*types.Signature)
 		ty := ctx.glangType(s.Args[0], sig.Params().At(0).Type())
 		return glang.RefExpr{
 			X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ty),
 			Ty: ty,
 		}, true
+	case "len", "cap":
+		if _, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
+			return nil, false
+		}
+		name := s.Fun.(*ast.Ident).Name
+		elemType := ctx.typeOf(s.Args[0]).(*types.Array).Elem()
+		return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("array.%s", name)),
+			ctx.glangType(s, elemType),
+			ctx.expr(s.Args[0])), true
 	}
 
 	return nil, false
@@ -481,7 +512,7 @@ func (ctx Ctx) getNumParams(e ast.Expr) int {
 func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
-	} else if e, ok := ctx.maybeHandleMakeAndNew(s); ok {
+	} else if e, ok := ctx.maybeHandleSpecialBuiltin(s); ok {
 		return e
 	} else {
 		var args []glang.Expr
@@ -735,6 +766,8 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	if t, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
 		return ctx.sliceLiteral(e.Elts, t.Elem())
+	} else if t, ok := ctx.typeOf(e).Underlying().(*types.Array); ok {
+		return ctx.arrayLiteral(e, t.Elem())
 	}
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok {
@@ -1165,6 +1198,17 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 			X:  ctx.exprAddr(e),
 			Ty: ctx.glangType(e, ctx.typeOf(e)),
 		}
+	case *types.Array:
+		if ctx.info.Types[e].Addressable() {
+			return glang.DerefExpr{
+				X:  ctx.exprAddr(e),
+				Ty: ctx.glangType(e, ctx.typeOf(e)),
+			}
+		} else {
+			return glang.NewCallExpr(glang.GallinaIdent("array.elem_get"),
+				ctx.glangType(e, ctx.typeOf(e)),
+				ctx.expr(e.X), ctx.expr(e.Index))
+		}
 	case *types.Signature:
 		ctx.unsupported(e, "generic function %v", xTy)
 	}
@@ -1516,8 +1560,11 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 				ctx.expr(e.Index))
 		case *types.Map:
 			ctx.nope(e, "map index expressions are not addressable")
+		case *types.Array:
+			return glang.NewCallExpr(glang.GallinaIdent("array.elem_ref"),
+				ctx.glangType(e, targetTy.Elem()), ctx.expr(e.X), ctx.expr(e.Index))
 		default:
-			ctx.unsupported(e, "index update to unexpected target of type %v", targetTy)
+			ctx.unsupported(e, "index addr to unexpected target of type %v", targetTy)
 		}
 	case *ast.StarExpr:
 		return ctx.expr(e.X)
@@ -1863,16 +1910,13 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 	}
 
 	expr = ctx.callExprPrelude(s.Call, expr)
-
 	expr = glang.NewDoSeq(expr, cont)
-
 	return
 }
 
 func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
 	var sends glang.ListExpr
 	var recvs glang.ListExpr
-	// FIXME: if no def, then should block
 	var def glang.Expr = glang.NewCallExpr(glang.GallinaIdent("InjLV"), glang.Tt)
 
 	// build up select statement itself

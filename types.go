@@ -102,8 +102,9 @@ func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 		return glang.TypeIdent("interfaceT")
 	case *types.Chan:
 		return glang.ChanType{Elem: ctx.glangType(n, t.Elem())}
+	case *types.Array:
+		return glang.ArrayType{Len: uint64(t.Len()), Elem: ctx.glangType(n, t.Elem())}
 	}
-	// panic("unknown type")
 	ctx.unsupported(n, "unknown type %v", t)
 	return nil // unreachable
 }

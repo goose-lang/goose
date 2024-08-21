@@ -212,12 +212,12 @@ func (t SliceType) Coq(needs_paren bool) string {
 }
 
 type ArrayType struct {
-	Len uint64
-	Elt Type
+	Len  uint64
+	Elem Type
 }
 
 func (t ArrayType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("arrayT"), t.Elt).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent(fmt.Sprintf("arrayT %d", t.Len)), t.Elem).Coq(needs_paren)
 }
 
 type Expr interface {
