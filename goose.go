@@ -417,11 +417,12 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 				ctx.unsupported(s, "converting from integer type to non-integer type")
 			}
 			switch toType.Kind() {
-			case types.Uint64:
+			// XXX: int is treated as a 64 bit word
+			case types.Uint, types.Int, types.Uint64, types.Int64:
 				return ctx.integerConversion(s, s.Args[0], 64)
-			case types.Uint32:
+			case types.Int32, types.Uint32:
 				return ctx.integerConversion(s, s.Args[0], 32)
-			case types.Uint8:
+			case types.Int8, types.Uint8:
 				return ctx.integerConversion(s, s.Args[0], 8)
 			}
 		}
@@ -1634,6 +1635,10 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			msetName := fromBasic.Name() + "__mset" + maybePtrSuffix
 			ctx.dep.addDep(msetName)
 			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(msetName), e)
+		} else if _, ok := from.(*types.Slice); ok {
+			msetName := "slice__mset" + maybePtrSuffix
+			ctx.dep.addDep(msetName)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(msetName), e)
 		}
 	}
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
@@ -1687,7 +1692,7 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 		}
 	}
 
-	ctx.unsupported(n, "implicit conversion from %s to %s", from, to)
+	ctx.unsupported(n, "(possibly implicit) conversion from %s to %s", from, to)
 	panic("unreachable")
 }
 
