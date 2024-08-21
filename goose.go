@@ -492,10 +492,8 @@ func (ctx Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			return nil, false
 		}
 		name := s.Fun.(*ast.Ident).Name
-		elemType := ctx.typeOf(s.Args[0]).(*types.Array).Elem()
 		return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("array.%s", name)),
-			ctx.glangType(s, elemType),
-			ctx.expr(s.Args[0])), true
+			ctx.glangType(s, ctx.typeOf(s.Args[0]))), true
 	}
 
 	return nil, false

@@ -52,9 +52,9 @@ Definition sum : val :=
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 0) in
     do:  ("i" <-[uint64T] "$r0");;;
-    (for: (λ: <>, (![uint64T] "i") < (array.len uint64T (![arrayT 100 uint64T] "x"))); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
+    (for: (λ: <>, (![uint64T] "i") < (array.len (arrayT 100 uint64T))); (λ: <>, do:  ("i" <-[uint64T] ((![uint64T] "i") + #(W64 1)))) := λ: <>,
       do:  ("sum" <-[uint64T] ((![uint64T] "sum") + (![uint64T] (array.elem_ref uint64T (![arrayT 100 uint64T] "x") (![uint64T] "i")))))));;;
-    do:  ("sum" <-[uint64T] ((![uint64T] "sum") + (array.cap uint64T (![arrayT 100 uint64T] "x"))));;;
+    do:  ("sum" <-[uint64T] ((![uint64T] "sum") + (array.cap (arrayT 100 uint64T))));;;
     return: (![uint64T] "sum")).
 
 (* go: chan.go:5:6 *)
