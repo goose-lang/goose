@@ -2283,7 +2283,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 			return ctx.globalVarDecl(d)
 		case token.TYPE:
 			if len(d.Specs) > 1 {
-				ctx.noExample(d, "multiple specs in a type decl")
+				ctx.unsupported(d, "multiple specs in a type decl")
 			}
 			spec := d.Specs[0].(*ast.TypeSpec)
 			return ctx.typeDecl(spec)

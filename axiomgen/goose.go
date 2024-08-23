@@ -3,6 +3,7 @@ package axiomgen
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"io"
 	"log"
@@ -27,8 +28,30 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 			fmt.Fprintf(w, "Axiom %s : val.\n", n)
 		}
 	case *ast.GenDecl:
+		switch d.Tok {
+		case token.IMPORT:
+		case token.CONST:
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.ValueSpec)
+				for _, name := range spec.Names {
+					if name.IsExported() {
+						fmt.Fprintf(w, "Axiom %s : val.\n", name.Name)
+					}
+				}
+			}
+		case token.VAR:
+			// return ctx.globalVarDecl(d)
+		case token.TYPE:
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.TypeSpec)
+				if spec.Name.IsExported() {
+					fmt.Fprintf(w, "Axiom %s : go_type.\n", spec.Name.Name)
+					fmt.Fprintf(w, "Axiom %s__mset : list (string * val).\n", spec.Name.Name)
+					fmt.Fprintf(w, "Axiom %s__mset_ptr : list (string * val).\n", spec.Name.Name)
+				}
+			}
+		}
 	case *ast.BadDecl:
 	default:
 	}
-
 }
