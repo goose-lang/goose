@@ -174,6 +174,9 @@ func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 
 			var expr glang.Expr
 			if len(selection.Index()) > 1 {
+				if !selection.Obj().Exported() {
+					continue // skip if an unexported method from an embedded field
+				}
 				expr = glang.IdentExpr("$recv")
 				expr = ctx.selectionMethod(false, expr, selection, t.Obj())
 				expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr}
@@ -200,6 +203,10 @@ func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 		selection := goMsetPtr.At(i)
 
 		var expr glang.Expr
+
+		if len(selection.Index()) > 1 && !selection.Obj().Exported() {
+			continue // skip if an unexported method from an embedded field
+		}
 
 		if len(selection.Index()) == 1 && !directMethods[selection.Obj().Name()] {
 			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
@@ -540,6 +547,7 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 		if !ok {
 			ctx.unsupported(e, "expected package selector with idtent, got %T", e.X)
 		}
+		ctx.unsupported(e, "address of external package selection")
 		return glang.PackageIdent{
 			Package: pkg,
 			Ident:   e.Sel.Name,
@@ -723,9 +731,18 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		if !ok {
 			ctx.unsupported(e, "expected package selector with ident, got %T", e.X)
 		}
-		return glang.PackageIdent{
-			Package: pkg,
-			Ident:   e.Sel.Name,
+		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
+			return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
+		} else {
+
+			return ctx.handleImplicitConversion(e,
+				ctx.info.TypeOf(e.Sel),
+				ctx.info.TypeOf(e),
+				glang.PackageIdent{
+					Package: pkg,
+					Ident:   e.Sel.Name,
+				},
+			)
 		}
 	}
 
@@ -1521,6 +1538,9 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	for _, lhsExpr := range s.Lhs {
 		if ident, ok := lhsExpr.(*ast.Ident); ok {
 			if _, ok := ctx.info.Defs[ident]; ok { // if this identifier is defining something
+				if ident.Name == "_" {
+					continue
+				}
 				t := ctx.glangType(ident, ctx.info.TypeOf(ident))
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
@@ -1653,7 +1673,7 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 		} else if _, ok := toUnder.(*types.Map); ok {
 			return glang.GallinaIdent("map.nil")
 		} else if _, ok := toUnder.(*types.Signature); ok {
-			return glang.GallinaIdent("nil")
+			return glang.GallinaIdent("go_nil")
 		}
 	}
 	if _, ok := toUnder.(*types.Interface); ok {
@@ -2185,8 +2205,6 @@ func (ctx Ctx) declType(t types.Type) glang.Expr {
 	switch t := t.(type) {
 	case *types.Basic:
 		switch t.Kind() {
-		case types.UntypedBool:
-			return glang.GallinaIdent("bool")
 		case types.UntypedString:
 			return glang.GallinaIdent("string")
 		case types.UntypedInt:

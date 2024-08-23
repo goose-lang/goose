@@ -132,8 +132,8 @@ func (d StructType) Coq(needs_paren bool) string {
 		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
 	}
 	pp.Indent(-2)
-	pp.AddLine("]%struct")
-	return pp.Build()
+	pp.AddLine("]")
+	return addParens(needs_paren, pp.Build())
 }
 
 type TypeDecl struct {

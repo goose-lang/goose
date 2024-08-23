@@ -35,7 +35,16 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 				spec := spec.(*ast.ValueSpec)
 				for _, name := range spec.Names {
 					if name.IsExported() {
-						fmt.Fprintf(w, "Axiom %s : val.\n", name.Name)
+						t := "expr"
+						if basicType, ok := info.TypeOf(name).(*types.Basic); ok {
+							switch basicType.Kind() {
+							case types.UntypedString:
+								t = "string"
+							case types.UntypedInt:
+								t = "Z"
+							}
+						}
+						fmt.Fprintf(w, "Axiom %s : %s.\n", name.Name, t)
 					}
 				}
 			}
