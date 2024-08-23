@@ -1640,8 +1640,25 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 	if types.Identical(fromUnder, toUnder) {
 		return e
 	}
+
+
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
+		if _, ok := toUnder.(*types.Slice); ok {
+			return glang.GallinaIdent("slice.nil")
+		} else if _, ok := toUnder.(*types.Interface); ok {
+			return glang.GallinaIdent("interface.nil")
+		} else if _, ok := toUnder.(*types.Pointer); ok {
+			return glang.GallinaIdent("#null")
+		} else if _, ok := toUnder.(*types.Chan); ok {
+			return glang.GallinaIdent("chan.nil")
+		} else if _, ok := toUnder.(*types.Map); ok {
+			return glang.GallinaIdent("map.nil")
+		} else if _, ok := toUnder.(*types.Signature); ok {
+			return glang.GallinaIdent("nil")
+		}
+	}
 	if _, ok := toUnder.(*types.Interface); ok {
-		if _, ok := from.(*types.Interface); ok {
+		if _, ok := fromUnder.(*types.Interface); ok {
 			// if both are interface types, then no need to convert anything
 			// because the GooseLang representation of interface values is
 			// independent of the particular interface type.
@@ -1665,19 +1682,6 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 			msetName := "slice__mset" + maybePtrSuffix
 			ctx.dep.addDep(msetName)
 			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(msetName), e)
-		}
-	}
-	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
-		if _, ok := toUnder.(*types.Slice); ok {
-			return glang.GallinaIdent("slice.nil")
-		} else if _, ok := toUnder.(*types.Pointer); ok {
-			return glang.GallinaIdent("#null")
-		} else if _, ok := toUnder.(*types.Chan); ok {
-			return glang.GallinaIdent("chan.nil")
-		} else if _, ok := toUnder.(*types.Map); ok {
-			return glang.GallinaIdent("map.nil")
-		} else if _, ok := toUnder.(*types.Signature); ok {
-			return glang.GallinaIdent("nil")
 		}
 	}
 
