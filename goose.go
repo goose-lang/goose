@@ -1641,7 +1641,6 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 		return e
 	}
 
-
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
 		if _, ok := toUnder.(*types.Slice); ok {
 			return glang.GallinaIdent("slice.nil")

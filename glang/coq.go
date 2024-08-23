@@ -500,7 +500,7 @@ type StringLiteral struct {
 }
 
 func (s StringLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf(`"%s"`, s.Value)
+	return fmt.Sprintf(`"%s"`, strings.Replace(s.Value, `"`, `""`, -1))
 }
 
 type Int64Val struct {
