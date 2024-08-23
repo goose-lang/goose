@@ -165,9 +165,9 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 		return intTypeInfo{width: 64}, true
 	case types.UntypedInt:
 		return intTypeInfo{isUntyped: true}, true
-	case types.Uint32:
+	case types.Uint32, types.Int32:
 		return intTypeInfo{width: 32}, true
-	case types.Uint8:
+	case types.Uint8, types.Int8:
 		return intTypeInfo{width: 8}, true
 	default:
 		return intTypeInfo{}, false

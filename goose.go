@@ -887,12 +887,17 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 		case types.Uint, types.Uint64, types.Uint32, types.Uint16, types.Uint8:
 			op, ok = unsignedIntOps[e.Op]
 			if !ok {
-				ctx.unsupported(e, "unsupported binary operation on unsinged integers")
+				ctx.unsupported(e, "unsupported binary operation on unsigned integers")
 			}
 		case types.Int, types.Int64, types.Int32, types.Int16, types.Int8:
 			op, ok = signedIntOps[e.Op]
 			if !ok {
-				ctx.unsupported(e, "unsupported binary operation on singed integers")
+				fn, ok := signedIntFns[e.Op]
+				if !ok {
+					ctx.unsupported(e, "unsupported binary operation on signed integers")
+				}
+				return glang.NewCallExpr(fn, ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
+					ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)))
 			}
 		case types.UntypedBool, types.Bool:
 			op, ok = boolOps[e.Op]
@@ -933,37 +938,58 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 }
 
 func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
-	if e.Slice3 {
-		ctx.unsupported(e, "3-index slice")
-		return nil
-	}
-	if e.Max != nil {
-		ctx.unsupported(e, "setting the max capacity in a slice expression is not supported")
-		return nil
-	}
-	if e.Low == nil && e.High == nil {
-		ctx.unsupported(e, "complete slice doesn't do anything")
-	}
+	if t, ok := ctx.typeOf(e.X).Underlying().(*types.Slice); ok {
+		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
+		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
+		x := ctx.expr(e.X)
 
-	x := ctx.expr(e.X)
-	var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
-	var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
-	if e.Low != nil {
-		lowExpr = ctx.expr(e.Low)
-	}
-	if e.High != nil {
-		highExpr = ctx.expr(e.High)
-	}
-	if _, ok := ctx.typeOf(e.X).Underlying().(*types.Slice); !ok {
+		if e.Low != nil {
+			lowExpr = ctx.expr(e.Low)
+		}
+		if e.High != nil {
+			highExpr = ctx.expr(e.High)
+		}
+		if e.Max != nil {
+			highExpr = ctx.expr(e.High)
+			return glang.LetExpr{
+				Names:   []string{"$s"},
+				ValExpr: x,
+				Cont: glang.NewCallExpr(glang.GallinaIdent("slice.full_slice"),
+					ctx.glangType(e, t.Elem()),
+					glang.IdentExpr("$s"), lowExpr, highExpr, ctx.expr(e.Max)),
+			}
+		} else {
+			return glang.LetExpr{
+				Names:   []string{"$s"},
+				ValExpr: x,
+				Cont: glang.NewCallExpr(glang.GallinaIdent("slice.slice"),
+					ctx.glangType(e, t.Elem()),
+					glang.IdentExpr("$s"), lowExpr, highExpr),
+			}
+		}
+	} else if _, ok := ctx.typeOf(e.X).Underlying().(*types.Array); ok {
+		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
+		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.len"), ctx.glangType(e.X, ctx.typeOf(e.X)))
+		if e.Low != nil {
+			lowExpr = ctx.expr(e.Low)
+		}
+		if e.High != nil {
+			highExpr = ctx.expr(e.High)
+		}
+		if e.Max != nil {
+			ctx.unsupported(e, "full slice of array")
+		} else {
+			return glang.LetExpr{
+				Names:   []string{"$a"},
+				ValExpr: ctx.exprAddr(e.X),
+				Cont: glang.NewCallExpr(glang.GallinaIdent("array.slice"),
+					glang.IdentExpr("$a"), lowExpr, highExpr),
+			}
+		}
+	} else {
 		ctx.unsupported(e, "taking a slice of an object with type %s", ctx.typeOf(e.X))
 	}
-	return glang.LetExpr{
-		Names:   []string{"$s"},
-		ValExpr: x,
-		Cont: glang.NewCallExpr(glang.GallinaIdent("slice.slice"),
-			ctx.glangType(e, sliceElem(ctx.typeOf(e.X))),
-			glang.IdentExpr("$s"), lowExpr, highExpr),
-	}
+	return nil
 }
 
 func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {

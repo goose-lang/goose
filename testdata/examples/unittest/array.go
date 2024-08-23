@@ -27,3 +27,11 @@ func sum(x [100]uint64) uint64 {
 	sum += uint64(cap(x))
 	return sum
 }
+
+func arrayToSlice() []string {
+	x := [...]string{
+		"a",
+		"b",
+	}
+	return x[:]
+}
