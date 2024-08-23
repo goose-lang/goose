@@ -17,7 +17,7 @@ Definition UseMarshal : val :=
 Definition Table : go_type := structT [
   "Index" :: mapT uint64T uint64T;
   "File" :: fileT
-]%struct.
+].
 
 Definition Table__mset : list (string * val) := [
 ].
@@ -34,7 +34,6 @@ Definition CreateTable : val :=
     let: "index" := (ref_ty (mapT uint64T uint64T) (zero_val (mapT uint64T uint64T))) in
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
-    let: <> := (ref_ty boolT (zero_val boolT)) in
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #(str "db") in
     let: "$a1" := (![stringT] "p") in
@@ -58,7 +57,7 @@ Definition CreateTable : val :=
 Definition Entry : go_type := structT [
   "Key" :: uint64T;
   "Value" :: sliceT byteT
-]%struct.
+].
 
 Definition Entry__mset : list (string * val) := [
 ].
@@ -144,7 +143,7 @@ Definition DecodeEntry : val :=
 Definition lazyFileBuf : go_type := structT [
   "offset" :: uint64T;
   "next" :: sliceT byteT
-]%struct.
+].
 
 Definition lazyFileBuf__mset : list (string * val) := [
 ].
@@ -306,7 +305,7 @@ Definition tableRead : val :=
 Definition bufFile : go_type := structT [
   "file" :: fileT;
   "buf" :: ptrT
-]%struct.
+].
 
 Definition bufFile__mset : list (string * val) := [
 ].
@@ -373,7 +372,7 @@ Definition tableWriter : go_type := structT [
   "name" :: stringT;
   "file" :: bufFile;
   "offset" :: ptrT
-]%struct.
+].
 
 Definition tableWriter__mset : list (string * val) := [
 ].
@@ -388,7 +387,6 @@ Definition newTableWriter : val :=
     let: "index" := (ref_ty (mapT uint64T uint64T) (zero_val (mapT uint64T uint64T))) in
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
-    let: <> := (ref_ty boolT (zero_val boolT)) in
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #(str "db") in
     let: "$a1" := (![stringT] "p") in
@@ -519,7 +517,7 @@ Definition Database : go_type := structT [
   "tableName" :: ptrT;
   "tableL" :: ptrT;
   "compactionL" :: ptrT
-]%struct.
+].
 
 Definition Database__mset : list (string * val) := [
 ].
@@ -716,7 +714,6 @@ Definition tablePutOldTable : val :=
       (if: (![uint64T] "l") > #(W64 0)
       then
         let: "ok" := (ref_ty boolT (zero_val boolT)) in
-        let: <> := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
         let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] "b") (![uint64T] (struct.field_ref Entry "Key" "e"))) in
         let: "$r0" := "$ret0" in
         let: "$r1" := "$ret1" in

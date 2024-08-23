@@ -16,7 +16,7 @@ Definition Log : go_type := structT [
   "l" :: ptrT;
   "cache" :: mapT uint64T (sliceT byteT);
   "length" :: ptrT
-]%struct.
+].
 
 (* go: log.go:56:14 *)
 Definition Log__unlock : val :=

@@ -22,7 +22,7 @@ Definition Log : go_type := structT [
   "memLen" :: ptrT;
   "memTxnNxt" :: ptrT;
   "logTxnNxt" :: ptrT
-]%struct.
+].
 
 (* XXX just an atomic read?
 
@@ -319,7 +319,7 @@ Definition Init : val :=
 Definition Txn : go_type := structT [
   "log" :: ptrT;
   "blks" :: mapT uint64T (sliceT byteT)
-]%struct.
+].
 
 (* go: txn.go:47:16 *)
 Definition Txn__Commit : val :=
@@ -368,7 +368,6 @@ Definition Txn__Write : val :=
     let: "$r0" := #true in
     do:  ("ret" <-[boolT] "$r0");;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
-    let: <> := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] (struct.field_ref Txn "blks" "txn")) (![uint64T] "addr")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
