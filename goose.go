@@ -86,8 +86,10 @@ func (ctx Ctx) field(f *ast.Field) glang.FieldDecl {
 		return glang.FieldDecl{}
 	}
 	if len(f.Names) == 0 {
-		ctx.unsupported(f, "unnamed field/parameter")
-		return glang.FieldDecl{}
+		return glang.FieldDecl{
+			Name: "_",
+			Type: ctx.glangTypeFromExpr(f.Type),
+		}
 	}
 	return glang.FieldDecl{
 		Name: f.Names[0].Name,
