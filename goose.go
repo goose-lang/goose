@@ -323,9 +323,11 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Lock":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.acquire"), l)
+		return coq.NewCallExpr(coq.GallinaIdent("Mutex__Lock"), l)
 	case "Unlock":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.release"), l)
+		return coq.NewCallExpr(coq.GallinaIdent("Mutex__Unlock"), l)
+	case "TryLock":
+		return coq.NewCallExpr(coq.GallinaIdent("Mutex__TryLock"), l)
 	default:
 		ctx.nope(f, "method %s of sync.Mutex", ctx.printGo(f))
 		return coq.CallExpr{}
@@ -336,11 +338,11 @@ func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
 	case "Signal":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condSignal"), l)
+		return coq.NewCallExpr(coq.GallinaIdent("Cond__Signal"), l)
 	case "Broadcast":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condBroadcast"), l)
+		return coq.NewCallExpr(coq.GallinaIdent("Cond__Broadcast"), l)
 	case "Wait":
-		return coq.NewCallExpr(coq.GallinaIdent("lock.condWait"), l)
+		return coq.NewCallExpr(coq.GallinaIdent("Cond__Wait"), l)
 	default:
 		ctx.unsupported(f, "method %s of sync.Cond", f.Sel.Name)
 		return coq.CallExpr{}
@@ -443,7 +445,7 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	if isIdent(f.X, "sync") {
 		switch f.Sel.Name {
 		case "NewCond":
-			return ctx.newCoqCall("lock.newCond", args)
+			return ctx.newCoqCall("NewCond", args)
 		}
 	}
 	pkg := f.X.(*ast.Ident)
@@ -656,13 +658,13 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
-			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
+			return coq.NewCallExpr(coq.GallinaIdent("newMutex"))
 		}
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
 			return coq.NewCallExpr(coq.GallinaIdent("waitgroup.New"))
 		}
 		if isIdent(sel.X, "cfmutex") && isIdent(sel.Sel, "CFMutex") {
-			return coq.NewCallExpr(coq.GallinaIdent("lock.new"))
+			return coq.NewCallExpr(coq.GallinaIdent("newMutex"))
 		}
 	}
 	if t, ok := ctx.typeOf(ty).(*types.Array); ok {
