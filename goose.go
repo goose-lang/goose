@@ -1022,7 +1022,7 @@ func (ctx Ctx) receiveExpr(e *ast.UnaryExpr) coq.Expr {
 		ctx.expr(e.X))
 }
 
-func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
+func (ctx Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{ctx.expr(e.X)}
 	}
@@ -1051,7 +1051,11 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		return ctx.refExpr(e.X)
 	}
 	if e.Op == token.ARROW {
-		return ctx.receiveExpr(e)
+		e2 := ctx.receiveExpr(e)
+		if !isSpecial {
+			e2 = coq.NewCallExpr(coq.GallinaIdent("Fst"), e2)
+		}
+		return e2
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
@@ -1177,7 +1181,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) coq.Expr {
 	case *ast.IndexExpr:
 		return ctx.indexExpr(e, isSpecial)
 	case *ast.UnaryExpr:
-		return ctx.unaryExpr(e)
+		return ctx.unaryExpr(e, isSpecial)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
@@ -1730,7 +1734,13 @@ func (ctx Ctx) multipleAssignStmt(s *ast.AssignStmt) coq.Binding {
 	if len(s.Rhs) > 1 {
 		ctx.unsupported(s, "multiple assignments on right hand side")
 	}
-	rhs := ctx.expr(s.Rhs[0])
+	var rhs coq.Expr
+	switch s.Rhs[0].(type) {
+	case *ast.UnaryExpr:
+		rhs = ctx.exprSpecial(s.Rhs[0], true)
+	default:
+		rhs = ctx.expr(s.Rhs[0])
+	}
 
 	if s.Tok != token.ASSIGN {
 		// This should be invalid Go syntax anyway
