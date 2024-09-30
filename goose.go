@@ -27,8 +27,9 @@ import (
 
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
-	info    *types.Info
-	pkgPath string
+	namesToTranslate map[string]bool
+	info             *types.Info
+	pkgPath          string
 	errorReporter
 
 	// XXX: this is so we can determine the expected return type when handling a
@@ -71,12 +72,13 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package) Ctx {
+func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 	return Ctx{
-		info:          pkg.TypesInfo,
-		pkgPath:       pkg.PkgPath,
-		errorReporter: newErrorReporter(pkg.Fset),
-		dep:           newDepTracker(),
+		info:             pkg.TypesInfo,
+		pkgPath:          pkg.PkgPath,
+		errorReporter:    newErrorReporter(pkg.Fset),
+		dep:              newDepTracker(),
+		namesToTranslate: namesToTranslate,
 	}
 }
 

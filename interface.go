@@ -47,6 +47,19 @@ type declId struct {
 	declIdx int
 }
 
+func (ctx Ctx) filterDecls(decls []glang.Decl) (newDecls []glang.Decl) {
+	if ctx.namesToTranslate == nil {
+		return decls
+	}
+	for _, d := range decls {
+		hasName, name := d.DefName()
+		if hasName && ctx.namesToTranslate[name] {
+			newDecls = append(newDecls, d)
+		}
+	}
+	return
+}
+
 // Decls converts an entire package (possibly multiple files) to a list of decls
 func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []glang.Decl, errs []error) {
 	decls := make(map[string]glang.Decl)
@@ -60,6 +73,7 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 		for di, d := range f.Decls {
 			id := declId{fi, di}
 			newDecls, err := ctx.declsOrError(d)
+			newDecls = ctx.filterDecls(newDecls)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -169,19 +183,19 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func translatePackage(pkg *packages.Package) (glang.File, error) {
+func translatePackage(pkg *packages.Package, namesToTranslate map[string]bool) (glang.File, error) {
 	if len(pkg.Errors) > 0 {
 		return glang.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	ctx := NewPkgCtx(pkg)
+	ctx := NewPkgCtx(pkg, namesToTranslate)
 
 	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
-	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(getFfi(pkg))
+	coqFile.ImportHeader, coqFile.Footer = ctx.ffiHeaderFooter(pkg)
 
 	imports, decls, errs := ctx.decls(pkg.Syntax)
 	coqFile.Imports = imports
@@ -193,9 +207,13 @@ func translatePackage(pkg *packages.Package) (glang.File, error) {
 	return coqFile, nil
 }
 
-func ffiHeaderFooter(ffi string) (header string, footer string) {
+func (ctx Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
+	if ctx.namesToTranslate != nil {
+		header += fmt.Sprintf("From New.code_axioms Require Import %s.\n\n", pkg.Name)
+	}
+	ffi := getFfi(pkg)
 	if ffi == "none" {
-		header = "Section code.\n" +
+		header += "Section code.\n" +
 			"Context `{ffi_syntax}."
 		footer = "\nEnd code.\n"
 	} else {
@@ -224,7 +242,7 @@ func newPackageConfig(modDir string) *packages.Config {
 // The errs list contains errors corresponding to each package (in parallel with
 // the files list). patternErr is only non-nil if the patterns themselves have
 // a syntax error.
-func TranslatePackages(modDir string,
+func TranslatePackages(modDir string, namesToTranslate map[string]bool,
 	pkgPattern ...string) (files []glang.File, errs []error, patternErr error) {
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {
@@ -241,7 +259,7 @@ func TranslatePackages(modDir string,
 	wg.Add(len(pkgs))
 	for i, pkg := range pkgs {
 		go func(i int, pkg *packages.Package) {
-			f, err := translatePackage(pkg)
+			f, err := translatePackage(pkg, namesToTranslate)
 			files[i] = f
 			errs[i] = err
 			wg.Done()

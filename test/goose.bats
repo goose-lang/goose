@@ -128,3 +128,10 @@ assert_file_not_exist() {
   assert_output --partial "ExampleFunc"
   sed -i~ 's/ExampleFunc/UseMarshal/' m.go
 }
+
+@test "goose partial" {
+    goose -partial GoodFunc -out Goose -ignore-errors ./partial
+    run cat "$OUT"/m/partial.v
+    assert_output --partial "Definition GoodFunc"
+    refute_output --partial "BadFunc"
+}

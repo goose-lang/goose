@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/fatih/color"
 
@@ -36,9 +37,9 @@ func coqFileContents(f glang.File) []byte {
 }
 
 func translate(pkgPatterns []string, outRootDir string, modDir string,
-	ignoreErrors bool) {
+	ignoreErrors bool, namesToTranslate map[string]bool) {
 	red := color.New(color.FgRed).SprintFunc()
-	fs, errs, patternError := goose.TranslatePackages(modDir, pkgPatterns...)
+	fs, errs, patternError := goose.TranslatePackages(modDir, namesToTranslate, pkgPatterns...)
 	if patternError != nil {
 		fmt.Fprintln(os.Stderr, red(patternError.Error()))
 		os.Exit(1)
@@ -69,7 +70,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 			os.Exit(1)
 		}
 	}
-	if someError {
+	if someError && !ignoreErrors {
 		os.Exit(1)
 	}
 }
@@ -94,7 +95,19 @@ func main() {
 	flag.BoolVar(&ignoreErrors, "ignore-errors", false,
 		"output partial translation even if there are errors")
 
+	var namesToTranslateString string
+	flag.StringVar(&namesToTranslateString, "partial", "",
+		"comma-separated list of Gallina identifiers to translate (if empty, translate everything)")
+
 	flag.Parse()
 
-	translate(flag.Args(), outRootDir, modDir, ignoreErrors)
+	var namesToTranslate map[string]bool
+	if namesToTranslateString != "" {
+		namesToTranslate = make(map[string]bool)
+		for _, n := range strings.Split(namesToTranslateString, ",") {
+			namesToTranslate[n] = true
+		}
+	}
+
+	translate(flag.Args(), outRootDir, modDir, ignoreErrors, namesToTranslate)
 }
