@@ -156,6 +156,12 @@ func (suite *GoTestSuite) TestArgumentOrder() {
 	suite.Equal(true, failing_testArgumentOrder())
 }
 
+func (suite *GoTestSuite) TestGenericStructs() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testGenericStructs())
+}
+
 func (suite *GoTestSuite) TestU64ToU32() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
