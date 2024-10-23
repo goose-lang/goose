@@ -56,7 +56,7 @@ Definition CreateTable : val :=
 
 Definition Entry : go_type := structT [
   "Key" :: uint64T;
-  "Value" :: sliceT byteT
+  "Value" :: sliceT
 ].
 
 Definition Entry__mset : list (string * val) := [
@@ -75,13 +75,13 @@ Definition Entry__mset_ptr : list (string * val) := [
    go: simpledb.go:52:6 *)
 Definition DecodeUInt64 : val :=
   rec: "DecodeUInt64" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
-    (if: int_lt (let: "$a0" := (![sliceT byteT] "p") in
+    exception_do (let: "p" := (ref_ty sliceT "p") in
+    (if: int_lt (let: "$a0" := (![sliceT] "p") in
     slice.len "$a0") #(W64 8)
     then return: (#(W64 0), #(W64 0))
     else do:  #());;;
     let: "n" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "p") in
+    let: "$r0" := (let: "$a0" := (![sliceT] "p") in
     primitive.UInt64Get "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
     return: (![uint64T] "n", #(W64 8))).
@@ -91,10 +91,10 @@ Definition DecodeUInt64 : val :=
    go: simpledb.go:61:6 *)
 Definition DecodeEntry : val :=
   rec: "DecodeEntry" "data" :=
-    exception_do (let: "data" := (ref_ty (sliceT byteT) "data") in
+    exception_do (let: "data" := (ref_ty sliceT "data") in
     let: "l1" := (ref_ty uint64T (zero_val uint64T)) in
     let: "key" := (ref_ty uint64T (zero_val uint64T)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT byteT] "data") in
+    let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] "data") in
     DecodeUInt64 "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
@@ -109,7 +109,7 @@ Definition DecodeEntry : val :=
     else do:  #());;;
     let: "l2" := (ref_ty uint64T (zero_val uint64T)) in
     let: "valueLen" := (ref_ty uint64T (zero_val uint64T)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := (let: "$s" := (![sliceT byteT] "data") in
+    let: ("$ret0", "$ret1") := (let: "$a0" := (let: "$s" := (![sliceT] "data") in
     slice.slice byteT "$s" (![uint64T] "l1") (slice.len "$s")) in
     DecodeUInt64 "$a0") in
     let: "$r0" := "$ret0" in
@@ -123,7 +123,7 @@ Definition DecodeEntry : val :=
          "Value" ::= #slice.nil
        }], #(W64 0))
     else do:  #());;;
-    (if: (let: "$a0" := (![sliceT byteT] "data") in
+    (if: (let: "$a0" := (![sliceT] "data") in
     slice.len "$a0") < (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))
     then
       return: (struct.make Entry [{
@@ -131,18 +131,18 @@ Definition DecodeEntry : val :=
          "Value" ::= #slice.nil
        }], #(W64 0))
     else do:  #());;;
-    let: "value" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$s" := (![sliceT byteT] "data") in
+    let: "value" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$s" := (![sliceT] "data") in
     slice.slice byteT "$s" ((![uint64T] "l1") + (![uint64T] "l2")) (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))) in
-    do:  ("value" <-[sliceT byteT] "$r0");;;
+    do:  ("value" <-[sliceT] "$r0");;;
     return: (struct.make Entry [{
        "Key" ::= ![uint64T] "key";
-       "Value" ::= ![sliceT byteT] "value"
+       "Value" ::= ![sliceT] "value"
      }], ((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))).
 
 Definition lazyFileBuf : go_type := structT [
   "offset" :: uint64T;
-  "next" :: sliceT byteT
+  "next" :: sliceT
 ].
 
 Definition lazyFileBuf__mset : list (string * val) := [
@@ -167,7 +167,7 @@ Definition readTableIndex : val :=
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "l" := (ref_ty uint64T (zero_val uint64T)) in
       let: "e" := (ref_ty Entry (zero_val Entry)) in
-      let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+      let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
       DecodeEntry "$a0") in
       let: "$r0" := "$ret0" in
       let: "$r1" := "$ret1" in
@@ -179,31 +179,31 @@ Definition readTableIndex : val :=
         do:  (map.insert (![mapT uint64T uint64T] "index") (![uint64T] (struct.field_ref Entry "Key" "e")) "$r0");;;
         let: "$r0" := (struct.make lazyFileBuf [{
           "offset" ::= (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l");
-          "next" ::= let: "$s" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+          "next" ::= let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
           slice.slice byteT "$s" (![uint64T] "l") (slice.len "$s")
         }]) in
         do:  ("buf" <-[lazyFileBuf] "$r0");;;
         continue: #()
       else
-        let: "p" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+        let: "p" := (ref_ty sliceT (zero_val sliceT)) in
         let: "$r0" := (let: "$a0" := (![fileT] "f") in
-        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.len "$a0")) in
         let: "$a2" := #(W64 4096) in
         filesys.ReadAt "$a0" "$a1" "$a2") in
-        do:  ("p" <-[sliceT byteT] "$r0");;;
-        (if: (let: "$a0" := (![sliceT byteT] "p") in
+        do:  ("p" <-[sliceT] "$r0");;;
+        (if: (let: "$a0" := (![sliceT] "p") in
         slice.len "$a0") = #(W64 0)
         then break: #()
         else
-          let: "newBuf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-          let: "$r0" := (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
-          let: "$a1" := (![sliceT byteT] "p") in
-          (slice.append (sliceT byteT)) "$a0" "$a1") in
-          do:  ("newBuf" <-[sliceT byteT] "$r0");;;
+          let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
+          let: "$r0" := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+          let: "$a1" := (![sliceT] "p") in
+          (slice.append sliceT) "$a0" "$a1") in
+          do:  ("newBuf" <-[sliceT] "$r0");;;
           let: "$r0" := (struct.make lazyFileBuf [{
             "offset" ::= ![uint64T] (struct.field_ref lazyFileBuf "offset" "buf");
-            "next" ::= ![sliceT byteT] "newBuf"
+            "next" ::= ![sliceT] "newBuf"
           }]) in
           do:  ("buf" <-[lazyFileBuf] "$r0");;;
           continue: #()))))).
@@ -244,40 +244,40 @@ Definition readValue : val :=
   rec: "readValue" "f" "off" :=
     exception_do (let: "off" := (ref_ty uint64T "off") in
     let: "f" := (ref_ty fileT "f") in
-    let: "startBuf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "startBuf" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![fileT] "f") in
     let: "$a1" := (![uint64T] "off") in
     let: "$a2" := #(W64 512) in
     filesys.ReadAt "$a0" "$a1" "$a2") in
-    do:  ("startBuf" <-[sliceT byteT] "$r0");;;
+    do:  ("startBuf" <-[sliceT] "$r0");;;
     let: "totalBytes" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "startBuf") in
+    let: "$r0" := (let: "$a0" := (![sliceT] "startBuf") in
     primitive.UInt64Get "$a0") in
     do:  ("totalBytes" <-[uint64T] "$r0");;;
-    let: "buf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$s" := (![sliceT byteT] "startBuf") in
+    let: "buf" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$s" := (![sliceT] "startBuf") in
     slice.slice byteT "$s" #(W64 8) (slice.len "$s")) in
-    do:  ("buf" <-[sliceT byteT] "$r0");;;
+    do:  ("buf" <-[sliceT] "$r0");;;
     let: "haveBytes" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "buf") in
+    let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
     slice.len "$a0") in
     do:  ("haveBytes" <-[uint64T] "$r0");;;
     (if: (![uint64T] "haveBytes") < (![uint64T] "totalBytes")
     then
-      let: "buf2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+      let: "buf2" := (ref_ty sliceT (zero_val sliceT)) in
       let: "$r0" := (let: "$a0" := (![fileT] "f") in
       let: "$a1" := ((![uint64T] "off") + #(W64 512)) in
       let: "$a2" := ((![uint64T] "totalBytes") - (![uint64T] "haveBytes")) in
       filesys.ReadAt "$a0" "$a1" "$a2") in
-      do:  ("buf2" <-[sliceT byteT] "$r0");;;
-      let: "newBuf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-      let: "$r0" := (let: "$a0" := (![sliceT byteT] "buf") in
-      let: "$a1" := (![sliceT byteT] "buf2") in
-      (slice.append (sliceT byteT)) "$a0" "$a1") in
-      do:  ("newBuf" <-[sliceT byteT] "$r0");;;
-      return: (![sliceT byteT] "newBuf")
+      do:  ("buf2" <-[sliceT] "$r0");;;
+      let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
+      let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
+      let: "$a1" := (![sliceT] "buf2") in
+      (slice.append sliceT) "$a0" "$a1") in
+      do:  ("newBuf" <-[sliceT] "$r0");;;
+      return: (![sliceT] "newBuf")
     else do:  #());;;
-    return: (let: "$s" := (![sliceT byteT] "buf") in
+    return: (let: "$s" := (![sliceT] "buf") in
      slice.slice byteT "$s" #(W64 0) (![uint64T] "totalBytes"))).
 
 (* go: simpledb.go:137:6 *)
@@ -295,12 +295,12 @@ Definition tableRead : val :=
     (if: (~ (![boolT] "ok"))
     then return: (#slice.nil, #false)
     else do:  #());;;
-    let: "p" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "p" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
     let: "$a1" := (![uint64T] "off") in
     readValue "$a0" "$a1") in
-    do:  ("p" <-[sliceT byteT] "$r0");;;
-    return: (![sliceT byteT] "p", #true)).
+    do:  ("p" <-[sliceT] "$r0");;;
+    return: (![sliceT] "p", #true)).
 
 Definition bufFile : go_type := structT [
   "file" :: fileT;
@@ -318,7 +318,7 @@ Definition newBuf : val :=
   rec: "newBuf" "f" :=
     exception_do (let: "f" := (ref_ty fileT "f") in
     let: "buf" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "$r0" := (ref_ty sliceT (zero_val sliceT)) in
     do:  ("buf" <-[ptrT] "$r0");;;
     return: (struct.make bufFile [{
        "file" ::= ![fileT] "f";
@@ -329,34 +329,34 @@ Definition newBuf : val :=
 Definition bufFlush : val :=
   rec: "bufFlush" "f" :=
     exception_do (let: "f" := (ref_ty bufFile "f") in
-    let: "buf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (![sliceT byteT] (![ptrT] (struct.field_ref bufFile "buf" "f"))) in
-    do:  ("buf" <-[sliceT byteT] "$r0");;;
-    (if: (let: "$a0" := (![sliceT byteT] "buf") in
+    let: "buf" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (![sliceT] (![ptrT] (struct.field_ref bufFile "buf" "f"))) in
+    do:  ("buf" <-[sliceT] "$r0");;;
+    (if: (let: "$a0" := (![sliceT] "buf") in
     slice.len "$a0") = #(W64 0)
     then return: (#())
     else do:  #());;;
     do:  (let: "$a0" := (![fileT] (struct.field_ref bufFile "file" "f")) in
-    let: "$a1" := (![sliceT byteT] "buf") in
+    let: "$a1" := (![sliceT] "buf") in
     filesys.Append "$a0" "$a1");;;
     let: "$r0" := #slice.nil in
-    do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT byteT] "$r0")).
+    do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT] "$r0")).
 
 (* go: simpledb.go:168:6 *)
 Definition bufAppend : val :=
   rec: "bufAppend" "f" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
+    exception_do (let: "p" := (ref_ty sliceT "p") in
     let: "f" := (ref_ty bufFile "f") in
-    let: "buf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (![sliceT byteT] (![ptrT] (struct.field_ref bufFile "buf" "f"))) in
-    do:  ("buf" <-[sliceT byteT] "$r0");;;
-    let: "buf2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "buf") in
-    let: "$a1" := (![sliceT byteT] "p") in
-    (slice.append (sliceT byteT)) "$a0" "$a1") in
-    do:  ("buf2" <-[sliceT byteT] "$r0");;;
-    let: "$r0" := (![sliceT byteT] "buf2") in
-    do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT byteT] "$r0")).
+    let: "buf" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (![sliceT] (![ptrT] (struct.field_ref bufFile "buf" "f"))) in
+    do:  ("buf" <-[sliceT] "$r0");;;
+    let: "buf2" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
+    let: "$a1" := (![sliceT] "p") in
+    (slice.append sliceT) "$a0" "$a1") in
+    do:  ("buf2" <-[sliceT] "$r0");;;
+    let: "$r0" := (![sliceT] "buf2") in
+    do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT] "$r0")).
 
 (* go: simpledb.go:174:6 *)
 Definition bufClose : val :=
@@ -412,15 +412,15 @@ Definition newTableWriter : val :=
 (* go: simpledb.go:199:6 *)
 Definition tableWriterAppend : val :=
   rec: "tableWriterAppend" "w" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
+    exception_do (let: "p" := (ref_ty sliceT "p") in
     let: "w" := (ref_ty tableWriter "w") in
     do:  (let: "$a0" := (![bufFile] (struct.field_ref tableWriter "file" "w")) in
-    let: "$a1" := (![sliceT byteT] "p") in
+    let: "$a1" := (![sliceT] "p") in
     bufAppend "$a0" "$a1");;;
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
     do:  ("off" <-[uint64T] "$r0");;;
-    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT byteT] "p") in
+    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT] "p") in
     slice.len "$a0")) in
     do:  ((![ptrT] (struct.field_ref tableWriter "offset" "w")) <-[uint64T] "$r0")).
 
@@ -445,68 +445,68 @@ Definition tableWriterClose : val :=
    go: simpledb.go:215:6 *)
 Definition EncodeUInt64 : val :=
   rec: "EncodeUInt64" "x" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
+    exception_do (let: "p" := (ref_ty sliceT "p") in
     let: "x" := (ref_ty uint64T "x") in
-    let: "tmp" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "tmp" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (slice.make2 byteT #(W64 8)) in
-    do:  ("tmp" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := (![sliceT byteT] "tmp") in
+    do:  ("tmp" <-[sliceT] "$r0");;;
+    do:  (let: "$a0" := (![sliceT] "tmp") in
     let: "$a1" := (![uint64T] "x") in
     primitive.UInt64Put "$a0" "$a1");;;
-    let: "p2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "p") in
-    let: "$a1" := (![sliceT byteT] "tmp") in
-    (slice.append (sliceT byteT)) "$a0" "$a1") in
-    do:  ("p2" <-[sliceT byteT] "$r0");;;
-    return: (![sliceT byteT] "p2")).
+    let: "p2" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$a0" := (![sliceT] "p") in
+    let: "$a1" := (![sliceT] "tmp") in
+    (slice.append sliceT) "$a0" "$a1") in
+    do:  ("p2" <-[sliceT] "$r0");;;
+    return: (![sliceT] "p2")).
 
 (* EncodeSlice is an Encoder([]byte)
 
    go: simpledb.go:223:6 *)
 Definition EncodeSlice : val :=
   rec: "EncodeSlice" "data" "p" :=
-    exception_do (let: "p" := (ref_ty (sliceT byteT) "p") in
-    let: "data" := (ref_ty (sliceT byteT) "data") in
-    let: "p2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := (let: "$a0" := (![sliceT byteT] "data") in
+    exception_do (let: "p" := (ref_ty sliceT "p") in
+    let: "data" := (ref_ty sliceT "data") in
+    let: "p2" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$a0" := (let: "$a0" := (![sliceT] "data") in
     slice.len "$a0") in
-    let: "$a1" := (![sliceT byteT] "p") in
+    let: "$a1" := (![sliceT] "p") in
     EncodeUInt64 "$a0" "$a1") in
-    do:  ("p2" <-[sliceT byteT] "$r0");;;
-    let: "p3" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "p2") in
-    let: "$a1" := (![sliceT byteT] "data") in
-    (slice.append (sliceT byteT)) "$a0" "$a1") in
-    do:  ("p3" <-[sliceT byteT] "$r0");;;
-    return: (![sliceT byteT] "p3")).
+    do:  ("p2" <-[sliceT] "$r0");;;
+    let: "p3" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$a0" := (![sliceT] "p2") in
+    let: "$a1" := (![sliceT] "data") in
+    (slice.append sliceT) "$a0" "$a1") in
+    do:  ("p3" <-[sliceT] "$r0");;;
+    return: (![sliceT] "p3")).
 
 (* go: simpledb.go:229:6 *)
 Definition tablePut : val :=
   rec: "tablePut" "w" "k" "v" :=
-    exception_do (let: "v" := (ref_ty (sliceT byteT) "v") in
+    exception_do (let: "v" := (ref_ty sliceT "v") in
     let: "k" := (ref_ty uint64T "k") in
     let: "w" := (ref_ty tableWriter "w") in
-    let: "tmp" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "tmp" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (slice.make2 byteT #(W64 0)) in
-    do:  ("tmp" <-[sliceT byteT] "$r0");;;
-    let: "tmp2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    do:  ("tmp" <-[sliceT] "$r0");;;
+    let: "tmp2" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "k") in
-    let: "$a1" := (![sliceT byteT] "tmp") in
+    let: "$a1" := (![sliceT] "tmp") in
     EncodeUInt64 "$a0" "$a1") in
-    do:  ("tmp2" <-[sliceT byteT] "$r0");;;
-    let: "tmp3" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: "$r0" := (let: "$a0" := (![sliceT byteT] "v") in
-    let: "$a1" := (![sliceT byteT] "tmp2") in
+    do:  ("tmp2" <-[sliceT] "$r0");;;
+    let: "tmp3" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "$r0" := (let: "$a0" := (![sliceT] "v") in
+    let: "$a1" := (![sliceT] "tmp2") in
     EncodeSlice "$a0" "$a1") in
-    do:  ("tmp3" <-[sliceT byteT] "$r0");;;
+    do:  ("tmp3" <-[sliceT] "$r0");;;
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
     do:  ("off" <-[uint64T] "$r0");;;
-    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT byteT] "tmp2") in
+    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT] "tmp2") in
     slice.len "$a0")) in
     do:  (map.insert (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) (![uint64T] "k") "$r0");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
-    let: "$a1" := (![sliceT byteT] "tmp3") in
+    let: "$a1" := (![sliceT] "tmp3") in
     tableWriterAppend "$a0" "$a1")).
 
 Definition Database : go_type := structT [
@@ -528,14 +528,14 @@ Definition Database__mset_ptr : list (string * val) := [
 (* go: simpledb.go:256:6 *)
 Definition makeValueBuffer : val :=
   rec: "makeValueBuffer" <> :=
-    exception_do (let: "buf" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (map.make uint64T (sliceT byteT) #()) in
-    do:  ("buf" <-[mapT uint64T (sliceT byteT)] "$r0");;;
+    exception_do (let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (map.make uint64T sliceT #()) in
+    do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
     let: "bufPtr" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
+    let: "$r0" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
     do:  ("bufPtr" <-[ptrT] "$r0");;;
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] "buf") in
-    do:  ((![ptrT] "bufPtr") <-[mapT uint64T (sliceT byteT)] "$r0");;;
+    let: "$r0" := (![mapT uint64T sliceT] "buf") in
+    do:  ((![ptrT] "bufPtr") <-[mapT uint64T sliceT] "$r0");;;
     return: (![ptrT] "bufPtr")).
 
 (* NewDb initializes a new database on top of an empty filesys.
@@ -598,50 +598,50 @@ Definition Read : val :=
     exception_do (let: "k" := (ref_ty uint64T "k") in
     let: "db" := (ref_ty Database "db") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    let: "buf" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
-    do:  ("buf" <-[mapT uint64T (sliceT byteT)] "$r0");;;
+    let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
+    do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
-    let: "v" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] "buf") (![uint64T] "k")) in
+    let: "v" := (ref_ty sliceT (zero_val sliceT)) in
+    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] "buf") (![uint64T] "k")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
-    do:  ("v" <-[sliceT byteT] "$r0");;;
+    do:  ("v" <-[sliceT] "$r0");;;
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
       do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-      return: (![sliceT byteT] "v", #true)
+      return: (![sliceT] "v", #true)
     else do:  #());;;
-    let: "rbuf" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] (![ptrT] (struct.field_ref Database "rbuffer" "db"))) in
-    do:  ("rbuf" <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "v2" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] "rbuf") (![uint64T] "k")) in
+    let: "rbuf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "rbuffer" "db"))) in
+    do:  ("rbuf" <-[mapT uint64T sliceT] "$r0");;;
+    let: "v2" := (ref_ty sliceT (zero_val sliceT)) in
+    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] "rbuf") (![uint64T] "k")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
-    do:  ("v2" <-[sliceT byteT] "$r0");;;
+    do:  ("v2" <-[sliceT] "$r0");;;
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
       do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-      return: (![sliceT byteT] "v2", #true)
+      return: (![sliceT] "v2", #true)
     else do:  #());;;
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
     let: "tbl" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (![Table] (![ptrT] (struct.field_ref Database "table" "db"))) in
     do:  ("tbl" <-[Table] "$r0");;;
-    let: "v3" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "v3" := (ref_ty sliceT (zero_val sliceT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![Table] "tbl") in
     let: "$a1" := (![uint64T] "k") in
     tableRead "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
-    do:  ("v3" <-[sliceT byteT] "$r0");;;
+    do:  ("v3" <-[sliceT] "$r0");;;
     do:  ("ok" <-[boolT] "$r1");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    return: (![sliceT byteT] "v3", ![boolT] "ok")).
+    return: (![sliceT] "v3", ![boolT] "ok")).
 
 (* Write sets a key to a new value.
 
@@ -653,15 +653,15 @@ Definition Read : val :=
    go: simpledb.go:326:6 *)
 Definition Write : val :=
   rec: "Write" "db" "k" "v" :=
-    exception_do (let: "v" := (ref_ty (sliceT byteT) "v") in
+    exception_do (let: "v" := (ref_ty sliceT "v") in
     let: "k" := (ref_ty uint64T "k") in
     let: "db" := (ref_ty Database "db") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    let: "buf" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
-    do:  ("buf" <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "$r0" := (![sliceT byteT] "v") in
-    do:  (map.insert (![mapT uint64T (sliceT byteT)] "buf") (![uint64T] "k") "$r0");;;
+    let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
+    do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
+    let: "$r0" := (![sliceT] "v") in
+    do:  (map.insert (![mapT uint64T sliceT] "buf") (![uint64T] "k") "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #())).
 
 (* go: simpledb.go:333:6 *)
@@ -679,12 +679,12 @@ Definition freshTable : val :=
 (* go: simpledb.go:345:6 *)
 Definition tablePutBuffer : val :=
   rec: "tablePutBuffer" "w" "buf" :=
-    exception_do (let: "buf" := (ref_ty (mapT uint64T (sliceT byteT)) "buf") in
+    exception_do (let: "buf" := (ref_ty (mapT uint64T sliceT) "buf") in
     let: "w" := (ref_ty tableWriter "w") in
-    do:  (map.for_range (![mapT uint64T (sliceT byteT)] "buf") (λ: "k" "v",
+    do:  (map.for_range (![mapT uint64T sliceT] "buf") (λ: "k" "v",
       do:  (let: "$a0" := (![tableWriter] "w") in
       let: "$a1" := (![uint64T] "k") in
-      let: "$a2" := (![sliceT byteT] "v") in
+      let: "$a2" := (![sliceT] "v") in
       tablePut "$a0" "$a1" "$a2")))).
 
 (* add all of table t to the table w being created; skip any keys in the (read)
@@ -693,7 +693,7 @@ Definition tablePutBuffer : val :=
    go: simpledb.go:353:6 *)
 Definition tablePutOldTable : val :=
   rec: "tablePutOldTable" "w" "t" "b" :=
-    exception_do (let: "b" := (ref_ty (mapT uint64T (sliceT byteT)) "b") in
+    exception_do (let: "b" := (ref_ty (mapT uint64T sliceT) "b") in
     let: "t" := (ref_ty Table "t") in
     let: "w" := (ref_ty tableWriter "w") in
     (let: "buf" := (ref_ty lazyFileBuf (zero_val lazyFileBuf)) in
@@ -705,7 +705,7 @@ Definition tablePutOldTable : val :=
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "l" := (ref_ty uint64T (zero_val uint64T)) in
       let: "e" := (ref_ty Entry (zero_val Entry)) in
-      let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+      let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
       DecodeEntry "$a0") in
       let: "$r0" := "$ret0" in
       let: "$r1" := "$ret1" in
@@ -714,7 +714,7 @@ Definition tablePutOldTable : val :=
       (if: (![uint64T] "l") > #(W64 0)
       then
         let: "ok" := (ref_ty boolT (zero_val boolT)) in
-        let: ("$ret0", "$ret1") := (map.get (![mapT uint64T (sliceT byteT)] "b") (![uint64T] (struct.field_ref Entry "Key" "e"))) in
+        let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] "b") (![uint64T] (struct.field_ref Entry "Key" "e"))) in
         let: "$r0" := "$ret0" in
         let: "$r1" := "$ret1" in
         do:  "$r0";;;
@@ -723,36 +723,36 @@ Definition tablePutOldTable : val :=
         then
           do:  (let: "$a0" := (![tableWriter] "w") in
           let: "$a1" := (![uint64T] (struct.field_ref Entry "Key" "e")) in
-          let: "$a2" := (![sliceT byteT] (struct.field_ref Entry "Value" "e")) in
+          let: "$a2" := (![sliceT] (struct.field_ref Entry "Value" "e")) in
           tablePut "$a0" "$a1" "$a2")
         else do:  #());;;
         let: "$r0" := (struct.make lazyFileBuf [{
           "offset" ::= (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l");
-          "next" ::= let: "$s" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+          "next" ::= let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
           slice.slice byteT "$s" (![uint64T] "l") (slice.len "$s")
         }]) in
         do:  ("buf" <-[lazyFileBuf] "$r0");;;
         continue: #()
       else
-        let: "p" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+        let: "p" := (ref_ty sliceT (zero_val sliceT)) in
         let: "$r0" := (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
-        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.len "$a0")) in
         let: "$a2" := #(W64 4096) in
         filesys.ReadAt "$a0" "$a1" "$a2") in
-        do:  ("p" <-[sliceT byteT] "$r0");;;
-        (if: (let: "$a0" := (![sliceT byteT] "p") in
+        do:  ("p" <-[sliceT] "$r0");;;
+        (if: (let: "$a0" := (![sliceT] "p") in
         slice.len "$a0") = #(W64 0)
         then break: #()
         else
-          let: "newBuf" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
-          let: "$r0" := (let: "$a0" := (![sliceT byteT] (struct.field_ref lazyFileBuf "next" "buf")) in
-          let: "$a1" := (![sliceT byteT] "p") in
-          (slice.append (sliceT byteT)) "$a0" "$a1") in
-          do:  ("newBuf" <-[sliceT byteT] "$r0");;;
+          let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
+          let: "$r0" := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+          let: "$a1" := (![sliceT] "p") in
+          (slice.append sliceT) "$a0" "$a1") in
+          do:  ("newBuf" <-[sliceT] "$r0");;;
           let: "$r0" := (struct.make lazyFileBuf [{
             "offset" ::= ![uint64T] (struct.field_ref lazyFileBuf "offset" "buf");
-            "next" ::= ![sliceT byteT] "newBuf"
+            "next" ::= ![sliceT] "newBuf"
           }]) in
           do:  ("buf" <-[lazyFileBuf] "$r0");;;
           continue: #()))))).
@@ -767,7 +767,7 @@ Definition tablePutOldTable : val :=
    go: simpledb.go:388:6 *)
 Definition constructNewTable : val :=
   rec: "constructNewTable" "db" "wbuf" :=
-    exception_do (let: "wbuf" := (ref_ty (mapT uint64T (sliceT byteT)) "wbuf") in
+    exception_do (let: "wbuf" := (ref_ty (mapT uint64T sliceT) "wbuf") in
     let: "db" := (ref_ty Database "db") in
     let: "oldName" := (ref_ty stringT (zero_val stringT)) in
     let: "$r0" := (![stringT] (![ptrT] (struct.field_ref Database "tableName" "db"))) in
@@ -785,10 +785,10 @@ Definition constructNewTable : val :=
     do:  ("oldTable" <-[Table] "$r0");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
     let: "$a1" := (![Table] "oldTable") in
-    let: "$a2" := (![mapT uint64T (sliceT byteT)] "wbuf") in
+    let: "$a2" := (![mapT uint64T sliceT] "wbuf") in
     tablePutOldTable "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
-    let: "$a1" := (![mapT uint64T (sliceT byteT)] "wbuf") in
+    let: "$a1" := (![mapT uint64T sliceT] "wbuf") in
     tablePutBuffer "$a0" "$a1");;;
     let: "newTable" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (let: "$a0" := (![tableWriter] "w") in
@@ -807,16 +807,16 @@ Definition Compact : val :=
     exception_do (let: "db" := (ref_ty Database "db") in
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    let: "buf" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
-    do:  ("buf" <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "emptyWbuffer" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
-    let: "$r0" := (map.make uint64T (sliceT byteT) #()) in
-    do:  ("emptyWbuffer" <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] "emptyWbuffer") in
-    do:  ((![ptrT] (struct.field_ref Database "wbuffer" "db")) <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "$r0" := (![mapT uint64T (sliceT byteT)] "buf") in
-    do:  ((![ptrT] (struct.field_ref Database "rbuffer" "db")) <-[mapT uint64T (sliceT byteT)] "$r0");;;
+    let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
+    do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
+    let: "emptyWbuffer" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
+    let: "$r0" := (map.make uint64T sliceT #()) in
+    do:  ("emptyWbuffer" <-[mapT uint64T sliceT] "$r0");;;
+    let: "$r0" := (![mapT uint64T sliceT] "emptyWbuffer") in
+    do:  ((![ptrT] (struct.field_ref Database "wbuffer" "db")) <-[mapT uint64T sliceT] "$r0");;;
+    let: "$r0" := (![mapT uint64T sliceT] "buf") in
+    do:  ((![ptrT] (struct.field_ref Database "rbuffer" "db")) <-[mapT uint64T sliceT] "$r0");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
     do:  ((sync.Mutex__Lock (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
     let: "oldTableName" := (ref_ty stringT (zero_val stringT)) in
@@ -825,7 +825,7 @@ Definition Compact : val :=
     let: "t" := (ref_ty Table (zero_val Table)) in
     let: "oldTable" := (ref_ty Table (zero_val Table)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![Database] "db") in
-    let: "$a1" := (![mapT uint64T (sliceT byteT)] "buf") in
+    let: "$a1" := (![mapT uint64T sliceT] "buf") in
     constructNewTable "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
@@ -839,12 +839,12 @@ Definition Compact : val :=
     do:  ((![ptrT] (struct.field_ref Database "table" "db")) <-[Table] "$r0");;;
     let: "$r0" := (![stringT] "newTable") in
     do:  ((![ptrT] (struct.field_ref Database "tableName" "db")) <-[stringT] "$r0");;;
-    let: "manifestData" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "manifestData" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (string.to_bytes (![stringT] "newTable")) in
-    do:  ("manifestData" <-[sliceT byteT] "$r0");;;
+    do:  ("manifestData" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := #"db" in
     let: "$a1" := #"manifest" in
-    let: "$a2" := (![sliceT byteT] "manifestData") in
+    let: "$a2" := (![sliceT] "manifestData") in
     filesys.AtomicCreate "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![Table] "oldTable") in
     CloseTable "$a0");;;
@@ -862,14 +862,14 @@ Definition recoverManifest : val :=
     let: "$a1" := #"manifest" in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
-    let: "manifestData" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "manifestData" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![fileT] "f") in
     let: "$a1" := #(W64 0) in
     let: "$a2" := #(W64 4096) in
     filesys.ReadAt "$a0" "$a1" "$a2") in
-    do:  ("manifestData" <-[sliceT byteT] "$r0");;;
+    do:  ("manifestData" <-[sliceT] "$r0");;;
     let: "tableName" := (ref_ty stringT (zero_val stringT)) in
-    let: "$r0" := (string.from_bytes (![sliceT byteT] "manifestData")) in
+    let: "$r0" := (string.from_bytes (![sliceT] "manifestData")) in
     do:  ("tableName" <-[stringT] "$r0");;;
     do:  (let: "$a0" := (![fileT] "f") in
     filesys.Close "$a0");;;
@@ -896,12 +896,12 @@ Definition deleteOtherFile : val :=
 Definition deleteOtherFiles : val :=
   rec: "deleteOtherFiles" "tableName" :=
     exception_do (let: "tableName" := (ref_ty stringT "tableName") in
-    let: "files" := (ref_ty (sliceT stringT) (zero_val (sliceT stringT))) in
+    let: "files" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := #"db" in
     filesys.List "$a0") in
-    do:  ("files" <-[sliceT stringT] "$r0");;;
+    do:  ("files" <-[sliceT] "$r0");;;
     let: "nfiles" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT stringT] "files") in
+    let: "$r0" := (let: "$a0" := (![sliceT] "files") in
     slice.len "$a0") in
     do:  ("nfiles" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
@@ -912,7 +912,7 @@ Definition deleteOtherFiles : val :=
       then break: #()
       else do:  #());;;
       let: "name" := (ref_ty stringT (zero_val stringT)) in
-      let: "$r0" := (![stringT] (slice.elem_ref stringT (![sliceT stringT] "files") (![uint64T] "i"))) in
+      let: "$r0" := (![stringT] (slice.elem_ref stringT (![sliceT] "files") (![uint64T] "i"))) in
       do:  ("name" <-[stringT] "$r0");;;
       do:  (let: "$a0" := (![stringT] "name") in
       let: "$a1" := (![stringT] "tableName") in

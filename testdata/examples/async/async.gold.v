@@ -14,10 +14,10 @@ Definition TakesDisk : val :=
 Definition UseDisk : val :=
   rec: "UseDisk" "d" :=
     exception_do (let: "d" := (ref_ty disk.Disk "d") in
-    let: "v" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
+    let: "v" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (slice.make2 byteT #(W64 4096)) in
-    do:  ("v" <-[sliceT byteT] "$r0");;;
+    do:  ("v" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    let: "$a1" := (![sliceT byteT] "v") in
+    let: "$a1" := (![sliceT] "v") in
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  ((interface.get "Barrier" (![disk.Disk] "d")) #())).

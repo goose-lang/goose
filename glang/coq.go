@@ -208,7 +208,7 @@ type SliceType struct {
 }
 
 func (t SliceType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("sliceT"), t.Value).Coq(needs_paren)
+	return "sliceT"
 }
 
 type ArrayType struct {
