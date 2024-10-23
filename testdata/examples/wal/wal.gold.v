@@ -229,7 +229,7 @@ Definition Log__Write : val :=
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") ≥ MaxTxnWrites
     then
-      do:  (let: "$a0" := (interface.make string__mset #(str "transaction is at capacity")) in
+      do:  (let: "$a0" := (interface.make string__mset #"transaction is at capacity") in
       Panic "$a0")
     else do:  #());;;
     let: "aBlock" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
@@ -302,7 +302,7 @@ Definition New : val :=
     do:  ("diskSize" <-[uint64T] "$r0");;;
     (if: (![uint64T] "diskSize") ≤ logLength
     then
-      do:  (let: "$a0" := (interface.make string__mset #(str "disk is too small to host log")) in
+      do:  (let: "$a0" := (interface.make string__mset #"disk is too small to host log") in
       Panic "$a0")
     else do:  #());;;
     let: "cache" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in

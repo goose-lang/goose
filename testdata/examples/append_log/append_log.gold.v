@@ -96,7 +96,7 @@ Definition Log__get : val :=
       return: (let: "$a0" := (#(W64 1) + (![uint64T] "i")) in
        disk.Read "$a0", #true)
     else do:  #());;;
-    return: (slice.nil, #false)).
+    return: (#slice.nil, #false)).
 
 (* go: append_log.go:58:17 *)
 Definition Log__Get : val :=

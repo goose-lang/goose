@@ -532,7 +532,7 @@ type StringVal struct {
 }
 
 func (l StringVal) Coq(needs_paren bool) string {
-	return fmt.Sprintf(`#(str %s)`, l.Value.Coq(true))
+	return fmt.Sprintf(`#%s`, l.Value.Coq(true))
 }
 
 // BinOp is an enum for a Coq binary operator

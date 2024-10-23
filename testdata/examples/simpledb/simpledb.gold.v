@@ -35,7 +35,7 @@ Definition CreateTable : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := #(str "db") in
+    let: ("$ret0", "$ret1") := (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "p") in
     filesys.Create "$a0" "$a1") in
     let: "$r0" := "$ret0" in
@@ -45,7 +45,7 @@ Definition CreateTable : val :=
     do:  (let: "$a0" := (![fileT] "f") in
     filesys.Close "$a0");;;
     let: "f2" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #(str "db") in
+    let: "$r0" := (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "p") in
     filesys.Open "$a0" "$a1") in
     do:  ("f2" <-[fileT] "$r0");;;
@@ -104,7 +104,7 @@ Definition DecodeEntry : val :=
     then
       return: (struct.make Entry [{
          "Key" ::= #(W64 0);
-         "Value" ::= slice.nil
+         "Value" ::= #slice.nil
        }], #(W64 0))
     else do:  #());;;
     let: "l2" := (ref_ty uint64T (zero_val uint64T)) in
@@ -120,7 +120,7 @@ Definition DecodeEntry : val :=
     then
       return: (struct.make Entry [{
          "Key" ::= #(W64 0);
-         "Value" ::= slice.nil
+         "Value" ::= #slice.nil
        }], #(W64 0))
     else do:  #());;;
     (if: (let: "$a0" := (![sliceT byteT] "data") in
@@ -128,7 +128,7 @@ Definition DecodeEntry : val :=
     then
       return: (struct.make Entry [{
          "Key" ::= #(W64 0);
-         "Value" ::= slice.nil
+         "Value" ::= #slice.nil
        }], #(W64 0))
     else do:  #());;;
     let: "value" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
@@ -161,7 +161,7 @@ Definition readTableIndex : val :=
     (let: "buf" := (ref_ty lazyFileBuf (zero_val lazyFileBuf)) in
     let: "$r0" := (struct.make lazyFileBuf [{
       "offset" ::= #(W64 0);
-      "next" ::= slice.nil
+      "next" ::= #slice.nil
     }]) in
     do:  ("buf" <-[lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
@@ -218,7 +218,7 @@ Definition RecoverTable : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #(str "db") in
+    let: "$r0" := (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "p") in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
@@ -293,7 +293,7 @@ Definition tableRead : val :=
     do:  ("off" <-[uint64T] "$r0");;;
     do:  ("ok" <-[boolT] "$r1");;;
     (if: (~ (![boolT] "ok"))
-    then return: (slice.nil, #false)
+    then return: (#slice.nil, #false)
     else do:  #());;;
     let: "p" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
@@ -339,7 +339,7 @@ Definition bufFlush : val :=
     do:  (let: "$a0" := (![fileT] (struct.field_ref bufFile "file" "f")) in
     let: "$a1" := (![sliceT byteT] "buf") in
     filesys.Append "$a0" "$a1");;;
-    let: "$r0" := slice.nil in
+    let: "$r0" := #slice.nil in
     do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT byteT] "$r0")).
 
 (* go: simpledb.go:168:6 *)
@@ -388,7 +388,7 @@ Definition newTableWriter : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := #(str "db") in
+    let: ("$ret0", "$ret1") := (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "p") in
     filesys.Create "$a0" "$a1") in
     let: "$r0" := "$ret0" in
@@ -431,7 +431,7 @@ Definition tableWriterClose : val :=
     do:  (let: "$a0" := (![bufFile] (struct.field_ref tableWriter "file" "w")) in
     bufClose "$a0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #(str "db") in
+    let: "$r0" := (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] (struct.field_ref tableWriter "name" "w")) in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
@@ -553,7 +553,7 @@ Definition NewDb : val :=
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("bufferL" <-[ptrT] "$r0");;;
     let: "tableName" := (ref_ty stringT (zero_val stringT)) in
-    let: "$r0" := #(str "table.0") in
+    let: "$r0" := #"table.0" in
     do:  ("tableName" <-[stringT] "$r0");;;
     let: "tableNameRef" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty stringT (zero_val stringT)) in
@@ -668,11 +668,11 @@ Definition Write : val :=
 Definition freshTable : val :=
   rec: "freshTable" "p" :=
     exception_do (let: "p" := (ref_ty stringT "p") in
-    (if: (![stringT] "p") = #(str "table.0")
-    then return: (#(str "table.1"))
+    (if: (![stringT] "p") = #"table.0"
+    then return: (#"table.1")
     else do:  #());;;
-    (if: (![stringT] "p") = #(str "table.1")
-    then return: (#(str "table.0"))
+    (if: (![stringT] "p") = #"table.1"
+    then return: (#"table.0")
     else do:  #());;;
     return: (![stringT] "p")).
 
@@ -699,7 +699,7 @@ Definition tablePutOldTable : val :=
     (let: "buf" := (ref_ty lazyFileBuf (zero_val lazyFileBuf)) in
     let: "$r0" := (struct.make lazyFileBuf [{
       "offset" ::= #(W64 0);
-      "next" ::= slice.nil
+      "next" ::= #slice.nil
     }]) in
     do:  ("buf" <-[lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
@@ -842,13 +842,13 @@ Definition Compact : val :=
     let: "manifestData" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (string.to_bytes (![stringT] "newTable")) in
     do:  ("manifestData" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := #(str "db") in
-    let: "$a1" := #(str "manifest") in
+    do:  (let: "$a0" := #"db" in
+    let: "$a1" := #"manifest" in
     let: "$a2" := (![sliceT byteT] "manifestData") in
     filesys.AtomicCreate "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![Table] "oldTable") in
     CloseTable "$a0");;;
-    do:  (let: "$a0" := #(str "db") in
+    do:  (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "oldTableName") in
     filesys.Delete "$a0" "$a1");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
@@ -858,8 +858,8 @@ Definition Compact : val :=
 Definition recoverManifest : val :=
   rec: "recoverManifest" <> :=
     exception_do (let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #(str "db") in
-    let: "$a1" := #(str "manifest") in
+    let: "$r0" := (let: "$a0" := #"db" in
+    let: "$a1" := #"manifest" in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
     let: "manifestData" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
@@ -885,10 +885,10 @@ Definition deleteOtherFile : val :=
     (if: (![stringT] "name") = (![stringT] "tableName")
     then return: (#())
     else do:  #());;;
-    (if: (![stringT] "name") = #(str "manifest")
+    (if: (![stringT] "name") = #"manifest"
     then return: (#())
     else do:  #());;;
-    do:  (let: "$a0" := #(str "db") in
+    do:  (let: "$a0" := #"db" in
     let: "$a1" := (![stringT] "name") in
     filesys.Delete "$a0" "$a1")).
 
@@ -897,7 +897,7 @@ Definition deleteOtherFiles : val :=
   rec: "deleteOtherFiles" "tableName" :=
     exception_do (let: "tableName" := (ref_ty stringT "tableName") in
     let: "files" := (ref_ty (sliceT stringT) (zero_val (sliceT stringT))) in
-    let: "$r0" := (let: "$a0" := #(str "db") in
+    let: "$r0" := (let: "$a0" := #"db" in
     filesys.List "$a0") in
     do:  ("files" <-[sliceT stringT] "$r0");;;
     let: "nfiles" := (ref_ty uint64T (zero_val uint64T)) in

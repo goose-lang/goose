@@ -27,17 +27,17 @@ Definition takesArray : val :=
 Definition takesPtr : val :=
   rec: "takesPtr" "x" :=
     exception_do (let: "x" := (ref_ty ptrT "x") in
-    do:  ((![ptrT] "x") <-[stringT] ((![stringT] (![ptrT] "x")) + #(str "bar")))).
+    do:  ((![ptrT] "x") <-[stringT] ((![stringT] (![ptrT] "x")) + #"bar"))).
 
 (* go: array.go:13:6 *)
 Definition usesArrayElemRef : val :=
   rec: "usesArrayElemRef" <> :=
     exception_do (let: "x" := (ref_ty (arrayT 2 stringT) (zero_val (arrayT 2 stringT))) in
-    let: "$r0" := ((let: "$ar0" := #(str "a") in
-    let: "$ar1" := #(str "b") in
+    let: "$r0" := ((let: "$ar0" := #"a" in
+    let: "$ar1" := #"b" in
     array.literal ["$ar0"; "$ar1"])) in
     do:  ("x" <-[arrayT 2 stringT] "$r0");;;
-    let: "$r0" := #(str "c") in
+    let: "$r0" := #"c" in
     do:  ((array.elem_ref stringT (![arrayT 2 stringT] "x") #(W64 1)) <-[stringT] "$r0");;;
     do:  (let: "$a0" := (array.elem_ref stringT (![arrayT 2 stringT] "x") #(W64 1)) in
     takesPtr "$a0")).
@@ -61,8 +61,8 @@ Definition sum : val :=
 Definition arrayToSlice : val :=
   rec: "arrayToSlice" <> :=
     exception_do (let: "x" := (ref_ty (arrayT 2 stringT) (zero_val (arrayT 2 stringT))) in
-    let: "$r0" := ((let: "$ar0" := #(str "a") in
-    let: "$ar1" := #(str "b") in
+    let: "$r0" := ((let: "$ar0" := #"a" in
+    let: "$ar1" := #"b" in
     array.literal ["$ar0"; "$ar1"])) in
     do:  ("x" <-[arrayT 2 stringT] "$r0");;;
     return: (let: "$a" := "x" in
@@ -76,10 +76,10 @@ Definition chanBasic : val :=
     do:  ("x" <-[chanT stringT] "$r0");;;
     let: "$go" := (λ: <>,
       exception_do (do:  (let: "$chan" := (![chanT stringT] "x") in
-      let: "$v" := #(str "Foo") in
+      let: "$v" := #"Foo" in
       chan.send "$chan" "$v");;;
       do:  (let: "$chan" := (![chanT stringT] "x") in
-      let: "$v" := #(str "Foo") in
+      let: "$v" := #"Foo" in
       chan.send "$chan" "$v"))
       ) in
     do:  (Fork ("$go" #()));;;
@@ -94,7 +94,7 @@ Definition chanBasic : val :=
     do:  ("y" <-[stringT] "$r0");;;
     (if: ![boolT] "ok"
     then
-      let: "$r0" := ((![stringT] "y") + #(str " ")) in
+      let: "$r0" := ((![stringT] "y") + #" ") in
       do:  ("y" <-[stringT] "$r0")
     else do:  #())).
 
@@ -117,10 +117,10 @@ Definition chanSelect : val :=
     let: "i2" := (ref_ty intT (zero_val intT)) in
     let: "i1" := (ref_ty intT (zero_val intT)) in
     do:  (chan.select [("$sendVal0", "$sendChan0", (λ: <>,
-        do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "sent ")) in
+        do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"sent ") in
         let: "$sl1" := (interface.make int__mset (![intT] "i2")) in
-        let: "$sl2" := (interface.make string__mset #(str " to c2
-        ")) in
+        let: "$sl2" := (interface.make string__mset #" to c2
+        ") in
         slice.literal interfaceT ["$sl0"; "$sl1"; "$sl2"])) in
         fmt.Print "$a0")
         ))] [("$recvChan0", (λ: "$recvVal",
@@ -128,10 +128,10 @@ Definition chanSelect : val :=
         )); ("$recvChan1", (λ: "$recvVal",
         let: "$r0" := (Fst "$recvVal") in
         do:  ("i1" <-[intT] "$r0");;;
-        do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "received ")) in
+        do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"received ") in
         let: "$sl1" := (interface.make int__mset (![intT] "i1")) in
-        let: "$sl2" := (interface.make string__mset #(str " from c1
-        ")) in
+        let: "$sl2" := (interface.make string__mset #" from c1
+        ") in
         slice.literal interfaceT ["$sl0"; "$sl1"; "$sl2"])) in
         fmt.Print "$a0")
         )); ("$recvChan2", (λ: "$recvVal",
@@ -144,15 +144,15 @@ Definition chanSelect : val :=
         do:  ("ok" <-[boolT] "$r1");;;
         (if: ![boolT] "ok"
         then
-          do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "received ")) in
+          do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"received ") in
           let: "$sl1" := (interface.make int__mset (![intT] "i3")) in
-          let: "$sl2" := (interface.make string__mset #(str " from c3
-          ")) in
+          let: "$sl2" := (interface.make string__mset #" from c3
+          ") in
           slice.literal interfaceT ["$sl0"; "$sl1"; "$sl2"])) in
           fmt.Print "$a0")
         else
-          do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "c3 is closed
-          ")) in
+          do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"c3 is closed
+          ") in
           slice.literal interfaceT ["$sl0"])) in
           fmt.Print "$a0"))
         )); ("$recvChan3", (λ: "$recvVal",
@@ -160,8 +160,8 @@ Definition chanSelect : val :=
         do:  ((slice.elem_ref intT (![sliceT intT] "a") (f #())) <-[intT] "$r0");;;
         do:  #()
         ))] (InjR (λ: <>,
-      do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "no communication
-      ")) in
+      do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"no communication
+      ") in
       slice.literal interfaceT ["$sl0"])) in
       fmt.Print "$a0")
       )));;;
@@ -180,7 +180,7 @@ Definition chanDirectional : val :=
     let: "y" := (ref_ty (chanT stringT) (zero_val (chanT stringT))) in
     do:  (Fst (chan.receive (![chanT uint64T] "x")));;;
     do:  (let: "$chan" := (![chanT stringT] "y") in
-    let: "$v" := #(str "") in
+    let: "$v" := #"" in
     chan.send "$chan" "$v")).
 
 Definition importantStruct : go_type := structT [
@@ -229,7 +229,7 @@ Definition condvarWrapping : val :=
     do:  ("mu" <-[ptrT] "$r0");;;
     do:  ((sync.Cond__Wait (![ptrT] "cond1")) #())).
 
-Definition GlobalConstant : expr := #(str "foo").
+Definition GlobalConstant : expr := #"foo".
 
 (* an untyped string *)
 Definition UntypedStringConstant : string := "bar".
@@ -272,7 +272,7 @@ Definition useUntypedInt : val :=
 (* go: const.go:39:6 *)
 Definition useUntypedString : val :=
   rec: "useUntypedString" <> :=
-    exception_do (return: (#(str UntypedStringConstant))).
+    exception_do (return: (#UntypedStringConstant)).
 
 (* go: control_flow.go:3:6 *)
 Definition conditionalReturn : val :=
@@ -491,8 +491,8 @@ Definition useSlice : val :=
     let: "$a1" := (![sliceT byteT] "s") in
     (slice.append (sliceT byteT)) "$a0" "$a1") in
     do:  ("s1" <-[sliceT byteT] "$r0");;;
-    do:  (let: "$a0" := #(str "dir") in
-    let: "$a1" := #(str "file") in
+    do:  (let: "$a0" := #"dir" in
+    let: "$a1" := #"file" in
     let: "$a2" := (![sliceT byteT] "s1") in
     atomicCreateStub "$a0" "$a1" "$a2")).
 
@@ -515,7 +515,7 @@ Definition useMap : val :=
     exception_do (let: "m" := (ref_ty (mapT uint64T (sliceT byteT)) (zero_val (mapT uint64T (sliceT byteT)))) in
     let: "$r0" := (map.make uint64T (sliceT byteT) #()) in
     do:  ("m" <-[mapT uint64T (sliceT byteT)] "$r0");;;
-    let: "$r0" := slice.nil in
+    let: "$r0" := #slice.nil in
     do:  (map.insert (![mapT uint64T (sliceT byteT)] "m") #(W64 1) "$r0");;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "x" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
@@ -1168,7 +1168,7 @@ Definition normalLiterals : val :=
   rec: "normalLiterals" <> :=
     exception_do (return: (struct.make allTheLiterals [{
        "int" ::= #(W64 0);
-       "s" ::= #(str "foo");
+       "s" ::= #"foo";
        "b" ::= #true
      }])).
 
@@ -1177,7 +1177,7 @@ Definition specialLiterals : val :=
   rec: "specialLiterals" <> :=
     exception_do (return: (struct.make allTheLiterals [{
        "int" ::= #(W64 4096);
-       "s" ::= #(str "");
+       "s" ::= #"";
        "b" ::= #false
      }])).
 
@@ -1186,7 +1186,7 @@ Definition oddLiterals : val :=
   rec: "oddLiterals" <> :=
     exception_do (return: (struct.make allTheLiterals [{
        "int" ::= #(W64 5);
-       "s" ::= #(str "backquote string");
+       "s" ::= #"backquote string";
        "b" ::= #false
      }])).
 
@@ -1195,7 +1195,7 @@ Definition unKeyedLiteral : val :=
   rec: "unKeyedLiteral" <> :=
     exception_do (return: (struct.make allTheLiterals [{
        "int" ::= #(W64 0);
-       "s" ::= #(str "a");
+       "s" ::= #"a";
        "b" ::= #false
      }])).
 
@@ -1237,14 +1237,14 @@ Definition hasCondVar__mset_ptr : list (string * val) := [
 Definition ToBeDebugged : val :=
   rec: "ToBeDebugged" "x" :=
     exception_do (let: "x" := (ref_ty uint64T "x") in
-    do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "starting function")) in
+    do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"starting function") in
     slice.literal interfaceT ["$sl0"])) in
     log.Println "$a0");;;
-    do:  (let: "$a0" := #(str "called with %d") in
+    do:  (let: "$a0" := #"called with %d" in
     let: "$a1" := ((let: "$sl0" := (interface.make uint64__mset (![uint64T] "x")) in
     slice.literal interfaceT ["$sl0"])) in
     log.Printf "$a0" "$a1");;;
-    do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "ending function")) in
+    do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"ending function") in
     slice.literal interfaceT ["$sl0"])) in
     log.Println "$a0");;;
     return: (![uint64T] "x")).
@@ -1252,7 +1252,7 @@ Definition ToBeDebugged : val :=
 (* go: log_debugging.go:12:6 *)
 Definition DoNothing : val :=
   rec: "DoNothing" <> :=
-    exception_do (do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #(str "doing nothing")) in
+    exception_do (do:  (let: "$a0" := ((let: "$sl0" := (interface.make string__mset #"doing nothing") in
     slice.literal interfaceT ["$sl0"])) in
     log.Println "$a0")).
 
@@ -1305,7 +1305,7 @@ Definition conditionalInLoop : val :=
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: (![uint64T] "i") < #(W64 3)
       then
-        do:  (let: "$a0" := #(str "i is small") in
+        do:  (let: "$a0" := #"i is small" in
         DoSomething "$a0")
       else do:  #());;;
       (if: (![uint64T] "i") > #(W64 5)
@@ -1492,7 +1492,7 @@ Definition MapTypeAliases : val :=
 Definition StringMap : val :=
   rec: "StringMap" "m" :=
     exception_do (let: "m" := (ref_ty (mapT stringT uint64T) "m") in
-    return: (Fst (map.get (![mapT stringT uint64T] "m") #(str "foo")))).
+    return: (Fst (map.get (![mapT stringT uint64T] "m") #"foo"))).
 
 Definition mapElem : go_type := structT [
   "a" :: uint64T;
@@ -1544,7 +1544,7 @@ Definition multipleVar : val :=
 (* go: multiple.go:14:6 *)
 Definition multiplePassThrough : val :=
   rec: "multiplePassThrough" <> :=
-    exception_do (do:  (let: ("$ret0", "$ret1") := ((let: "$a0" := slice.nil in
+    exception_do (do:  (let: ("$ret0", "$ret1") := ((let: "$a0" := #slice.nil in
     returnTwoWrapper "$a0")) in
     let: "$a0" := "$ret0" in
     let: "$a1" := "$ret1" in
@@ -1553,7 +1553,7 @@ Definition multiplePassThrough : val :=
 (* go: multiple.go:18:6 *)
 Definition multipleReturnPassThrough : val :=
   rec: "multipleReturnPassThrough" <> :=
-    exception_do (let: ("$ret0", "$ret1") := ((let: "$a0" := slice.nil in
+    exception_do (let: ("$ret0", "$ret1") := ((let: "$a0" := #slice.nil in
     returnTwo "$a0")) in
     return: ("$ret0", "$ret1")).
 
@@ -1563,7 +1563,7 @@ Definition AssignNilSlice : val :=
     exception_do (let: "s" := (ref_ty (sliceT (sliceT byteT)) (zero_val (sliceT (sliceT byteT)))) in
     let: "$r0" := (slice.make2 (sliceT byteT) #(W64 4)) in
     do:  ("s" <-[sliceT (sliceT byteT)] "$r0");;;
-    let: "$r0" := slice.nil in
+    let: "$r0" := #slice.nil in
     do:  ((slice.elem_ref (sliceT byteT) (![sliceT (sliceT byteT)] "s") #(W64 2)) <-[sliceT byteT] "$r0")).
 
 (* go: nil.go:8:6 *)
@@ -1581,7 +1581,7 @@ Definition CompareSliceToNil : val :=
     exception_do (let: "s" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     let: "$r0" := (slice.make2 byteT #(W64 0)) in
     do:  ("s" <-[sliceT byteT] "$r0");;;
-    return: ((![sliceT byteT] "s") ≠ slice.nil)).
+    return: ((![sliceT byteT] "s") ≠ #slice.nil)).
 
 (* go: nil.go:18:6 *)
 Definition ComparePointerToNil : val :=
@@ -1675,7 +1675,7 @@ Definition wrapExternalStruct__mset_ptr : list (string * val) := [
 (* go: panic.go:3:6 *)
 Definition PanicAtTheDisco : val :=
   rec: "PanicAtTheDisco" <> :=
-    exception_do (do:  (let: "$a0" := (interface.make string__mset #(str "disco")) in
+    exception_do (do:  (let: "$a0" := (interface.make string__mset #"disco") in
     Panic "$a0")).
 
 (* go: proph.go:5:6 *)
@@ -2055,7 +2055,7 @@ Definition loopSpawn : val :=
 Definition stringAppend : val :=
   rec: "stringAppend" "s" :=
     exception_do (let: "s" := (ref_ty stringT "s") in
-    return: ((#(str "prefix ") + (![stringT] "s")) + #(str " "))).
+    return: ((#"prefix " + (![stringT] "s")) + #" ")).
 
 (* go: strings.go:7:6 *)
 Definition stringLength : val :=
@@ -2327,7 +2327,7 @@ Definition variadicFunc : val :=
 Definition testVariadicCall : val :=
   rec: "testVariadicCall" <> :=
     exception_do (do:  (let: "$a0" := #(W64 10) in
-    let: "$a1" := #(str "abc") in
+    let: "$a1" := #"abc" in
     let: "$a2" := ((let: "$sl0" := #(W8 0) in
     let: "$sl1" := #(W8 1) in
     let: "$sl2" := #(W8 2) in
@@ -2335,19 +2335,19 @@ Definition testVariadicCall : val :=
     slice.literal byteT ["$sl0"; "$sl1"; "$sl2"; "$sl3"])) in
     variadicFunc "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := #(W64 10) in
-    let: "$a1" := #(str "abc") in
-    let: "$a2" := slice.nil in
+    let: "$a1" := #"abc" in
+    let: "$a2" := #slice.nil in
     variadicFunc "$a0" "$a1" "$a2");;;
     let: "c" := (ref_ty (sliceT byteT) (zero_val (sliceT byteT))) in
     do:  (let: "$a0" := #(W64 10) in
-    let: "$a1" := #(str "abc") in
+    let: "$a1" := #"abc" in
     let: "$a2" := (![sliceT byteT] "c") in
     variadicFunc "$a0" "$a1" "$a2")).
 
 (* go: varargs.go:13:6 *)
 Definition returnMultiple : val :=
   rec: "returnMultiple" <> :=
-    exception_do (return: (#(W64 0), #(str "xyz"), #(W8 0), #(W8 0))).
+    exception_do (return: (#(W64 0), #"xyz", #(W8 0), #(W8 0))).
 
 (* go: varargs.go:17:6 *)
 Definition testVariadicPassThrough : val :=

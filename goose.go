@@ -260,7 +260,7 @@ type exprWithInfo struct {
 }
 
 func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang.Expr {
-	var expr glang.Expr = glang.GallinaIdent("slice.nil")
+	var expr glang.Expr = glang.GallinaIdent("#slice.nil")
 
 	if len(es) > 0 {
 		var sliceLitArgs []glang.Expr
@@ -1016,10 +1016,6 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	t := ctx.typeOf(e)
 	switch t.(type) {
-	case *types.Pointer:
-		return glang.GallinaIdent("null")
-	case *types.Slice:
-		return glang.GallinaIdent("slice.nil")
 	case *types.Basic:
 		// TODO: this gets triggered for all of our unit tests because the
 		//  nil identifier is mapped to an untyped nil object.
@@ -1667,17 +1663,17 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
 		if _, ok := toUnder.(*types.Slice); ok {
-			return glang.GallinaIdent("slice.nil")
+			return glang.GallinaIdent("#slice.nil")
 		} else if _, ok := toUnder.(*types.Interface); ok {
-			return glang.GallinaIdent("interface.nil")
+			return glang.GallinaIdent("#interface.nil")
 		} else if _, ok := toUnder.(*types.Pointer); ok {
 			return glang.GallinaIdent("#null")
 		} else if _, ok := toUnder.(*types.Chan); ok {
-			return glang.GallinaIdent("chan.nil")
+			return glang.GallinaIdent("#null")
 		} else if _, ok := toUnder.(*types.Map); ok {
-			return glang.GallinaIdent("map.nil")
+			return glang.GallinaIdent("#null")
 		} else if _, ok := toUnder.(*types.Signature); ok {
-			return glang.GallinaIdent("go_nil")
+			return glang.GallinaIdent("#func.nil")
 		}
 	}
 	if _, ok := toUnder.(*types.Interface); ok {
