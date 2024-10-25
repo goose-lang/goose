@@ -119,6 +119,11 @@ func (ctx Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
 	return decls
 }
 
+func isAnyConstraint(expr ast.Expr) bool {
+	ident, ok := expr.(*ast.Ident)
+	return ok && ident.Name == "any"
+}
+
 func (ctx Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
 	var typeParams []glang.TypeIdent
 	if fs == nil {
@@ -128,6 +133,11 @@ func (ctx Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
 		for _, name := range f.Names {
 			typeParams = append(typeParams, glang.TypeIdent(name.Name))
 		}
+
+		if !isAnyConstraint(f.Type) {
+			ctx.futureWork(fs, "generic non any type")
+		}
+
 		if len(f.Names) == 0 { // Unnamed parameter
 			ctx.unsupported(fs, "unnamed type parameters")
 		}
@@ -231,17 +241,15 @@ func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 }
 
 func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
-	if spec.TypeParams != nil {
-		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
-	}
 	var r []glang.Decl
 
 	func() {
 		ctx.dep.setCurrentName(spec.Name.Name)
 		defer ctx.dep.unsetCurrentName()
 		r = append(r, glang.TypeDecl{
-			Name: spec.Name.Name,
-			Body: ctx.glangTypeFromExpr(spec.Type),
+			Name:       spec.Name.Name,
+			Body:       ctx.glangTypeFromExpr(spec.Type),
+			TypeParams: ctx.typeParamList(spec.TypeParams),
 		})
 	}()
 
@@ -315,12 +323,6 @@ func (ctx Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.
 // should be done in the continuation. The continuation can assume the arguments
 // are bound to "a0", "$a1", ....
 func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.Expr) {
-	if f, ok := call.Fun.(*ast.Ident); ok {
-		if ctx.info.Instances[f].TypeArgs.Len() > 0 {
-			ctx.unsupported(f, "generic function")
-		}
-	}
-
 	funcSig, ok := ctx.typeOf(call.Fun).Underlying().(*types.Signature)
 	if !ok {
 		ctx.nope(call.Fun, "function should have signature type, got %T", types.Unalias(ctx.typeOf(call.Fun)))
@@ -604,8 +606,8 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 		}
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
-			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
-		ctx.dep.addDep(info.name)
+			info.gallinaIdent, glang.GallinaString(v.Name()), *expr)
+		ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
 		*curType = v.Type()
 	}
 	return
@@ -617,7 +619,7 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type, expr *glang.Expr) {
 	for _, i := range index {
 		info, ok := ctx.getStructInfo(*curType)
-		ctx.dep.addDep(info.name)
+		ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
 		if !ok {
 			if _, ok := (*curType).(*types.Struct); ok {
 				ctx.unsupported(n, "anonymous struct")
@@ -630,7 +632,7 @@ func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type,
 		v := info.structType.Field(i)
 
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-			glang.GallinaIdent(info.name), glang.GallinaString(v.Name()), *expr)
+			info.gallinaIdent, glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -798,8 +800,8 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 }
 
 func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.StructLiteral {
-	ctx.dep.addDep(info.name)
-	lit := glang.NewStructLiteral(info.name)
+	ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
+	lit := glang.NewStructLiteral(info.gallinaIdent)
 	isUnkeyedStruct := false
 
 	getFieldType := func(fieldName string) types.Type {
@@ -1087,7 +1089,19 @@ func (ctx Ctx) function(s *ast.Ident) glang.Expr {
 		return glang.IdentExpr(s.Name)
 	}
 	ctx.dep.addDep(s.Name)
-	return glang.GallinaIdent(s.Name)
+	typeArgs := ctx.info.Instances[s].TypeArgs
+	if typeArgs.Len() == 0 {
+		return glang.GallinaIdent(s.Name)
+
+	}
+	glangTypeArgs := make([]glang.Type, typeArgs.Len())
+	for i := range glangTypeArgs {
+		glangTypeArgs[i] = ctx.glangType(s, typeArgs.At(i))
+	}
+	return glang.GallinaIdentGeneric{
+		Name:     glang.GallinaIdent(s.Name),
+		TypeArgs: glangTypeArgs,
+	}
 }
 
 func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
@@ -1256,11 +1270,17 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 				ctx.expr(e.X), ctx.expr(e.Index))
 		}
 	case *types.Signature:
-		ctx.unsupported(e, "generic function %v", xTy)
+		// generic arguments are grabbed from go ast, ignore explicit type args
+		return ctx.expr(e.X)
 	}
 	ctx.unsupported(e, "index into unknown type %v", xTy)
 	return glang.CallExpr{}
 }
+
+// func (ctx Ctx) indexListExpr(e *ast.IndexListExpr) glang.Expr {
+// 	// generic arguments are grabbed from go ast, ignore explicit type args
+// 	return ctx.expr(e.X)
+// }
 
 func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
 	return glang.DerefExpr{
@@ -1319,6 +1339,8 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
 		return ctx.indexExpr(e, isSpecial)
+	// case *ast.IndexListExpr:
+	// 	return ctx.indexListExpr(e)
 	case *ast.UnaryExpr:
 		return ctx.unaryExpr(e, isSpecial)
 	case *ast.ParenExpr:

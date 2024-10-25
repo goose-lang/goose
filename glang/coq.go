@@ -137,13 +137,20 @@ func (d StructType) Coq(needs_paren bool) string {
 }
 
 type TypeDecl struct {
-	Name string
-	Body Type
+	Name       string
+	Body       Type
+	TypeParams []TypeIdent
 }
 
 func (d TypeDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s : go_type := %s.", d.Name, d.Body.Coq(false))
+
+	typeParams := ""
+	for _, t := range d.TypeParams {
+		typeParams += fmt.Sprintf("(%s: go_type) ", t.Coq(false))
+	}
+
+	pp.Add("Definition %s %s: go_type := %s.", d.Name, typeParams, d.Body.Coq(false))
 	return pp.Build()
 }
 
@@ -167,15 +174,6 @@ type Type interface {
 type TypeIdent string
 
 func (t TypeIdent) Coq(needs_paren bool) string {
-	return string(t)
-}
-
-// StructName refers to a struct type from its name.
-//
-// This is Type rather than an Expr.
-type StructName string
-
-func (t StructName) Coq(needs_paren bool) string {
 	return string(t)
 }
 
@@ -232,6 +230,25 @@ type GallinaIdent string
 
 func (e GallinaIdent) Coq(needs_paren bool) string {
 	return string(e)
+}
+
+// GallinaIdentGeneric is a identifier in Gallina (and not a variable)
+//
+// A GallinaIdentGeneric is translated literally to Coq along with the type args
+type GallinaIdentGeneric struct {
+	Name     GallinaIdent
+	TypeArgs []Type
+}
+
+func (e GallinaIdentGeneric) Coq(needs_paren bool) string {
+	out := e.Name.Coq(false)
+	for _, typeArg := range e.TypeArgs {
+		out += " " + typeArg.Coq(false)
+	}
+	if len(e.TypeArgs) > 0 {
+		return fmt.Sprintf("(%v)", out)
+	}
+	return out
 }
 
 // A Go qualified identifier, which is translated to a Gallina qualified
@@ -296,10 +313,6 @@ func (s CallExpr) Coq(needs_paren bool) string {
 		comps = append(comps, a.Coq(true))
 	}
 	return addParens(needs_paren, strings.Join(comps, " "))
-}
-
-func StructDesc(name string) Expr {
-	return GallinaIdent(name)
 }
 
 type ContinueExpr struct {
@@ -425,13 +438,13 @@ type fieldVal struct {
 // Relies on Coq record syntax to correctly order fields for the record's
 // constructor.
 type StructLiteral struct {
-	StructName string
-	elts       []fieldVal
+	gallinaIdent GallinaIdentGeneric
+	elts         []fieldVal
 }
 
 // NewStructLiteral creates a StructLiteral with no values.
-func NewStructLiteral(structName string) StructLiteral {
-	return StructLiteral{StructName: structName}
+func NewStructLiteral(gallinaIdent GallinaIdentGeneric) StructLiteral {
+	return StructLiteral{gallinaIdent: gallinaIdent}
 }
 
 // AddField appends a new (field, val) pair to a StructLiteral.
@@ -442,7 +455,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s [{", method, StructDesc(sl.StructName).Coq(true))
+	pp.Add("%s %s [{", method, sl.gallinaIdent.Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.elts {
 		terminator := ";"

@@ -87,8 +87,8 @@ func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			ctx.dep.addDep(info.name)
-			return glang.StructName(info.name)
+			ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
+			return info.gallinaIdent
 		}
 		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
@@ -174,10 +174,18 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 	}
 }
 
+func (ctx Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Type) {
+	glangTypeArgs = make([]glang.Type, typeList.Len())
+	for i := range glangTypeArgs {
+		glangTypeArgs[i] = ctx.glangType(l, typeList.At(i))
+	}
+	return
+}
+
 type structTypeInfo struct {
-	name           string
 	throughPointer bool
 	structType     *types.Struct
+	gallinaIdent   glang.GallinaIdentGeneric
 }
 
 func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
@@ -190,7 +198,10 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		name := ctx.qualifiedName(t.Obj())
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
-				name:           name,
+				gallinaIdent: glang.GallinaIdentGeneric{
+					Name:     glang.GallinaIdent(name),
+					TypeArgs: ctx.convertTypeArgsToGlang(nil, t.TypeArgs()),
+				},
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true
