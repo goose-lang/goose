@@ -606,8 +606,7 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 		}
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
-			info.gallinaIdent, glang.GallinaString(v.Name()), *expr)
-		ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
+			ctx.structInfoToGlangExpr(info), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -619,7 +618,6 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type, expr *glang.Expr) {
 	for _, i := range index {
 		info, ok := ctx.getStructInfo(*curType)
-		ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
 		if !ok {
 			if _, ok := (*curType).(*types.Struct); ok {
 				ctx.unsupported(n, "anonymous struct")
@@ -632,7 +630,7 @@ func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type,
 		v := info.structType.Field(i)
 
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-			info.gallinaIdent, glang.GallinaString(v.Name()), *expr)
+			ctx.structInfoToGlangExpr(info), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -800,8 +798,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 }
 
 func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.StructLiteral {
-	ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
-	lit := glang.NewStructLiteral(info.gallinaIdent)
+	lit := glang.NewStructLiteral(ctx.structInfoToGlangExpr(info))
 	isUnkeyedStruct := false
 
 	getFieldType := func(fieldName string) types.Type {
@@ -1094,13 +1091,9 @@ func (ctx Ctx) function(s *ast.Ident) glang.Expr {
 		return glang.GallinaIdent(s.Name)
 
 	}
-	glangTypeArgs := make([]glang.Type, typeArgs.Len())
-	for i := range glangTypeArgs {
-		glangTypeArgs[i] = ctx.glangType(s, typeArgs.At(i))
-	}
-	return glang.GallinaIdentGeneric{
-		Name:     glang.GallinaIdent(s.Name),
-		TypeArgs: glangTypeArgs,
+	return glang.CallExpr{
+		MethodName: glang.GallinaIdent(s.Name),
+		Args:       ctx.convertTypeArgsToGlang(nil, typeArgs),
 	}
 }
 
@@ -1277,10 +1270,10 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	return glang.CallExpr{}
 }
 
-// func (ctx Ctx) indexListExpr(e *ast.IndexListExpr) glang.Expr {
-// 	// generic arguments are grabbed from go ast, ignore explicit type args
-// 	return ctx.expr(e.X)
-// }
+func (ctx Ctx) indexListExpr(e *ast.IndexListExpr) glang.Expr {
+	// generic arguments are grabbed from go ast, ignore explicit type args
+	return ctx.expr(e.X)
+}
 
 func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
 	return glang.DerefExpr{
@@ -1339,8 +1332,8 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
 		return ctx.indexExpr(e, isSpecial)
-	// case *ast.IndexListExpr:
-	// 	return ctx.indexListExpr(e)
+	case *ast.IndexListExpr:
+		return ctx.indexListExpr(e)
 	case *ast.UnaryExpr:
 		return ctx.unaryExpr(e, isSpecial)
 	case *ast.ParenExpr:

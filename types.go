@@ -87,10 +87,15 @@ func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			ctx.dep.addDep(info.gallinaIdent.Name.Coq(false))
-			return info.gallinaIdent
+			return ctx.structInfoToGlangExpr(info)
 		}
 		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
+		if t.TypeArgs().Len() != 0 {
+			return glang.CallExpr{
+				MethodName: glang.TypeIdent(ctx.qualifiedName(t.Obj())),
+				Args:       ctx.convertTypeArgsToGlang(nil, t.TypeArgs()),
+			}
+		}
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
 		return glang.SliceType{Value: ctx.glangType(n, t.Elem())}
@@ -174,8 +179,8 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 	}
 }
 
-func (ctx Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Type) {
-	glangTypeArgs = make([]glang.Type, typeList.Len())
+func (ctx Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Expr) {
+	glangTypeArgs = make([]glang.Expr, typeList.Len())
 	for i := range glangTypeArgs {
 		glangTypeArgs[i] = ctx.glangType(l, typeList.At(i))
 	}
@@ -183,9 +188,21 @@ func (ctx Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (gl
 }
 
 type structTypeInfo struct {
+	name           string
 	throughPointer bool
 	structType     *types.Struct
-	gallinaIdent   glang.GallinaIdentGeneric
+	typeArgs       *types.TypeList
+}
+
+func (ctx Ctx) structInfoToGlangExpr(info structTypeInfo) glang.Expr {
+	ctx.dep.addDep(info.name)
+	if info.typeArgs.Len() == 0 {
+		return glang.GallinaIdent(info.name)
+	}
+	return glang.CallExpr{
+		MethodName: glang.GallinaIdent(info.name),
+		Args:       ctx.convertTypeArgsToGlang(nil, info.typeArgs),
+	}
 }
 
 func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
@@ -198,10 +215,8 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		name := ctx.qualifiedName(t.Obj())
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
-				gallinaIdent: glang.GallinaIdentGeneric{
-					Name:     glang.GallinaIdent(name),
-					TypeArgs: ctx.convertTypeArgsToGlang(nil, t.TypeArgs()),
-				},
+				name:           name,
+				typeArgs:       t.TypeArgs(),
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true
