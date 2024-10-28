@@ -14,6 +14,14 @@ func normalLiterals() allTheLiterals {
 	}
 }
 
+func outOfOrderLiteral() allTheLiterals {
+	return allTheLiterals{
+		b:   true,
+		s:   "foo",
+		int: 0,
+	}
+}
+
 func specialLiterals() allTheLiterals {
 	return allTheLiterals{
 		int: 4096,

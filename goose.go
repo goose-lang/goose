@@ -797,35 +797,16 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.StructLiteral {
+func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Expr {
 	lit := glang.NewStructLiteral(ctx.structInfoToGlangExpr(info))
 	isUnkeyedStruct := false
 
-	getFieldType := func(fieldName string) types.Type {
-		for i := range info.structType.NumFields() {
-			if info.structType.Field(i).Name() == fieldName {
-				return info.structType.Field(i).Type()
-			}
-		}
-		ctx.nope(e, "field is not a part of the struct")
-		return types.NewTuple()
-	}
-
 	for _, el := range e.Elts {
-		switch el := el.(type) {
+		switch el.(type) {
 		case *ast.KeyValueExpr:
-			ident, ok := getIdent(el.Key)
-			if !ok {
-				ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
-				return glang.StructLiteral{}
-			}
-			lit.AddField(ident,
-				ctx.handleImplicitConversion(el.Value,
-					ctx.typeOf(el.Value),
-					getFieldType(ident),
-					ctx.expr(el.Value)))
 		default:
 			isUnkeyedStruct = true
+			break
 		}
 	}
 	if isUnkeyedStruct {
@@ -840,8 +821,58 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Str
 					ctx.expr(e.Elts[i]),
 				))
 		}
+		return lit
 	}
-	return lit
+
+	for i := 0; i < info.structType.NumFields(); i++ {
+		fieldName := info.structType.Field(i).Name()
+		fieldType := info.structType.Field(i).Type()
+
+		fieldIsZero := true
+		for _, el := range e.Elts {
+			switch el := el.(type) {
+			case *ast.KeyValueExpr:
+				ident, ok := getIdent(el.Key)
+				if !ok {
+					ctx.noExample(el.Key, "struct field keyed by non-identifier %+v", el.Key)
+				}
+				if ident == fieldName {
+					fieldIsZero = false
+					lit.AddField(fieldName, glang.IdentExpr(fieldName))
+				}
+			default:
+			}
+		}
+		if fieldIsZero {
+			lit.AddField(fieldName, glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.glangType(e, fieldType)))
+		}
+	}
+
+	getFieldType := func(fieldName string) types.Type {
+		for i := range info.structType.NumFields() {
+			if info.structType.Field(i).Name() == fieldName {
+				return info.structType.Field(i).Type()
+			}
+		}
+		ctx.nope(e, "field is not a part of the struct")
+		return types.NewTuple()
+	}
+
+	var expr glang.Expr = lit
+	for i := range e.Elts {
+		el := e.Elts[len(e.Elts)-1-i].(*ast.KeyValueExpr)
+		fieldName, _ := getIdent(el.Key)
+		expr = glang.LetExpr{
+			Names: []string{fieldName},
+			// convert from the original value type
+			ValExpr: ctx.handleImplicitConversion(el.Value,
+				ctx.typeOf(el.Value),
+				getFieldType(fieldName),
+				ctx.expr(el.Value)),
+			Cont: expr,
+		}
+	}
+	return expr
 }
 
 func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
