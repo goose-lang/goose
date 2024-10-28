@@ -323,11 +323,15 @@ Definition New : val :=
     let: "l" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("l" <-[ptrT] "$r0");;;
-    return: (struct.make Log [{
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T sliceT] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
+    return: (let: "d" := (![disk.Disk] "d") in
+     let: "cache" := (![mapT uint64T sliceT] "cache") in
+     let: "length" := (![ptrT] "lengthPtr") in
+     let: "l" := (![ptrT] "l") in
+     struct.make Log [{
+       "d" ::= "d";
+       "l" ::= "l";
+       "cache" ::= "cache";
+       "length" ::= "length"
      }])).
 
 (* Open recovers the log following a crash or shutdown
@@ -362,9 +366,13 @@ Definition Open : val :=
     let: "l" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("l" <-[ptrT] "$r0");;;
-    return: (struct.make Log [{
-       "d" ::= ![disk.Disk] "d";
-       "cache" ::= ![mapT uint64T sliceT] "cache";
-       "length" ::= ![ptrT] "lengthPtr";
-       "l" ::= ![ptrT] "l"
+    return: (let: "d" := (![disk.Disk] "d") in
+     let: "cache" := (![mapT uint64T sliceT] "cache") in
+     let: "length" := (![ptrT] "lengthPtr") in
+     let: "l" := (![ptrT] "l") in
+     struct.make Log [{
+       "d" ::= "d";
+       "l" ::= "l";
+       "cache" ::= "cache";
+       "length" ::= "length"
      }])).
