@@ -49,11 +49,11 @@ Definition CreateTable : val :=
     let: "$a1" := (![stringT] "p") in
     filesys.Open "$a0" "$a1") in
     do:  ("f2" <-[fileT] "$r0");;;
-    return: (let: "Index" := (![mapT uint64T uint64T] "index") in
-     let: "File" := (![fileT] "f2") in
+    return: (let: "$Index" := (![mapT uint64T uint64T] "index") in
+     let: "$File" := (![fileT] "f2") in
      struct.make Table [{
-       "Index" ::= "Index";
-       "File" ::= "File"
+       "Index" ::= "$Index";
+       "File" ::= "$File"
      }])).
 
 Definition Entry : go_type := structT [
@@ -104,11 +104,11 @@ Definition DecodeEntry : val :=
     do:  ("l1" <-[uint64T] "$r1");;;
     (if: (![uint64T] "l1") = #(W64 0)
     then
-      return: (let: "Key" := #(W64 0) in
-       let: "Value" := #slice.nil in
+      return: (let: "$Key" := #(W64 0) in
+       let: "$Value" := #slice.nil in
        struct.make Entry [{
-         "Key" ::= "Key";
-         "Value" ::= "Value"
+         "Key" ::= "$Key";
+         "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
     let: "l2" := (ref_ty uint64T (zero_val uint64T)) in
@@ -122,32 +122,32 @@ Definition DecodeEntry : val :=
     do:  ("l2" <-[uint64T] "$r1");;;
     (if: (![uint64T] "l2") = #(W64 0)
     then
-      return: (let: "Key" := #(W64 0) in
-       let: "Value" := #slice.nil in
+      return: (let: "$Key" := #(W64 0) in
+       let: "$Value" := #slice.nil in
        struct.make Entry [{
-         "Key" ::= "Key";
-         "Value" ::= "Value"
+         "Key" ::= "$Key";
+         "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
     (if: (let: "$a0" := (![sliceT] "data") in
     slice.len "$a0") < (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))
     then
-      return: (let: "Key" := #(W64 0) in
-       let: "Value" := #slice.nil in
+      return: (let: "$Key" := #(W64 0) in
+       let: "$Value" := #slice.nil in
        struct.make Entry [{
-         "Key" ::= "Key";
-         "Value" ::= "Value"
+         "Key" ::= "$Key";
+         "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
     let: "value" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$s" := (![sliceT] "data") in
     slice.slice byteT "$s" ((![uint64T] "l1") + (![uint64T] "l2")) (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))) in
     do:  ("value" <-[sliceT] "$r0");;;
-    return: (let: "Key" := (![uint64T] "key") in
-     let: "Value" := (![sliceT] "value") in
+    return: (let: "$Key" := (![uint64T] "key") in
+     let: "$Value" := (![sliceT] "value") in
      struct.make Entry [{
-       "Key" ::= "Key";
-       "Value" ::= "Value"
+       "Key" ::= "$Key";
+       "Value" ::= "$Value"
      }], ((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))).
 
 Definition lazyFileBuf : go_type := structT [
@@ -169,11 +169,11 @@ Definition readTableIndex : val :=
     exception_do (let: "index" := (ref_ty (mapT uint64T uint64T) "index") in
     let: "f" := (ref_ty fileT "f") in
     (let: "buf" := (ref_ty lazyFileBuf (zero_val lazyFileBuf)) in
-    let: "$r0" := (let: "offset" := #(W64 0) in
-    let: "next" := #slice.nil in
+    let: "$r0" := (let: "$offset" := #(W64 0) in
+    let: "$next" := #slice.nil in
     struct.make lazyFileBuf [{
-      "offset" ::= "offset";
-      "next" ::= "next"
+      "offset" ::= "$offset";
+      "next" ::= "$next"
     }]) in
     do:  ("buf" <-[lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
@@ -189,12 +189,12 @@ Definition readTableIndex : val :=
       then
         let: "$r0" := (#(W64 8) + (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf"))) in
         do:  (map.insert (![mapT uint64T uint64T] "index") (![uint64T] (struct.field_ref Entry "Key" "e")) "$r0");;;
-        let: "$r0" := (let: "offset" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l")) in
-        let: "next" := (let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        let: "$r0" := (let: "$offset" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l")) in
+        let: "$next" := (let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.slice byteT "$s" (![uint64T] "l") (slice.len "$s")) in
         struct.make lazyFileBuf [{
-          "offset" ::= "offset";
-          "next" ::= "next"
+          "offset" ::= "$offset";
+          "next" ::= "$next"
         }]) in
         do:  ("buf" <-[lazyFileBuf] "$r0");;;
         continue: #()
@@ -215,11 +215,11 @@ Definition readTableIndex : val :=
           let: "$a1" := (![sliceT] "p") in
           (slice.append sliceT) "$a0" "$a1") in
           do:  ("newBuf" <-[sliceT] "$r0");;;
-          let: "$r0" := (let: "offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
-          let: "next" := (![sliceT] "newBuf") in
+          let: "$r0" := (let: "$offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
+          let: "$next" := (![sliceT] "newBuf") in
           struct.make lazyFileBuf [{
-            "offset" ::= "offset";
-            "next" ::= "next"
+            "offset" ::= "$offset";
+            "next" ::= "$next"
           }]) in
           do:  ("buf" <-[lazyFileBuf] "$r0");;;
           continue: #()))))).
@@ -241,11 +241,11 @@ Definition RecoverTable : val :=
     do:  (let: "$a0" := (![fileT] "f") in
     let: "$a1" := (![mapT uint64T uint64T] "index") in
     readTableIndex "$a0" "$a1");;;
-    return: (let: "Index" := (![mapT uint64T uint64T] "index") in
-     let: "File" := (![fileT] "f") in
+    return: (let: "$Index" := (![mapT uint64T uint64T] "index") in
+     let: "$File" := (![fileT] "f") in
      struct.make Table [{
-       "Index" ::= "Index";
-       "File" ::= "File"
+       "Index" ::= "$Index";
+       "File" ::= "$File"
      }])).
 
 (* CloseTable frees up the fd held by a table.
@@ -338,11 +338,11 @@ Definition newBuf : val :=
     let: "buf" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sliceT (zero_val sliceT)) in
     do:  ("buf" <-[ptrT] "$r0");;;
-    return: (let: "file" := (![fileT] "f") in
-     let: "buf" := (![ptrT] "buf") in
+    return: (let: "$file" := (![fileT] "f") in
+     let: "$buf" := (![ptrT] "buf") in
      struct.make bufFile [{
-       "file" ::= "file";
-       "buf" ::= "buf"
+       "file" ::= "$file";
+       "buf" ::= "$buf"
      }])).
 
 (* go: simpledb.go:159:6 *)
@@ -422,15 +422,15 @@ Definition newTableWriter : val :=
     let: "off" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
     do:  ("off" <-[ptrT] "$r0");;;
-    return: (let: "index" := (![mapT uint64T uint64T] "index") in
-     let: "name" := (![stringT] "p") in
-     let: "file" := (![bufFile] "buf") in
-     let: "offset" := (![ptrT] "off") in
+    return: (let: "$index" := (![mapT uint64T uint64T] "index") in
+     let: "$name" := (![stringT] "p") in
+     let: "$file" := (![bufFile] "buf") in
+     let: "$offset" := (![ptrT] "off") in
      struct.make tableWriter [{
-       "index" ::= "index";
-       "name" ::= "name";
-       "file" ::= "file";
-       "offset" ::= "offset"
+       "index" ::= "$index";
+       "name" ::= "$name";
+       "file" ::= "$file";
+       "offset" ::= "$offset"
      }])).
 
 (* go: simpledb.go:199:6 *)
@@ -459,11 +459,11 @@ Definition tableWriterClose : val :=
     let: "$a1" := (![stringT] (struct.field_ref tableWriter "name" "w")) in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
-    return: (let: "Index" := (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) in
-     let: "File" := (![fileT] "f") in
+    return: (let: "$Index" := (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) in
+     let: "$File" := (![fileT] "f") in
      struct.make Table [{
-       "Index" ::= "Index";
-       "File" ::= "File"
+       "Index" ::= "$Index";
+       "File" ::= "$File"
      }])).
 
 (* EncodeUInt64 is an Encoder(uint64)
@@ -601,21 +601,21 @@ Definition NewDb : val :=
     let: "compactionL" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("compactionL" <-[ptrT] "$r0");;;
-    return: (let: "wbuffer" := (![ptrT] "wbuf") in
-     let: "rbuffer" := (![ptrT] "rbuf") in
-     let: "bufferL" := (![ptrT] "bufferL") in
-     let: "table" := (![ptrT] "tableRef") in
-     let: "tableName" := (![ptrT] "tableNameRef") in
-     let: "tableL" := (![ptrT] "tableL") in
-     let: "compactionL" := (![ptrT] "compactionL") in
+    return: (let: "$wbuffer" := (![ptrT] "wbuf") in
+     let: "$rbuffer" := (![ptrT] "rbuf") in
+     let: "$bufferL" := (![ptrT] "bufferL") in
+     let: "$table" := (![ptrT] "tableRef") in
+     let: "$tableName" := (![ptrT] "tableNameRef") in
+     let: "$tableL" := (![ptrT] "tableL") in
+     let: "$compactionL" := (![ptrT] "compactionL") in
      struct.make Database [{
-       "wbuffer" ::= "wbuffer";
-       "rbuffer" ::= "rbuffer";
-       "bufferL" ::= "bufferL";
-       "table" ::= "table";
-       "tableName" ::= "tableName";
-       "tableL" ::= "tableL";
-       "compactionL" ::= "compactionL"
+       "wbuffer" ::= "$wbuffer";
+       "rbuffer" ::= "$rbuffer";
+       "bufferL" ::= "$bufferL";
+       "table" ::= "$table";
+       "tableName" ::= "$tableName";
+       "tableL" ::= "$tableL";
+       "compactionL" ::= "$compactionL"
      }])).
 
 (* Read gets a key from the database.
@@ -730,11 +730,11 @@ Definition tablePutOldTable : val :=
     let: "t" := (ref_ty Table "t") in
     let: "w" := (ref_ty tableWriter "w") in
     (let: "buf" := (ref_ty lazyFileBuf (zero_val lazyFileBuf)) in
-    let: "$r0" := (let: "offset" := #(W64 0) in
-    let: "next" := #slice.nil in
+    let: "$r0" := (let: "$offset" := #(W64 0) in
+    let: "$next" := #slice.nil in
     struct.make lazyFileBuf [{
-      "offset" ::= "offset";
-      "next" ::= "next"
+      "offset" ::= "$offset";
+      "next" ::= "$next"
     }]) in
     do:  ("buf" <-[lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
@@ -761,12 +761,12 @@ Definition tablePutOldTable : val :=
           let: "$a2" := (![sliceT] (struct.field_ref Entry "Value" "e")) in
           tablePut "$a0" "$a1" "$a2")
         else do:  #());;;
-        let: "$r0" := (let: "offset" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l")) in
-        let: "next" := (let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        let: "$r0" := (let: "$offset" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l")) in
+        let: "$next" := (let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.slice byteT "$s" (![uint64T] "l") (slice.len "$s")) in
         struct.make lazyFileBuf [{
-          "offset" ::= "offset";
-          "next" ::= "next"
+          "offset" ::= "$offset";
+          "next" ::= "$next"
         }]) in
         do:  ("buf" <-[lazyFileBuf] "$r0");;;
         continue: #()
@@ -787,11 +787,11 @@ Definition tablePutOldTable : val :=
           let: "$a1" := (![sliceT] "p") in
           (slice.append sliceT) "$a0" "$a1") in
           do:  ("newBuf" <-[sliceT] "$r0");;;
-          let: "$r0" := (let: "offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
-          let: "next" := (![sliceT] "newBuf") in
+          let: "$r0" := (let: "$offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
+          let: "$next" := (![sliceT] "newBuf") in
           struct.make lazyFileBuf [{
-            "offset" ::= "offset";
-            "next" ::= "next"
+            "offset" ::= "$offset";
+            "next" ::= "$next"
           }]) in
           do:  ("buf" <-[lazyFileBuf] "$r0");;;
           continue: #()))))).
@@ -999,21 +999,21 @@ Definition Recover : val :=
     let: "compactionL" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("compactionL" <-[ptrT] "$r0");;;
-    return: (let: "wbuffer" := (![ptrT] "wbuffer") in
-     let: "rbuffer" := (![ptrT] "rbuffer") in
-     let: "bufferL" := (![ptrT] "bufferL") in
-     let: "table" := (![ptrT] "tableRef") in
-     let: "tableName" := (![ptrT] "tableNameRef") in
-     let: "tableL" := (![ptrT] "tableL") in
-     let: "compactionL" := (![ptrT] "compactionL") in
+    return: (let: "$wbuffer" := (![ptrT] "wbuffer") in
+     let: "$rbuffer" := (![ptrT] "rbuffer") in
+     let: "$bufferL" := (![ptrT] "bufferL") in
+     let: "$table" := (![ptrT] "tableRef") in
+     let: "$tableName" := (![ptrT] "tableNameRef") in
+     let: "$tableL" := (![ptrT] "tableL") in
+     let: "$compactionL" := (![ptrT] "compactionL") in
      struct.make Database [{
-       "wbuffer" ::= "wbuffer";
-       "rbuffer" ::= "rbuffer";
-       "bufferL" ::= "bufferL";
-       "table" ::= "table";
-       "tableName" ::= "tableName";
-       "tableL" ::= "tableL";
-       "compactionL" ::= "compactionL"
+       "wbuffer" ::= "$wbuffer";
+       "rbuffer" ::= "$rbuffer";
+       "bufferL" ::= "$bufferL";
+       "table" ::= "$table";
+       "tableName" ::= "$tableName";
+       "tableL" ::= "$tableL";
+       "compactionL" ::= "$compactionL"
      }])).
 
 (* Shutdown immediately closes the database.
