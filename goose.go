@@ -838,7 +838,7 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Exp
 				}
 				if ident == fieldName {
 					fieldIsZero = false
-					lit.AddField(fieldName, glang.IdentExpr(fieldName))
+					lit.AddField(fieldName, glang.IdentExpr("$"+fieldName))
 				}
 			default:
 			}
@@ -863,7 +863,7 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Exp
 		el := e.Elts[len(e.Elts)-1-i].(*ast.KeyValueExpr)
 		fieldName, _ := getIdent(el.Key)
 		expr = glang.LetExpr{
-			Names: []string{fieldName},
+			Names: []string{"$" + fieldName},
 			// convert from the original value type
 			ValExpr: ctx.handleImplicitConversion(el.Value,
 				ctx.typeOf(el.Value),
