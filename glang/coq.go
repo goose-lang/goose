@@ -240,7 +240,7 @@ type PackageIdent struct {
 }
 
 func (e PackageIdent) Coq(needs_paren bool) string {
-	return fmt.Sprintf("%s.%s", thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(e.Package), e.Ident)
+	return fmt.Sprintf("%s.%s", ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(e.Package), e.Ident)
 }
 
 var Skip Expr = GallinaIdent("Skip")
@@ -1015,7 +1015,7 @@ func goPathToCoqPath(p string) string {
 	return p
 }
 
-func thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(p string) string {
+func ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(p string) string {
 	p = strings.ReplaceAll(p, "_", "_")
 	p = strings.ReplaceAll(p, ".", "_")
 	p = strings.ReplaceAll(p, "-", "_")
@@ -1028,14 +1028,14 @@ func thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(p string) string {
 //
 //	statement in Go) differing from the basename of its parent directory
 func ImportToPath(pkgPath, pkgName string) string {
-	coqPath := thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkgPath)
+	coqPath := ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkgPath)
 	p := path.Dir(coqPath)
 	filename := path.Base(coqPath) + ".v"
 	return filepath.Join(p, filename)
 }
 
 func (decl ImportDecl) CoqDecl() string {
-	coqImportQualid := strings.ReplaceAll(thisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
+	coqImportQualid := strings.ReplaceAll(ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
 	return fmt.Sprintf("From New.code Require %s.", coqImportQualid)
 }
 
