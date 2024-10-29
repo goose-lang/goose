@@ -95,29 +95,79 @@ func (ctx *Ctx) Decl(info types.Info, d ast.Decl) {
 		case token.TYPE:
 			for _, spec := range d.Specs {
 				spec := spec.(*ast.TypeSpec)
-				defName := spec.Name.Name + ".t"
-				ctx.setCurrent(defName)
-				defer ctx.unsetCurrent()
-
 				if s, ok := info.TypeOf(spec.Type).(*types.Struct); ok {
-					// Emit record type
-					fieldVals := new(strings.Builder)
-					for i := 0; i < s.NumFields(); i++ {
-						t := ctx.toCoqType(s.Field(i).Type())
-						ctx.addDep(t)
-						fmt.Fprintf(fieldVals, "  %s : %s;\n",
-							toCoqName(s.Field(i).Name()),
-							t,
-						)
-					}
+					// TODO: could have one def per type. Makes dependency ordering more coarse grained.
 
-					ctx.defNames = append(ctx.defNames, defName)
-					ctx.defs[defName] = fmt.Sprintf(`
-Module %s.
+					// Record type
+					{
+						defName := spec.Name.Name + ".t"
+						ctx.setCurrent(defName)
+
+						fieldVals := new(strings.Builder)
+						for i := 0; i < s.NumFields(); i++ {
+							t := ctx.toCoqType(s.Field(i).Type())
+							ctx.addDep(t)
+							fmt.Fprintf(fieldVals, "  %s : %s;\n",
+								toCoqName(s.Field(i).Name()),
+								t,
+							)
+						}
+						ctx.defNames = append(ctx.defNames, defName)
+						ctx.defs[defName] = fmt.Sprintf(
+							`Module %s.
 Record t := mk {
 %s}.
 End %s.
+
 `, spec.Name.Name, fieldVals.String(), spec.Name.Name)
+						ctx.unsetCurrent()
+					}
+
+					// IntoVal instance
+					{
+						defName := "into_val_" + spec.Name.Name
+						ctx.setCurrent(defName)
+						ctx.defs[defName] = fmt.Sprintf(
+							`Instance into_val_%s ` + "`" + `{ffi_syntax} : IntoVal %s.t.
+Admitted.
+
+`,
+							spec.Name.Name, spec.Name.Name,
+						)
+						ctx.defNames = append(ctx.defNames, defName)
+						ctx.unsetCurrent()
+					}
+
+					// IntoValTyped instance
+					{
+						defName := "into_val_typed_" + spec.Name.Name
+						ctx.setCurrent(defName)
+						ctx.defs[defName] = fmt.Sprintf(
+							`Instance into_val_typed_%s ` + "`" + `{ffi_syntax} : IntoValTyped %s.t %s.
+Admitted.
+
+`,
+							spec.Name.Name, spec.Name.Name, spec.Name.Name,
+						)
+						ctx.defNames = append(ctx.defNames, defName)
+						ctx.unsetCurrent()
+					}
+
+					// IntoValStructField instances
+					for i := 0; i < s.NumFields(); i++ {
+						fieldName := s.Field(i).Name()
+						defName := "into_val_struct_field_" + spec.Name.Name + fieldName
+						ctx.setCurrent(defName)
+						ctx.defs[defName] = fmt.Sprintf(
+							`Instance %s ` + "`" + `{ffi_syntax} : IntoValStructField "%s" %s %s.%s.
+Admitted.
+
+`,
+							defName, fieldName, spec.Name.Name, spec.Name.Name, fieldName,
+						)
+						ctx.defNames = append(ctx.defNames, defName)
+						ctx.unsetCurrent()
+					}
 				}
 			}
 		}
