@@ -33,8 +33,7 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
-		return "(vec " + ctx.toCoqType(t.Elem()) + " " + string(t.Len()) + ")"
-		// panic(fmt.Sprintf("Arrays unsupported in this tool: %s", t))
+		return fmt.Sprintf("(vec %s %d)", ctx.toCoqType(t.Elem()), t.Len())
 	case *types.Pointer:
 		return "loc"
 	case *types.Signature:
@@ -65,6 +64,8 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 func toCoqName(n string) string {
 	if n == "Type" {
 		return "Type'"
+	} else if n == "t" {
+		return "t'"
 	}
 	return n
 }
@@ -122,14 +123,14 @@ func (ctx *Ctx) Decl(info types.Info, d ast.Decl) {
 						)
 					}
 					fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n\n", name)
-					fmt.Fprintf(w, `Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
+					fmt.Fprintf(w, `Global Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
 Admitted.
 
 `, name, name,
 					)
 
 					// IntoValTyped instance
-					fmt.Fprintf(w, `Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s :=
+					fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s :=
 {|
 `,
 						name, name, name,
@@ -151,7 +152,7 @@ Admitted.
 					for i := 0; i < s.NumFields(); i++ {
 						fieldName := s.Field(i).Name()
 						instanceName := "into_val_struct_field_" + name + "_" + fieldName
-						fmt.Fprintf(w, `Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s %s.%s.
+						fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s %s.%s.
 Admitted.
 
 `,
