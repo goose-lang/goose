@@ -209,7 +209,7 @@ func translatePackage(pkg *packages.Package, namesToTranslate map[string]bool) (
 
 func (ctx Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
 	if ctx.namesToTranslate != nil {
-		header += fmt.Sprintf("From New.code_axioms Require Import %s.\n\n", pkg.Name)
+		header += fmt.Sprintf("From New.code_axioms Require Export %s.\n\n", pkg.Name)
 	}
 	ffi := getFfi(pkg)
 	if ffi == "none" {

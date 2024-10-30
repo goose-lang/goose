@@ -789,16 +789,15 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	} else if t, ok := ctx.typeOf(e).Underlying().(*types.Array); ok {
 		return ctx.arrayLiteral(e, t.Elem())
 	}
-	info, ok := ctx.getStructInfo(ctx.typeOf(e))
-	if ok {
-		return ctx.structLiteral(info, e)
+	if structType, ok := ctx.typeOf(e).Underlying().(*types.Struct); ok {
+		return ctx.structLiteral(ctx.typeOf(e), structType, e)
 	}
 	ctx.unsupported(e, "composite literal of type %v", ctx.typeOf(e))
 	return nil
 }
 
-func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Expr {
-	lit := glang.NewStructLiteral(ctx.structInfoToGlangExpr(info))
+func (ctx Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
+	lit := glang.NewStructLiteral(ctx.glangType(e.Type, t))
 	isUnkeyedStruct := false
 
 	for _, el := range e.Elts {
@@ -810,23 +809,23 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Exp
 		}
 	}
 	if isUnkeyedStruct {
-		if len(e.Elts) != info.structType.NumFields() {
+		if len(e.Elts) != structType.NumFields() {
 			ctx.nope(e, "expected as many elements are there are struct fields in unkeyed literal")
 		}
-		for i := range info.structType.NumFields() {
-			lit.AddField(info.structType.Field(i).Name(),
+		for i := range structType.NumFields() {
+			lit.AddField(structType.Field(i).Name(),
 				ctx.handleImplicitConversion(e.Elts[i],
 					ctx.typeOf(e.Elts[i]),
-					info.structType.Field(i).Type(),
+					structType.Field(i).Type(),
 					ctx.expr(e.Elts[i]),
 				))
 		}
 		return lit
 	}
 
-	for i := 0; i < info.structType.NumFields(); i++ {
-		fieldName := info.structType.Field(i).Name()
-		fieldType := info.structType.Field(i).Type()
+	for i := 0; i < structType.NumFields(); i++ {
+		fieldName := structType.Field(i).Name()
+		fieldType := structType.Field(i).Type()
 
 		fieldIsZero := true
 		for _, el := range e.Elts {
@@ -849,9 +848,9 @@ func (ctx Ctx) structLiteral(info structTypeInfo, e *ast.CompositeLit) glang.Exp
 	}
 
 	getFieldType := func(fieldName string) types.Type {
-		for i := range info.structType.NumFields() {
-			if info.structType.Field(i).Name() == fieldName {
-				return info.structType.Field(i).Type()
+		for i := range structType.NumFields() {
+			if structType.Field(i).Name() == fieldName {
+				return structType.Field(i).Type()
 			}
 		}
 		ctx.nope(e, "field is not a part of the struct")
@@ -1078,7 +1077,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 			structLit, ok := e.X.(*ast.CompositeLit)
 			if ok {
 				// e is &s{...} (a struct literal)
-				sl := ctx.structLiteral(info, structLit)
+				sl := ctx.structLiteral(ctx.typeOf(e.X), info.structType, structLit)
 				return glang.RefExpr{
 					X:  sl,
 					Ty: ctx.glangType(e.X, ctx.typeOf(e.X)),
