@@ -159,6 +159,44 @@ Admitted.
 							instanceName, fieldName, name, name, toCoqName(fieldName),
 						)
 					}
+
+					// PureWp instance
+					fmt.Fprintf(w, "Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
+					for i := 0; i < s.NumFields(); i++ {
+						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+					}
+					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s (struct.fields_val [", name)
+					sep := ""
+					for i := 0; i < s.NumFields(); i++ {
+						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
+						sep = ";"
+					}
+					fmt.Fprint(w, "\n    ]))%%V \n    #(")
+					fmt.Fprintf(w, "%s.mk", name)
+					for i := 0; i < s.NumFields(); i++ {
+						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+					}
+					fmt.Fprintf(w, ").\nAdmitted.\n\n")
+
+					/*
+Instance wp_struct_make_AsyncFile mu data filename index indexCond durableIndex durableIndexCond
+        closeRequested closed closedCond :
+  PureWp True
+  (struct.make AsyncFile (struct.fields_val [
+                              "mu" ::= #mu;
+                              "data" ::= #data;
+                              "filename" ::= #filename;
+                              "index" ::= #index;
+                              "indexCond" ::= #indexCond;
+                              "durableIndex" ::= #durableIndex;
+                              "durableIndexCond" ::= #durableIndexCond;
+                              "closeRequested" ::= #closeRequested;
+                              "closed" ::= #closed;
+                              "closedCond" ::= #closedCond
+                            ]%V
+  ))
+  #(AsyncFile.mk mu data filename index indexCond durableIndex durableIndexCond closeRequested closed closedCond)
+.*/
 					ctx.defNames = append(ctx.defNames, defName)
 					ctx.defs[defName] = w.String()
 				}
