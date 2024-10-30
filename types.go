@@ -87,7 +87,7 @@ func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
 			return glang.TypeIdent("disk.Disk")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			return ctx.structInfoToGlangExpr(info)
+			return ctx.structInfoToGlangType(info)
 		}
 		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		if t.TypeArgs().Len() != 0 {
@@ -194,7 +194,7 @@ type structTypeInfo struct {
 	typeArgs       *types.TypeList
 }
 
-func (ctx Ctx) structInfoToGlangExpr(info structTypeInfo) glang.Expr {
+func (ctx Ctx) structInfoToGlangType(info structTypeInfo) glang.Expr {
 	ctx.dep.addDep(info.name)
 	if info.typeArgs.Len() == 0 {
 		return glang.GallinaIdent(info.name)

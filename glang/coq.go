@@ -419,28 +419,23 @@ type fieldVal struct {
 // Relies on Coq record syntax to correctly order fields for the record's
 // constructor.
 type StructLiteral struct {
-	structType Expr
-	elts       []fieldVal
-}
-
-// NewStructLiteral creates a StructLiteral with no values.
-func NewStructLiteral(structType Expr) StructLiteral {
-	return StructLiteral{structType: structType}
+	StructType Expr
+	Elts       []fieldVal
 }
 
 // AddField appends a new (field, val) pair to a StructLiteral.
 func (sl *StructLiteral) AddField(field string, value Expr) {
-	sl.elts = append(sl.elts, fieldVal{field, value})
+	sl.Elts = append(sl.Elts, fieldVal{field, value})
 }
 
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s [{", method, sl.structType.Coq(true))
+	pp.Add("%s %s [{", method, sl.StructType.Coq(true))
 	pp.Indent(2)
-	for i, f := range sl.elts {
+	for i, f := range sl.Elts {
 		terminator := ";"
-		if i == len(sl.elts)-1 {
+		if i == len(sl.Elts)-1 {
 			terminator = ""
 		}
 		pp.Add("%s ::= %s%s", quote(f.Field), f.Value.Coq(false), terminator)

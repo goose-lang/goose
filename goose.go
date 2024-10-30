@@ -606,7 +606,7 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 		}
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
-			ctx.structInfoToGlangExpr(info), glang.GallinaString(v.Name()), *expr)
+			ctx.structInfoToGlangType(info), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -630,7 +630,7 @@ func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type,
 		v := info.structType.Field(i)
 
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-			ctx.structInfoToGlangExpr(info), glang.GallinaString(v.Name()), *expr)
+			ctx.structInfoToGlangType(info), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -797,7 +797,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 }
 
 func (ctx Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
-	lit := glang.NewStructLiteral(ctx.glangType(e.Type, t))
+	lit := glang.StructLiteral{StructType: ctx.glangType(e.Type, t)}
 	isUnkeyedStruct := false
 
 	for _, el := range e.Elts {
