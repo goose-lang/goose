@@ -123,6 +123,20 @@ func (ctx *Ctx) Decl(info types.Info, d ast.Decl) {
 						)
 					}
 					fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n\n", name)
+
+					// Settable instance
+					if s.NumFields() > 0 {
+						fmt.Fprintf(w, `
+Global Instance settable_%s `+"`{ffi_syntax}"+`: Settable _ :=
+  settable! %s.mk <`, name, name)
+						sep := ""
+						for i := 0; i < s.NumFields(); i++ {
+							fmt.Fprintf(w, "%s %s.%s", sep, name, toCoqName(s.Field(i).Name()))
+							sep = ";"
+						}
+						fmt.Fprintf(w, " >.\n")
+					}
+
 					fmt.Fprintf(w, `Global Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
 Admitted.
 
