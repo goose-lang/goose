@@ -386,6 +386,9 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 	if isIdent(f.X, "disk") {
 		return ctx.newCoqCall("disk."+f.Sel.Name, args)
 	}
+	if isIdent(f.X, "atomic") {
+		return ctx.newCoqCall("atomic."+f.Sel.Name, args)
+	}
 	if isIdent(f.X, "machine") || isIdent(f.X, "primitive") {
 		switch f.Sel.Name {
 		case "UInt64Get", "UInt64Put", "UInt32Get", "UInt32Put":
@@ -2020,9 +2023,10 @@ func stringLitValue(lit *ast.BasicLit) string {
 
 // TODO: put this in another file
 var builtinImports = map[string]bool{
-	"fmt":  true,
-	"log":  true,
-	"sync": true,
+	"fmt":         true,
+	"log":         true,
+	"sync":        true,
+	"sync/atomic": true,
 
 	// TODO: minimize this list by instead adding trusted imports with the right
 	// paths

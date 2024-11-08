@@ -54,6 +54,12 @@ func (suite *GoTestSuite) TestAssignBitwise() {
 	suite.Equal(true, testAssignBitwise())
 }
 
+func (suite *GoTestSuite) TestAtomicLoadStore64() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAtomicLoadStore64())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
