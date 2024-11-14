@@ -108,6 +108,9 @@ func NewPkgCtx(pkg *packages.Package, tr TranslationConfig) Ctx {
 
 // NewCtx loads a context for files passed directly,
 // rather than loaded from a packages.
+//
+// NOTE: this is only used to load the negative tests by file; prefer to use
+// NewPkgCtx and let [packages.Load] load and type check the Go code.
 func NewCtx(pkgPath string, conf PkgConfig) Ctx {
 	info := &types.Info{
 		Defs: make(map[*ast.Ident]types.Object),
@@ -131,7 +134,8 @@ func NewCtx(pkgPath string, conf PkgConfig) Ctx {
 
 // TypeCheck type-checks a set of files and stores the result in the Ctx
 //
-// This is needed before conversion to Coq to disambiguate some methods.
+// NOTE: this is only needed when using NewCtx in the negative tests, which load
+// individual files rather than a package.
 func (ctx Ctx) TypeCheck(files []*ast.File) error {
 	imp := importer.ForCompiler(ctx.Fset, "source", nil)
 	conf := types.Config{Importer: imp}
