@@ -2391,7 +2391,14 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 }
 
 func (ctx Ctx) initFunction() glang.Decl {
-	fd := glang.FuncDecl{Name: "init'"}
+	// TODO: some constraints for the init translation:
+	// - Variables are initialized before `init()` runs
+	// - `init()` can be defined multiple times, and are run in source order.
+	// - Need to fully initialize lower level packages (e.g. call `init()`s) before
+	//   initializing vars of the current package.
+	// - should only `init` a package once, even if imported multiple times.
+
+	fd := glang.FuncDecl{Name: "initialize'"}
 
 	fd.Body = glang.Tt
 

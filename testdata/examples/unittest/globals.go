@@ -17,3 +17,11 @@ func bar() {
 		panic("bad")
 	}
 }
+
+func init() {
+	GlobalX = GlobalX
+}
+
+func init() {
+	globalY = ""
+}
