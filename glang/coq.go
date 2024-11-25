@@ -844,20 +844,6 @@ func (d FuncDecl) Signature() string {
 	return strings.Join(args, " ")
 }
 
-func (d FuncDecl) Type() string {
-	// FIXME: doesn't deal with type parameters
-	types := []string{}
-	for _, a := range d.Args {
-		types = append(types, a.Type.Coq(true))
-	}
-	if len(d.Args) == 0 {
-		types = append(types, TypeIdent("unitT").Coq(true))
-	}
-	types = append(types, d.ReturnType.Coq(true))
-	panic("include RecvArg")
-	// return strings.Join(types, " -> ")
-}
-
 // CoqDecl implements the Decl interface
 //
 // For FuncDecl this emits the Coq vernacular Definition that defines the whole
@@ -954,6 +940,19 @@ func (d MethodSetDecl) CoqDecl() string {
 }
 
 func (d MethodSetDecl) DefName() (bool, string) {
+	return true, d.DeclName
+}
+
+type VarDecl struct {
+	DeclName    string
+	VarUniqueId string
+}
+
+func (d VarDecl) CoqDecl() string {
+	return fmt.Sprintf("Definition %s : val := #\"%s\".", d.DeclName, d.VarUniqueId)
+}
+
+func (d VarDecl) DefName() (bool, string) {
 	return true, d.DeclName
 }
 

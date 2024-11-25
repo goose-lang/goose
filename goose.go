@@ -553,10 +553,14 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 		if !ok {
 			ctx.unsupported(e, "expected package selector with idtent, got %T", e.X)
 		}
-		ctx.unsupported(e, "address of external package selection")
-		return glang.PackageIdent{
-			Package: pkg,
-			Ident:   e.Sel.Name,
+		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
+			return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
+				glang.PackageIdent{
+					Package: pkg,
+					Ident:   e.Sel.Name,
+				})
+		} else {
+			ctx.unsupported(e, "address of external package selection that is not a variable")
 		}
 	}
 
@@ -736,7 +740,8 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			ctx.unsupported(e, "expected package selector with ident, got %T", e.X)
 		}
 		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
-			return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
+			ctx.nope(e, "global variable from external package should be handled by exprAddr")
+			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
 		} else {
 
 			return ctx.handleImplicitConversion(e,
@@ -1248,8 +1253,7 @@ func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), glang.GallinaIdent(e.Name))
 	}
 	if _, ok := obj.(*types.Var); ok {
-		// is a variable
-		return glang.DerefExpr{X: glang.IdentExpr(e.Name), Ty: ctx.glangType(e, ctx.typeOf(e))}
+		ctx.nope(e, "variable references should get translated via exprAddr")
 	}
 	if _, ok := obj.(*types.Func); ok {
 		// is a function
@@ -1309,7 +1313,11 @@ func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
 }
 
 func (ctx Ctx) expr(e ast.Expr) glang.Expr {
-	return ctx.exprSpecial(e, false)
+	if ctx.info.Types[e].Addressable() {
+		return glang.DerefExpr{X: ctx.exprAddr(e), Ty: ctx.glangType(e, ctx.typeOf(e))}
+	} else {
+		return ctx.exprSpecial(e, false)
+	}
 }
 
 func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
@@ -1639,7 +1647,16 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	case *ast.ParenExpr:
 		return ctx.exprAddr(e.X)
 	case *ast.Ident:
-		return glang.IdentExpr(e.Name)
+		obj := ctx.info.ObjectOf(e)
+		if _, ok := obj.(*types.Var); ok {
+			if obj.Pkg().Scope() == obj.Parent() {
+				return glang.NewCallExpr(glang.GallinaIdent("globals.get"), glang.GallinaIdent(e.Name))
+			} else {
+				return glang.IdentExpr(e.Name)
+			}
+		} else {
+			ctx.unsupported(e, "exprAddr of ident that is not a var")
+		}
 	case *ast.IndexExpr:
 		targetTy := ctx.typeOf(e.X)
 		switch targetTy := targetTy.Underlying().(type) {
@@ -2294,8 +2311,17 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 }
 
 func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
-	ctx.unsupported(d, "global vars")
-	return nil
+	var decls []glang.Decl
+	for _, spec := range d.Specs {
+		s := spec.(*ast.ValueSpec)
+		for _, name := range s.Names {
+			decls = append(decls, glang.VarDecl{
+				DeclName:    name.Name,
+				VarUniqueId: ctx.pkgPath + "." + name.Name,
+			})
+		}
+	}
+	return decls
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
@@ -2362,4 +2388,16 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 		ctx.nope(d, "top-level decl")
 	}
 	return nil
+}
+
+func (ctx Ctx) initFunction() glang.Decl {
+	fd := glang.FuncDecl{Name: "init'"}
+
+	fd.Body = glang.Tt
+
+	for _, init := range ctx.info.InitOrder {
+		ctx.unsupported(init.Rhs, "initializer")
+	}
+
+	return fd
 }

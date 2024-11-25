@@ -30,6 +30,21 @@ func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 	return ctx.maybeDecls(stmt), nil
 }
 
+// catching Goose translation errors and returning them as a regular Go error
+func (ctx Ctx) initsOrError() (decls glang.Decl, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if gooseErr, ok := r.(gooseError); ok {
+				err = gooseErr.err
+			} else {
+				// r is an error from a non-goose error, indicating a bug
+				panic(r)
+			}
+		}
+	}()
+	return ctx.initFunction(), nil
+}
+
 func filterImports(decls []glang.Decl) (nonImports []glang.Decl, imports glang.ImportDecls) {
 	for _, d := range decls {
 		switch d := d.(type) {
@@ -89,6 +104,16 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 				decls[name] = d
 			}
 		}
+	}
+
+	newDecl, err := ctx.initsOrError()
+	if err != nil {
+		errs = append(errs, err)
+	} else {
+		_, name := newDecl.DefName()
+		declNames = append(declNames, name)
+		// declNameToId[newDecl.DefName()] =
+		decls[name] = newDecl
 	}
 
 	// Sort Glang decls based on dependencies
