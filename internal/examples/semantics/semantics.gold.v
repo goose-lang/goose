@@ -119,6 +119,18 @@ Definition testAtomicLoadStore64: val :=
     "ok" <-[boolT] ((![boolT] "ok") && ("z" = #1));;
     ![boolT] "ok".
 
+Definition testAtomicPointers: val :=
+  rec: "testAtomicPointers" <> :=
+    let: "p" := struct.new atomic.Pointer [
+    ] in
+    let: "x" := ref (zero_val uint64T) in
+    atomic.Pointer__Store "p" "x";;
+    let: "y" := atomic.Pointer__Load "p" in
+    "y" <-[uint64T] #1;;
+    let: "ok" := ref_to boolT #true in
+    "ok" <-[boolT] ((![boolT] "ok") && ((![uint64T] "x") = #1));;
+    ![boolT] "ok".
+
 (* closures.go *)
 
 Notation AdderType := (uint64T -> uint64T)%ht (only parsing).

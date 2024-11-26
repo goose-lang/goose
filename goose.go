@@ -1031,6 +1031,16 @@ func (ctx Ctx) nilExpr(e *ast.Ident) coq.Expr {
 	}
 }
 
+func isAtomicPointerType(t types.Type) bool {
+	if t, ok := t.(*types.Named); ok {
+		obj := t.Obj()
+		if obj.Pkg().Path() == "sync/atomic" && obj.Name() == "Pointer" {
+			return true
+		}
+	}
+	return false
+}
+
 func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 	if e.Op == token.NOT {
 		return coq.NotExpr{X: ctx.expr(e.X)}
@@ -1046,6 +1056,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 					ctx.coqTypeOfType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
+		}
+		if isAtomicPointerType(ctx.typeOf(e.X)) {
+			ctx.unsupported(e, "allocate atomic.Pointer")
 		}
 		if info, ok := ctx.getStructInfo(ctx.typeOf(e.X)); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
