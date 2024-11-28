@@ -10,21 +10,21 @@ import (
 
 // this file has the translations for types themselves
 
-func (ctx Ctx) typeOf(e ast.Expr) types.Type {
+func (ctx *Ctx) typeOf(e ast.Expr) types.Type {
 	return ctx.info.TypeOf(e)
 }
 
-func (ctx Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
+func (ctx *Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
 	typ = ctx.typeOf(e)
 	ok = typ != types.Typ[types.Invalid]
 	return
 }
 
-func (ctx Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
+func (ctx *Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
 	return ctx.glangType(e, ctx.typeOf(e))
 }
 
-func (ctx Ctx) structType(t *types.Struct) glang.Type {
+func (ctx *Ctx) structType(t *types.Struct) glang.Type {
 	ty := glang.StructType{}
 	for i := range t.NumFields() {
 		fieldt := t.Field(i).Type()
@@ -36,7 +36,7 @@ func (ctx Ctx) structType(t *types.Struct) glang.Type {
 	return ty
 }
 
-func (ctx Ctx) glangType(n locatable, t types.Type) glang.Type {
+func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 	if isProphId(t) {
 		return glang.TypeIdent("ProphIdT")
 	}
@@ -179,7 +179,7 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 	}
 }
 
-func (ctx Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Expr) {
+func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Expr) {
 	glangTypeArgs = make([]glang.Expr, typeList.Len())
 	for i := range glangTypeArgs {
 		glangTypeArgs[i] = ctx.glangType(l, typeList.At(i))
@@ -194,7 +194,7 @@ type structTypeInfo struct {
 	typeArgs       *types.TypeList
 }
 
-func (ctx Ctx) structInfoToGlangType(info structTypeInfo) glang.Expr {
+func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Expr {
 	ctx.dep.addDep(info.name)
 	if info.typeArgs.Len() == 0 {
 		return glang.GallinaIdent(info.name)
@@ -205,7 +205,7 @@ func (ctx Ctx) structInfoToGlangType(info structTypeInfo) glang.Expr {
 	}
 }
 
-func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
+func (ctx *Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 	throughPointer := false
 	if pt, ok := t.(*types.Pointer); ok {
 		throughPointer = true
@@ -231,7 +231,7 @@ type interfaceTypeInfo struct {
 	throughPointer bool
 }
 
-func (ctx Ctx) getInterfaceInfo(t types.Type) (interfaceTypeInfo, bool) {
+func (ctx *Ctx) getInterfaceInfo(t types.Type) (interfaceTypeInfo, bool) {
 	throughPointer := false
 	if pt, ok := t.(*types.Pointer); ok {
 		throughPointer = true

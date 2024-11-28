@@ -39,7 +39,7 @@ type Ctx struct {
 	// Should be set to true when encountering a defer statement in the body of
 	// a function to communicate to its top-level funcDecl that it should
 	// include a defer prelude+prologue.
-	usesDefer *bool
+	usesDefer bool
 
 	dep *depTracker
 }
@@ -82,7 +82,7 @@ func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 	}
 }
 
-func (ctx Ctx) field(f *ast.Field) glang.FieldDecl {
+func (ctx *Ctx) field(f *ast.Field) glang.FieldDecl {
 	if len(f.Names) > 1 {
 		ctx.futureWork(f, "multiple fields for same type (split them up)")
 		return glang.FieldDecl{}
@@ -99,7 +99,7 @@ func (ctx Ctx) field(f *ast.Field) glang.FieldDecl {
 	}
 }
 
-func (ctx Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
+func (ctx *Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
 	var decls []glang.FieldDecl
 	for _, f := range fs.List {
 		ty := ctx.glangTypeFromExpr(f.Type)
@@ -124,7 +124,7 @@ func isAnyConstraint(expr ast.Expr) bool {
 	return ok && ident.Name == "any"
 }
 
-func (ctx Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
+func (ctx *Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
 	var typeParams []glang.TypeIdent
 	if fs == nil {
 		return nil
@@ -155,7 +155,7 @@ func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 	*comment += strings.TrimSuffix(doc.Text(), "\n")
 }
 
-func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
+func (ctx *Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	if *comment != "" {
 		*comment += "\n\n"
 	}
@@ -164,7 +164,7 @@ func (ctx Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	*comment += "go: " + f.String()
 }
 
-func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
+func (ctx *Ctx) methodSet(t *types.Named) []glang.Decl {
 	typeName := t.Obj().Name()
 
 	// Don't try to generate msets for interfaces, since Goosed code will never
@@ -240,7 +240,7 @@ func (ctx Ctx) methodSet(t *types.Named) []glang.Decl {
 	return []glang.Decl{mset, msetPtr}
 }
 
-func (ctx Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
+func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	var r []glang.Decl
 
 	func() {
@@ -267,7 +267,7 @@ type exprWithInfo struct {
 	n ast.Node   // for printing a location in error messages
 }
 
-func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang.Expr {
+func (ctx *Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang.Expr {
 	var expr glang.Expr = glang.GallinaIdent("#slice.nil")
 
 	if len(es) > 0 {
@@ -291,7 +291,7 @@ func (ctx Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glang
 	return expr
 }
 
-func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
+func (ctx *Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	var exprs []exprWithInfo
 	for i := range len(es) {
 		exprs = append(exprs, exprWithInfo{e: ctx.expr(es[i]), t: ctx.typeOf(es[i]), n: es[i]})
@@ -299,7 +299,7 @@ func (ctx Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr {
 	return ctx.sliceLiteralAux(exprs, expectedType)
 }
 
-func (ctx Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.Expr {
+func (ctx *Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.Expr {
 	var arrayLitArgs []glang.Expr
 	for i := 0; i < len(e.Elts); i++ {
 		arrayLitArgs = append(arrayLitArgs, glang.IdentExpr(fmt.Sprintf("$ar%d", i)))
@@ -322,7 +322,7 @@ func (ctx Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.
 // Deals with the arguments, but does not actually invoke the function. That
 // should be done in the continuation. The continuation can assume the arguments
 // are bound to "a0", "$a1", ....
-func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.Expr) {
+func (ctx *Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.Expr) {
 	funcSig, ok := ctx.typeOf(call.Fun).Underlying().(*types.Signature)
 	if !ok {
 		ctx.nope(call.Fun, "function should have signature type, got %T", types.Unalias(ctx.typeOf(call.Fun)))
@@ -396,7 +396,7 @@ func (ctx Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang.
 // of a specific width
 //
 // s is only used for error reporting
-func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
+func (ctx *Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 	if info, ok := getIntegerType(ctx.typeOf(x)); ok {
 		if info.isUntyped {
 			ctx.todo(s, "integer conversion from untyped int to uint64")
@@ -412,7 +412,7 @@ func (ctx Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
+func (ctx *Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 	if len(s.Args) != 1 {
 		ctx.nope(s, "expect exactly one argument in a conversion")
 	}
@@ -460,7 +460,7 @@ func (ctx Ctx) conversionExpr(s *ast.CallExpr) glang.Expr {
 // This handles:
 // - make() and new() because they uniquely take a type as a normal parameter.
 // - array len() and cap() because they are untyped functions
-func (ctx Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
+func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 	if !ctx.info.Types[s.Fun].IsBuiltin() {
 		return nil, false
 	}
@@ -513,7 +513,7 @@ func (ctx Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 	return nil, false
 }
 
-func (ctx Ctx) getNumParams(e ast.Expr) int {
+func (ctx *Ctx) getNumParams(e ast.Expr) int {
 	funcSig, ok := ctx.typeOf(e).Underlying().(*types.Signature)
 	if !ok {
 		ctx.nope(e, "function should have signature type, got %T", types.Unalias(ctx.typeOf(e)))
@@ -521,7 +521,7 @@ func (ctx Ctx) getNumParams(e ast.Expr) int {
 	return funcSig.Params().Len()
 }
 
-func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
+func (ctx *Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	if ctx.info.Types[s.Fun].IsType() {
 		return ctx.conversionExpr(s)
 	} else if e, ok := ctx.maybeHandleSpecialBuiltin(s); ok {
@@ -535,7 +535,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) glang.Expr {
 	}
 }
 
-func (ctx Ctx) qualifiedName(obj types.Object) string {
+func (ctx *Ctx) qualifiedName(obj types.Object) string {
 	name := obj.Name()
 	if obj.Pkg() == nil {
 		return name
@@ -546,7 +546,7 @@ func (ctx Ctx) qualifiedName(obj types.Object) string {
 	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
 }
 
-func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
+func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	selection := ctx.info.Selections[e]
 	if selection == nil {
 		pkg, ok := getIdent(e.X)
@@ -595,7 +595,7 @@ func (ctx Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 //
 // If len(index) > 0, then `expr : ptr<curType>`.
 // If len(index) == 0, then `expr : curType`.
-func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, expr *glang.Expr) {
+func (ctx *Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, expr *glang.Expr) {
 	for ; len(*index) > 0; *index = (*index)[1:] {
 		i := (*index)[0]
 		info, ok := ctx.getStructInfo(*curType)
@@ -619,7 +619,7 @@ func (ctx Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, ex
 // Requires `old(expr) : ptr<old(curType)>`.
 // This walks down the selection specified by `index` all the way to the end,
 // returning an expression representing the address of that selected field.
-func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type, expr *glang.Expr) {
+func (ctx *Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type, expr *glang.Expr) {
 	for _, i := range index {
 		info, ok := ctx.getStructInfo(*curType)
 		if !ok {
@@ -642,7 +642,7 @@ func (ctx Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type,
 
 // requires `!addressable -> (expr : selection.Recv())`
 // requires `addressable -> (expr : ptr<selection.Recv()>)`
-func (ctx Ctx) selectionMethod(addressable bool, expr glang.Expr,
+func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 	selection *types.Selection, l locatable) glang.Expr {
 
 	index, curType := selection.Index(), selection.Recv()
@@ -732,7 +732,7 @@ func (ctx Ctx) selectionMethod(addressable bool, expr glang.Expr,
 	return nil
 }
 
-func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
+func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	selection := ctx.info.Selections[e]
 	if selection == nil {
 		pkg, ok := getIdent(e.X)
@@ -788,7 +788,7 @@ func (ctx Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	panic("unreachable")
 }
 
-func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
+func (ctx *Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	if t, ok := ctx.typeOf(e).Underlying().(*types.Slice); ok {
 		return ctx.sliceLiteral(e.Elts, t.Elem())
 	} else if t, ok := ctx.typeOf(e).Underlying().(*types.Array); ok {
@@ -801,7 +801,7 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
+func (ctx *Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
 	lit := glang.StructLiteral{StructType: ctx.glangType(e.Type, t)}
 	isUnkeyedStruct := false
 
@@ -879,7 +879,7 @@ func (ctx Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.Comp
 	return expr
 }
 
-func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
+func (ctx *Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 	tv := ctx.info.Types[e]
 	if tv.Value == nil {
 		ctx.nope(e, "basic literal should have a const val")
@@ -888,14 +888,14 @@ func (ctx Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 	return ctx.handleImplicitConversion(e, t, tv.Type, v)
 }
 
-func (ctx Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
+func (ctx *Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
 	if !(e.Op == token.EQL || e.Op == token.NEQ) {
 		return false
 	}
 	return ctx.info.Types[e.Y].IsNil()
 }
 
-func (ctx Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
+func (ctx *Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
 	if types.AssignableTo(t1, t2) {
 		return t2
 	} else if types.AssignableTo(t2, t1) {
@@ -906,7 +906,7 @@ func (ctx Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
 	}
 }
 
-func (ctx Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
+func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	// XXX: according to the Go spec, comparisons can occur between types that
 	// are "assignable" to one another. This may require a conversion, so we
 	// here convert to the appropriate type here.
@@ -992,7 +992,7 @@ func (ctx Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	return expr
 }
 
-func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
+func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	if t, ok := ctx.typeOf(e.X).Underlying().(*types.Slice); ok {
 		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
 		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
@@ -1047,7 +1047,7 @@ func (ctx Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
+func (ctx *Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	t := ctx.typeOf(e)
 	switch t.(type) {
 	case *types.Basic:
@@ -1062,7 +1062,7 @@ func (ctx Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	}
 }
 
-func (ctx Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 	if e.Op == token.NOT {
 		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
@@ -1103,7 +1103,7 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
+func (ctx *Ctx) variable(s *ast.Ident) glang.Expr {
 	if _, ok := ctx.info.Uses[s].(*types.Const); ok {
 		ctx.dep.addDep(s.Name)
 		return glang.GallinaIdent(s.Name)
@@ -1111,7 +1111,7 @@ func (ctx Ctx) variable(s *ast.Ident) glang.Expr {
 	return glang.DerefExpr{X: glang.IdentExpr(s.Name), Ty: ctx.glangType(s, ctx.typeOf(s))}
 }
 
-func (ctx Ctx) function(s *ast.Ident) glang.Expr {
+func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
 	fun := ctx.info.Uses[s].(*types.Func)
 	if sc := fun.Scope(); sc != nil && sc.Contains(s.Pos()) {
 		return glang.IdentExpr(s.Name)
@@ -1128,7 +1128,7 @@ func (ctx Ctx) function(s *ast.Ident) glang.Expr {
 	}
 }
 
-func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
+func (ctx *Ctx) goBuiltin(e *ast.Ident) bool {
 	s, ok := ctx.info.Uses[e]
 	if !ok {
 		return false
@@ -1136,7 +1136,7 @@ func (ctx Ctx) goBuiltin(e *ast.Ident) bool {
 	return s.Parent() == types.Universe
 }
 
-func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
+func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 	switch e.Name {
 	case "nil":
 		return ctx.nilExpr(e)
@@ -1231,7 +1231,7 @@ func (ctx Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
+func (ctx *Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 	// XXX: special case for a manually constructed Ident from select recv clause
 	if len(e.Name) > 0 && e.Name[0] == '$' {
 		var expr glang.Expr = glang.IdentExpr(e.Name)
@@ -1263,7 +1263,7 @@ func (ctx Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 	panic("")
 }
 
-func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy.(type) {
 	case *types.Map:
@@ -1300,19 +1300,19 @@ func (ctx Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	return glang.CallExpr{}
 }
 
-func (ctx Ctx) indexListExpr(e *ast.IndexListExpr) glang.Expr {
+func (ctx *Ctx) indexListExpr(e *ast.IndexListExpr) glang.Expr {
 	// generic arguments are grabbed from go ast, ignore explicit type args
 	return ctx.expr(e.X)
 }
 
-func (ctx Ctx) derefExpr(e ast.Expr) glang.Expr {
+func (ctx *Ctx) derefExpr(e ast.Expr) glang.Expr {
 	return glang.DerefExpr{
 		X:  ctx.expr(e),
 		Ty: ctx.glangType(e, ptrElem(ctx.typeOf(e))),
 	}
 }
 
-func (ctx Ctx) expr(e ast.Expr) glang.Expr {
+func (ctx *Ctx) expr(e ast.Expr) glang.Expr {
 	if ctx.info.Types[e].Addressable() {
 		return glang.DerefExpr{X: ctx.exprAddr(e), Ty: ctx.glangType(e, ctx.typeOf(e))}
 	} else {
@@ -1320,10 +1320,15 @@ func (ctx Ctx) expr(e ast.Expr) glang.Expr {
 	}
 }
 
-func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
+func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	fl := glang.FuncLit{}
 
-	ctx.usesDefer = new(bool)
+	// reset to original value after translating this FuncLit
+	defer func(b bool) {
+		ctx.usesDefer = b
+	}(ctx.usesDefer)
+
+	ctx.usesDefer = false
 
 	// ctx is by value, so no need to unset this
 	ctx.curFuncType = ctx.typeOf(e.Type).(*types.Signature)
@@ -1338,7 +1343,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 		}
 	}
 
-	if *ctx.usesDefer {
+	if ctx.usesDefer {
 		fl.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fl.Body)
 	} else {
 		fl.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fl.Body)
@@ -1347,7 +1352,7 @@ func (ctx Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	return fl
 }
 
-func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
 		return ctx.callExpr(e)
@@ -1385,7 +1390,7 @@ func (ctx Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) stmtList(ss []ast.Stmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) stmtList(ss []ast.Stmt, cont glang.Expr) glang.Expr {
 	if len(ss) == 0 {
 		return glang.DoExpr{Expr: glang.Tt}
 	}
@@ -1398,11 +1403,11 @@ func (ctx Ctx) stmtList(ss []ast.Stmt, cont glang.Expr) glang.Expr {
 	return glang.SeqExpr{Expr: e, Cont: cont}
 }
 
-func (ctx Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) blockStmt(s *ast.BlockStmt, cont glang.Expr) glang.Expr {
 	return ctx.stmtList(s.List, cont)
 }
 
-func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
+func (ctx *Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 	var tagExpr glang.Expr = glang.True
 
 	var tagType types.Type = types.Typ[types.Bool]
@@ -1466,7 +1471,7 @@ func (ctx Ctx) switchStmt(s *ast.SwitchStmt, cont glang.Expr) (e glang.Expr) {
 	return
 }
 
-func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	var elseExpr glang.Expr = glang.DoExpr{Expr: glang.Tt}
 	if s.Else != nil {
 		elseExpr = ctx.stmt(s.Else, nil)
@@ -1483,7 +1488,7 @@ func (ctx Ctx) ifStmt(s *ast.IfStmt, cont glang.Expr) glang.Expr {
 	return glang.SeqExpr{Expr: ife, Cont: cont}
 }
 
-func (ctx Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 	var cond glang.Expr = glang.True
 	if s.Cond != nil {
 		cond = ctx.expr(s.Cond)
@@ -1512,7 +1517,7 @@ func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
 	return getIdent(e)
 }
 
-func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
+func (ctx *Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 	key, ok := getIdentOrAnonymous(s.Key)
 	if !ok {
 		ctx.nope(s.Key, "range with non-ident key")
@@ -1531,7 +1536,7 @@ func (ctx Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
 	}
 }
 
-func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
+func (ctx *Ctx) identBinder(id *ast.Ident) glang.Binder {
 	if id == nil {
 		return glang.Binder(nil)
 	}
@@ -1539,7 +1544,7 @@ func (ctx Ctx) identBinder(id *ast.Ident) glang.Binder {
 	return &e
 }
 
-func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
+func (ctx *Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	if s.Tok != token.DEFINE {
 		ctx.unsupported(s.Key, "range with pre-existing variables")
 	}
@@ -1570,7 +1575,7 @@ func (ctx Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	}
 }
 
-func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
+func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	switch ctx.typeOf(s.X).Underlying().(type) {
 	case *types.Map:
 		return ctx.mapRangeStmt(s)
@@ -1584,7 +1589,7 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	}
 }
 
-func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	e := ctx.assignStmt(s, cont)
 
 	// Before the asignStmt "e", allocate everything that's new in this define stmt.
@@ -1612,7 +1617,7 @@ func (ctx Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	return e
 }
 
-func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 	var lhs []ast.Expr
 	for _, l := range s.Names {
 		lhs = append(lhs, l)
@@ -1621,7 +1626,7 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec, cont glang.Expr) glang.Expr {
 }
 
 // varDeclStmt translates declarations within functions
-func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	decl, ok := s.Decl.(*ast.GenDecl)
 	if !ok {
 		ctx.noExample(s, "declaration that is not a GenDecl")
@@ -1642,7 +1647,7 @@ func (ctx Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 
 // Returns the address of the given expression.
 // Requires that e is actually addressable
-func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
+func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		return ctx.exprAddr(e.X)
@@ -1683,7 +1688,7 @@ func (ctx Ctx) exprAddr(e ast.Expr) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang.Expr {
 	// lhs should either be a map index expression, or is addressable
 	switch lhs := lhs.(type) {
 	case *ast.Ident:
@@ -1709,7 +1714,7 @@ func (ctx Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glang
 }
 
 // This handles conversions arising from the notion of "assignability" in the Go spec.
-func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang.Expr) glang.Expr {
+func (ctx *Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang.Expr) glang.Expr {
 	if to == nil {
 		// This happens when the LHS is `_`
 		return e
@@ -1807,7 +1812,7 @@ func (ctx Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang
 	panic("unreachable")
 }
 
-func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	e := cont
 	if len(s.Rhs) == 0 {
 		return e
@@ -1871,7 +1876,7 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	return e
 }
 
-func (ctx Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	assignOps := map[token.Token]glang.BinOp{
 		token.ADD_ASSIGN: glang.OpPlus,
 		token.SUB_ASSIGN: glang.OpMinus,
@@ -1888,7 +1893,7 @@ func (ctx Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 	return ctx.assignFromTo(s.Lhs[0], rhs, cont)
 }
 
-func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	op := glang.OpPlus
 	if stmt.Tok == token.DEC {
 		op = glang.OpMinus
@@ -1900,7 +1905,7 @@ func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	}, cont)
 }
 
-func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 	if s.Tok == token.CONTINUE {
 		return glang.SeqExpr{Expr: glang.ContinueExpr{}, Cont: cont}
 	}
@@ -1911,7 +1916,7 @@ func (ctx Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 	return nil
 }
 
-func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 	args := make([]glang.Expr, 0, len(e.Call.Args))
 	for i := range len(e.Call.Args) {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
@@ -1932,7 +1937,7 @@ func (ctx Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 	return expr
 }
 
-func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	exprs := make([]glang.Expr, 0, len(s.Results))
 	var expectedReturnTypes []types.Type
 	if ctx.curFuncType.Results() != nil {
@@ -1991,8 +1996,8 @@ func (ctx Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	return glang.SeqExpr{Expr: retExpr, Cont: cont}
 }
 
-func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
-	*ctx.usesDefer = true
+func (ctx *Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
+	ctx.usesDefer = true
 	args := make([]glang.Expr, 0, len(s.Call.Args))
 	for i := range len(s.Call.Args) {
 		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
@@ -2028,7 +2033,7 @@ func (ctx Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 	return
 }
 
-func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
+func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
 	var sends glang.ListExpr
 	var recvs glang.ListExpr
 	var def glang.Expr = glang.NewCallExpr(glang.GallinaIdent("InjLV"), glang.Tt)
@@ -2103,7 +2108,7 @@ func (ctx Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) 
 	return
 }
 
-func (ctx Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
+func (ctx *Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
 	expr = glang.NewCallExpr(glang.GallinaIdent("chan.send"), glang.IdentExpr("$chan"), glang.IdentExpr("$v"))
 	// XXX: left-to-right evaluation, might not match Go
 	expr = glang.LetExpr{Names: []string{"$v"}, ValExpr: ctx.expr(s.Value), Cont: expr}
@@ -2112,7 +2117,7 @@ func (ctx Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
 	return
 }
 
-func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
+func (ctx *Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
 		return ctx.returnStmt(s, cont)
@@ -2161,7 +2166,7 @@ func (ctx Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 }
 
 // returnType converts an Ast.FuncType's Results to a Coq return type
-func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
+func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 	if results == nil {
 		return glang.TypeIdent("unitT")
 	}
@@ -2183,8 +2188,8 @@ func (ctx Ctx) returnType(results *ast.FieldList) glang.Type {
 	return glang.NewTupleType(ts)
 }
 
-func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
-	ctx.usesDefer = new(bool)
+func (ctx *Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
+	ctx.usesDefer = false
 
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
@@ -2233,7 +2238,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 		}
 	}
 
-	if *ctx.usesDefer {
+	if ctx.usesDefer {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fd.Body)
 	} else {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
@@ -2243,7 +2248,7 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 }
 
 // this should only be used for untyped constant literals
-func (ctx Ctx) constantLiteral(l locatable, v constant.Value) (types.Type, glang.Expr) {
+func (ctx *Ctx) constantLiteral(l locatable, v constant.Value) (types.Type, glang.Expr) {
 	switch v.Kind() {
 	case constant.Bool:
 		return types.Typ[types.UntypedBool], glang.BoolLiteral(constant.Val(v).(bool))
@@ -2263,7 +2268,7 @@ func (ctx Ctx) constantLiteral(l locatable, v constant.Value) (types.Type, glang
 	return nil, nil
 }
 
-func (ctx Ctx) declType(t types.Type) glang.Expr {
+func (ctx *Ctx) declType(t types.Type) glang.Expr {
 	switch t := t.(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -2276,7 +2281,7 @@ func (ctx Ctx) declType(t types.Type) glang.Expr {
 	return glang.GallinaIdent("expr")
 }
 
-func (ctx Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
+func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	var cds []glang.Decl
 	for i := range spec.Names {
 		cd := glang.ConstDecl{
@@ -2301,7 +2306,7 @@ func (ctx Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	return cds
 }
 
-func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
+func (ctx *Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	var specs []glang.Decl
 	for _, spec := range d.Specs {
 		spec := spec.(*ast.ValueSpec)
@@ -2310,7 +2315,7 @@ func (ctx Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	return specs
 }
 
-func (ctx Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
+func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	var decls []glang.Decl
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
@@ -2341,7 +2346,7 @@ var ffiMapping = map[string]string{
 	"github.com/goose-lang/primitive/async_disk": "async_disk",
 }
 
-func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
+func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 	var decls []glang.Decl
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
@@ -2358,7 +2363,7 @@ func (ctx Ctx) imports(d []ast.Spec) []glang.Decl {
 	return decls
 }
 
-func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
+func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 		ctx.curFuncType = ctx.typeOf(d.Name).(*types.Signature)
@@ -2390,7 +2395,7 @@ func (ctx Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	return nil
 }
 
-func (ctx Ctx) initFunction() glang.Decl {
+func (ctx *Ctx) initFunction() glang.Decl {
 	// TODO: some constraints for the init translation:
 	// - Variables are initialized before `init()` runs
 	// - `init()` can be defined multiple times, and are run in source order.
