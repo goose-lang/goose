@@ -2443,7 +2443,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 			e = glang.SeqExpr{Expr: s, Cont: e}
 		}
 	}
-	defineFunc.Body = e
+	defineFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 	ctx.dep.unsetCurrentName()
 
 	ctx.dep.setCurrentName("initialize'")
@@ -2521,7 +2521,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	// FIXME: initialize imported packages.
 
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
-	initFunc.Body = e
+	initFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 
 	return []glang.Decl{defineFunc, initFunc}
 }
