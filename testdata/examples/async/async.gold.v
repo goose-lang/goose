@@ -21,3 +21,11 @@ Definition UseDisk : val :=
     let: "$a1" := (![sliceT] "v") in
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  ((interface.get "Barrier" (![disk.Disk] "d")) #())).
+
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).

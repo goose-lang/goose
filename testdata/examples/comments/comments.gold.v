@@ -18,4 +18,12 @@ Definition Foo__mset : list (string * val) := [
 Definition Foo__mset_ptr : list (string * val) := [
 ].
 
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).
+
 End code.

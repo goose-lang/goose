@@ -430,3 +430,11 @@ Definition Begin : val :=
     }]) in
     do:  ("txn" <-[Txn] "$r0");;;
     return: (![Txn] "txn")).
+
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).

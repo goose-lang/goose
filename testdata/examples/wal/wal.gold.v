@@ -376,3 +376,11 @@ Definition Open : val :=
        "cache" ::= "$cache";
        "length" ::= "$length"
      }])).
+
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).

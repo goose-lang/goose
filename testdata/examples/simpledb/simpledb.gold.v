@@ -1048,4 +1048,12 @@ Definition Close : val :=
     do:  (let: "$a0" := (![Database] "db") in
     Shutdown "$a0")).
 
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).
+
 End code.

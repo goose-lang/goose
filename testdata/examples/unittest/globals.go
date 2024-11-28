@@ -7,6 +7,8 @@ func foo() uint64 {
 var GlobalX uint64 = foo()
 var globalY string
 
+var globalA, globalB = "a", "b"
+
 func other() {
 	globalY = "ok"
 }

@@ -3108,3 +3108,11 @@ Definition disabled_testWal : val :=
     let: "$r0" := ((![boolT] "ok") && ((![uint64T] (![ptrT] (struct.field_ref Log "length" "lg"))) = #(W64 0))) in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
+
+Definition define' : val :=
+  rec: "define'" <> :=
+    exception_do (do:  #()).
+
+Definition initialize' : val :=
+  rec: "initialize'" <> :=
+    exception_do (do:  (define' #())).
