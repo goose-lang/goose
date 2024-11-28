@@ -42,6 +42,10 @@ type Ctx struct {
 	usesDefer bool
 
 	dep *depTracker
+
+	// Set of global variables in the package being translated.
+	globalVars        map[string]glang.Type
+	globalVarsOrdered []string
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -79,6 +83,7 @@ func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 		errorReporter:    newErrorReporter(pkg.Fset),
 		dep:              newDepTracker(),
 		namesToTranslate: namesToTranslate,
+		globalVars:       make(map[string]glang.Type),
 	}
 }
 
@@ -1714,7 +1719,7 @@ func (ctx *Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glan
 }
 
 // This handles conversions arising from the notion of "assignability" in the Go spec.
-func (ctx *Ctx) handleImplicitConversion(n ast.Node, from, to types.Type, e glang.Expr) glang.Expr {
+func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e glang.Expr) glang.Expr {
 	if to == nil {
 		// This happens when the LHS is `_`
 		return e
@@ -1818,6 +1823,11 @@ func (ctx *Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		return e
 	}
 
+	// Execute assignments left-to-right
+	for i := len(s.Lhs); i > 0; i-- {
+		e = ctx.assignFromTo(s.Lhs[i-1], glang.IdentExpr(fmt.Sprintf("$r%d", i-1)), e)
+	}
+
 	// Determine RHS types, specially handling multiple returns from a function call.
 	var rhsTypes []types.Type
 	for i := 0; i < len(s.Rhs); i++ {
@@ -1843,11 +1853,6 @@ func (ctx *Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 		for i := range s.Lhs {
 			rhsExprs = append(rhsExprs, glang.IdentExpr(fmt.Sprintf("$ret%d", i)))
 		}
-	}
-
-	// Execute assignments left-to-right
-	for i := len(s.Lhs); i > 0; i-- {
-		e = ctx.assignFromTo(s.Lhs[i-1], glang.IdentExpr(fmt.Sprintf("$r%d", i-1)), e)
 	}
 
 	// Let bindings for RHSs including conversions
@@ -2320,6 +2325,10 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
+			if _, ok := ctx.globalVars[name.Name]; !ok {
+				ctx.globalVars[name.Name] = ctx.glangType(name, ctx.info.TypeOf(name))
+				ctx.globalVarsOrdered = append(ctx.globalVarsOrdered, name.Name)
+			}
 			decls = append(decls, glang.VarDecl{
 				DeclName:    name.Name,
 				VarUniqueId: ctx.pkgPath + "." + name.Name,
@@ -2395,7 +2404,7 @@ func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 	return nil
 }
 
-func (ctx *Ctx) initFunction() glang.Decl {
+func (ctx *Ctx) initFunctions() []glang.Decl {
 	// TODO: some constraints for the init translation:
 	// - Variables are initialized before `init()` runs
 	// - `init()` can be defined multiple times, and are run in source order.
@@ -2403,13 +2412,89 @@ func (ctx *Ctx) initFunction() glang.Decl {
 	//   initializing vars of the current package.
 	// - should only `init` a package once, even if imported multiple times.
 
-	fd := glang.FuncDecl{Name: "initialize'"}
-
-	fd.Body = glang.Tt
-
-	for _, init := range ctx.info.InitOrder {
-		ctx.unsupported(init.Rhs, "initializer")
+	defineFunc := glang.FuncDecl{Name: "define'"}
+	ctx.dep.setCurrentName("define'")
+	var e glang.Expr
+	if len(ctx.globalVarsOrdered) == 0 {
+		e = glang.DoExpr{Expr: glang.Tt}
+	} else {
+		for _, varName := range ctx.globalVarsOrdered {
+			s := glang.NewCallExpr(glang.GallinaIdent("globals.put"),
+				glang.GallinaIdent(varName),
+				glang.RefExpr{
+					X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.globalVars[varName]),
+					Ty: ctx.globalVars[varName],
+				})
+			e = glang.SeqExpr{Expr: s, Cont: e}
+		}
 	}
+	defineFunc.Body = e
+	ctx.dep.unsetCurrentName()
 
-	return fd
+	ctx.dep.setCurrentName("initialize'")
+	initFunc := glang.FuncDecl{Name: "initialize'"}
+	ctx.dep.addDep("define'")
+	e = nil
+	for _, init := range ctx.info.InitOrder {
+		// Execute assignments left-to-right
+		for i := len(init.Lhs); i > 0; i-- {
+			e = glang.NewDoSeq(
+				glang.StoreStmt{
+					Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
+						glang.GallinaIdent(init.Lhs[i-1].Name())),
+					X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
+					Ty: ctx.glangType(init.Lhs[i-1], init.Lhs[i-1].Type()),
+				}, e)
+		}
+
+		// Determine RHS types, specially handling multiple returns from a function call.
+		var rhsTypes []types.Type
+		t := ctx.typeOf(init.Rhs)
+		if tuple, ok := t.(*types.Tuple); ok {
+			for i := range tuple.Len() {
+				rhsTypes = append(rhsTypes, tuple.At(i).Type())
+			}
+		} else {
+			rhsTypes = append(rhsTypes, t)
+		}
+
+		// collect the RHS expressions
+		var rhsExprs []glang.Expr
+		if 1 == len(init.Lhs) {
+			rhsExprs = append(rhsExprs, ctx.expr(init.Rhs))
+		} else {
+			// RHS is a function call returning multiple things. Will introduce
+			// extra let bindings to destructure those multiple returns.
+			for i := range init.Lhs {
+				rhsExprs = append(rhsExprs, glang.IdentExpr(fmt.Sprintf("$ret%d", i)))
+			}
+		}
+
+		// Let bindings for RHSs including conversions
+		for i := len(init.Lhs); i > 0; i-- {
+			e = glang.LetExpr{
+				Names: []string{fmt.Sprintf("$r%d", i-1)},
+				ValExpr: ctx.handleImplicitConversion(init.Lhs[i-1], rhsTypes[i-1],
+					init.Lhs[i-1].Type(), rhsExprs[i-1]),
+				Cont: e,
+			}
+		}
+
+		// Extra let bindings in case RHS is a multiple-returning function
+		if 1 != len(init.Lhs) {
+			var n []string
+			for i := range init.Lhs {
+				n = append(n, fmt.Sprintf("$ret%d", i))
+			}
+			e = glang.LetExpr{
+				Names:   n,
+				ValExpr: ctx.exprSpecial(init.Rhs, true),
+				Cont:    e,
+			}
+		}
+	}
+	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
+	initFunc.Body = e
+
+	return []glang.Decl{defineFunc, initFunc}
 }

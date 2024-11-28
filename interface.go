@@ -16,7 +16,7 @@ import (
 
 // declsOrError translates one top-level declaration,
 // catching Goose translation errors and returning them as a regular Go error
-func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
+func (ctx *Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if gooseErr, ok := r.(gooseError); ok {
@@ -31,7 +31,7 @@ func (ctx Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 }
 
 // catching Goose translation errors and returning them as a regular Go error
-func (ctx Ctx) initsOrError() (decls glang.Decl, err error) {
+func (ctx *Ctx) initOrError() (decls []glang.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if gooseErr, ok := r.(gooseError); ok {
@@ -42,7 +42,7 @@ func (ctx Ctx) initsOrError() (decls glang.Decl, err error) {
 			}
 		}
 	}()
-	return ctx.initFunction(), nil
+	return ctx.initFunctions(), nil
 }
 
 func filterImports(decls []glang.Decl) (nonImports []glang.Decl, imports glang.ImportDecls) {
@@ -62,7 +62,7 @@ type declId struct {
 	declIdx int
 }
 
-func (ctx Ctx) filterDecls(decls []glang.Decl) (newDecls []glang.Decl) {
+func (ctx *Ctx) filterDecls(decls []glang.Decl) (newDecls []glang.Decl) {
 	if ctx.namesToTranslate == nil {
 		return decls
 	}
@@ -76,7 +76,7 @@ func (ctx Ctx) filterDecls(decls []glang.Decl) (newDecls []glang.Decl) {
 }
 
 // Decls converts an entire package (possibly multiple files) to a list of decls
-func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []glang.Decl, errs []error) {
+func (ctx *Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []glang.Decl, errs []error) {
 	decls := make(map[string]glang.Decl)
 	var declNames []string
 	declNameToId := make(map[string]declId)
@@ -106,14 +106,19 @@ func (ctx Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []g
 		}
 	}
 
-	newDecl, err := ctx.initsOrError()
+	newDecls, err := ctx.initOrError()
 	if err != nil {
 		errs = append(errs, err)
 	} else {
-		_, name := newDecl.DefName()
-		declNames = append(declNames, name)
-		// declNameToId[newDecl.DefName()] =
-		decls[name] = newDecl
+		for _, newDecl := range newDecls {
+			named, name := newDecl.DefName()
+			if !named {
+				panic("Unnamed decl")
+			}
+			declNames = append(declNames, name)
+			// declNameToId[newDecl.DefName()] =
+			decls[name] = newDecl
+		}
 	}
 
 	// Sort Glang decls based on dependencies
@@ -232,7 +237,7 @@ func translatePackage(pkg *packages.Package, namesToTranslate map[string]bool) (
 	return coqFile, nil
 }
 
-func (ctx Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
+func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
 	if ctx.namesToTranslate != nil {
 		header += fmt.Sprintf("From New.code_axioms Require Export %s.\n\n", pkg.Name)
 	}
