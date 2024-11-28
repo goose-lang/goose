@@ -46,6 +46,8 @@ type Ctx struct {
 	// Set of global variables in the package being translated.
 	globalVars        map[string]glang.Type
 	globalVarsOrdered []string
+
+	inits []glang.Expr
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -2193,10 +2195,26 @@ func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 	return glang.NewTupleType(ts)
 }
 
-func (ctx *Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
+// optionally returns a glang.FuncDecl. If the function is an `init`, this
+// returns None.
+func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	ctx.usesDefer = false
 
+	body := ctx.blockStmt(d.Body, nil)
+
+	if d.Name.Name == "init" {
+		if ctx.usesDefer {
+			body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), body)
+		} else {
+			body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), body)
+		}
+		f := glang.FuncLit{Args: nil, Body: body}
+		ctx.inits = append(ctx.inits, f)
+		return nil
+	}
+
 	fd := glang.FuncDecl{Name: d.Name.Name}
+	fd.Body = body
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
@@ -2226,8 +2244,6 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
-
-	fd.Body = ctx.blockStmt(d.Body, nil)
 	for _, arg := range fd.Args {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
@@ -2242,14 +2258,13 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) glang.FuncDecl {
 			Cont:    fd.Body,
 		}
 	}
-
 	if ctx.usesDefer {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fd.Body)
 	} else {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	}
 
-	return fd
+	return []glang.Decl{fd}
 }
 
 // this should only be used for untyped constant literals
@@ -2378,7 +2393,7 @@ func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 		ctx.curFuncType = ctx.typeOf(d.Name).(*types.Signature)
 		fd := ctx.funcDecl(d)
 		ctx.curFuncType = nil
-		return []glang.Decl{fd}
+		return fd
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:
@@ -2435,7 +2450,16 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	initFunc := glang.FuncDecl{Name: "initialize'"}
 	ctx.dep.addDep("define'")
 	e = nil
-	for _, init := range ctx.info.InitOrder {
+
+	// add all init() function bodies
+	for i := range ctx.inits {
+		init := ctx.inits[len(ctx.inits)-i-1]
+		e = glang.NewDoSeq(glang.NewCallExpr(init, glang.Tt), e)
+	}
+
+	// initialize all local vars
+	for i := range ctx.info.InitOrder {
+		init := ctx.info.InitOrder[len(ctx.info.InitOrder)-i-1]
 		// Execute assignments left-to-right
 		for i := len(init.Lhs); i > 0; i-- {
 			e = glang.NewDoSeq(
@@ -2493,6 +2517,9 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 			}
 		}
 	}
+
+	// FIXME: initialize imported packages.
+
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
 	initFunc.Body = e
 
