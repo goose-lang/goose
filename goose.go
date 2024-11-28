@@ -2200,21 +2200,7 @@ func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	ctx.usesDefer = false
 
-	body := ctx.blockStmt(d.Body, nil)
-
-	if d.Name.Name == "init" {
-		if ctx.usesDefer {
-			body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), body)
-		} else {
-			body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), body)
-		}
-		f := glang.FuncLit{Args: nil, Body: body}
-		ctx.inits = append(ctx.inits, f)
-		return nil
-	}
-
 	fd := glang.FuncDecl{Name: d.Name.Name}
-	fd.Body = body
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
@@ -2238,9 +2224,23 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
 	}
+
 	ctx.dep.setCurrentName(fd.Name)
 	defer ctx.dep.unsetCurrentName()
+	body := ctx.blockStmt(d.Body, nil)
 
+	if d.Name.Name == "init" {
+		if ctx.usesDefer {
+			body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), body)
+		} else {
+			body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), body)
+		}
+		f := glang.FuncLit{Args: nil, Body: body}
+		ctx.inits = append(ctx.inits, f)
+		return nil
+	}
+
+	fd.Body = body
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	fd.ReturnType = ctx.returnType(d.Type.Results)
