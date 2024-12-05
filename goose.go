@@ -2204,6 +2204,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
+
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
 			ctx.nope(d, "function with multiple receivers")
@@ -2221,12 +2222,14 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		typeName := namedType.Obj().Name()
 
 		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
+		ctx.dep.setCurrentName(fd.Name)
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
+	} else {
+		ctx.dep.setCurrentName(fd.Name)
 	}
-
-	ctx.dep.setCurrentName(fd.Name)
 	defer ctx.dep.unsetCurrentName()
+
 	body := ctx.blockStmt(d.Body, nil)
 
 	if d.Name.Name == "init" {
@@ -2344,10 +2347,17 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 				ctx.globalVars[name.Name] = ctx.glangType(name, ctx.info.TypeOf(name))
 				ctx.globalVarsOrdered = append(ctx.globalVarsOrdered, name.Name)
 			}
+			ctx.dep.setCurrentName(name.Name)
 			decls = append(decls, glang.VarDecl{
-				DeclName:    name.Name,
-				VarUniqueId: ctx.pkgPath + "." + name.Name,
+				DeclName: name.Name,
+				VarUniqueId: glang.BinaryExpr{
+					X:  glang.GallinaIdent("global_id'"),
+					Op: glang.OpPlus,
+					Y:  glang.StringLiteral{Value: name.Name},
+				},
 			})
+			ctx.dep.addDep("global_id'")
+			ctx.dep.unsetCurrentName()
 		}
 	}
 	return decls
@@ -2426,6 +2436,12 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	// - Need to fully initialize lower level packages (e.g. call `init()`s) before
 	//   initializing vars of the current package.
 	// - should only `init` a package once, even if imported multiple times.
+
+	packageIdDecl := glang.ConstDecl{
+		Name: "global_id'",
+		Val:  glang.GallinaString(ctx.pkgPath),
+		Type: glang.GallinaIdent("string"),
+	}
 
 	defineFunc := glang.FuncDecl{Name: "define'"}
 	ctx.dep.setCurrentName("define'")
@@ -2521,7 +2537,13 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	// FIXME: initialize imported packages.
 
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
+	e = glang.IfExpr{
+		Cond: glang.NewCallExpr(glang.GallinaIdent("globals.is_uninitialized"),
+			glang.GallinaIdent("global_id'")),
+		Then: e,
+		Else: glang.DoExpr{Expr: glang.Tt},
+	}
 	initFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 
-	return []glang.Decl{defineFunc, initFunc}
+	return []glang.Decl{packageIdDecl, defineFunc, initFunc}
 }

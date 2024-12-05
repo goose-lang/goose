@@ -32,6 +32,9 @@ func (dt *depTracker) unsetCurrentName() {
 }
 
 func (dt *depTracker) addDep(s string) {
+	if !dt.currentNameValid {
+		panic("depTracker: tried to add dep without name set")
+	}
 	dt.nameToDeps[dt.currentName] = append(dt.nameToDeps[dt.currentName], s)
 }
 

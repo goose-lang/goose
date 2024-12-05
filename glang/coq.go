@@ -945,11 +945,11 @@ func (d MethodSetDecl) DefName() (bool, string) {
 
 type VarDecl struct {
 	DeclName    string
-	VarUniqueId string
+	VarUniqueId Expr
 }
 
 func (d VarDecl) CoqDecl() string {
-	return fmt.Sprintf("Definition %s : val := #\"%s\".", d.DeclName, d.VarUniqueId)
+	return fmt.Sprintf("Definition %s : val := %s.", d.DeclName, d.VarUniqueId.Coq(false))
 }
 
 func (d VarDecl) DefName() (bool, string) {
