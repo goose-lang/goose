@@ -46,6 +46,7 @@ type Ctx struct {
 	// Set of global variables in the package being translated.
 	globalVars        map[string]glang.Type
 	globalVarsOrdered []string
+	importNames       []string
 
 	inits []glang.Expr
 }
@@ -2393,6 +2394,7 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 		// path. We can get this information by using the *types.Package
 		// returned by Check (or the pkg.Types field from *packages.Package).
 		decls = append(decls, glang.ImportDecl{Path: importPath})
+		ctx.importNames = append(ctx.importNames, ctx.info.PkgNameOf(s).Name())
 	}
 	return decls
 }
@@ -2446,6 +2448,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	defineFunc := glang.FuncDecl{Name: "define'"}
 	ctx.dep.setCurrentName("define'")
 	var e glang.Expr
+
 	if len(ctx.globalVarsOrdered) == 0 {
 		e = glang.DoExpr{Expr: glang.Tt}
 	} else {
@@ -2534,15 +2537,19 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		}
 	}
 
-	// FIXME: initialize imported packages.
-
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
+
+	for _, importName := range ctx.importNames {
+		e = glang.NewDoSeq(glang.GallinaIdent(importName+"."+"initialize'"), e)
+	}
+
 	e = glang.IfExpr{
 		Cond: glang.NewCallExpr(glang.GallinaIdent("globals.is_uninitialized"),
 			glang.GallinaIdent("global_id'")),
 		Then: e,
 		Else: glang.DoExpr{Expr: glang.Tt},
 	}
+
 	initFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 
 	return []glang.Decl{packageIdDecl, defineFunc, initFunc}
