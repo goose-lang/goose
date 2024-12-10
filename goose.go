@@ -16,6 +16,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"log"
 	"math/big"
 	"path/filepath"
 	"strconv"
@@ -1338,7 +1339,10 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 
 	ctx.usesDefer = false
 
-	// ctx is by value, so no need to unset this
+	defer func(oldFuncType *types.Signature) {
+		ctx.curFuncType = oldFuncType
+	}(ctx.curFuncType)
+
 	ctx.curFuncType = ctx.typeOf(e.Type).(*types.Signature)
 	fl.Args = ctx.paramList(e.Type.Params)
 	fl.Body = ctx.blockStmt(e.Body, nil)
@@ -1950,7 +1954,6 @@ func (ctx *Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 	var expectedReturnTypes []types.Type
 	if ctx.curFuncType.Results() != nil {
 		for i := range ctx.curFuncType.Results().Len() {
-
 			expectedReturnTypes = append(expectedReturnTypes, ctx.curFuncType.Results().At(i).Type())
 		}
 	}
@@ -1990,6 +1993,12 @@ func (ctx *Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
 					n: result,
 				})
 			}
+		}
+
+		if len(unconvertedReturnValues) != len(expectedReturnTypes) {
+			log.Print(len(unconvertedReturnValues), len(expectedReturnTypes))
+			log.Print(ctx.curFuncType.Results())
+			ctx.nope(s, "bug")
 		}
 
 		for i, e := range unconvertedReturnValues {
@@ -2353,7 +2362,7 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 				DeclName: name.Name,
 				VarUniqueId: glang.BinaryExpr{
 					X:  glang.GallinaIdent("global_id'"),
-					Op: glang.OpPlus,
+					Op: glang.OpGallinaAppend,
 					Y:  glang.StringLiteral{Value: name.Name},
 				},
 			})

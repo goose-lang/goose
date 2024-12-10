@@ -544,6 +544,8 @@ const (
 	OpLessEqZ
 	OpGreaterEqZ
 
+	OpGallinaAppend
+
 	OpAppend
 	OpMul
 	OpQuot
@@ -565,18 +567,19 @@ type BinaryExpr struct {
 
 func (be BinaryExpr) Coq(needs_paren bool) string {
 	coqBinOp := map[BinOp]string{
-		OpPlus:        "+",
-		OpMinus:       "-",
-		OpEquals:      "=",
-		OpNotEquals:   "≠",
-		OpAppend:      "+",
-		OpMul:         "*",
-		OpQuot:        "`quot`",
-		OpRem:         "`rem`",
-		OpLessThan:    "<",
-		OpGreaterThan: ">",
-		OpLessEq:      "≤",
-		OpGreaterEq:   "≥",
+		OpPlus:          "+",
+		OpMinus:         "-",
+		OpEquals:        "=",
+		OpNotEquals:     "≠",
+		OpGallinaAppend: "++",
+		OpAppend:        "+",
+		OpMul:           "*",
+		OpQuot:          "`quot`",
+		OpRem:           "`rem`",
+		OpLessThan:      "<",
+		OpGreaterThan:   ">",
+		OpLessEq:        "≤",
+		OpGreaterEq:     "≥",
 
 		OpEqualsZ:      "=?",
 		OpLessThanZ:    "<?",
@@ -949,7 +952,7 @@ type VarDecl struct {
 }
 
 func (d VarDecl) CoqDecl() string {
-	return fmt.Sprintf("Definition %s : val := %s.", d.DeclName, d.VarUniqueId.Coq(false))
+	return fmt.Sprintf("Definition %s : string := %s.", d.DeclName, d.VarUniqueId.Coq(false))
 }
 
 func (d VarDecl) DefName() (bool, string) {
