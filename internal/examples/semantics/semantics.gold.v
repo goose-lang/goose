@@ -121,11 +121,10 @@ Definition testAtomicLoadStore64: val :=
 
 Definition testAtomicPointers: val :=
   rec: "testAtomicPointers" <> :=
-    let: "p" := struct.new atomic.Pointer [
-    ] in
+    let: "p" := ref (zero_val ptrT) in
     let: "x" := ref (zero_val uint64T) in
-    atomic.Pointer__Store "p" "x";;
-    let: "y" := atomic.Pointer__Load "p" in
+    atomic.Pointer__Store uint64T "p" "x";;
+    let: "y" := atomic.Pointer__Load uint64T "p" in
     "y" <-[uint64T] #1;;
     let: "ok" := ref_to boolT #true in
     "ok" <-[boolT] ((![boolT] "ok") && ((![uint64T] "x") = #1));;
