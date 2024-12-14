@@ -952,7 +952,7 @@ type VarDecl struct {
 }
 
 func (d VarDecl) CoqDecl() string {
-	return fmt.Sprintf("Definition %s : string := %s.", d.DeclName, d.VarUniqueId.Coq(false))
+	return fmt.Sprintf("Definition %s : (string * string) := %s.", d.DeclName, d.VarUniqueId.Coq(false))
 }
 
 func (d VarDecl) DefName() (bool, string) {

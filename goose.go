@@ -45,7 +45,7 @@ type Ctx struct {
 	dep *depTracker
 
 	// Set of global variables in the package being translated.
-	globalVars        map[string]glang.Type
+	globalVars        map[string]*ast.Ident
 	globalVarsOrdered []string
 	importNames       []string
 
@@ -87,7 +87,7 @@ func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 		errorReporter:    newErrorReporter(pkg.Fset),
 		dep:              newDepTracker(),
 		namesToTranslate: namesToTranslate,
-		globalVars:       make(map[string]glang.Type),
+		globalVars:       make(map[string]*ast.Ident),
 	}
 }
 
@@ -567,7 +567,9 @@ func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 				glang.PackageIdent{
 					Package: pkg,
 					Ident:   e.Sel.Name,
-				})
+				},
+				glang.Tt,
+			)
 		} else {
 			ctx.unsupported(e, "address of external package selection that is not a variable")
 		}
@@ -1667,7 +1669,10 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		obj := ctx.info.ObjectOf(e)
 		if _, ok := obj.(*types.Var); ok {
 			if obj.Pkg().Scope() == obj.Parent() {
-				return glang.NewCallExpr(glang.GallinaIdent("globals.get"), glang.GallinaIdent(e.Name))
+				return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
+					glang.GallinaIdent(e.Name),
+					glang.Tt,
+				)
 			} else {
 				return glang.IdentExpr(e.Name)
 			}
@@ -2354,19 +2359,15 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
 			if _, ok := ctx.globalVars[name.Name]; !ok {
-				ctx.globalVars[name.Name] = ctx.glangType(name, ctx.info.TypeOf(name))
+				ctx.globalVars[name.Name] = name
 				ctx.globalVarsOrdered = append(ctx.globalVarsOrdered, name.Name)
 			}
 			ctx.dep.setCurrentName(name.Name)
 			decls = append(decls, glang.VarDecl{
-				DeclName: name.Name,
-				VarUniqueId: glang.BinaryExpr{
-					X:  glang.GallinaIdent("global_id'"),
-					Op: glang.OpGallinaAppend,
-					Y:  glang.StringLiteral{Value: name.Name},
-				},
+				DeclName:    name.Name,
+				VarUniqueId: glang.TupleExpr{glang.GallinaIdent("pkg_name'"), glang.StringLiteral{Value: name.Name}},
 			})
-			ctx.dep.addDep("global_id'")
+			ctx.dep.addDep("pkg_name'")
 			ctx.dep.unsetCurrentName()
 		}
 	}
@@ -2449,7 +2450,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	// - should only `init` a package once, even if imported multiple times.
 
 	packageIdDecl := glang.ConstDecl{
-		Name: "global_id'",
+		Name: "pkg_name'",
 		Val:  glang.GallinaString(ctx.pkgPath),
 		Type: glang.GallinaIdent("string"),
 	}
@@ -2462,13 +2463,14 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		e = glang.DoExpr{Expr: glang.Tt}
 	} else {
 		for _, varName := range ctx.globalVarsOrdered {
+			t := ctx.glangType(ctx.globalVars[varName], ctx.info.TypeOf(ctx.globalVars[varName]))
 			s := glang.NewCallExpr(glang.GallinaIdent("globals.put"),
 				glang.GallinaIdent(varName),
 				glang.RefExpr{
-					X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.globalVars[varName]),
-					Ty: ctx.globalVars[varName],
+					X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
+					Ty: t,
 				})
-			e = glang.SeqExpr{Expr: s, Cont: e}
+			e = glang.NewDoSeq(s, e)
 		}
 	}
 	defineFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
@@ -2493,7 +2495,9 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 			e = glang.NewDoSeq(
 				glang.StoreStmt{
 					Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-						glang.GallinaIdent(init.Lhs[i-1].Name())),
+						glang.GallinaIdent(init.Lhs[i-1].Name()),
+						glang.Tt,
+					),
 					X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
 					Ty: ctx.glangType(init.Lhs[i-1], init.Lhs[i-1].Type()),
 				}, e)
@@ -2554,7 +2558,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 
 	e = glang.IfExpr{
 		Cond: glang.NewCallExpr(glang.GallinaIdent("globals.is_uninitialized"),
-			glang.GallinaIdent("global_id'")),
+			glang.GallinaIdent("pkg_name'")),
 		Then: e,
 		Else: glang.DoExpr{Expr: glang.Tt},
 	}
