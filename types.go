@@ -103,6 +103,10 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
 			return coq.TypeIdent("disk.Disk")
 		}
+		// atomic.Pointer[T]
+		if t.Obj().Pkg().Name() == "atomic" && t.Obj().Name() == "Pointer" {
+			return coq.TypeIdent("ptrT")
+		}
 		if info, ok := ctx.getStructInfo(t); ok {
 			return coq.StructName(info.name)
 		}
@@ -279,6 +283,23 @@ func isDisk(t types.Type) bool {
 			obj.Name() == "Disk" {
 			return true
 		}
+	}
+	return false
+}
+
+func isAtomicPointerType(t types.Type) bool {
+	if t, ok := t.(*types.Named); ok {
+		obj := t.Obj()
+		if obj.Pkg().Path() == "sync/atomic" && obj.Name() == "Pointer" {
+			return true
+		}
+	}
+	return false
+}
+
+func isPointerToAtomicPointer(t types.Type) bool {
+	if t, ok := t.(*types.Pointer); ok {
+		return isAtomicPointerType(t.Elem())
 	}
 	return false
 }

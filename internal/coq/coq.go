@@ -802,6 +802,14 @@ func (e RefExpr) Coq(needs_paren bool) string {
 	return NewCallExpr(GallinaIdent("ref_to"), e.Ty, e.X).Coq(needs_paren)
 }
 
+type RefZeroExpr struct {
+	Ty Expr
+}
+
+func (e RefZeroExpr) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("ref"), NewCallExpr(GallinaIdent("zero_val"), e.Ty)).Coq(needs_paren)
+}
+
 type StoreStmt struct {
 	Dst Expr
 	Ty  Expr

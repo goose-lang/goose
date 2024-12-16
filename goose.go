@@ -524,10 +524,22 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 	namedTy := deref.(*types.Named)
 	tyName := ctx.qualifiedName(namedTy.Obj())
 	callArgs := append([]ast.Expr{f.X}, args...)
+	var typeArgs []coq.Expr
+	// TODO: this passes the struct's generic type arguments only for
+	// *atomic.Pointer[T]. We need to do this in general (including for method
+	// calls through a pointer) since structs that are generic will use the
+	// struct type arguments in the model.
+	if isPointerToAtomicPointer(selectorType) {
+		// get the type arguments to the atomic.Pointer
+		atomicPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
+		typeArgs = append(typeArgs, ctx.typeList(call, atomicPointerTy.TypeArgs())...)
+	}
+	// append the type arguments specific to this function
+	typeArgs = append(typeArgs, ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs)...)
 	fullName := coq.MethodName(tyName, f.Sel.Name)
 	ctx.dep.addDep(fullName)
 	coqCall := ctx.coqRecurFunc(fullName, f.Sel)
-	return ctx.newCoqCallWithExpr(coqCall, callArgs)
+	return ctx.newCoqCallTypeArgs(coqCall, typeArgs, callArgs)
 }
 
 func (ctx Ctx) newCoqCallTypeArgs(method coq.Expr, typeArgs []coq.Expr,
@@ -1047,6 +1059,9 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
+		if isAtomicPointerType(ctx.typeOf(e.X)) {
+			return coq.RefZeroExpr{Ty: ctx.coqTypeOfType(e, ctx.typeOf(e.X))}
+		}
 		if info, ok := ctx.getStructInfo(ctx.typeOf(e.X)); ok {
 			structLit, ok := e.X.(*ast.CompositeLit)
 			if ok {
@@ -1552,8 +1567,7 @@ func (ctx Ctx) varSpec(s *ast.ValueSpec) coq.Binding {
 	var rhs coq.Expr
 	if len(s.Values) == 0 {
 		ty := ctx.typeOf(lhs)
-		rhs = coq.NewCallExpr(coq.GallinaIdent("ref"),
-			coq.NewCallExpr(coq.GallinaIdent("zero_val"), ctx.coqTypeOfType(s, ty)))
+		rhs = coq.RefZeroExpr{Ty: ctx.coqTypeOfType(s, ty)}
 	} else {
 		rhs = ctx.referenceTo(s.Values[0])
 	}

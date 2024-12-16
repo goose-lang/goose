@@ -60,6 +60,12 @@ func (suite *GoTestSuite) TestAtomicLoadStore64() {
 	suite.Equal(true, testAtomicLoadStore64())
 }
 
+func (suite *GoTestSuite) TestAtomicPointers() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testAtomicPointers())
+}
+
 func (suite *GoTestSuite) TestClosureBasic() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
