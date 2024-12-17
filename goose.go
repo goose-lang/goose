@@ -2478,7 +2478,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 
 	ctx.dep.setCurrentName("initialize'")
 	initFunc := glang.FuncDecl{Name: "initialize'"}
-	ctx.dep.addDep("define'")
+
 	e = nil
 
 	// add all init() function bodies
@@ -2550,20 +2550,20 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		}
 	}
 
+	ctx.dep.addDep("define'")
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
 
 	for _, importName := range ctx.importNames {
 		e = glang.NewDoSeq(glang.GallinaIdent(importName+"."+"initialize'"), e)
 	}
 
-	e = glang.IfExpr{
-		Cond: glang.NewCallExpr(glang.GallinaIdent("globals.is_uninitialized"),
-			glang.GallinaIdent("pkg_name'")),
-		Then: e,
-		Else: glang.DoExpr{Expr: glang.Tt},
-	}
+	e = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
+	e = glang.NewCallExpr(glang.GallinaIdent("globals.package_init"),
+		glang.GallinaIdent("pkg_name'"),
+		glang.FuncLit{Args: nil, Body: e},
+	)
 
-	initFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
+	initFunc.Body = e
 
 	return []glang.Decl{packageIdDecl, defineFunc, initFunc}
 }
