@@ -45,9 +45,10 @@ type Ctx struct {
 	dep *depTracker
 
 	// Set of global variables in the package being translated.
-	globalVars        map[string]*ast.Ident
-	globalVarsOrdered []string
-	importNames       []string
+	globalVars         map[string]*ast.Ident
+	globalVarsOrdered  []string
+	importNames        map[string]struct{}
+	importNamesOrdered []string
 
 	inits []glang.Expr
 }
@@ -88,6 +89,7 @@ func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 		dep:              newDepTracker(),
 		namesToTranslate: namesToTranslate,
 		globalVars:       make(map[string]*ast.Ident),
+		importNames:      make(map[string]struct{}),
 	}
 }
 
@@ -2404,7 +2406,11 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 		// path. We can get this information by using the *types.Package
 		// returned by Check (or the pkg.Types field from *packages.Package).
 		decls = append(decls, glang.ImportDecl{Path: importPath})
-		ctx.importNames = append(ctx.importNames, ctx.info.PkgNameOf(s).Name())
+		n := ctx.info.PkgNameOf(s).Name()
+		if _, ok := ctx.importNames[n]; !ok {
+			ctx.importNames[n] = struct{}{}
+			ctx.importNamesOrdered = append(ctx.importNamesOrdered, n)
+		}
 	}
 	return decls
 }
@@ -2553,7 +2559,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	ctx.dep.addDep("define'")
 	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
 
-	for _, importName := range ctx.importNames {
+	for _, importName := range ctx.importNamesOrdered {
 		e = glang.NewDoSeq(glang.GallinaIdent(importName+"."+"initialize'"), e)
 	}
 
