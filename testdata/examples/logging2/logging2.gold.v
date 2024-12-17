@@ -431,10 +431,17 @@ Definition Begin : val :=
     do:  ("txn" <-[Txn] "$r0");;;
     return: (![Txn] "txn")).
 
+Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/logging2".
+
 Definition define' : val :=
   rec: "define'" <> :=
     exception_do (do:  #()).
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    exception_do (do:  (define' #())).
+    globals.package_init pkg_name' (λ: <>,
+      exception_do (do:  sync.initialize';;;
+      do:  disk.initialize';;;
+      do:  primitive.initialize';;;
+      do:  (define' #()))
+      ).

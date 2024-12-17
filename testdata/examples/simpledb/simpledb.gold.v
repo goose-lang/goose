@@ -1048,12 +1048,20 @@ Definition Close : val :=
     do:  (let: "$a0" := (![Database] "db") in
     Shutdown "$a0")).
 
+Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/simpledb".
+
 Definition define' : val :=
   rec: "define'" <> :=
     exception_do (do:  #()).
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    exception_do (do:  (define' #())).
+    globals.package_init pkg_name' (λ: <>,
+      exception_do (do:  marshal.initialize';;;
+      do:  filesys.initialize';;;
+      do:  primitive.initialize';;;
+      do:  sync.initialize';;;
+      do:  (define' #()))
+      ).
 
 End code.

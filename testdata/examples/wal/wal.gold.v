@@ -377,10 +377,17 @@ Definition Open : val :=
        "length" ::= "$length"
      }])).
 
+Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/wal".
+
 Definition define' : val :=
   rec: "define'" <> :=
     exception_do (do:  #()).
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    exception_do (do:  (define' #())).
+    globals.package_init pkg_name' (λ: <>,
+      exception_do (do:  disk.initialize';;;
+      do:  primitive.initialize';;;
+      do:  sync.initialize';;;
+      do:  (define' #()))
+      ).

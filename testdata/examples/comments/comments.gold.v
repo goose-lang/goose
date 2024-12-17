@@ -18,12 +18,16 @@ Definition Foo__mset : list (string * val) := [
 Definition Foo__mset_ptr : list (string * val) := [
 ].
 
+Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/comments".
+
 Definition define' : val :=
   rec: "define'" <> :=
     exception_do (do:  #()).
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    exception_do (do:  (define' #())).
+    globals.package_init pkg_name' (λ: <>,
+      exception_do (do:  (define' #()))
+      ).
 
 End code.
