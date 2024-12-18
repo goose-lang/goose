@@ -35,3 +35,19 @@ func arrayToSlice() []string {
 	}
 	return x[:]
 }
+
+const (
+	arrayA = 0
+	arrayB = 10
+)
+
+func arrayLiteralKeyed() string {
+	var x = [...]string{
+		arrayB: "B",
+		"1",
+		"2",
+		arrayA: "A",
+		"3",
+	}
+	return x[0]
+}

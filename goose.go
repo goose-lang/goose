@@ -311,18 +311,57 @@ func (ctx *Ctx) sliceLiteral(es []ast.Expr, expectedType types.Type) glang.Expr 
 }
 
 func (ctx *Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang.Expr {
-	var arrayLitArgs []glang.Expr
+	var arrayElements []glang.Expr
+
+	var index int64 = 0
 	for i := 0; i < len(e.Elts); i++ {
+		if kve, ok := e.Elts[i].(*ast.KeyValueExpr); ok {
+			elt := ctx.handleImplicitConversion(kve.Value, ctx.typeOf(kve.Value), expectedType, ctx.expr(kve.Value))
+			tv := ctx.info.Types[kve.Key]
+			if !tv.IsValue() {
+				ctx.nope(kve.Key, "expected const as key in array literal")
+
+			}
+			switch v := constant.Val(tv.Value).(type) {
+			case *big.Int:
+				ctx.unsupported(kve.Key, "array literal key is probably too big")
+			case int64:
+				index = v
+			default:
+				ctx.nope(kve.Key, "array literal key with unexpected type")
+			}
+			if index < int64(len(arrayElements)) {
+				arrayElements[index] = elt
+			} else {
+				for int64(len(arrayElements)) < index {
+					arrayElements = append(arrayElements,
+						glang.NewCallExpr(glang.GallinaIdent("zero_val"), ctx.glangType(e, expectedType)),
+					)
+				}
+				arrayElements = append(arrayElements, elt)
+			}
+		} else {
+			elt := ctx.handleImplicitConversion(e.Elts[i], ctx.typeOf(e.Elts[i]), expectedType, ctx.expr(e.Elts[i]))
+			if index < int64(len(arrayElements)) {
+				arrayElements[index] = elt
+			} else {
+				arrayElements = append(arrayElements, elt)
+			}
+		}
+		index += 1
+	}
+
+	var arrayLitArgs []glang.Expr
+	for i := 0; i < len(arrayElements); i++ {
 		arrayLitArgs = append(arrayLitArgs, glang.IdentExpr(fmt.Sprintf("$ar%d", i)))
 	}
 	var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.literal"),
 		glang.ListExpr(arrayLitArgs))
 
-	for i := len(e.Elts); i > 0; i-- {
-		elt := e.Elts[i-1]
+	for i := len(arrayElements); i > 0; i-- {
 		expr = glang.LetExpr{
 			Names:   []string{fmt.Sprintf("$ar%d", i-1)},
-			ValExpr: ctx.handleImplicitConversion(elt, ctx.typeOf(elt), expectedType, ctx.expr(elt)),
+			ValExpr: arrayElements[i-1],
 			Cont:    expr,
 		}
 	}
