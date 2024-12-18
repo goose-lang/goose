@@ -49,7 +49,14 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 				}
 			}
 		case token.VAR:
-			// return ctx.globalVarDecl(d)
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.ValueSpec)
+				for _, name := range spec.Names {
+					if name.IsExported() {
+						fmt.Fprintf(w, "Axiom %s : (string * string).\n", name)
+					}
+				}
+			}
 		case token.TYPE:
 			for _, spec := range d.Specs {
 				spec := spec.(*ast.TypeSpec)
@@ -63,4 +70,8 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 	case *ast.BadDecl:
 	default:
 	}
+}
+
+func InitializeDecl(w io.Writer) {
+	fmt.Fprintf(w, "Axiom initialize' : val.")
 }
