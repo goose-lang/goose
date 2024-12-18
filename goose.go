@@ -1710,6 +1710,7 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		obj := ctx.info.ObjectOf(e)
 		if _, ok := obj.(*types.Var); ok {
 			if obj.Pkg().Scope() == obj.Parent() {
+				ctx.dep.addDep(e.Name)
 				return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
 					glang.GallinaIdent(e.Name),
 					glang.Tt,
@@ -2399,6 +2400,9 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
+			if name.Name == "_" {
+				continue
+			}
 			if _, ok := ctx.globalVars[name.Name]; !ok {
 				ctx.globalVars[name.Name] = name
 				ctx.globalVarsOrdered = append(ctx.globalVarsOrdered, name.Name)
@@ -2537,15 +2541,20 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		init := ctx.info.InitOrder[len(ctx.info.InitOrder)-i-1]
 		// Execute assignments left-to-right
 		for i := len(init.Lhs); i > 0; i-- {
-			e = glang.NewDoSeq(
-				glang.StoreStmt{
-					Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-						glang.GallinaIdent(init.Lhs[i-1].Name()),
-						glang.Tt,
-					),
-					X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
-					Ty: ctx.glangType(init.Lhs[i-1], init.Lhs[i-1].Type()),
-				}, e)
+			if init.Lhs[i-1].Name() != "_" {
+				e = glang.NewDoSeq(
+					glang.StoreStmt{
+						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
+							glang.GallinaIdent(init.Lhs[i-1].Name()),
+							glang.Tt,
+						),
+						X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
+						Ty: ctx.glangType(init.Lhs[i-1], init.Lhs[i-1].Type()),
+					}, e)
+			}
+		}
+		if e == nil {
+			e = glang.DoExpr{Expr: glang.Tt}
 		}
 
 		// Determine RHS types, specially handling multiple returns from a function call.

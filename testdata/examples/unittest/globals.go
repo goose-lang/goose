@@ -9,6 +9,8 @@ var globalY string
 
 var globalA, globalB = "a", "b"
 
+var _ = foo()
+
 func other() {
 	globalY = "ok"
 }
