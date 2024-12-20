@@ -1011,8 +1011,19 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 			if !ok {
 				ctx.unsupported(e, "unsupported binary operation on booleans")
 			}
-		case types.String, types.UntypedString:
+		case types.String:
 			op, ok = stringOps[e.Op]
+			if !ok {
+				ctx.unsupported(e, "unsupported binary operation on strings")
+			}
+		case types.UntypedString:
+			op, ok = untypedStringOps[e.Op]
+			switch op {
+			case glang.OpGallinaAppend:
+				defer func() {
+					expr = ctx.handleImplicitConversion(e, compType, ctx.typeOf(e), expr)
+				}()
+			}
 			if !ok {
 				ctx.unsupported(e, "unsupported binary operation on strings")
 			}
@@ -2353,7 +2364,7 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 	case *types.Basic:
 		switch t.Kind() {
 		case types.UntypedString:
-			return glang.GallinaIdent("string")
+			return glang.GallinaIdent("go_string")
 		case types.UntypedInt:
 			return glang.GallinaIdent("Z")
 		}
@@ -2501,7 +2512,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	packageIdDecl := glang.ConstDecl{
 		Name: "pkg_name'",
 		Val:  glang.GallinaString(ctx.pkgPath),
-		Type: glang.GallinaIdent("string"),
+		Type: glang.GallinaIdent("go_string"),
 	}
 
 	defineFunc := glang.FuncDecl{Name: "define'"}

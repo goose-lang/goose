@@ -53,7 +53,7 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 				spec := spec.(*ast.ValueSpec)
 				for _, name := range spec.Names {
 					if name.IsExported() {
-						fmt.Fprintf(w, "Axiom %s : (string * string).\n", name)
+						fmt.Fprintf(w, "Axiom %s : (go_string * go_string).\n", name)
 					}
 				}
 			}
@@ -62,8 +62,8 @@ func Decl(w io.Writer, info types.Info, d ast.Decl) {
 				spec := spec.(*ast.TypeSpec)
 				if spec.Name.IsExported() {
 					fmt.Fprintf(w, "Axiom %s : go_type.\n", spec.Name.Name)
-					fmt.Fprintf(w, "Axiom %s__mset : list (string * val).\n", spec.Name.Name)
-					fmt.Fprintf(w, "Axiom %s__mset_ptr : list (string * val).\n", spec.Name.Name)
+					fmt.Fprintf(w, "Axiom %s__mset : list (go_string * val).\n", spec.Name.Name)
+					fmt.Fprintf(w, "Axiom %s__mset_ptr : list (go_string * val).\n", spec.Name.Name)
 				}
 			}
 		}

@@ -489,7 +489,7 @@ type StringLiteral struct {
 }
 
 func (s StringLiteral) Coq(needs_paren bool) string {
-	return fmt.Sprintf(`"%s"`, strings.Replace(s.Value, `"`, `""`, -1))
+	return fmt.Sprintf(`"%s"`, strings.Replace(s.Value, `"`, `""`, -1)) + "%go"
 }
 
 type Int64Val struct {
@@ -928,14 +928,14 @@ type MethodSetDecl struct {
 
 func (d MethodSetDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s : list (string * val) := [", d.DeclName)
+	pp.Add("Definition %s : list (go_string * val) := [", d.DeclName)
 	pp.Indent(2)
 	for i, name := range d.MethodNames {
 		sep := ";"
 		if i == len(d.Methods)-1 {
 			sep = ""
 		}
-		pp.Add("(\"%s\", %s%%V)%s", name, d.Methods[i].Coq(false), sep)
+		pp.Add("(\"%s\"%s, %s%%V)%s", name, "%go", d.Methods[i].Coq(false), sep)
 	}
 	pp.Indent(-2)
 	pp.Add("].")
@@ -952,7 +952,7 @@ type VarDecl struct {
 }
 
 func (d VarDecl) CoqDecl() string {
-	return fmt.Sprintf("Definition %s : (string * string) := %s.", d.DeclName, d.VarUniqueId.Coq(false))
+	return fmt.Sprintf("Definition %s : (go_string * go_string) := %s.", d.DeclName, d.VarUniqueId.Coq(false))
 }
 
 func (d VarDecl) DefName() (bool, string) {

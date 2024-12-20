@@ -28,7 +28,7 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 		case "bool":
 			return "bool"
 		case "string", "untyped string":
-			return "string"
+			return "go_string"
 		}
 	case *types.Slice:
 		return "slice.t"

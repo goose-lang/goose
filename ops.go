@@ -74,6 +74,12 @@ var stringOps = map[token.Token]glang.BinOp{
 	token.NEQ: glang.OpNotEquals,
 }
 
+var untypedStringOps = map[token.Token]glang.BinOp{
+	token.ADD: glang.OpGallinaAppend,
+	token.EQL: glang.OpEquals,
+	token.NEQ: glang.OpNotEquals,
+}
+
 var boolOps = map[token.Token]glang.BinOp{
 	token.EQL:  glang.OpEquals,
 	token.NEQ:  glang.OpNotEquals,
