@@ -12,13 +12,13 @@ Definition Foo : go_type := structT [
   "a" :: boolT
 ].
 
-Definition Foo__mset : list (string * val) := [
+Definition Foo__mset : list (go_string * val) := [
 ].
 
-Definition Foo__mset_ptr : list (string * val) := [
+Definition Foo__mset_ptr : list (go_string * val) := [
 ].
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/comments".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/comments".
 
 Definition define' : val :=
   rec: "define'" <> :=

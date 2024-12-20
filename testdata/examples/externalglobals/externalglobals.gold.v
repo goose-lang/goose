@@ -10,7 +10,7 @@ Definition f : val :=
     exception_do (let: "$r0" := #(W64 11) in
     do:  ((globals.get unittest.GlobalX #()) <-[uint64T] "$r0")).
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
 
 Definition define' : val :=
   rec: "define'" <> :=

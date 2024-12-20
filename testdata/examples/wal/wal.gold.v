@@ -229,7 +229,7 @@ Definition Log__Write : val :=
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") ≥ MaxTxnWrites
     then
-      do:  (let: "$a0" := (interface.make string__mset #"transaction is at capacity") in
+      do:  (let: "$a0" := (interface.make string__mset #"transaction is at capacity"%go) in
       Panic "$a0")
     else do:  #());;;
     let: "aBlock" := (ref_ty sliceT (zero_val sliceT)) in
@@ -251,40 +251,40 @@ Definition Log__Write : val :=
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
     do:  ((Log__unlock (![Log] "l")) #())).
 
-Definition Log__mset : list (string * val) := [
-  ("Apply", Log__Apply%V);
-  ("BeginTxn", Log__BeginTxn%V);
-  ("Commit", Log__Commit%V);
-  ("Read", Log__Read%V);
-  ("Size", Log__Size%V);
-  ("Write", Log__Write%V);
-  ("lock", Log__lock%V);
-  ("unlock", Log__unlock%V)
+Definition Log__mset : list (go_string * val) := [
+  ("Apply"%go, Log__Apply%V);
+  ("BeginTxn"%go, Log__BeginTxn%V);
+  ("Commit"%go, Log__Commit%V);
+  ("Read"%go, Log__Read%V);
+  ("Size"%go, Log__Size%V);
+  ("Write"%go, Log__Write%V);
+  ("lock"%go, Log__lock%V);
+  ("unlock"%go, Log__unlock%V)
 ].
 
-Definition Log__mset_ptr : list (string * val) := [
-  ("Apply", (λ: "$recvAddr",
+Definition Log__mset_ptr : list (go_string * val) := [
+  ("Apply"%go, (λ: "$recvAddr",
     Log__Apply (![Log] "$recvAddr")
     )%V);
-  ("BeginTxn", (λ: "$recvAddr",
+  ("BeginTxn"%go, (λ: "$recvAddr",
     Log__BeginTxn (![Log] "$recvAddr")
     )%V);
-  ("Commit", (λ: "$recvAddr",
+  ("Commit"%go, (λ: "$recvAddr",
     Log__Commit (![Log] "$recvAddr")
     )%V);
-  ("Read", (λ: "$recvAddr",
+  ("Read"%go, (λ: "$recvAddr",
     Log__Read (![Log] "$recvAddr")
     )%V);
-  ("Size", (λ: "$recvAddr",
+  ("Size"%go, (λ: "$recvAddr",
     Log__Size (![Log] "$recvAddr")
     )%V);
-  ("Write", (λ: "$recvAddr",
+  ("Write"%go, (λ: "$recvAddr",
     Log__Write (![Log] "$recvAddr")
     )%V);
-  ("lock", (λ: "$recvAddr",
+  ("lock"%go, (λ: "$recvAddr",
     Log__lock (![Log] "$recvAddr")
     )%V);
-  ("unlock", (λ: "$recvAddr",
+  ("unlock"%go, (λ: "$recvAddr",
     Log__unlock (![Log] "$recvAddr")
     )%V)
 ].
@@ -302,7 +302,7 @@ Definition New : val :=
     do:  ("diskSize" <-[uint64T] "$r0");;;
     (if: (![uint64T] "diskSize") ≤ logLength
     then
-      do:  (let: "$a0" := (interface.make string__mset #"disk is too small to host log") in
+      do:  (let: "$a0" := (interface.make string__mset #"disk is too small to host log"%go) in
       Panic "$a0")
     else do:  #());;;
     let: "cache" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
@@ -377,7 +377,7 @@ Definition Open : val :=
        "length" ::= "$length"
      }])).
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/wal".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/wal".
 
 Definition define' : val :=
   rec: "define'" <> :=

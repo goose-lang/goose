@@ -19,10 +19,10 @@ Definition Table : go_type := structT [
   "File" :: fileT
 ].
 
-Definition Table__mset : list (string * val) := [
+Definition Table__mset : list (go_string * val) := [
 ].
 
-Definition Table__mset_ptr : list (string * val) := [
+Definition Table__mset_ptr : list (go_string * val) := [
 ].
 
 (* CreateTable creates a new, empty table.
@@ -35,7 +35,7 @@ Definition CreateTable : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := #"db" in
+    let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
     filesys.Create "$a0" "$a1") in
     let: "$r0" := "$ret0" in
@@ -45,7 +45,7 @@ Definition CreateTable : val :=
     do:  (let: "$a0" := (![fileT] "f") in
     filesys.Close "$a0");;;
     let: "f2" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #"db" in
+    let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
     filesys.Open "$a0" "$a1") in
     do:  ("f2" <-[fileT] "$r0");;;
@@ -61,10 +61,10 @@ Definition Entry : go_type := structT [
   "Value" :: sliceT
 ].
 
-Definition Entry__mset : list (string * val) := [
+Definition Entry__mset : list (go_string * val) := [
 ].
 
-Definition Entry__mset_ptr : list (string * val) := [
+Definition Entry__mset_ptr : list (go_string * val) := [
 ].
 
 (* DecodeUInt64 is a Decoder(uint64)
@@ -155,10 +155,10 @@ Definition lazyFileBuf : go_type := structT [
   "next" :: sliceT
 ].
 
-Definition lazyFileBuf__mset : list (string * val) := [
+Definition lazyFileBuf__mset : list (go_string * val) := [
 ].
 
-Definition lazyFileBuf__mset_ptr : list (string * val) := [
+Definition lazyFileBuf__mset_ptr : list (go_string * val) := [
 ].
 
 (* readTableIndex parses a complete table on disk into a key->offset index
@@ -234,7 +234,7 @@ Definition RecoverTable : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #"db" in
+    let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
@@ -325,10 +325,10 @@ Definition bufFile : go_type := structT [
   "buf" :: ptrT
 ].
 
-Definition bufFile__mset : list (string * val) := [
+Definition bufFile__mset : list (go_string * val) := [
 ].
 
-Definition bufFile__mset_ptr : list (string * val) := [
+Definition bufFile__mset_ptr : list (go_string * val) := [
 ].
 
 (* go: simpledb.go:151:6 *)
@@ -394,10 +394,10 @@ Definition tableWriter : go_type := structT [
   "offset" :: ptrT
 ].
 
-Definition tableWriter__mset : list (string * val) := [
+Definition tableWriter__mset : list (go_string * val) := [
 ].
 
-Definition tableWriter__mset_ptr : list (string * val) := [
+Definition tableWriter__mset_ptr : list (go_string * val) := [
 ].
 
 (* go: simpledb.go:186:6 *)
@@ -408,7 +408,7 @@ Definition newTableWriter : val :=
     let: "$r0" := (map.make uint64T uint64T #()) in
     do:  ("index" <-[mapT uint64T uint64T] "$r0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: ("$ret0", "$ret1") := (let: "$a0" := #"db" in
+    let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
     filesys.Create "$a0" "$a1") in
     let: "$r0" := "$ret0" in
@@ -455,7 +455,7 @@ Definition tableWriterClose : val :=
     do:  (let: "$a0" := (![bufFile] (struct.field_ref tableWriter "file" "w")) in
     bufClose "$a0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #"db" in
+    let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] (struct.field_ref tableWriter "name" "w")) in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
@@ -545,10 +545,10 @@ Definition Database : go_type := structT [
   "compactionL" :: ptrT
 ].
 
-Definition Database__mset : list (string * val) := [
+Definition Database__mset : list (go_string * val) := [
 ].
 
-Definition Database__mset_ptr : list (string * val) := [
+Definition Database__mset_ptr : list (go_string * val) := [
 ].
 
 (* go: simpledb.go:256:6 *)
@@ -579,7 +579,7 @@ Definition NewDb : val :=
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
     do:  ("bufferL" <-[ptrT] "$r0");;;
     let: "tableName" := (ref_ty stringT (zero_val stringT)) in
-    let: "$r0" := #"table.0" in
+    let: "$r0" := #"table.0"%go in
     do:  ("tableName" <-[stringT] "$r0");;;
     let: "tableNameRef" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty stringT (zero_val stringT)) in
@@ -701,11 +701,11 @@ Definition Write : val :=
 Definition freshTable : val :=
   rec: "freshTable" "p" :=
     exception_do (let: "p" := (ref_ty stringT "p") in
-    (if: (![stringT] "p") = #"table.0"
-    then return: (#"table.1")
+    (if: (![stringT] "p") = #"table.0"%go
+    then return: (#"table.1"%go)
     else do:  #());;;
-    (if: (![stringT] "p") = #"table.1"
-    then return: (#"table.0")
+    (if: (![stringT] "p") = #"table.1"%go
+    then return: (#"table.0"%go)
     else do:  #());;;
     return: (![stringT] "p")).
 
@@ -881,13 +881,13 @@ Definition Compact : val :=
     let: "manifestData" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (string.to_bytes (![stringT] "newTable")) in
     do:  ("manifestData" <-[sliceT] "$r0");;;
-    do:  (let: "$a0" := #"db" in
-    let: "$a1" := #"manifest" in
+    do:  (let: "$a0" := #"db"%go in
+    let: "$a1" := #"manifest"%go in
     let: "$a2" := (![sliceT] "manifestData") in
     filesys.AtomicCreate "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![Table] "oldTable") in
     CloseTable "$a0");;;
-    do:  (let: "$a0" := #"db" in
+    do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "oldTableName") in
     filesys.Delete "$a0" "$a1");;;
     do:  ((sync.Mutex__Unlock (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
@@ -897,8 +897,8 @@ Definition Compact : val :=
 Definition recoverManifest : val :=
   rec: "recoverManifest" <> :=
     exception_do (let: "f" := (ref_ty fileT (zero_val fileT)) in
-    let: "$r0" := (let: "$a0" := #"db" in
-    let: "$a1" := #"manifest" in
+    let: "$r0" := (let: "$a0" := #"db"%go in
+    let: "$a1" := #"manifest"%go in
     filesys.Open "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
     let: "manifestData" := (ref_ty sliceT (zero_val sliceT)) in
@@ -924,10 +924,10 @@ Definition deleteOtherFile : val :=
     (if: (![stringT] "name") = (![stringT] "tableName")
     then return: (#())
     else do:  #());;;
-    (if: (![stringT] "name") = #"manifest"
+    (if: (![stringT] "name") = #"manifest"%go
     then return: (#())
     else do:  #());;;
-    do:  (let: "$a0" := #"db" in
+    do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "name") in
     filesys.Delete "$a0" "$a1")).
 
@@ -936,7 +936,7 @@ Definition deleteOtherFiles : val :=
   rec: "deleteOtherFiles" "tableName" :=
     exception_do (let: "tableName" := (ref_ty stringT "tableName") in
     let: "files" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := #"db" in
+    let: "$r0" := (let: "$a0" := #"db"%go in
     filesys.List "$a0") in
     do:  ("files" <-[sliceT] "$r0");;;
     let: "nfiles" := (ref_ty uint64T (zero_val uint64T)) in
@@ -1048,7 +1048,7 @@ Definition Close : val :=
     do:  (let: "$a0" := (![Database] "db") in
     Shutdown "$a0")).
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/simpledb".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/simpledb".
 
 Definition define' : val :=
   rec: "define'" <> :=

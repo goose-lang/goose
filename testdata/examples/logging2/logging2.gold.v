@@ -243,56 +243,56 @@ Definition Log__memWrite : val :=
       (slice.append sliceT) "$a0" "$a1") in
       do:  ((![ptrT] (struct.field_ref Log "memLog" "log")) <-[sliceT] "$r0")))).
 
-Definition Log__mset : list (string * val) := [
-  ("Append", Log__Append%V);
-  ("Logger", Log__Logger%V);
-  ("Read", Log__Read%V);
-  ("diskAppend", Log__diskAppend%V);
-  ("diskAppendWait", Log__diskAppendWait%V);
-  ("memAppend", Log__memAppend%V);
-  ("memWrite", Log__memWrite%V);
-  ("readBlocks", Log__readBlocks%V);
-  ("readHdr", Log__readHdr%V);
-  ("readLogTxnNxt", Log__readLogTxnNxt%V);
-  ("writeBlocks", Log__writeBlocks%V);
-  ("writeHdr", Log__writeHdr%V)
+Definition Log__mset : list (go_string * val) := [
+  ("Append"%go, Log__Append%V);
+  ("Logger"%go, Log__Logger%V);
+  ("Read"%go, Log__Read%V);
+  ("diskAppend"%go, Log__diskAppend%V);
+  ("diskAppendWait"%go, Log__diskAppendWait%V);
+  ("memAppend"%go, Log__memAppend%V);
+  ("memWrite"%go, Log__memWrite%V);
+  ("readBlocks"%go, Log__readBlocks%V);
+  ("readHdr"%go, Log__readHdr%V);
+  ("readLogTxnNxt"%go, Log__readLogTxnNxt%V);
+  ("writeBlocks"%go, Log__writeBlocks%V);
+  ("writeHdr"%go, Log__writeHdr%V)
 ].
 
-Definition Log__mset_ptr : list (string * val) := [
-  ("Append", (λ: "$recvAddr",
+Definition Log__mset_ptr : list (go_string * val) := [
+  ("Append"%go, (λ: "$recvAddr",
     Log__Append (![Log] "$recvAddr")
     )%V);
-  ("Logger", (λ: "$recvAddr",
+  ("Logger"%go, (λ: "$recvAddr",
     Log__Logger (![Log] "$recvAddr")
     )%V);
-  ("Read", (λ: "$recvAddr",
+  ("Read"%go, (λ: "$recvAddr",
     Log__Read (![Log] "$recvAddr")
     )%V);
-  ("diskAppend", (λ: "$recvAddr",
+  ("diskAppend"%go, (λ: "$recvAddr",
     Log__diskAppend (![Log] "$recvAddr")
     )%V);
-  ("diskAppendWait", (λ: "$recvAddr",
+  ("diskAppendWait"%go, (λ: "$recvAddr",
     Log__diskAppendWait (![Log] "$recvAddr")
     )%V);
-  ("memAppend", (λ: "$recvAddr",
+  ("memAppend"%go, (λ: "$recvAddr",
     Log__memAppend (![Log] "$recvAddr")
     )%V);
-  ("memWrite", (λ: "$recvAddr",
+  ("memWrite"%go, (λ: "$recvAddr",
     Log__memWrite (![Log] "$recvAddr")
     )%V);
-  ("readBlocks", (λ: "$recvAddr",
+  ("readBlocks"%go, (λ: "$recvAddr",
     Log__readBlocks (![Log] "$recvAddr")
     )%V);
-  ("readHdr", (λ: "$recvAddr",
+  ("readHdr"%go, (λ: "$recvAddr",
     Log__readHdr (![Log] "$recvAddr")
     )%V);
-  ("readLogTxnNxt", (λ: "$recvAddr",
+  ("readLogTxnNxt"%go, (λ: "$recvAddr",
     Log__readLogTxnNxt (![Log] "$recvAddr")
     )%V);
-  ("writeBlocks", (λ: "$recvAddr",
+  ("writeBlocks"%go, (λ: "$recvAddr",
     Log__writeBlocks (![Log] "$recvAddr")
     )%V);
-  ("writeHdr", (λ: "$recvAddr",
+  ("writeHdr"%go, (λ: "$recvAddr",
     Log__writeHdr (![Log] "$recvAddr")
     )%V)
 ].
@@ -397,20 +397,20 @@ Definition Txn__Write : val :=
     else do:  #());;;
     return: (![boolT] "ret")).
 
-Definition Txn__mset : list (string * val) := [
-  ("Commit", Txn__Commit%V);
-  ("Read", Txn__Read%V);
-  ("Write", Txn__Write%V)
+Definition Txn__mset : list (go_string * val) := [
+  ("Commit"%go, Txn__Commit%V);
+  ("Read"%go, Txn__Read%V);
+  ("Write"%go, Txn__Write%V)
 ].
 
-Definition Txn__mset_ptr : list (string * val) := [
-  ("Commit", (λ: "$recvAddr",
+Definition Txn__mset_ptr : list (go_string * val) := [
+  ("Commit"%go, (λ: "$recvAddr",
     Txn__Commit (![Txn] "$recvAddr")
     )%V);
-  ("Read", (λ: "$recvAddr",
+  ("Read"%go, (λ: "$recvAddr",
     Txn__Read (![Txn] "$recvAddr")
     )%V);
-  ("Write", (λ: "$recvAddr",
+  ("Write"%go, (λ: "$recvAddr",
     Txn__Write (![Txn] "$recvAddr")
     )%V)
 ].
@@ -431,7 +431,7 @@ Definition Begin : val :=
     do:  ("txn" <-[Txn] "$r0");;;
     return: (![Txn] "txn")).
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/logging2".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/logging2".
 
 Definition define' : val :=
   rec: "define'" <> :=

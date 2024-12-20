@@ -22,7 +22,7 @@ Definition UseDisk : val :=
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  ((interface.get "Barrier" (![disk.Disk] "d")) #())).
 
-Definition pkg_name' : string := "github.com/goose-lang/goose/testdata/examples/async".
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/async".
 
 Definition define' : val :=
   rec: "define'" <> :=
