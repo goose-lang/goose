@@ -946,16 +946,16 @@ func (d MethodSetDecl) DefName() (bool, string) {
 	return true, d.DeclName
 }
 
-type VarDecl struct {
+type NameDecl struct {
 	DeclName    string
 	VarUniqueId Expr
 }
 
-func (d VarDecl) CoqDecl() string {
+func (d NameDecl) CoqDecl() string {
 	return fmt.Sprintf("Definition %s : (go_string * go_string) := %s.", d.DeclName, d.VarUniqueId.Coq(false))
 }
 
-func (d VarDecl) DefName() (bool, string) {
+func (d NameDecl) DefName() (bool, string) {
 	return true, d.DeclName
 }
 
