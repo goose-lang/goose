@@ -920,32 +920,6 @@ func (d ConstDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
-type MethodSetDecl struct {
-	DeclName    string
-	MethodNames []string
-	Methods     []Expr
-}
-
-func (d MethodSetDecl) CoqDecl() string {
-	var pp buffer
-	pp.Add("Definition %s : list (go_string * val) := [", d.DeclName)
-	pp.Indent(2)
-	for i, name := range d.MethodNames {
-		sep := ";"
-		if i == len(d.Methods)-1 {
-			sep = ""
-		}
-		pp.Add("(\"%s\"%s, %s%%V)%s", name, "%go", d.Methods[i].Coq(false), sep)
-	}
-	pp.Indent(-2)
-	pp.Add("].")
-	return pp.Build()
-}
-
-func (d MethodSetDecl) DefName() (bool, string) {
-	return true, d.DeclName
-}
-
 type NameDecl struct {
 	DeclName    string
 	VarUniqueId Expr

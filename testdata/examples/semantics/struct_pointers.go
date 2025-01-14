@@ -20,7 +20,7 @@ func (foo *Foo) mutateBar() {
 	foo.bar.mutate()
 }
 
-func failing_testFooBarMutation() bool {
+func testFooBarMutation() bool {
 	x := Foo{bar: Bar{a: 0, b: 0}}
 	x.mutateBar()
 	return x.bar.a == 2

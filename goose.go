@@ -44,9 +44,10 @@ type Ctx struct {
 
 	dep *depTracker
 
-	// Set of global variables in the package being translated.
-	globalVars         map[string]*ast.Ident
-	globalVarsOrdered  []string
+	globalVars []*ast.Ident
+	functions  []string
+	namedTypes []*types.Named
+
 	importNames        map[string]struct{}
 	importNamesOrdered []string
 
@@ -88,7 +89,6 @@ func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
 		errorReporter:    newErrorReporter(pkg.Fset),
 		dep:              newDepTracker(),
 		namesToTranslate: namesToTranslate,
-		globalVars:       make(map[string]*ast.Ident),
 		importNames:      make(map[string]struct{}),
 	}
 }
@@ -175,65 +175,51 @@ func (ctx *Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	*comment += "go: " + f.String()
 }
 
-func (ctx *Ctx) methodSet(t *types.Named) []glang.Decl {
+// returns the mset for `t` followed by the mset for `ptr to t`
+func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	typeName := t.Obj().Name()
 
 	// Don't try to generate msets for interfaces, since Goosed code will never
 	// have to call `interface.make` on it.
 	if _, ok := t.Underlying().(*types.Interface); ok {
-		return nil
+		ctx.nope(t.Obj(), "Should not generate method set for interface type")
 	}
 
 	directMethods := make(map[string]bool)
 	// construct method set for T
-	mset := glang.MethodSetDecl{DeclName: fmt.Sprintf("%s__mset", typeName)}
-	msetPtr := glang.MethodSetDecl{DeclName: fmt.Sprintf("%s__mset_ptr", typeName)}
-	func() {
-		_, defName := mset.DefName()
-		ctx.dep.setCurrentName(defName)
-		defer ctx.dep.unsetCurrentName()
+	goMset := types.NewMethodSet(t)
+	var mset glang.ListExpr
+	for i := range goMset.Len() {
+		selection := goMset.At(i)
 
-		goMset := types.NewMethodSet(t)
-		for i := range goMset.Len() {
-			selection := goMset.At(i)
-
-			var expr glang.Expr
-			if len(selection.Index()) > 1 {
-				if !selection.Obj().Exported() {
-					continue // skip if an unexported method from an embedded field
-				}
-				expr = glang.IdentExpr("$recv")
-				expr = ctx.selectionMethod(false, expr, selection, t.Obj())
-				expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr}
-			} else {
-				n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
-				expr = glang.GallinaIdent(n)
-				ctx.dep.addDep(n)
-			}
-
-			name := selection.Obj().Name()
-			directMethods[name] = true
-			mset.MethodNames = append(mset.MethodNames, name)
-			mset.Methods = append(mset.Methods, expr)
+		var expr glang.Expr
+		if len(selection.Index()) > 1 {
+			expr = glang.IdentExpr("$recv")
+			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
+			expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr}
+		} else {
+			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
+			expr = glang.GallinaIdent(n)
+			ctx.dep.addDep(n)
 		}
-	}()
+
+		name := selection.Obj().Name()
+		directMethods[name] = true
+		mset = append(mset, glang.TupleExpr{glang.StringLiteral{Value: name}, expr})
+	}
 
 	// construct method set for *T
-	_, defName := msetPtr.DefName()
-	ctx.dep.setCurrentName(defName)
-	defer ctx.dep.unsetCurrentName()
-
 	goMsetPtr := types.NewMethodSet(types.NewPointer(t))
+	var msetPtr glang.ListExpr
 	for i := range goMsetPtr.Len() {
 		selection := goMsetPtr.At(i)
 
 		var expr glang.Expr
 
-		if len(selection.Index()) > 1 && !selection.Obj().Exported() {
-			continue // skip if an unexported method from an embedded field
-		}
-
 		if len(selection.Index()) == 1 && !directMethods[selection.Obj().Name()] {
+			// FIXME: probably want expr to use `method_call` to allow proof for
+			// the ptr-receiver method to use the spec for the direct method
+			// call.
 			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
 			expr = glang.GallinaIdent(n)
 			ctx.dep.addDep(n)
@@ -244,11 +230,10 @@ func (ctx *Ctx) methodSet(t *types.Named) []glang.Decl {
 		}
 
 		name := goMsetPtr.At(i).Obj().Name()
-		msetPtr.MethodNames = append(msetPtr.MethodNames, name)
-		msetPtr.Methods = append(msetPtr.Methods, expr)
+		msetPtr = append(msetPtr, glang.TupleExpr{glang.StringLiteral{Value: name}, expr})
 	}
 
-	return []glang.Decl{mset, msetPtr}
+	return mset, msetPtr
 }
 
 func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
@@ -265,6 +250,9 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 	}()
 
 	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+		if _, ok := t.Underlying().(*types.Interface); !ok {
+			ctx.namedTypes = append(ctx.namedTypes, t)
+		}
 		ctx.dep.setCurrentName(spec.Name.Name + "'")
 		ctx.dep.addDep("pkg_name'")
 		r = append(r, glang.NameDecl{
@@ -740,40 +728,36 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 		if !ok {
 			ctx.nope(l, "methods can only be called on a pointer if the base type is a defined type, not %s", pointerT.Elem())
 		}
-		typeName := ctx.qualifiedName(t.Obj()) + "'"
-		methodName := t.Method(fnIndex).Name()
 
-		ctx.dep.addDep(typeName)
-		f := glang.NewCallExpr(glang.GallinaIdent("method_call"),
-			glang.GallinaIdent(typeName),
-			glang.GallinaString(methodName),
-			glang.Tt,
-		)
-
-		// XXX: The following line does not give the same result as
-		// `funcSig2, ok := selection.Type().(*types.Signature)`
-		// The latter seems has a different receiver type. It seems to rely
-		// on the method set of a struct already including the methods of its embedded fields.
 		funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
 		if !ok {
 			ctx.nope(l, "func should have signature type, got %s", t.Method(fnIndex).Type())
 		}
 
+		methodName := t.Method(fnIndex).Name()
 		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-			return glang.NewCallExpr(f, expr)
+			typeName := ctx.qualifiedName(t.Obj()) + "'ptr"
+			ctx.dep.addDep(typeName)
+
+			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
+				glang.GallinaIdent(typeName),
+				glang.GallinaString(methodName),
+				glang.Tt,
+				expr,
+			)
 		} else {
-			return glang.NewCallExpr(f, glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)})
+			typeName := ctx.qualifiedName(t.Obj()) + "'"
+			ctx.dep.addDep(typeName)
+
+			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
+				glang.GallinaIdent(typeName),
+				glang.GallinaString(methodName),
+				glang.Tt,
+				glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)},
+			)
 		}
 	} else if t, ok := types.Unalias(curType).(*types.Named); ok {
-		typeName := ctx.qualifiedName(t.Obj()) + "'"
 		methodName := t.Method(fnIndex).Name()
-
-		ctx.dep.addDep(typeName)
-		f := glang.NewCallExpr(glang.GallinaIdent("method_call"),
-			glang.GallinaIdent(typeName),
-			glang.GallinaString(methodName),
-			glang.Tt,
-		)
 
 		funcSig, ok := t.Method(fnIndex).Type().(*types.Signature)
 		if !ok {
@@ -781,9 +765,16 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 		}
 
 		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-			ctx.nope(l, "receiver must be pointer, but selectorExpr has non-addressable base")
+			ctx.nope(l, "receiver of method must be pointer, but selectorExpr has non-addressable base")
 		} else {
-			return glang.NewCallExpr(f, expr)
+			typeName := ctx.qualifiedName(t.Obj()) + "'"
+			ctx.dep.addDep(typeName)
+			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
+				glang.GallinaIdent(typeName),
+				glang.GallinaString(methodName),
+				glang.Tt,
+				expr,
+			)
 		}
 	}
 	ctx.nope(l, "methods can only be called on (pointers to) defined types, not %s", curType)
@@ -2280,9 +2271,6 @@ func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 // Returns a glang.FuncDecl and maybe also a glang.NameDecl. If the function is an `init`, this
 // returns None.
 func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
-	ctx.usesDefer = false
-
-	fd := glang.FuncDecl{Name: d.Name.Name + "'"}
 
 	// In the case of a function (as opposed to a method), this declaration is
 	// how this function gets invoked.
@@ -2297,6 +2285,8 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	}
 	ctx.dep.unsetCurrentName()
 
+	ctx.usesDefer = false
+	fd := glang.FuncDecl{Name: d.Name.Name + "'"}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
@@ -2337,6 +2327,8 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		f := glang.FuncLit{Args: nil, Body: body}
 		ctx.inits = append(ctx.inits, f)
 		return nil
+	} else if d.Recv == nil {
+		ctx.functions = append(ctx.functions, d.Name.Name)
 	}
 
 	fd.Body = body
@@ -2447,10 +2439,7 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 			if name.Name == "_" {
 				continue
 			}
-			if _, ok := ctx.globalVars[name.Name]; !ok {
-				ctx.globalVars[name.Name] = name
-				ctx.globalVarsOrdered = append(ctx.globalVarsOrdered, name.Name)
-			}
+			ctx.globalVars = append(ctx.globalVars, name)
 			ctx.dep.setCurrentName(name.Name)
 			decls = append(decls, glang.NameDecl{
 				DeclName:    name.Name,
@@ -2535,44 +2524,58 @@ func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 }
 
 func (ctx *Ctx) initFunctions() []glang.Decl {
-	// TODO: some constraints for the init translation:
-	// - Variables are initialized before `init()` runs
-	// - `init()` can be defined multiple times, and are run in source order.
-	// - Need to fully initialize lower level packages (e.g. call `init()`s) before
-	//   initializing vars of the current package.
-	// - should only `init` a package once, even if imported multiple times.
-
-	packageIdDecl := glang.ConstDecl{
+	nameDecl := glang.ConstDecl{
 		Name: "pkg_name'",
 		Val:  glang.GallinaString(ctx.pkgPath),
 		Type: glang.GallinaIdent("go_string"),
 	}
 
-	defineFunc := glang.FuncDecl{Name: "define'"}
-	ctx.dep.setCurrentName("define'")
-	var e glang.Expr
-
-	if len(ctx.globalVarsOrdered) == 0 {
-		e = glang.DoExpr{Expr: glang.Tt}
-	} else {
-		for _, varName := range ctx.globalVarsOrdered {
-			t := ctx.glangType(ctx.globalVars[varName], ctx.info.TypeOf(ctx.globalVars[varName]))
-			s := glang.NewCallExpr(glang.GallinaIdent("globals.put"),
-				glang.GallinaIdent(varName),
-				glang.RefExpr{
-					X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
-					Ty: t,
-				})
-			e = glang.NewDoSeq(s, e)
-		}
-	}
-	defineFunc.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
-	ctx.dep.unsetCurrentName()
-
 	ctx.dep.setCurrentName("initialize'")
 	initFunc := glang.FuncDecl{Name: "initialize'"}
 
-	e = nil
+	var globalVars glang.ListExpr
+	for _, varIdent := range ctx.globalVars {
+		t := ctx.glangType(varIdent, ctx.info.TypeOf(varIdent))
+		globalVars = append(globalVars,
+			glang.TupleExpr{
+				glang.StringLiteral{Value: varIdent.Name},
+				t,
+			},
+		)
+	}
+
+	varsDecl := glang.ConstDecl{
+		Name: "vars'",
+		Val:  globalVars,
+		Type: glang.GallinaIdent("list (go_string * go_type)"),
+	}
+
+	var functions glang.ListExpr
+	for _, functionName := range ctx.functions {
+		functions = append(functions, glang.TupleExpr{glang.StringLiteral{Value: functionName}, glang.GallinaIdent(functionName + "'")})
+	}
+
+	functionsDecl := glang.ConstDecl{
+		Name: "functions'",
+		Val:  functions,
+		Type: glang.GallinaIdent("list (go_string * val)"),
+	}
+
+	var msets glang.ListExpr
+	for _, namedType := range ctx.namedTypes {
+		mset, msetPtr := ctx.methodSet(namedType)
+		typeName := namedType.Obj().Name()
+		msets = append(msets, glang.TupleExpr{glang.StringLiteral{Value: typeName}, mset})
+		msets = append(msets, glang.TupleExpr{glang.StringLiteral{Value: typeName + "'ptr"}, msetPtr})
+	}
+
+	msetsDecl := glang.ConstDecl{
+		Name: "msets'",
+		Val:  msets,
+		Type: glang.GallinaIdent("list (go_string * (list (go_string * val)))"),
+	}
+
+	var e glang.Expr
 
 	// add all init() function bodies
 	for i := range ctx.inits {
@@ -2648,20 +2651,24 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		}
 	}
 
-	ctx.dep.addDep("define'")
-	e = glang.NewDoSeq(glang.NewCallExpr(glang.GallinaIdent("define'"), glang.Tt), e)
-
 	for _, importName := range ctx.importNamesOrdered {
 		e = glang.NewDoSeq(glang.GallinaIdent(importName+"."+"initialize'"), e)
+	}
+
+	if e == nil {
+		e = glang.DoExpr{Expr: glang.Tt}
 	}
 
 	e = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 	e = glang.NewCallExpr(glang.GallinaIdent("globals.package_init"),
 		glang.GallinaIdent("pkg_name'"),
+		glang.GallinaIdent("vars'"),
+		glang.GallinaIdent("functions'"),
+		glang.GallinaIdent("msets'"),
 		glang.FuncLit{Args: nil, Body: e},
 	)
 
 	initFunc.Body = e
 
-	return []glang.Decl{packageIdDecl, defineFunc, initFunc}
+	return []glang.Decl{nameDecl, varsDecl, functionsDecl, msetsDecl, initFunc}
 }
