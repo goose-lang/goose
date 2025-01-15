@@ -178,7 +178,7 @@ Admitted.
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
 					}
-					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s (struct.fields_val [", name)
+					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s (alist_val [", name)
 					sep := ""
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
