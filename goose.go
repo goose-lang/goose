@@ -259,7 +259,7 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 			DeclName: spec.Name.Name + "'",
 			VarUniqueId: glang.TupleExpr{
 				glang.GallinaIdent("pkg_name'"),
-				glang.GallinaString(t.Obj().Name()),
+				glang.StringLiteral{Value: t.Obj().Name()},
 			},
 		})
 		ctx.dep.unsetCurrentName()
@@ -593,6 +593,16 @@ func (ctx *Ctx) qualifiedName(obj types.Object) string {
 	return fmt.Sprintf("%s.%s", obj.Pkg().Name(), name)
 }
 
+func (ctx *Ctx) getPkgAndName(obj types.Object) (pkg string, name string) {
+	name = obj.Name()
+	pkg = "pkg_name'"
+	if obj.Pkg() == nil || ctx.pkgPath == obj.Pkg().Path() {
+		return
+	}
+	pkg = obj.Pkg().Name() + "." + pkg
+	return
+}
+
 func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	selection := ctx.info.Selections[e]
 	if selection == nil {
@@ -736,21 +746,26 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 
 		methodName := t.Method(fnIndex).Name()
 		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
-			typeName := ctx.qualifiedName(t.Obj()) + "'ptr"
+			pkgName, typeName := ctx.getPkgAndName(t.Obj())
+			ctx.dep.addDep(pkgName)
 			ctx.dep.addDep(typeName)
 
 			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
-				glang.GallinaIdent(typeName),
-				glang.GallinaString(methodName),
+				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+				glang.StringVal{Value: glang.GallinaString(typeName + "'ptr")},
+				glang.StringVal{Value: glang.GallinaString(methodName)},
 				glang.Tt,
 				expr,
 			)
 		} else {
-			typeName := ctx.qualifiedName(t.Obj()) + "'"
+			pkgName, typeName := ctx.getPkgAndName(t.Obj())
+			ctx.dep.addDep(pkgName)
 			ctx.dep.addDep(typeName)
 
 			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
-				glang.GallinaIdent(typeName),
+				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+				glang.StringVal{Value: glang.GallinaString(typeName)},
+				glang.StringVal{Value: glang.GallinaString(methodName)},
 				glang.GallinaString(methodName),
 				glang.Tt,
 				glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)},
@@ -767,10 +782,13 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 		if _, ok := types.Unalias(funcSig.Recv().Type()).(*types.Pointer); ok {
 			ctx.nope(l, "receiver of method must be pointer, but selectorExpr has non-addressable base")
 		} else {
-			typeName := ctx.qualifiedName(t.Obj()) + "'"
+			pkgName, typeName := ctx.getPkgAndName(t.Obj())
+			ctx.dep.addDep(pkgName)
 			ctx.dep.addDep(typeName)
 			return glang.NewCallExpr(glang.GallinaIdent("method_call"),
-				glang.GallinaIdent(typeName),
+				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+				glang.StringVal{Value: glang.GallinaString(typeName)},
+				glang.StringVal{Value: glang.GallinaString(methodName)},
 				glang.GallinaString(methodName),
 				glang.Tt,
 				expr,
@@ -797,11 +815,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				ctx.info.TypeOf(e),
 				glang.NewCallExpr(
 					glang.GallinaIdent("func_call"),
-					glang.PackageIdent{
-						Package: pkg,
-						Ident:   e.Sel.Name,
-					},
-					glang.Tt,
+					glang.StringVal{Value: glang.GallinaIdent(pkg + ".pkg_name'")},
+					glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 				),
 			)
 		} else {
@@ -1184,11 +1199,14 @@ func (ctx *Ctx) variable(s *ast.Ident) glang.Expr {
 }
 
 func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
-	ctx.dep.addDep(s.Name)
+	ctx.dep.addDep("pkg_name'")
 
 	typeArgs := ctx.info.Instances[s].TypeArgs
 	if typeArgs.Len() == 0 {
-		return glang.NewCallExpr(glang.GallinaIdent("func_call"), glang.GallinaIdent(s.Name), glang.Tt)
+		return glang.NewCallExpr(glang.GallinaIdent("func_call"),
+			glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+			glang.StringVal{Value: glang.StringLiteral{Value: s.Name}},
+		)
 	}
 	return glang.CallExpr{
 		MethodName: glang.GallinaIdent(s.Name),
@@ -1829,14 +1847,17 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		maybePtrSuffix := ""
 		if fromPointer, ok := from.(*types.Pointer); ok {
 			from = fromPointer.Elem()
-			maybePtrSuffix = "ptr"
+			maybePtrSuffix = "'ptr"
 		}
 		if fromNamed, ok := from.(*types.Named); ok {
-			typeName := ctx.qualifiedName(fromNamed.Obj()) + "'" + maybePtrSuffix
+			pkgName, typeName := ctx.getPkgAndName(fromNamed.Obj())
 			ctx.dep.addDep(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"),
+				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+				glang.StringVal{Value: glang.GallinaString(typeName + maybePtrSuffix)},
+				e)
 		} else if fromBasic, ok := from.(*types.Basic); ok {
-			typeName := fromBasic.Name() + "'" + maybePtrSuffix
+			typeName := fromBasic.Name() + maybePtrSuffix
 			ctx.dep.addDep(typeName)
 			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
 		} else if _, ok := from.(*types.Slice); ok {
@@ -2271,22 +2292,8 @@ func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 // Returns a glang.FuncDecl and maybe also a glang.NameDecl. If the function is an `init`, this
 // returns None.
 func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
-
-	// In the case of a function (as opposed to a method), this declaration is
-	// how this function gets invoked.
-	ctx.dep.setCurrentName(d.Name.Name)
-	ctx.dep.addDep("pkg_name'")
-	nd := glang.NameDecl{
-		DeclName: d.Name.Name,
-		VarUniqueId: glang.TupleExpr{
-			glang.GallinaIdent("pkg_name'"),
-			glang.StringLiteral{Value: d.Name.Name},
-		},
-	}
-	ctx.dep.unsetCurrentName()
-
 	ctx.usesDefer = false
-	fd := glang.FuncDecl{Name: d.Name.Name + "'"}
+	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
@@ -2307,7 +2314,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		}
 		typeName := namedType.Obj().Name()
 
-		fd.Name = glang.TypeMethod(typeName, d.Name.Name) + "'"
+		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
 		ctx.dep.setCurrentName(fd.Name)
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
@@ -2354,13 +2361,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	} else {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("exception_do"), fd.Body)
 	}
-
-	if fd.RecvArg != nil {
-		return []glang.Decl{fd}
-	} else {
-		return []glang.Decl{fd, nd}
-	}
-
+	return []glang.Decl{fd}
 }
 
 // this should only be used for untyped constant literals
@@ -2552,7 +2553,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 
 	var functions glang.ListExpr
 	for _, functionName := range ctx.functions {
-		functions = append(functions, glang.TupleExpr{glang.StringLiteral{Value: functionName}, glang.GallinaIdent(functionName + "'")})
+		functions = append(functions, glang.TupleExpr{glang.StringLiteral{Value: functionName}, glang.GallinaIdent(functionName)})
 	}
 
 	functionsDecl := glang.ConstDecl{

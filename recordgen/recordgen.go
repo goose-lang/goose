@@ -2,15 +2,14 @@ package recordgen
 
 import (
 	"fmt"
+	"github.com/goose-lang/goose/glang"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"io"
 	"log"
 	"strings"
-
-	"github.com/goose-lang/goose/glang"
-	"golang.org/x/tools/go/packages"
 )
 
 func (ctx *Ctx) toCoqType(t types.Type) string {
