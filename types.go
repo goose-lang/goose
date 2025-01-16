@@ -67,6 +67,8 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 			return glang.TypeIdent("stringT")
 		case "int":
 			return glang.TypeIdent("intT")
+		case "uint":
+			return glang.TypeIdent("uintT")
 		default:
 			ctx.unsupported(n, "basic type %s", t.Name())
 		}

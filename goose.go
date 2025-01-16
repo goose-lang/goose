@@ -1881,8 +1881,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedInt {
 		if toBasic, ok := toUnder.(*types.Basic); ok {
 			switch toBasic.Kind() {
-			case types.Uint64, types.Int64, types.Int:
-				// XXX: treat an `int` as a `int64`
+			case types.Uint64, types.Int64, types.Int, types.Uint:
+				// XXX: treat an `int` as a `int64` and `uint` as `uint64`
 				return glang.Int64Val{Value: e}
 			case types.Uint32, types.Int32:
 				return glang.Int32Val{Value: e}
