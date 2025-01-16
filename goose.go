@@ -1821,6 +1821,20 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		return e
 	}
 
+	if fromPtr, ok := from.(*types.Pointer); ok {
+		if toPtr, ok := to.(*types.Pointer); ok {
+			fromBase := fromPtr.Elem().Underlying()
+			toBase := toPtr.Elem().Underlying()
+			if types.Identical(fromBase, toBase) {
+				return e
+			} else {
+				ctx.nope(n, "Cannot convert between pointer types from base %s to %s",
+					fromBase, toBase,
+				)
+			}
+		}
+	}
+
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedNil {
 		if _, ok := toUnder.(*types.Slice); ok {
 			return glang.GallinaIdent("#slice.nil")
