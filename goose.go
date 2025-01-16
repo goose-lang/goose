@@ -236,36 +236,14 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	return mset, msetPtr
 }
 
-func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
-	var r []glang.Decl
-
-	func() {
-		ctx.dep.setCurrentName(spec.Name.Name)
-		defer ctx.dep.unsetCurrentName()
-		r = append(r, glang.TypeDecl{
-			Name:       spec.Name.Name,
-			Body:       ctx.glangTypeFromExpr(spec.Type),
-			TypeParams: ctx.typeParamList(spec.TypeParams),
-		})
-	}()
-
-	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-		if _, ok := t.Underlying().(*types.Interface); !ok {
-			ctx.namedTypes = append(ctx.namedTypes, t)
-		}
-		ctx.dep.setCurrentName(spec.Name.Name + "'")
-		ctx.dep.addDep("pkg_name'")
-		r = append(r, glang.NameDecl{
-			DeclName: spec.Name.Name + "'",
-			VarUniqueId: glang.TupleExpr{
-				glang.GallinaIdent("pkg_name'"),
-				glang.StringLiteral{Value: t.Obj().Name()},
-			},
-		})
-		ctx.dep.unsetCurrentName()
+func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
+	ctx.dep.setCurrentName(spec.Name.Name)
+	defer ctx.dep.unsetCurrentName()
+	return glang.TypeDecl{
+		Name:       spec.Name.Name,
+		Body:       ctx.glangTypeFromExpr(spec.Type),
+		TypeParams: ctx.typeParamList(spec.TypeParams),
 	}
-
-	return r
 }
 
 // TODO: make this the input to handleImplicitConversion?
@@ -1634,7 +1612,7 @@ func (ctx *Ctx) identBinder(id *ast.Ident) glang.Binder {
 
 func (ctx *Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
 	if s.Tok != token.DEFINE {
-		ctx.unsupported(s.Key, "range with pre-existing variables")
+		ctx.unsupported(s, "range with pre-existing variables")
 	}
 	key, ok := s.Key.(*ast.Ident)
 	if !ok {
@@ -2515,11 +2493,12 @@ func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 			ctx.globalVarDecl(d)
 			return nil
 		case token.TYPE:
-			if len(d.Specs) > 1 {
-				ctx.unsupported(d, "multiple specs in a type decl")
+			var decls []glang.Decl
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.TypeSpec)
+				decls = append(decls, ctx.typeDecl(spec))
 			}
-			spec := d.Specs[0].(*ast.TypeSpec)
-			return ctx.typeDecl(spec)
+			return decls
 		default:
 			ctx.nope(d, "unknown token type in decl")
 		}
