@@ -611,11 +611,10 @@ func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 			ctx.unsupported(e, "expected package selector with idtent, got %T", e.X)
 		}
 		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
+			ctx.dep.addDep("pkg_name'")
 			return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-				glang.PackageIdent{
-					Package: pkg,
-					Ident:   e.Sel.Name,
-				},
+				glang.StringVal{Value: glang.GallinaIdent(pkg + ".pkg_name'")},
+				glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 				glang.Tt,
 			)
 		} else {
@@ -1744,9 +1743,10 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		obj := ctx.info.ObjectOf(e)
 		if _, ok := obj.(*types.Var); ok {
 			if obj.Pkg().Scope() == obj.Parent() {
-				ctx.dep.addDep(e.Name)
+				ctx.dep.addDep("pkg_name'")
 				return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-					glang.GallinaIdent(e.Name),
+					glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+					glang.StringVal{Value: glang.StringLiteral{Value: e.Name}},
 					glang.Tt,
 				)
 			} else {
@@ -1859,7 +1859,11 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		} else if fromBasic, ok := from.(*types.Basic); ok {
 			typeName := fromBasic.Name() + maybePtrSuffix
 			ctx.dep.addDep(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"),
+				glang.StringVal{Value: glang.StringLiteral{Value: ""}},
+				glang.StringVal{Value: glang.StringLiteral{Value: typeName}},
+				e,
+			)
 		} else if _, ok := from.(*types.Slice); ok {
 			typeName := "slice'" + maybePtrSuffix
 			ctx.dep.addDep(typeName)
@@ -2432,25 +2436,13 @@ func (ctx *Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	return specs
 }
 
-func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
-	var decls []glang.Decl
+func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) {
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
-			if name.Name == "_" {
-				continue
-			}
 			ctx.globalVars = append(ctx.globalVars, name)
-			ctx.dep.setCurrentName(name.Name)
-			decls = append(decls, glang.NameDecl{
-				DeclName:    name.Name,
-				VarUniqueId: glang.TupleExpr{glang.GallinaIdent("pkg_name'"), glang.StringLiteral{Value: name.Name}},
-			})
-			ctx.dep.addDep("pkg_name'")
-			ctx.dep.unsetCurrentName()
 		}
 	}
-	return decls
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
@@ -2506,7 +2498,8 @@ func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
 		case token.CONST:
 			return ctx.constDecl(d)
 		case token.VAR:
-			return ctx.globalVarDecl(d)
+			ctx.globalVarDecl(d)
+			return nil
 		case token.TYPE:
 			if len(d.Specs) > 1 {
 				ctx.unsupported(d, "multiple specs in a type decl")
@@ -2593,7 +2586,8 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 				e = glang.NewDoSeq(
 					glang.StoreStmt{
 						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-							glang.GallinaIdent(init.Lhs[i-1].Name()),
+							glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+							glang.StringVal{Value: glang.StringLiteral{Value: init.Lhs[i-1].Name()}},
 							glang.Tt,
 						),
 						X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
