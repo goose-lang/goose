@@ -51,12 +51,16 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 			return glang.TypeIdent("uint64T")
 		case "uint32":
 			return glang.TypeIdent("uint32T")
+		case "uint16":
+			return glang.TypeIdent("uint16T")
 		case "uint8":
 			return glang.TypeIdent("uint8T")
 		case "int64":
 			return glang.TypeIdent("int64T")
 		case "int32":
 			return glang.TypeIdent("int32T")
+		case "int16":
+			return glang.TypeIdent("int16T")
 		case "int8":
 			return glang.TypeIdent("int8T")
 		case "byte":

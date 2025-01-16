@@ -239,6 +239,11 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
 	ctx.dep.setCurrentName(spec.Name.Name)
 	defer ctx.dep.unsetCurrentName()
+	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+		if _, ok := t.Underlying().(*types.Interface); !ok {
+			ctx.namedTypes = append(ctx.namedTypes, t)
+		}
+	}
 	return glang.TypeDecl{
 		Name:       spec.Name.Name,
 		Body:       ctx.glangTypeFromExpr(spec.Type),
@@ -1232,6 +1237,8 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 			if ty.Kind() == types.String {
 				return glang.GallinaIdent("StringLength")
 			}
+		case *types.Chan:
+			return glang.GallinaIdent("chan.len")
 		default:
 			ctx.unsupported(e, "length of object of type %v", ty)
 		}
@@ -1240,6 +1247,8 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		switch ty := sig.Params().At(0).Type().Underlying().(type) {
 		case *types.Slice:
 			return glang.GallinaIdent("slice.cap")
+		case *types.Chan:
+			return glang.GallinaIdent("chan.cap")
 		default:
 			ctx.unsupported(e, "capacity of object of type %v", ty)
 		}
@@ -1858,6 +1867,10 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 			)
 		} else if _, ok := from.(*types.Slice); ok {
 			typeName := "slice'" + maybePtrSuffix
+			ctx.dep.addDep(typeName)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
+		} else if _, ok := from.(*types.Map); ok {
+			typeName := "map'" + maybePtrSuffix
 			ctx.dep.addDep(typeName)
 			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
 		}
