@@ -821,6 +821,14 @@ func (e FuncLit) Coq(needs_paren bool) string {
 	return pp.Build()
 }
 
+type ValueScoped struct {
+	Value Expr
+}
+
+func (e ValueScoped) Coq(needs_paren bool) string {
+	return e.Value.Coq(true) + "%V"
+}
+
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
 	Name       string

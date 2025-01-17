@@ -196,7 +196,9 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 		if len(selection.Index()) > 1 {
 			expr = glang.IdentExpr("$recv")
 			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
-			expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr}
+			expr = glang.ValueScoped{
+				Value: glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr},
+			}
 		} else {
 			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
 			expr = glang.GallinaIdent(n)
@@ -226,7 +228,9 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 		} else {
 			expr = glang.IdentExpr("$recvAddr")
 			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
-			expr = glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvAddr"}}, Body: expr}
+			expr = glang.ValueScoped{
+				Value: glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvAddr"}}, Body: expr},
+			}
 		}
 
 		name := goMsetPtr.At(i).Obj().Name()
@@ -598,7 +602,6 @@ func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 			return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
 				glang.StringVal{Value: glang.GallinaIdent(pkg + ".pkg_name'")},
 				glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
-				glang.Tt,
 			)
 		} else {
 			ctx.unsupported(e, "address of external package selection that is not a variable")
@@ -736,7 +739,6 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
 				glang.StringVal{Value: glang.GallinaString(typeName + "'ptr")},
 				glang.StringVal{Value: glang.GallinaString(methodName)},
-				glang.Tt,
 				expr,
 			)
 		} else {
@@ -748,8 +750,6 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
 				glang.StringVal{Value: glang.GallinaString(typeName)},
 				glang.StringVal{Value: glang.GallinaString(methodName)},
-				glang.GallinaString(methodName),
-				glang.Tt,
 				glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)},
 			)
 		}
@@ -1734,7 +1734,6 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 				return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
 					glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Name}},
-					glang.Tt,
 				)
 			} else {
 				return glang.IdentExpr(e.Name)
@@ -1868,11 +1867,11 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		} else if _, ok := from.(*types.Slice); ok {
 			typeName := "slice'" + maybePtrSuffix
 			ctx.dep.addDep(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.StringVal{Value: glang.StringLiteral{Value: typeName}}, e)
 		} else if _, ok := from.(*types.Map); ok {
 			typeName := "map'" + maybePtrSuffix
 			ctx.dep.addDep(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.GallinaIdent(typeName), e)
+			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.StringVal{Value: glang.StringLiteral{Value: typeName}}, e)
 		}
 	}
 
@@ -2594,7 +2593,6 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
 							glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
 							glang.StringVal{Value: glang.StringLiteral{Value: init.Lhs[i-1].Name()}},
-							glang.Tt,
 						),
 						X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
 						Ty: ctx.glangType(init.Lhs[i-1], init.Lhs[i-1].Type()),

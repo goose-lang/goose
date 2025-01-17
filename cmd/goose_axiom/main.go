@@ -62,7 +62,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 				axiomgen.Decl(w, *pkg.TypesInfo, d)
 			}
 		}
-		axiomgen.InitializeDecl(w)
+		axiomgen.InitializeDecl(w, pkg.PkgPath)
 		fmt.Fprintln(w, "\nEnd axioms.")
 		outFile := path.Join(outRootDir, glang.ImportToPath(pkg.PkgPath, pkg.Name))
 		outDir := path.Dir(outFile)
