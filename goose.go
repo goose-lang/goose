@@ -2304,7 +2304,19 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
-	fd.TypeParams = ctx.typeParamList(d.Type.TypeParams)
+
+	if d.Type.TypeParams != nil {
+		// TODO(generics): a plan for supporting generics:
+		// - embed `go_type` into GooseLang rather than just Gallina; this
+		//   includes instantiated generic types which includes the type
+		//   arguments.
+		// - type parameters would be GooseLang arguments, and method lookups
+		//   would look up based on the type name and then specialize the method.
+		// - interface values need to remember if the type is generic, and the
+		//   type arguments if yes, so the type arguments can be passed into the
+		//   method from `interface.get`
+		ctx.unsupported(d, "generic functions not supported")
+	}
 
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
