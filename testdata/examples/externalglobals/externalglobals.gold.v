@@ -4,21 +4,22 @@ From New.code Require github_com.goose_lang.goose.testdata.examples.unittest.
 
 From New Require Import disk_prelude.
 
+Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
+
 (* go: g.go:7:6 *)
 Definition f : val :=
   rec: "f" <> :=
     exception_do (let: "$r0" := #(W64 11) in
-    do:  ((globals.get unittest.GlobalX #()) <-[uint64T] "$r0")).
+    do:  ((globals.get #unittest.pkg_name' #"GlobalX"%go) <-[uint64T] "$r0")).
 
-Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
+Definition vars' : list (go_string * go_type) := [].
 
-Definition define' : val :=
-  rec: "define'" <> :=
-    exception_do (do:  #()).
+Definition functions' : list (go_string * val) := [("f"%go, f)].
+
+Definition msets' : list (go_string * (list (go_string * val))) := [].
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
-      exception_do (do:  unittest.initialize';;;
-      do:  (define' #()))
+    globals.package_init pkg_name' vars' functions' msets' (λ: <>,
+      exception_do (do:  unittest.initialize')
       ).

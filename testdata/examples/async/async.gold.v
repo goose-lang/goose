@@ -24,13 +24,14 @@ Definition UseDisk : val :=
 
 Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/async".
 
-Definition define' : val :=
-  rec: "define'" <> :=
-    exception_do (do:  #()).
+Definition vars' : list (go_string * go_type) := [].
+
+Definition functions' : list (go_string * val) := [("TakesDisk"%go, TakesDisk); ("UseDisk"%go, UseDisk)].
+
+Definition msets' : list (go_string * (list (go_string * val))) := [].
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
-      exception_do (do:  async_disk.initialize';;;
-      do:  (define' #()))
+    globals.package_init pkg_name' vars' functions' msets' (λ: <>,
+      exception_do (do:  async_disk.initialize')
       ).

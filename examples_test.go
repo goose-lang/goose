@@ -130,6 +130,9 @@ func TestExamples(testingT *testing.T) {
 				assert.FailNowf("pattern matched unexpected number of packages",
 					"files: %v", files)
 			}
+			if errs[0] != nil {
+				assert.FailNow(errs[0].Error())
+			}
 
 			var b bytes.Buffer
 			files[0].Write(&b)
@@ -257,8 +260,8 @@ func TestNegativeExamples(testingT *testing.T) {
 			actualLine := conversionErr.Position.Line
 			if actualLine > 0 && actualLine != expectedErr.Line {
 				assert.FailNowf("incorrect error message line",
-					"%s: error is incorrectly attributed to %s",
-					t.name, conversionErr.Position.String())
+					"%s: error is incorrectly attributed to %s instead of %d",
+					t.name, conversionErr.Position.String(), expectedErr.Line)
 			}
 		})
 	}
