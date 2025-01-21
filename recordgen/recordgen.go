@@ -12,6 +12,18 @@ import (
 	"strings"
 )
 
+type Ctx struct {
+	pkgPath string
+
+	deps        map[string][]string
+	currentName string
+	defs        map[string]string
+	defNames    []string
+
+	importsList []string
+	importsSet  map[string]struct{}
+}
+
 func (ctx *Ctx) toCoqType(t types.Type) string {
 	switch t := t.(type) {
 	case *types.Basic:
@@ -22,7 +34,9 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 			return "w32"
 		case "uint8", "int8", "byte":
 			return "w8"
-		case "int":
+		case "uint", "int":
+			return "w64"
+		case "float64":
 			return "w64"
 		case "bool":
 			return "bool"
@@ -57,7 +71,7 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 		}
 		return ctx.toCoqType(u)
 	}
-	panic(fmt.Sprint("Unknown type", t))
+	panic(fmt.Sprint("Unknown type ", t))
 }
 
 func toCoqName(n string) string {
@@ -67,18 +81,6 @@ func toCoqName(n string) string {
 		return "t'"
 	}
 	return n
-}
-
-type Ctx struct {
-	pkgPath string
-
-	deps        map[string][]string
-	currentName string
-	defs        map[string]string
-	defNames    []string
-
-	importsList []string
-	importsSet  map[string]struct{}
 }
 
 func (ctx *Ctx) setCurrent(s string) {
