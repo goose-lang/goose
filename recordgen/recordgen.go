@@ -223,7 +223,7 @@ func Package(w io.Writer, pkg *packages.Package) {
 
 	// print in sorted order, printing error if there's a cycle
 	for _, imp := range ctx.importsList {
-		fmt.Fprintf(w, "From New.proof.structs Require %s.\n", imp)
+		fmt.Fprintf(w, "From New.generatedproof.structs Require %s.\n", imp)
 	}
 	fmt.Fprintf(w, "Axiom falso : False.\n\n") // FIXME: get rid of this
 	var printingOrdered []string

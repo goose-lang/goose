@@ -56,7 +56,7 @@ func Package(w io.Writer, pkg *packages.Package) {
 
 	coqPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
 	fmt.Fprintf(w, "From New.code Require Import %s.\n", coqPath)
-	fmt.Fprintf(w, "From New.golang Require Import theory.\n\n")
+	fmt.Fprintf(w, "From New.proof Require Export grove_prelude.\n")
 
 	ctx := &Ctx{info: pkg.TypesInfo}
 
@@ -66,7 +66,7 @@ func Package(w io.Writer, pkg *packages.Package) {
 		}
 	}
 
-	fmt.Fprintf(w, "Module %s.\nSection defs.", pkg.Name)
+	fmt.Fprintf(w, "Module %s.\nSection defs.\n", pkg.Name)
 	// emit record for global addrs
 	fmt.Fprintf(w, `Class GlobalAddrs :=
 {
@@ -75,7 +75,9 @@ func Package(w io.Writer, pkg *packages.Package) {
 		fmt.Fprintf(w, "  %s : loc;\n", varName)
 	}
 	fmt.Fprint(w, "}.\n\n")
-	fmt.Fprint(w, "Context `{!GlobalAddrs}.\n\n")
+	fmt.Fprint(w, "Context `{!GlobalAddrs}.\n")
+	fmt.Fprint(w, "Context `{!heapGS Σ}.\n")
+	fmt.Fprint(w, "Context `{!goGlobalsGS Σ}.\n\n")
 
 	// emit `var_addrs` which converts GlobalAddrs into alist
 	fmt.Fprint(w, "Definition var_addrs `{!GlobalAddrs} : list (go_string * loc) := [")
@@ -112,12 +114,12 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s : \n", typeName, methodName)
-			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined.\n",
+			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
 				pkg.Name, typeName, methodName)
+			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 			// XXX: by using an ltac expression to generate the instance, we can
 			// leave an evar for the method val, avoiding the need to write out
 			// the promoted methods.
-			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 		}
 
 		typeName = namedType.Obj().Name() + "'ptr"
@@ -125,7 +127,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s : \n", typeName, methodName)
-			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined.\n",
+			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
 				pkg.Name, typeName, methodName)
 			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 		}
