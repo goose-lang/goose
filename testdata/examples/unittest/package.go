@@ -1,16 +1,15 @@
 // unittest has two package comments
 package unittest
 
-import "github.com/tchajed/marshal"
+import "github.com/goose-lang/std"
 
 // Note that compiling this test in Coq relies on the external marshal package
 // being compiled and available.
 
 type wrapExternalStruct struct {
-	e marshal.Enc
-	d marshal.Dec
+	j *std.JoinHandle
 }
 
-func (w wrapExternalStruct) moveUint64() {
-	w.e.PutInt(w.d.GetInt())
+func (w wrapExternalStruct) join() {
+	w.j.Join()
 }
