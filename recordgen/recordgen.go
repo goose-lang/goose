@@ -13,7 +13,7 @@ import (
 )
 
 type Ctx struct {
-	pkgPath string
+	pkg *packages.Package
 
 	deps        map[string][]string
 	currentName string
@@ -32,6 +32,8 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 			return "w64"
 		case "uint32", "int32":
 			return "w32"
+		case "uint16", "int16":
+			return "w16"
 		case "uint8", "int8", "byte":
 			return "w8"
 		case "uint", "int":
@@ -42,6 +44,10 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 			return "bool"
 		case "string", "untyped string":
 			return "go_string"
+		case "Pointer", "uintptr":
+			return "loc"
+		default:
+			panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
 		}
 	case *types.Slice:
 		return "slice.t"
@@ -58,7 +64,7 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 	case *types.Named:
 		u := t.Underlying()
 		if _, ok := u.(*types.Struct); ok {
-			if ctx.pkgPath == t.Obj().Pkg().Path() {
+			if ctx.pkg.PkgPath == t.Obj().Pkg().Path() {
 				return t.Obj().Name() + ".t"
 			} else {
 				coqPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(t.Obj().Pkg().Path()), "/", ".")
@@ -70,6 +76,12 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 			}
 		}
 		return ctx.toCoqType(u)
+	case *types.Struct:
+		if t.NumFields() == 0 {
+			return "unit"
+		} else {
+			panic(fmt.Sprint("Anonymous structs with fields are not supported ", t))
+		}
 	}
 	panic(fmt.Sprint("Unknown type ", t))
 }
@@ -145,10 +157,10 @@ Admitted.
 					)
 
 					// IntoValTyped instance
-					fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s :=
+					fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s :=
 {|
 `,
-						name, name, name,
+						name, name, ctx.pkg.Name, name,
 					)
 					// default_val
 					fmt.Fprintf(w, "  default_val := %s.mk", name)
@@ -167,11 +179,11 @@ Admitted.
 					for i := 0; i < s.NumFields(); i++ {
 						fieldName := s.Field(i).Name()
 						instanceName := "into_val_struct_field_" + name + "_" + fieldName
-						fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s %s.%s.
+						fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s.%s %s.%s.
 Admitted.
 
 `,
-							instanceName, fieldName, name, name, toCoqName(fieldName),
+							instanceName, fieldName, ctx.pkg.Name, name, name, toCoqName(fieldName),
 						)
 					}
 
@@ -180,7 +192,7 @@ Admitted.
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
 					}
-					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s (alist_val [", name)
+					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", ctx.pkg.Name, name)
 					sep := ""
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
@@ -213,7 +225,7 @@ func Package(w io.Writer, pkg *packages.Package) {
 		deps:       make(map[string][]string),
 		defs:       make(map[string]string),
 		importsSet: make(map[string]struct{}),
-		pkgPath:    pkg.PkgPath,
+		pkg:        pkg,
 	}
 	for _, f := range pkg.Syntax {
 		for _, d := range f.Decls {
@@ -223,7 +235,7 @@ func Package(w io.Writer, pkg *packages.Package) {
 
 	// print in sorted order, printing error if there's a cycle
 	for _, imp := range ctx.importsList {
-		fmt.Fprintf(w, "From New.generatedproof.structs Require %s.\n", imp)
+		fmt.Fprintf(w, "Require New.generatedproof.structs.%s.\n", imp)
 	}
 	fmt.Fprintf(w, "Axiom falso : False.\n\n") // FIXME: get rid of this
 	var printingOrdered []string

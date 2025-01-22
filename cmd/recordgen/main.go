@@ -24,5 +24,5 @@ func main() {
 
 	flag.Parse()
 
-	util.Translate(recordgen.Package, flag.Args(), outRootDir, modDir)
+	util.Translate(recordgen.Package, flag.Args(), outRootDir, modDir, true)
 }

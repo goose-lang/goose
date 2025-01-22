@@ -2343,6 +2343,9 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	}
 	defer ctx.dep.unsetCurrentName()
 
+	if d.Body == nil { // external function
+		return nil
+	}
 	body := ctx.blockStmt(d.Body, nil)
 
 	if d.Name.Name == "init" {

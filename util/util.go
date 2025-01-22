@@ -16,10 +16,13 @@ import (
 
 type PackageTranslator func(io.Writer, *packages.Package)
 
-func newPackageConfig(modDir string) *packages.Config {
+func newPackageConfig(modDir string, needDeps bool) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
 	mode |= packages.NeedImports
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
+	if needDeps {
+		mode |= packages.NeedDeps
+	}
 	return &packages.Config{
 		Dir:  modDir,
 		Mode: mode,
@@ -43,9 +46,26 @@ func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
-func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string) {
+func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, translateDeps bool) {
 	red := color.New(color.FgRed).SprintFunc()
-	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPatterns...)
+	pkgs, err := packages.Load(newPackageConfig(modDir, translateDeps), pkgPatterns...)
+
+	if translateDeps {
+		pkgsDone := make(map[string]bool)
+		for _, pkg := range pkgs {
+			pkgsDone[pkg.PkgPath] = true
+		}
+
+		for i := 0; i < len(pkgs); i++ {
+			for _, pkg := range pkgs[i].Imports {
+				if !pkgsDone[pkg.PkgPath] {
+					pkgs = append(pkgs, pkg)
+					pkgsDone[pkg.PkgPath] = true
+				}
+			}
+		}
+	}
+
 	if err != nil {
 		panic(err)
 	} else if len(pkgs) == 0 {
