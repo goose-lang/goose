@@ -241,6 +241,8 @@ func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer st
 	if ctx.namesToTranslate != nil {
 		header += fmt.Sprintf("From New.code_axioms Require Export %s.\n\n", pkg.Name)
 	}
+	header += fmt.Sprintf("Module %s.\n", pkg.Name)
+
 	ffi := getFfi(pkg)
 	if ffi == "none" {
 		header += "Section code.\n" +
@@ -249,6 +251,8 @@ func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer st
 	} else {
 		header += fmt.Sprintf("From New Require Import %s_prelude.", ffi)
 	}
+
+	footer += fmt.Sprintf("End %s.\n", pkg.Name)
 	return
 }
 

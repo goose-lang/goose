@@ -42,9 +42,8 @@ func (ctx *Ctx) Decl(d ast.Decl) {
 			}
 		}
 	case *ast.FuncDecl:
-		if d.Recv == nil {
+		if d.Recv == nil && d.Name.Name != "init" {
 			ctx.functions = append(ctx.functions, d.Name.Name)
-		} else {
 		}
 	case *ast.BadDecl:
 	default:
