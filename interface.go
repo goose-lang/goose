@@ -27,7 +27,7 @@ func (ctx *Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 			}
 		}
 	}()
-	return ctx.maybeDecls(stmt), nil
+	return ctx.decl(stmt), nil
 }
 
 // catching Goose translation errors and returning them as a regular Go error

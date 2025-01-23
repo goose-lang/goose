@@ -46,6 +46,7 @@ func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
+// TODO: probably get rid of `translateDeps`
 func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, translateDeps bool) {
 	red := color.New(color.FgRed).SprintFunc()
 	pkgs, err := packages.Load(newPackageConfig(modDir, translateDeps), pkgPatterns...)

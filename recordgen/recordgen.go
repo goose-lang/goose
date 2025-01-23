@@ -86,13 +86,45 @@ func (ctx *Ctx) toCoqType(t types.Type) string {
 	panic(fmt.Sprint("Unknown type ", t))
 }
 
+var coqNames = map[string]struct{}{
+	"_":          struct{}{},
+	"Axiom":      struct{}{},
+	"CoFixpoint": struct{}{},
+	"Definition": struct{}{},
+	"Fixpoint":   struct{}{},
+	"Hypothesis": struct{}{},
+	"Parameter":  struct{}{},
+	"Prop":       struct{}{},
+	"SProp":      struct{}{},
+	"Set":        struct{}{},
+	"Theorem":    struct{}{},
+	"Type":       struct{}{},
+	"Variable":   struct{}{},
+	"as":         struct{}{},
+	"at":         struct{}{},
+	"cofix":      struct{}{},
+	"else":       struct{}{},
+	"end":        struct{}{},
+	"fix":        struct{}{},
+	"for":        struct{}{},
+	"forall":     struct{}{},
+	"fun":        struct{}{},
+	"if":         struct{}{},
+	"in":         struct{}{},
+	"let":        struct{}{},
+	"match":      struct{}{},
+	"return":     struct{}{},
+	"then":       struct{}{},
+	"where":      struct{}{},
+	"with":       struct{}{},
+}
+
 func toCoqName(n string) string {
-	if n == "Type" {
-		return "Type'"
-	} else if n == "t" {
-		return "t'"
+	if _, ok := coqNames[n]; ok {
+		return n + "'"
+	} else {
+		return n
 	}
-	return n
 }
 
 func (ctx *Ctx) setCurrent(s string) {
@@ -198,7 +230,7 @@ Admitted.
 						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
 						sep = ";"
 					}
-					fmt.Fprint(w, "\n    ]))%%V \n    #(")
+					fmt.Fprint(w, "\n    ]))%%V\n    #(")
 					fmt.Fprintf(w, "%s.mk", name)
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))

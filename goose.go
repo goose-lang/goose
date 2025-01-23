@@ -2503,7 +2503,7 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 	return decls
 }
 
-func (ctx *Ctx) maybeDecls(d ast.Decl) []glang.Decl {
+func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 		ctx.curFuncType = ctx.typeOf(d.Name).(*types.Signature)
