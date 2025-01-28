@@ -785,6 +785,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 	}
 	// Special case for *sync.NewCond
 	if _, ok := s.Fun.(*ast.SelectorExpr); ok {
+	} else if ctx.SkipInterfaces {
 	} else {
 		if signature, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
 			for j := 0; j < signature.Params().Len(); j++ {
