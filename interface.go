@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -213,13 +214,13 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func translatePackage(pkg *packages.Package, namesToTranslate map[string]bool) (glang.File, error) {
+func translatePackage(pkg *packages.Package, configContents []byte) (glang.File, error) {
 	if len(pkg.Errors) > 0 {
 		return glang.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	ctx := NewPkgCtx(pkg, namesToTranslate)
+	ctx := NewPkgCtx(pkg, configContents)
 
 	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
@@ -238,10 +239,6 @@ func translatePackage(pkg *packages.Package, namesToTranslate map[string]bool) (
 }
 
 func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
-	if ctx.namesToTranslate != nil {
-		header += fmt.Sprintf("From New.code_axioms Require Export %s.\n\n", pkg.Name)
-	}
-
 	ffi := getFfi(pkg)
 	if ffi == "none" {
 		header += fmt.Sprintf("Module %s.\n", pkg.Name)
@@ -278,7 +275,7 @@ func newPackageConfig(modDir string) *packages.Config {
 // The errs list contains errors corresponding to each package (in parallel with
 // the files list). patternErr is only non-nil if the patterns themselves have
 // a syntax error.
-func TranslatePackages(modDir string, namesToTranslate map[string]bool,
+func TranslatePackages(configDir string, modDir string,
 	pkgPattern ...string) (files []glang.File, errs []error, patternErr error) {
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
 	if err != nil {
@@ -295,10 +292,15 @@ func TranslatePackages(modDir string, namesToTranslate map[string]bool,
 	wg.Add(len(pkgs))
 	for i, pkg := range pkgs {
 		go func(i int, pkg *packages.Package) {
-			f, err := translatePackage(pkg, namesToTranslate)
+			defer wg.Done()
+			configContents, _ := os.ReadFile(path.Join(
+				configDir,
+				glang.ImportToPath(pkg.PkgPath) + ".toml"),
+			)
+			fmt.Print(string(configContents))
+			f, err := translatePackage(pkg, configContents)
 			files[i] = f
 			errs[i] = err
-			wg.Done()
 		}(i, pkg)
 	}
 	wg.Wait()

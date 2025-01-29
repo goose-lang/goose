@@ -3,7 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/goose-lang/goose/recordgen"
+
+	"github.com/goose-lang/goose/namegen"
 	"github.com/goose-lang/goose/util"
 )
 
@@ -24,5 +25,5 @@ func main() {
 
 	flag.Parse()
 
-	util.Translate(recordgen.Package, flag.Args(), outRootDir, modDir)
+	util.Translate(namegen.Package, flag.Args(), outRootDir, modDir)
 }

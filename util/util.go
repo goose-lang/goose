@@ -14,15 +14,13 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type PackageTranslator func(io.Writer, *packages.Package)
+type PackageTranslator func(io.Writer, *packages.Package, bool, string)
 
-func newPackageConfig(modDir string, needDeps bool) *packages.Config {
+func newPackageConfig(modDir string) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
 	mode |= packages.NeedImports
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
-	if needDeps {
-		mode |= packages.NeedDeps
-	}
+	mode |= packages.NeedDeps
 	return &packages.Config{
 		Dir:  modDir,
 		Mode: mode,
@@ -46,26 +44,42 @@ func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
-// TODO: probably get rid of `translateDeps`
-func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, translateDeps bool) {
-	red := color.New(color.FgRed).SprintFunc()
-	pkgs, err := packages.Load(newPackageConfig(modDir, translateDeps), pkgPatterns...)
+var ffiMapping = map[string]string{
+	"github.com/mit-pdos/gokv/grove_ffi":         "grove",
+	"github.com/goose-lang/primitive/disk":       "disk",
+	"github.com/goose-lang/primitive/async_disk": "async_disk",
+}
 
-	if translateDeps {
-		pkgsDone := make(map[string]bool)
-		for _, pkg := range pkgs {
-			pkgsDone[pkg.PkgPath] = true
-		}
-
-		for i := 0; i < len(pkgs); i++ {
-			for _, pkg := range pkgs[i].Imports {
-				if !pkgsDone[pkg.PkgPath] {
-					pkgs = append(pkgs, pkg)
-					pkgsDone[pkg.PkgPath] = true
-				}
+func getFfi(pkg *packages.Package) (bool, string) {
+	seenFfis := make(map[string]struct{})
+	packages.Visit([]*packages.Package{pkg},
+		func(pkg *packages.Package) bool {
+			// the dependencies of an FFI are not considered as being used; this
+			// allows one FFI to be built on top of another
+			if _, ok := ffiMapping[pkg.PkgPath]; ok {
+				return false
 			}
-		}
+			return true
+		},
+		func(pkg *packages.Package) {
+			if ffi, ok := ffiMapping[pkg.PkgPath]; ok {
+				seenFfis[ffi] = struct{}{}
+			}
+		},
+	)
+
+	if len(seenFfis) > 1 {
+		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
 	}
+	for ffi := range seenFfis {
+		return true, ffi
+	}
+	return false, ""
+}
+
+func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string) {
+	red := color.New(color.FgRed).SprintFunc()
+	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPatterns...)
 
 	if err != nil {
 		panic(err)
@@ -75,9 +89,10 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 	for _, pkg := range pkgs {
 		w := new(strings.Builder)
 
-		translatePkg(w, pkg)
+		usingFfi, ffi := getFfi(pkg)
+		translatePkg(w, pkg, usingFfi, ffi)
 
-		outFile := path.Join(outRootDir, glang.ImportToPath(pkg.PkgPath, pkg.Name))
+		outFile := path.Join(outRootDir, glang.ImportToPath(pkg.PkgPath))
 		outDir := path.Dir(outFile)
 		err = os.MkdirAll(outDir, 0777)
 		if err != nil {

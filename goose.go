@@ -52,6 +52,8 @@ type Ctx struct {
 	importNamesOrdered []string
 
 	inits []glang.Expr
+
+	filter declFilter
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -82,14 +84,14 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package, namesToTranslate map[string]bool) Ctx {
+func NewPkgCtx(pkg *packages.Package, configContents []byte) Ctx {
 	return Ctx{
-		info:             pkg.TypesInfo,
-		pkgPath:          pkg.PkgPath,
-		errorReporter:    newErrorReporter(pkg.Fset),
-		dep:              newDepTracker(),
-		namesToTranslate: namesToTranslate,
-		importNames:      make(map[string]struct{}),
+		info:          pkg.TypesInfo,
+		pkgPath:       pkg.PkgPath,
+		errorReporter: newErrorReporter(pkg.Fset),
+		dep:           newDepTracker(),
+		importNames:   make(map[string]struct{}),
+		filter:        loadDeclFilter(configContents),
 	}
 }
 
@@ -2297,26 +2299,26 @@ func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
 	return glang.NewTupleType(ts)
 }
 
+func funcName(f *types.Func) string {
+	maybeTypeName := ""
+	if recv := f.Type().(*types.Signature).Recv(); recv != nil {
+		recvType := recv.Type()
+		if ptrType, ok := recvType.(*types.Pointer); ok {
+			recvType = ptrType.Elem()
+		}
+		maybeTypeName = types.TypeString(recvType, func(_ *types.Package) string { return "" }) + "."
+	}
+	return maybeTypeName + f.Name()
+}
+
 // Returns a glang.FuncDecl and maybe also a glang.NameDecl. If the function is an `init`, this
 // returns None.
 func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
+	funcName := funcName(ctx.info.ObjectOf(d.Name).(*types.Func))
 	ctx.usesDefer = false
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
-
-	if d.Type.TypeParams != nil {
-		// TODO(generics): a plan for supporting generics:
-		// - embed `go_type` into GooseLang rather than just Gallina; this
-		//   includes instantiated generic types which includes the type
-		//   arguments.
-		// - type parameters would be GooseLang arguments, and method lookups
-		//   would look up based on the type name and then specialize the method.
-		// - interface values need to remember if the type is generic, and the
-		//   type arguments if yes, so the type arguments can be passed into the
-		//   method from `interface.get`
-		ctx.unsupported(d, "generic functions not supported")
-	}
 
 	if d.Recv != nil {
 		if len(d.Recv.List) != 1 {
@@ -2335,17 +2337,40 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		typeName := namedType.Obj().Name()
 
 		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
+
+		if ctx.filter.includesAxiom(funcName) {
+			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
+		} else if !ctx.filter.includes(funcName) {
+			return nil
+		}
+
 		ctx.dep.setCurrentName(fd.Name)
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
 	} else {
+		if ctx.filter.includesAxiom(funcName) {
+			ctx.functions = append(ctx.functions, d.Name.Name)
+			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
+		} else if !ctx.filter.includes(funcName) {
+			return nil
+		}
 		ctx.dep.setCurrentName(fd.Name)
 	}
 	defer ctx.dep.unsetCurrentName()
 
-	if d.Body == nil { // external function
-		return nil
+	if d.Type.TypeParams != nil {
+		// TODO(generics): a plan for supporting generics:
+		// - embed `go_type` into GooseLang rather than just Gallina; this
+		//   includes instantiated generic types which includes the type
+		//   arguments.
+		// - type parameters would be GooseLang arguments, and method lookups
+		//   would look up based on the type name and then specialize the method.
+		// - interface values need to remember if the type is generic, and the
+		//   type arguments if yes, so the type arguments can be passed into the
+		//   method from `interface.get`
+		ctx.unsupported(d, "generic functions not supported")
 	}
+
 	body := ctx.blockStmt(d.Body, nil)
 
 	if d.Name.Name == "init" {
@@ -2424,24 +2449,30 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	var cds []glang.Decl
 	for i := range spec.Names {
-		cd := glang.ConstDecl{
-			Name: spec.Names[i].Name,
-		}
-		ctx.dep.setCurrentName(cd.Name)
-		defer ctx.dep.unsetCurrentName()
+		if ctx.filter.includesAxiom(spec.Names[i].Name) {
+			cds = append(cds, glang.AxiomDecl{DeclName: spec.Names[i].Name,
+				Type: ctx.declType(ctx.typeOf(spec.Names[i])),
+			})
+		} else if ctx.filter.includes(spec.Names[i].Name) {
+			cd := glang.ConstDecl{
+				Name: spec.Names[i].Name,
+			}
+			ctx.dep.setCurrentName(cd.Name)
+			defer ctx.dep.unsetCurrentName()
 
-		addSourceDoc(spec.Comment, &cd.Comment)
-		if len(spec.Values) > 0 {
-			cd.Val =
-				ctx.handleImplicitConversion(spec.Names[i],
-					ctx.typeOf(spec.Values[i]), ctx.typeOf(spec.Names[i]),
-					ctx.expr(spec.Values[i]))
-		} else {
-			fromT, v := ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
-			cd.Val = ctx.handleImplicitConversion(spec.Names[i], fromT, ctx.typeOf(spec.Names[i]), v)
+			addSourceDoc(spec.Comment, &cd.Comment)
+			if len(spec.Values) > 0 {
+				cd.Val =
+					ctx.handleImplicitConversion(spec.Names[i],
+						ctx.typeOf(spec.Values[i]), ctx.typeOf(spec.Names[i]),
+						ctx.expr(spec.Values[i]))
+			} else {
+				fromT, v := ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
+				cd.Val = ctx.handleImplicitConversion(spec.Names[i], fromT, ctx.typeOf(spec.Names[i]), v)
+			}
+			cd.Type = ctx.declType(ctx.typeOf(spec.Names[i]))
+			cds = append(cds, cd)
 		}
-		cd.Type = ctx.declType(ctx.typeOf(spec.Names[i]))
-		cds = append(cds, cd)
 	}
 	return cds
 }
@@ -2459,7 +2490,9 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) {
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
-			ctx.globalVars = append(ctx.globalVars, name)
+			if ctx.filter.includes(name.Name) {
+				ctx.globalVars = append(ctx.globalVars, name)
+			}
 		}
 	}
 }
@@ -2485,10 +2518,13 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 	var decls []glang.Decl
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
+		importPath := stringLitValue(s.Path)
+		if !ctx.filter.includesImport(importPath) {
+			continue
+		}
 		if s.Name != nil {
 			ctx.unsupported(s, "renaming imports")
 		}
-		importPath := stringLitValue(s.Path)
 		// TODO: this uses the syntax of the Go import to determine the Coq
 		// import, but Go packages can contain a different name than their
 		// path. We can get this information by using the *types.Package
@@ -2538,11 +2574,13 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 }
 
 func (ctx *Ctx) initFunctions() []glang.Decl {
+	var decls = []glang.Decl{}
 	nameDecl := glang.ConstDecl{
 		Name: "pkg_name'",
 		Val:  glang.GallinaString(ctx.pkgPath),
 		Type: glang.GallinaIdent("go_string"),
 	}
+	decls = append(decls, glang.AxiomDecl{DeclName: "initialize'"})
 
 	ctx.dep.setCurrentName("initialize'")
 	initFunc := glang.FuncDecl{Name: "initialize'"}

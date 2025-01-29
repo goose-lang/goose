@@ -922,16 +922,16 @@ func (d ConstDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
-type NameDecl struct {
-	DeclName    string
-	VarUniqueId Expr
+type AxiomDecl struct {
+	DeclName string
+	Type     Expr
 }
 
-func (d NameDecl) CoqDecl() string {
-	return fmt.Sprintf("Definition %s : (go_string * go_string) := %s.", d.DeclName, d.VarUniqueId.Coq(false))
+func (d AxiomDecl) CoqDecl() string {
+	return fmt.Sprintf("Axiom %s : %s.", d.DeclName, d.Type.Coq(false))
 }
 
-func (d NameDecl) DefName() (bool, string) {
+func (d AxiomDecl) DefName() (bool, string) {
 	return true, d.DeclName
 }
 
@@ -996,11 +996,7 @@ func ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(p string) string {
 }
 
 // ImportToPath converts a Go import path to a Coq path
-//
-// TODO: we basically don't handle the package name (determined by the package
-//
-//	statement in Go) differing from the basename of its parent directory
-func ImportToPath(pkgPath, pkgName string) string {
+func ImportToPath(pkgPath string) string {
 	coqPath := ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkgPath)
 	p := path.Dir(coqPath)
 	filename := path.Base(coqPath) + ".v"
