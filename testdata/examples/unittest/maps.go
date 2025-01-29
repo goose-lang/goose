@@ -38,3 +38,7 @@ func mapUpdateField() {
 	x := make(map[uint64]*mapElem)
 	x[0].a = 10
 }
+
+var mapLiteral = map[string]uint64{
+	"a": 10,
+}

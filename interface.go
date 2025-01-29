@@ -295,7 +295,7 @@ func TranslatePackages(configDir string, modDir string,
 			defer wg.Done()
 			configContents, _ := os.ReadFile(path.Join(
 				configDir,
-				glang.ImportToPath(pkg.PkgPath) + ".toml"),
+				glang.ImportToPath(pkg.PkgPath)+".toml"),
 			)
 			fmt.Print(string(configContents))
 			f, err := translatePackage(pkg, configContents)
