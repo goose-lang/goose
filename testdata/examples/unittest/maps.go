@@ -42,3 +42,7 @@ func mapUpdateField() {
 var mapLiteral = map[string]uint64{
 	"a": 10,
 }
+
+var mapLiteralWithConversion = map[any]any{
+	"a": 10,
+}
