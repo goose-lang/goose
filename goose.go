@@ -355,6 +355,38 @@ func (ctx *Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang
 	return expr
 }
 
+func (ctx *Ctx) mapLiteral(e *ast.CompositeLit, keyType, valueType types.Type) glang.Expr {
+	var mapLitArgs []glang.Expr
+	for i := 0; i < len(e.Elts); i++ {
+		mapLitArgs = append(mapLitArgs,
+			glang.TupleExpr{
+				glang.IdentExpr(fmt.Sprintf("$k%d", i)),
+				glang.IdentExpr(fmt.Sprintf("$v%d", i)),
+			},
+		)
+	}
+	var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("map.literal"),
+		ctx.glangType(e.Type, valueType),
+		glang.ListExpr(mapLitArgs))
+
+	for i := len(e.Elts); i > 0; i-- {
+		kv := e.Elts[i-1].(*ast.KeyValueExpr)
+		key := ctx.expr(kv.Key)
+		value := ctx.expr(kv.Value)
+		expr = glang.LetExpr{
+			Names:   []string{fmt.Sprintf("$k%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(kv.Key, ctx.typeOf(kv.Key), keyType, key),
+			Cont:    expr,
+		}
+		expr = glang.LetExpr{
+			Names:   []string{fmt.Sprintf("$v%d", i-1)},
+			ValExpr: ctx.handleImplicitConversion(kv.Value, ctx.typeOf(kv.Value), valueType, value),
+			Cont:    expr,
+		}
+	}
+	return glang.ParenExpr{Inner: expr}
+}
+
 // Deals with the arguments, but does not actually invoke the function. That
 // should be done in the continuation. The continuation can assume the arguments
 // are bound to "a0", "$a1", ....
@@ -853,6 +885,8 @@ func (ctx *Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 		return ctx.sliceLiteral(e.Elts, t.Elem())
 	} else if t, ok := ctx.typeOf(e).Underlying().(*types.Array); ok {
 		return ctx.arrayLiteral(e, t.Elem())
+	} else if t, ok := ctx.typeOf(e).Underlying().(*types.Map); ok {
+		return ctx.mapLiteral(e, t.Key(), t.Elem())
 	}
 	if structType, ok := ctx.typeOf(e).Underlying().(*types.Struct); ok {
 		return ctx.structLiteral(ctx.typeOf(e), structType, e)

@@ -32,6 +32,11 @@ type A struct {
 }
 
 func loadDeclFilter(raw []byte) declFilter {
+	if raw == nil {
+		return declFilter{
+			isTrivial: true,
+		}
+	}
 	var a A
 	error := toml.Unmarshal(raw, &a)
 	var df declFilter
