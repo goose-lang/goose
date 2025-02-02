@@ -3,14 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/goose-lang/goose/recordgen"
+	"github.com/goose-lang/goose/proofgen"
 	"github.com/goose-lang/goose/util"
 )
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "Usage: goose [options] <path to go package>")
-
+		fmt.Fprintln(flag.CommandLine.Output(), "Usage: proofgen [options] <path to go package>")
 		flag.PrintDefaults()
 	}
 
@@ -24,5 +23,5 @@ func main() {
 
 	flag.Parse()
 
-	util.Translate(recordgen.Package, flag.Args(), outRootDir, modDir)
+	util.Translate(proofgen.Package, flag.Args(), outRootDir, modDir)
 }

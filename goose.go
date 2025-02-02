@@ -533,7 +533,12 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 		return nil, false
 	}
 
-	switch s.Fun.(*ast.Ident).Name {
+	f, ok := s.Fun.(*ast.Ident)
+	if !ok {
+		ctx.unsupported(s.Fun, "builtin that isn't an ident")
+	}
+
+	switch f.Name {
 	case "make":
 		sig := ctx.typeOf(s.Fun).(*types.Signature)
 		switch ty := sig.Params().At(0).Type().Underlying().(type) {
@@ -2405,6 +2410,9 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		ctx.unsupported(d, "generic functions not supported")
 	}
 
+	if d.Body == nil {
+		ctx.unsupported(d, "external function")
+	}
 	body := ctx.blockStmt(d.Body, nil)
 
 	if d.Name.Name == "init" {

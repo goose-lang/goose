@@ -1,4 +1,4 @@
-package recordgen
+package proofgen
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type Ctx struct {
+type typesTranslator struct {
 	pkg *packages.Package
 
 	deps        map[string][]string
@@ -24,68 +24,6 @@ type Ctx struct {
 	importsSet  map[string]struct{}
 }
 
-func (ctx *Ctx) toCoqType(t types.Type) string {
-	switch t := t.(type) {
-	case *types.Basic:
-		switch t.Name() {
-		case "uint64", "int64":
-			return "w64"
-		case "uint32", "int32":
-			return "w32"
-		case "uint16", "int16":
-			return "w16"
-		case "uint8", "int8", "byte":
-			return "w8"
-		case "uint", "int":
-			return "w64"
-		case "float64":
-			return "w64"
-		case "bool":
-			return "bool"
-		case "string", "untyped string":
-			return "go_string"
-		case "Pointer", "uintptr":
-			return "loc"
-		default:
-			panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
-		}
-	case *types.Slice:
-		return "slice.t"
-	case *types.Array:
-		return fmt.Sprintf("(vec %s %d)", ctx.toCoqType(t.Elem()), t.Len())
-	case *types.Pointer:
-		return "loc"
-	case *types.Signature:
-		return "func.t"
-	case *types.Interface:
-		return "interface.t"
-	case *types.Map, *types.Chan:
-		return "loc"
-	case *types.Named:
-		u := t.Underlying()
-		if _, ok := u.(*types.Struct); ok {
-			if ctx.pkg.PkgPath == t.Obj().Pkg().Path() {
-				return t.Obj().Name() + ".t"
-			} else {
-				coqPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(t.Obj().Pkg().Path()), "/", ".")
-				if _, ok := ctx.importsSet[coqPath]; !ok {
-					ctx.importsList = append(ctx.importsList, coqPath)
-					ctx.importsSet[coqPath] = struct{}{}
-				}
-				return fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
-			}
-		}
-		return ctx.toCoqType(u)
-	case *types.Struct:
-		if t.NumFields() == 0 {
-			return "unit"
-		} else {
-			panic(fmt.Sprint("Anonymous structs with fields are not supported ", t))
-		}
-	}
-	panic(fmt.Sprint("Unknown type ", t))
-}
-
 // Adding a "'" to avoid conflicting with Coq keywords and definitions that
 // would already be in context (like `t`). Could do this only when there is a
 // conflict, but it's lower entropy to do it always rather than pick and
@@ -94,22 +32,23 @@ func toCoqName(n string) string {
 	return n + "'"
 }
 
-func (ctx *Ctx) setCurrent(s string) {
-	if ctx.currentName != "" {
+func (tr *typesTranslator) setCurrent(s string) {
+	if tr.currentName != "" {
 		panic("recordgen: setting currentName before unsetting")
 	}
-	ctx.currentName = s
+	tr.currentName = s
 }
 
-func (ctx *Ctx) unsetCurrent() {
-	ctx.currentName = ""
+func (tr *typesTranslator) unsetCurrent() {
+	tr.currentName = ""
 }
 
-func (ctx *Ctx) addDep(s string) {
-	ctx.deps[ctx.currentName] = append(ctx.deps[ctx.currentName], s)
+func (tr *typesTranslator) addDep(s string) {
+	tr.deps[tr.currentName] = append(tr.deps[tr.currentName], s)
 }
 
-func (ctx *Ctx) Decl(info types.Info, d ast.Decl) {
+func (tr *typesTranslator) Decl(d ast.Decl) {
+	info := tr.pkg.TypesInfo
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 	case *ast.GenDecl:
@@ -122,13 +61,13 @@ func (ctx *Ctx) Decl(info types.Info, d ast.Decl) {
 					w := new(strings.Builder)
 					// Record type
 					defName := name + ".t"
-					ctx.setCurrent(defName)
-					defer ctx.unsetCurrent()
+					tr.setCurrent(defName)
+					defer tr.unsetCurrent()
 
 					fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
 					for i := 0; i < s.NumFields(); i++ {
-						t := ctx.toCoqType(s.Field(i).Type())
-						ctx.addDep(t)
+						t := toCoqType(s.Field(i).Type(), tr.pkg.PkgPath)
+						tr.addDep(t)
 						fmt.Fprintf(w, "  %s : %s;\n",
 							toCoqName(s.Field(i).Name()),
 							t,
@@ -159,7 +98,7 @@ Admitted.
 					fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s :=
 {|
 `,
-						name, name, ctx.pkg.Name, name,
+						name, name, tr.pkg.Name, name,
 					)
 					// default_val
 					fmt.Fprintf(w, "  default_val := %s.mk", name)
@@ -182,7 +121,7 @@ Admitted.
 Admitted.
 
 `,
-							instanceName, fieldName, ctx.pkg.Name, name, name, toCoqName(fieldName),
+							instanceName, fieldName, tr.pkg.Name, name, name, toCoqName(fieldName),
 						)
 					}
 
@@ -191,7 +130,7 @@ Admitted.
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
 					}
-					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", ctx.pkg.Name, name)
+					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", tr.pkg.Name, name)
 					sep := ""
 					for i := 0; i < s.NumFields(); i++ {
 						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
@@ -204,8 +143,8 @@ Admitted.
 					}
 					fmt.Fprintf(w, ").\nAdmitted.\n\n")
 
-					ctx.defNames = append(ctx.defNames, defName)
-					ctx.defs[defName] = w.String()
+					tr.defNames = append(tr.defNames, defName)
+					tr.defs[defName] = w.String()
 				}
 			}
 		}
@@ -214,13 +153,13 @@ Admitted.
 	}
 }
 
-func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string) {
-	fmt.Fprintf(w, "(* autogenerated by goose record generator; do not modify *)\n")
+func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string) {
+	fmt.Fprintf(w, "(* autogenerated by goose proofgen (types); do not modify *)\n")
 	coqPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
 	fmt.Fprintf(w, "From New.code Require Import %s.\n", coqPath)
 	fmt.Fprintf(w, "From New.golang Require Import theory.\n\n")
 
-	ctx := &Ctx{
+	tr := &typesTranslator{
 		deps:       make(map[string][]string),
 		defs:       make(map[string]string),
 		importsSet: make(map[string]struct{}),
@@ -228,12 +167,12 @@ func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string) {
 	}
 	for _, f := range pkg.Syntax {
 		for _, d := range f.Decls {
-			ctx.Decl(*pkg.TypesInfo, d)
+			tr.Decl(d)
 		}
 	}
 
 	// print in sorted order, printing error if there's a cycle
-	for _, imp := range ctx.importsList {
+	for _, imp := range tr.importsList {
 		fmt.Fprintf(w, "Require New.generatedproof.structs.%s.\n", imp)
 	}
 	fmt.Fprintf(w, "Axiom falso : False.\n\n") // FIXME: get rid of this
@@ -256,13 +195,13 @@ func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string) {
 			delete(printing, n)
 		}()
 
-		for _, depName := range ctx.deps[n] {
+		for _, depName := range tr.deps[n] {
 			printDefAndDeps(depName)
 		}
-		fmt.Fprintf(w, ctx.defs[n])
+		fmt.Fprintf(w, tr.defs[n])
 		printed[n] = true
 	}
-	for _, d := range ctx.defNames {
+	for _, d := range tr.defNames {
 		printDefAndDeps(d)
 	}
 }
