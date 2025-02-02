@@ -1941,6 +1941,12 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 				return glang.Int32Val{Value: e}
 			case types.Uint8, types.Int8:
 				return glang.Int8Val{Value: e}
+			case types.Float64:
+				// XXX: treat a `float64` as a `w64`
+				return glang.Int64Val{Value: e}
+			case types.Float32:
+				// XXX: treat a `float64` as a `w64`
+				return glang.Int32Val{Value: e}
 			}
 		}
 	}
