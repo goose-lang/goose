@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
 	"golang.org/x/tools/go/packages"
 )
@@ -220,7 +221,7 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	isTrusted, filter := loadDeclFilter(configContents)
+	isTrusted, filter := declfilter.Load(configContents)
 	if isTrusted {
 		importPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
 		return glang.File{

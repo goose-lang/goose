@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
 	"golang.org/x/tools/go/packages"
 )
@@ -53,7 +54,7 @@ type Ctx struct {
 
 	inits []glang.Expr
 
-	filter declFilter
+	filter declfilter.DeclFilter
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -84,7 +85,7 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package, filter declFilter) Ctx {
+func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
 	return Ctx{
 		info:          pkg.TypesInfo,
 		pkgPath:       pkg.PkgPath,
@@ -243,12 +244,12 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 }
 
 func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
-	if ctx.filter.includesAxiom(spec.Name.Name) {
+	if ctx.filter.IncludesAxiom(spec.Name.Name) {
 		return []glang.Decl{glang.AxiomDecl{
 			DeclName: spec.Name.Name,
 			Type:     glang.GallinaIdent("go_type"),
 		}}
-	} else if ctx.filter.includes(spec.Name.Name) {
+	} else if ctx.filter.Includes(spec.Name.Name) {
 		ctx.dep.setCurrentName(spec.Name.Name)
 		defer ctx.dep.unsetCurrentName()
 		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
@@ -2392,9 +2393,9 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 
 		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
 
-		if ctx.filter.includesAxiom(funcName) {
+		if ctx.filter.IncludesAxiom(funcName) {
 			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
-		} else if !ctx.filter.includes(funcName) {
+		} else if !ctx.filter.Includes(funcName) {
 			return nil
 		}
 
@@ -2402,10 +2403,10 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
 	} else {
-		if ctx.filter.includesAxiom(funcName) {
+		if ctx.filter.IncludesAxiom(funcName) {
 			ctx.functions = append(ctx.functions, d.Name.Name)
 			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
-		} else if !ctx.filter.includes(funcName) {
+		} else if !ctx.filter.Includes(funcName) {
 			return nil
 		}
 		ctx.dep.setCurrentName(fd.Name)
@@ -2506,11 +2507,11 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	var cds []glang.Decl
 	for i := range spec.Names {
-		if ctx.filter.includesAxiom(spec.Names[i].Name) {
+		if ctx.filter.IncludesAxiom(spec.Names[i].Name) {
 			cds = append(cds, glang.AxiomDecl{DeclName: spec.Names[i].Name,
 				Type: ctx.declType(ctx.typeOf(spec.Names[i])),
 			})
-		} else if ctx.filter.includes(spec.Names[i].Name) {
+		} else if ctx.filter.Includes(spec.Names[i].Name) {
 			cd := glang.ConstDecl{
 				Name: spec.Names[i].Name,
 			}
@@ -2551,7 +2552,7 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 			if name.Name == "_" {
 				continue
 			}
-			if !ctx.filter.includes(name.Name) {
+			if !ctx.filter.Includes(name.Name) {
 				decls = append(decls, glang.AxiomDecl{
 					DeclName: name.Name + "'init",
 					Type:     glang.GallinaIdent("val"),
@@ -2586,7 +2587,7 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
 		importPath := stringLitValue(s.Path)
-		if !ctx.filter.includesImport(importPath) {
+		if !ctx.filter.IncludesImport(importPath) {
 			continue
 		}
 		if s.Name != nil {
@@ -2704,7 +2705,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		e = glang.NewDoSeq(glang.NewCallExpr(init, glang.Tt), e)
 	}
 
-	if !ctx.filter.includes("_") {
+	if !ctx.filter.Includes("_") {
 		decls = append(decls, glang.AxiomDecl{
 			DeclName: "_'init",
 			Type:     glang.GallinaIdent("val"),
@@ -2719,7 +2720,7 @@ InitLoop:
 		// Check if any of the LHS variables should be treated as axiomatized
 		for i := 0; i < len(init.Lhs); i++ {
 			varName := init.Lhs[i].Name()
-			if !ctx.filter.includes(varName) {
+			if !ctx.filter.Includes(varName) {
 				e = glang.NewDoSeq(
 					glang.NewCallExpr(glang.GallinaIdent(varName+"'init"), glang.Tt),
 					e)

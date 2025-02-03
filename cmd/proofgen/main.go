@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/goose-lang/goose/proofgen"
 	"github.com/goose-lang/goose/util"
 )
@@ -17,11 +18,19 @@ func main() {
 	flag.StringVar(&outRootDir, "out", ".",
 		"root directory for output (default is current directory)")
 
+	var configDir string
+	flag.StringVar(&configDir, "configdir", "",
+		"directory containing Goose config files")
+
 	var modDir string
 	flag.StringVar(&modDir, "dir", ".",
 		"directory containing necessary go.mod")
 
 	flag.Parse()
+	if configDir == "" {
+		flag.Usage()
+		panic("bad")
+	}
 
 	util.Translate(proofgen.Package, flag.Args(), outRootDir, modDir)
 }
