@@ -242,18 +242,27 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	return mset, msetPtr
 }
 
-func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) glang.Decl {
-	ctx.dep.setCurrentName(spec.Name.Name)
-	defer ctx.dep.unsetCurrentName()
-	if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-		if _, ok := t.Underlying().(*types.Interface); !ok {
-			ctx.namedTypes = append(ctx.namedTypes, t)
+func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
+	if ctx.filter.includesAxiom(spec.Name.Name) {
+		return []glang.Decl{glang.AxiomDecl{
+			DeclName: spec.Name.Name,
+			Type:     glang.GallinaIdent("go_type"),
+		}}
+	} else if ctx.filter.includes(spec.Name.Name) {
+		ctx.dep.setCurrentName(spec.Name.Name)
+		defer ctx.dep.unsetCurrentName()
+		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+			if _, ok := t.Underlying().(*types.Interface); !ok {
+				ctx.namedTypes = append(ctx.namedTypes, t)
+			}
 		}
-	}
-	return glang.TypeDecl{
-		Name:       spec.Name.Name,
-		Body:       ctx.glangTypeFromExpr(spec.Type),
-		TypeParams: ctx.typeParamList(spec.TypeParams),
+		return []glang.Decl{glang.TypeDecl{
+			Name:       spec.Name.Name,
+			Body:       ctx.glangTypeFromExpr(spec.Type),
+			TypeParams: ctx.typeParamList(spec.TypeParams),
+		}}
+	} else {
+		return nil
 	}
 }
 
@@ -2613,7 +2622,7 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 			var decls []glang.Decl
 			for _, spec := range d.Specs {
 				spec := spec.(*ast.TypeSpec)
-				decls = append(decls, ctx.typeDecl(spec))
+				decls = append(decls, ctx.typeDecl(spec)...)
 			}
 			return decls
 		default:
