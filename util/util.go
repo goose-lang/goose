@@ -10,11 +10,12 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
 	"golang.org/x/tools/go/packages"
 )
 
-type PackageTranslator func(io.Writer, *packages.Package, bool, string)
+type PackageTranslator func(io.Writer, *packages.Package, bool, string, declfilter.DeclFilter)
 
 func newPackageConfig(modDir string) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
@@ -77,7 +78,7 @@ func getFfi(pkg *packages.Package) (bool, string) {
 	return false, ""
 }
 
-func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string) {
+func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, configDir string) {
 	red := color.New(color.FgRed).SprintFunc()
 	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPatterns...)
 
@@ -89,8 +90,17 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 	for _, pkg := range pkgs {
 		w := new(strings.Builder)
 
+		rawConfig, _ := os.ReadFile(path.Join(
+			configDir,
+			glang.ImportToPath(pkg.PkgPath)+".toml"),
+		)
+		isTrusted, filter := declfilter.Load(rawConfig)
+		if isTrusted {
+			continue
+		}
+
 		usingFfi, ffi := getFfi(pkg)
-		translatePkg(w, pkg, usingFfi, ffi)
+		translatePkg(w, pkg, usingFfi, ffi, filter)
 
 		outFile := path.Join(outRootDir, glang.ImportToPath(pkg.PkgPath))
 		outDir := path.Dir(outFile)

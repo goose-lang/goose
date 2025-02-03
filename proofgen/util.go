@@ -3,9 +3,11 @@ package proofgen
 import (
 	"fmt"
 	"go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
-func toCoqType(t types.Type, myPkgPath string) string {
+func toCoqType(t types.Type, pkg *packages.Package) string {
 	switch t := t.(type) {
 	case *types.Basic:
 		switch t.Name() {
@@ -33,7 +35,7 @@ func toCoqType(t types.Type, myPkgPath string) string {
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
-		return fmt.Sprintf("(vec %s %d)", toCoqType(t.Elem(), myPkgPath), t.Len())
+		return fmt.Sprintf("(vec %s %d)", toCoqType(t.Elem(), pkg), t.Len())
 	case *types.Pointer:
 		return "loc"
 	case *types.Signature:
@@ -45,18 +47,20 @@ func toCoqType(t types.Type, myPkgPath string) string {
 	case *types.Named:
 		u := t.Underlying()
 		if _, ok := u.(*types.Struct); ok {
-			if myPkgPath == t.Obj().Pkg().Path() {
+			if pkg.PkgPath == t.Obj().Pkg().Path() {
 				return t.Obj().Name() + ".t"
 			} else {
 				return fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
 			}
 		}
-		return toCoqType(u, myPkgPath)
+		return toCoqType(u, pkg)
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "unit"
 		} else {
-			panic(fmt.Sprint("Anonymous structs with fields are not supported ", t))
+			panic(fmt.Sprintf("Anonymous structs with fields are not supported (%s): %s",
+				pkg.Fset.Position(t.Field(0).Pos()).String(),
+				t.String()))
 		}
 	}
 	panic(fmt.Sprint("Unknown type ", t))

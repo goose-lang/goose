@@ -32,5 +32,5 @@ func main() {
 		panic("bad")
 	}
 
-	util.Translate(proofgen.Package, flag.Args(), outRootDir, modDir)
+	util.Translate(proofgen.Package, flag.Args(), outRootDir, modDir, configDir)
 }

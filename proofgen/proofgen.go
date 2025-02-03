@@ -1,11 +1,13 @@
 package proofgen
 
 import (
-	"golang.org/x/tools/go/packages"
 	"io"
+
+	"github.com/goose-lang/goose/declfilter"
+	"golang.org/x/tools/go/packages"
 )
 
-func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string) {
-	translateTypes(w, pkg, usingFfi, ffi)
-	translateNames(w, pkg, usingFfi, ffi)
+func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
+	translateTypes(w, pkg, usingFfi, ffi, filter)
+	translateNames(w, pkg, usingFfi, ffi, filter)
 }
