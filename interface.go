@@ -232,7 +232,9 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 
 	if filter.HasTrusted() {
 		importPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
-		coqFile.ImportHeader = fmt.Sprintf("Require Export New.trusted_code.%s.", importPath) + coqFile.ImportHeader
+		coqFile.ImportHeader = fmt.Sprintf("Require Export New.trusted_code.%s.\n", importPath) +
+			fmt.Sprintf("Import %s.\n", pkg.Name) +
+			coqFile.ImportHeader
 	}
 
 	imports, decls, errs := ctx.decls(pkg.Syntax)

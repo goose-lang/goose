@@ -194,6 +194,10 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	var mset glang.ListExpr
 	for i := range goMset.Len() {
 		selection := goMset.At(i)
+		switch ctx.filter.GetAction(typeName + "." + selection.Obj().Name()) {
+		case declfilter.Skip:
+			continue
+		}
 
 		var expr glang.Expr
 		if len(selection.Index()) > 1 {
@@ -218,9 +222,12 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	var msetPtr glang.ListExpr
 	for i := range goMsetPtr.Len() {
 		selection := goMsetPtr.At(i)
+		switch ctx.filter.GetAction(typeName + "." + selection.Obj().Name()) {
+		case declfilter.Skip:
+			continue
+		}
 
 		var expr glang.Expr
-
 		if len(selection.Index()) == 1 && !directMethods[selection.Obj().Name()] {
 			// FIXME: probably want expr to use `method_call` to allow proof for
 			// the ptr-receiver method to use the spec for the direct method
@@ -250,6 +257,13 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 			DeclName: spec.Name.Name,
 			Type:     glang.GallinaIdent("go_type"),
 		}}
+	case declfilter.Trust:
+		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+			if _, ok := t.Underlying().(*types.Interface); !ok {
+				ctx.namedTypes = append(ctx.namedTypes, t)
+			}
+		}
+		return nil
 	case declfilter.Translate:
 		ctx.dep.setCurrentName(spec.Name.Name)
 		defer ctx.dep.unsetCurrentName()
@@ -2567,10 +2581,12 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 			case declfilter.Translate:
 				ctx.globalVars = append(ctx.globalVars, name)
 			default:
-				decls = append(decls, glang.AxiomDecl{
-					DeclName: name.Name + "'init",
-					Type:     glang.GallinaIdent("val"),
-				})
+				if s.Values != nil {
+					decls = append(decls, glang.AxiomDecl{
+						DeclName: name.Name + "'init",
+						Type:     glang.GallinaIdent("val"),
+					})
+				}
 			}
 		}
 	}

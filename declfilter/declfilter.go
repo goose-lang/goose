@@ -68,10 +68,10 @@ func Load(raw []byte) DeclFilter {
 		panic(error.Error())
 	}
 	df := &declFilter{
-
 		toImport:     make(map[string]bool),
 		toTranslate:  make(map[string]bool),
 		toAxiomatize: make(map[string]bool),
+		toTrust:      make(map[string]bool),
 	}
 	df.isTrivial = false
 
@@ -85,6 +85,10 @@ func Load(raw []byte) DeclFilter {
 
 	for _, name := range a.ToAxiomatize {
 		df.toAxiomatize[name] = true
+	}
+
+	for _, name := range a.Trusted {
+		df.toTrust[name] = true
 	}
 	return df
 }
