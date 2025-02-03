@@ -221,22 +221,19 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	isTrusted, filter := declfilter.Load(configContents)
-	if isTrusted {
-		importPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
-		return glang.File{
-			ImportHeader: fmt.Sprintf("Require Export New.trusted_code.%s.", importPath),
-			PkgPath:      pkg.PkgPath,
-		}, nil
-	}
+	filter := declfilter.Load(configContents)
 
 	ctx := NewPkgCtx(pkg, filter)
-
 	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
 	coqFile.ImportHeader, coqFile.Footer = ctx.ffiHeaderFooter(pkg)
+
+	if filter.HasTrusted() {
+		importPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
+		coqFile.ImportHeader = fmt.Sprintf("Require Export New.trusted_code.%s.", importPath) + coqFile.ImportHeader
+	}
 
 	imports, decls, errs := ctx.decls(pkg.Syntax)
 	coqFile.Imports = imports

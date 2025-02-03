@@ -36,7 +36,7 @@ func (tr *namesTranslator) Decl(d ast.Decl) {
 			for _, spec := range d.Specs {
 				s := spec.(*ast.ValueSpec)
 				for _, name := range s.Names {
-					if name.Name != "_" && tr.filter.Includes(name.Name) {
+					if name.Name != "_" && tr.filter.GetAction(name.Name) == declfilter.Translate {
 						tr.varNames = append(tr.varNames, name.Name)
 						tr.varCoqTypes = append(tr.varCoqTypes,
 							toCoqType(info.TypeOf(name), tr.pkg))

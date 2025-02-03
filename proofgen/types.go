@@ -63,7 +63,8 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 				if s, ok := info.TypeOf(spec.Type).(*types.Struct); ok {
 					name := spec.Name.Name
 
-					if !tr.filter.Includes(name) && !tr.filter.IncludesAxiom(name) {
+					if tr.filter.GetAction(name) == declfilter.Skip ||
+						tr.filter.GetAction(name) == declfilter.Trust {
 						continue
 					}
 
@@ -168,12 +169,12 @@ func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 	fmt.Fprintf(w, "From New.code Require Import %s.\n", coqPath)
 	fmt.Fprintf(w, "From New.golang Require Import theory.\n\n")
 
-	tr:= &typesTranslator{
+	tr := &typesTranslator{
 		deps:       make(map[string][]string),
 		defs:       make(map[string]string),
 		importsSet: make(map[string]struct{}),
 		pkg:        pkg,
-		filter: filter,
+		filter:     filter,
 	}
 	for _, f := range pkg.Syntax {
 		for _, d := range f.Decls {

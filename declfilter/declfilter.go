@@ -4,43 +4,61 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+type Action int
+
+const (
+	Skip Action = iota
+	Translate
+	Axiomatize
+	Trust
+)
+
 type DeclFilter interface {
-	Includes(string) bool
-	IncludesAxiom(string) bool
-	IncludesImport(string) bool
+	GetAction(string) Action
+	ShouldImport(string) bool
+	HasTrusted() bool
 }
 
 type declFilter struct {
 	isTrivial bool // trivial filter translates everything and has no axioms.
 
-	// describes a cofinite filter on decls.
 	toImport     map[string]bool
+	toTrust      map[string]bool
 	toTranslate  map[string]bool
 	toAxiomatize map[string]bool
 }
 
-func (df *declFilter) Includes(name string) bool {
-	return df.isTrivial || df.toTranslate[name]
+func (df *declFilter) GetAction(name string) Action {
+	switch {
+	case df.isTrivial, df.toTranslate[name]:
+		return Translate
+	case df.toAxiomatize[name]:
+		return Axiomatize
+	case df.toTrust[name]:
+		return Trust
+	default:
+		return Skip
+	}
 }
 
-func (df *declFilter) IncludesAxiom(name string) bool {
-	return !df.isTrivial && df.toAxiomatize[name]
+func (df *declFilter) ShouldImport(i string) bool {
+	return df.isTrivial || df.toImport[i]
 }
 
-func (df *declFilter) IncludesImport(name string) bool {
-	return df.isTrivial || df.toImport[name]
+func (df *declFilter) HasTrusted() bool {
+	return len(df.toTrust) > 0
 }
 
 type filterConfig struct {
-	Trusted      bool     `toml:"trusted"`
 	Imports      []string `toml:"imports"`
+	Trusted      []string `toml:"trusted"`
 	ToTranslate  []string `toml:"translate"`
 	ToAxiomatize []string `toml:"axiomatize"`
 }
 
-func Load(raw []byte) (bool, DeclFilter) {
+func Load(raw []byte) DeclFilter {
 	if raw == nil {
-		return false, &declFilter{
+		return &declFilter{
 			isTrivial: true,
 		}
 	}
@@ -49,11 +67,8 @@ func Load(raw []byte) (bool, DeclFilter) {
 	if error != nil {
 		panic(error.Error())
 	}
-	if a.Trusted {
-		return true, &declFilter{}
-	}
-
 	df := &declFilter{
+
 		toImport:     make(map[string]bool),
 		toTranslate:  make(map[string]bool),
 		toAxiomatize: make(map[string]bool),
@@ -71,5 +86,5 @@ func Load(raw []byte) (bool, DeclFilter) {
 	for _, name := range a.ToAxiomatize {
 		df.toAxiomatize[name] = true
 	}
-	return false, df
+	return df
 }

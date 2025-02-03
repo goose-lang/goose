@@ -94,8 +94,8 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 			configDir,
 			glang.ImportToPath(pkg.PkgPath)+".toml"),
 		)
-		isTrusted, filter := declfilter.Load(rawConfig)
-		if isTrusted {
+		filter := declfilter.Load(rawConfig)
+		if filter.HasTrusted() {
 			continue
 		}
 

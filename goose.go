@@ -244,12 +244,13 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 }
 
 func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
-	if ctx.filter.IncludesAxiom(spec.Name.Name) {
+	switch ctx.filter.GetAction(spec.Name.Name) {
+	case declfilter.Axiomatize:
 		return []glang.Decl{glang.AxiomDecl{
 			DeclName: spec.Name.Name,
 			Type:     glang.GallinaIdent("go_type"),
 		}}
-	} else if ctx.filter.Includes(spec.Name.Name) {
+	case declfilter.Translate:
 		ctx.dep.setCurrentName(spec.Name.Name)
 		defer ctx.dep.unsetCurrentName()
 		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
@@ -262,7 +263,7 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 			Body:       ctx.glangTypeFromExpr(spec.Type),
 			TypeParams: ctx.typeParamList(spec.TypeParams),
 		}}
-	} else {
+	default:
 		return nil
 	}
 }
@@ -2393,22 +2394,31 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 
 		fd.Name = glang.TypeMethod(typeName, d.Name.Name)
 
-		if ctx.filter.IncludesAxiom(funcName) {
-			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
-		} else if !ctx.filter.Includes(funcName) {
+		switch ctx.filter.GetAction(funcName) {
+		case declfilter.Skip:
 			return nil
+		case declfilter.Trust:
+			return nil
+		case declfilter.Axiomatize:
+			ctx.functions = append(ctx.functions, d.Name.Name)
+			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
 		}
 
 		ctx.dep.setCurrentName(fd.Name)
 		f := ctx.field(receiver)
 		fd.RecvArg = &f
 	} else {
-		if ctx.filter.IncludesAxiom(funcName) {
+		switch ctx.filter.GetAction(funcName) {
+		case declfilter.Skip:
+			return nil
+		case declfilter.Trust:
+			ctx.functions = append(ctx.functions, d.Name.Name)
+			return nil
+		case declfilter.Axiomatize:
 			ctx.functions = append(ctx.functions, d.Name.Name)
 			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
-		} else if !ctx.filter.Includes(funcName) {
-			return nil
 		}
+
 		ctx.dep.setCurrentName(fd.Name)
 	}
 	defer ctx.dep.unsetCurrentName()
@@ -2507,11 +2517,12 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	var cds []glang.Decl
 	for i := range spec.Names {
-		if ctx.filter.IncludesAxiom(spec.Names[i].Name) {
+		switch ctx.filter.GetAction(spec.Names[i].Name) {
+		case declfilter.Axiomatize:
 			cds = append(cds, glang.AxiomDecl{DeclName: spec.Names[i].Name,
 				Type: ctx.declType(ctx.typeOf(spec.Names[i])),
 			})
-		} else if ctx.filter.Includes(spec.Names[i].Name) {
+		case declfilter.Translate:
 			cd := glang.ConstDecl{
 				Name: spec.Names[i].Name,
 			}
@@ -2552,13 +2563,14 @@ func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 			if name.Name == "_" {
 				continue
 			}
-			if !ctx.filter.Includes(name.Name) {
+			switch ctx.filter.GetAction(name.Name) {
+			case declfilter.Translate:
+				ctx.globalVars = append(ctx.globalVars, name)
+			default:
 				decls = append(decls, glang.AxiomDecl{
 					DeclName: name.Name + "'init",
 					Type:     glang.GallinaIdent("val"),
 				})
-			} else {
-				ctx.globalVars = append(ctx.globalVars, name)
 			}
 		}
 	}
@@ -2587,7 +2599,7 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 	for _, s := range d {
 		s := s.(*ast.ImportSpec)
 		importPath := stringLitValue(s.Path)
-		if !ctx.filter.IncludesImport(importPath) {
+		if !ctx.filter.ShouldImport(importPath) {
 			continue
 		}
 		if s.Name != nil {
@@ -2705,7 +2717,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		e = glang.NewDoSeq(glang.NewCallExpr(init, glang.Tt), e)
 	}
 
-	if !ctx.filter.Includes("_") {
+	if ctx.filter.GetAction("_") != declfilter.Translate {
 		decls = append(decls, glang.AxiomDecl{
 			DeclName: "_'init",
 			Type:     glang.GallinaIdent("val"),
@@ -2720,7 +2732,7 @@ InitLoop:
 		// Check if any of the LHS variables should be treated as axiomatized
 		for i := 0; i < len(init.Lhs); i++ {
 			varName := init.Lhs[i].Name()
-			if !ctx.filter.Includes(varName) {
+			if ctx.filter.GetAction(varName) != declfilter.Translate {
 				e = glang.NewDoSeq(
 					glang.NewCallExpr(glang.GallinaIdent(varName+"'init"), glang.Tt),
 					e)
