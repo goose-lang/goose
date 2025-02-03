@@ -84,14 +84,14 @@ func getFfi(pkg *packages.Package) string {
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
-func NewPkgCtx(pkg *packages.Package, configContents []byte) Ctx {
+func NewPkgCtx(pkg *packages.Package, filter declFilter) Ctx {
 	return Ctx{
 		info:          pkg.TypesInfo,
 		pkgPath:       pkg.PkgPath,
 		errorReporter: newErrorReporter(pkg.Fset),
 		dep:           newDepTracker(),
 		importNames:   make(map[string]struct{}),
-		filter:        loadDeclFilter(configContents),
+		filter:        filter,
 	}
 }
 
@@ -2544,21 +2544,24 @@ func (ctx *Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 }
 
 func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
+	var decls []glang.Decl
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
-			ctx.globalVars = append(ctx.globalVars, name)
+			if name.Name == "_" {
+				continue
+			}
 			if !ctx.filter.includes(name.Name) {
-				return []glang.Decl{
-					glang.AxiomDecl{
-						DeclName: name.Name + "'init",
-						Type:     glang.GallinaIdent("val"),
-					},
-				}
+				decls = append(decls, glang.AxiomDecl{
+					DeclName: name.Name + "'init",
+					Type:     glang.GallinaIdent("val"),
+				})
+			} else {
+				ctx.globalVars = append(ctx.globalVars, name)
 			}
 		}
 	}
-	return nil
+	return decls
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
@@ -2701,6 +2704,13 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		e = glang.NewDoSeq(glang.NewCallExpr(init, glang.Tt), e)
 	}
 
+	if !ctx.filter.includes("_") {
+		decls = append(decls, glang.AxiomDecl{
+			DeclName: "_'init",
+			Type:     glang.GallinaIdent("val"),
+		})
+	}
+
 	// initialize all local vars
 InitLoop:
 	for i := range ctx.info.InitOrder {
@@ -2711,14 +2721,8 @@ InitLoop:
 			varName := init.Lhs[i].Name()
 			if !ctx.filter.includes(varName) {
 				e = glang.NewDoSeq(
-					glang.StoreStmt{
-						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-							glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
-							glang.StringVal{Value: glang.StringLiteral{Value: init.Lhs[i].Name()}},
-						),
-						X:  glang.NewCallExpr(glang.GallinaIdent(varName+"'init"), glang.Tt),
-						Ty: ctx.glangType(init.Lhs[i], init.Lhs[i].Type()),
-					}, e)
+					glang.NewCallExpr(glang.GallinaIdent(varName+"'init"), glang.Tt),
+					e)
 				continue InitLoop
 			}
 		}
@@ -2806,6 +2810,7 @@ InitLoop:
 	)
 
 	initFunc.Body = e
+	decls = append(decls, initFunc)
 
 	return decls
 }

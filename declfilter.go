@@ -25,21 +25,33 @@ func (df *declFilter) includesImport(name string) bool {
 	return df.isTrivial || df.toImport[name]
 }
 
-type A struct {
-	Imports      []string
-	ToTranslate  []string
-	ToAxiomatize []string
+type filterConfig struct {
+	Trusted      bool     `toml:"trusted"`
+	Imports      []string `toml:"imports"`
+	ToTranslate  []string `toml:"translate"`
+	ToAxiomatize []string `toml:"axiomatize"`
 }
 
-func loadDeclFilter(raw []byte) declFilter {
+func loadDeclFilter(raw []byte) (bool, declFilter) {
 	if raw == nil {
-		return declFilter{
+		return false, declFilter{
 			isTrivial: true,
 		}
 	}
-	var a A
+	var a filterConfig
 	error := toml.Unmarshal(raw, &a)
-	var df declFilter
+	if error != nil {
+		panic(error.Error())
+	}
+	if a.Trusted {
+		return true, declFilter{}
+	}
+
+	var df declFilter = declFilter{
+		toImport: make(map[string]bool),
+		toTranslate: make(map[string]bool),
+		toAxiomatize: make(map[string]bool),
+	}
 	df.isTrivial = false
 
 	for _, name := range a.ToTranslate {
@@ -53,9 +65,5 @@ func loadDeclFilter(raw []byte) declFilter {
 	for _, name := range a.ToAxiomatize {
 		df.toAxiomatize[name] = true
 	}
-
-	if error != nil {
-		panic(error)
-	}
-	return df
+	return false, df
 }

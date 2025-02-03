@@ -220,7 +220,16 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	ctx := NewPkgCtx(pkg, configContents)
+	isTrusted, filter := loadDeclFilter(configContents)
+	if isTrusted {
+		importPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
+		return glang.File{
+			ImportHeader: fmt.Sprintf("Require Export New.trusted_code.%s.", importPath),
+			PkgPath:      pkg.PkgPath,
+		}, nil
+	}
+
+	ctx := NewPkgCtx(pkg, filter)
 
 	coqFile := glang.File{
 		PkgPath:   pkg.PkgPath,
@@ -297,7 +306,6 @@ func TranslatePackages(configDir string, modDir string,
 				configDir,
 				glang.ImportToPath(pkg.PkgPath)+".toml"),
 			)
-			fmt.Print(string(configContents))
 			f, err := translatePackage(pkg, configContents)
 			files[i] = f
 			errs[i] = err
