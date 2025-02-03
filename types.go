@@ -142,7 +142,8 @@ func isProphId(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
-			return name.Pkg().Name() == "machine" &&
+			return name.Pkg() != nil &&
+				name.Pkg().Name() == "machine" &&
 				name.Name() == "prophId"
 		}
 	}
