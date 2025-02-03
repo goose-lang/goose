@@ -1,11 +1,5 @@
 package unittest
 
-// import "github.com/goose-lang/primitive"
-
-func clearMap(m map[uint64]uint64) {
-	// primitive.MapClear(m)
-}
-
 func IterateMapKeys(m map[uint64]uint64, sum *uint64) {
 	for k := range m {
 		oldSum := *sum

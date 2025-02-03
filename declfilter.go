@@ -48,8 +48,8 @@ func loadDeclFilter(raw []byte) (bool, declFilter) {
 	}
 
 	var df declFilter = declFilter{
-		toImport: make(map[string]bool),
-		toTranslate: make(map[string]bool),
+		toImport:     make(map[string]bool),
+		toTranslate:  make(map[string]bool),
 		toAxiomatize: make(map[string]bool),
 	}
 	df.isTrivial = false
