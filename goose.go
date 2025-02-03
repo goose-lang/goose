@@ -2534,15 +2534,22 @@ func (ctx *Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 	return specs
 }
 
-func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) {
+func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {
 	for _, spec := range d.Specs {
 		s := spec.(*ast.ValueSpec)
 		for _, name := range s.Names {
-			if ctx.filter.includes(name.Name) {
-				ctx.globalVars = append(ctx.globalVars, name)
+			ctx.globalVars = append(ctx.globalVars, name)
+			if !ctx.filter.includes(name.Name) {
+				return []glang.Decl{
+					glang.AxiomDecl{
+						DeclName: name.Name + "'init",
+						Type:     glang.GallinaIdent("val"),
+					},
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func stringLitValue(lit *ast.BasicLit) string {
@@ -2601,8 +2608,7 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 		case token.CONST:
 			return ctx.constDecl(d)
 		case token.VAR:
-			ctx.globalVarDecl(d)
-			return nil
+			return ctx.globalVarDecl(d)
 		case token.TYPE:
 			var decls []glang.Decl
 			for _, spec := range d.Specs {
@@ -2628,7 +2634,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		Val:  glang.GallinaString(ctx.pkgPath),
 		Type: glang.GallinaIdent("go_string"),
 	}
-	decls = append(decls, glang.AxiomDecl{DeclName: "initialize'"})
+	decls = append(decls, nameDecl)
 
 	ctx.dep.setCurrentName("initialize'")
 	initFunc := glang.FuncDecl{Name: "initialize'"}
@@ -2649,6 +2655,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		Val:  globalVars,
 		Type: glang.GallinaIdent("list (go_string * go_type)"),
 	}
+	decls = append(decls, varsDecl)
 
 	var functions glang.ListExpr
 	for _, functionName := range ctx.functions {
@@ -2660,6 +2667,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		Val:  functions,
 		Type: glang.GallinaIdent("list (go_string * val)"),
 	}
+	decls = append(decls, functionsDecl)
 
 	var msets glang.ListExpr
 	for _, namedType := range ctx.namedTypes {
@@ -2674,6 +2682,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		Val:  msets,
 		Type: glang.GallinaIdent("list (go_string * (list (go_string * val)))"),
 	}
+	decls = append(decls, msetsDecl)
 
 	var e glang.Expr
 
@@ -2684,8 +2693,27 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	}
 
 	// initialize all local vars
+InitLoop:
 	for i := range ctx.info.InitOrder {
 		init := ctx.info.InitOrder[len(ctx.info.InitOrder)-i-1]
+
+		// Check if any of the LHS variables should be treated as axiomatized
+		for i := 0; i < len(init.Lhs); i++ {
+			varName := init.Lhs[i].Name()
+			if !ctx.filter.includes(varName) {
+				e = glang.NewDoSeq(
+					glang.StoreStmt{
+						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
+							glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+							glang.StringVal{Value: glang.StringLiteral{Value: init.Lhs[i].Name()}},
+						),
+						X:  glang.NewCallExpr(glang.GallinaIdent(varName+"'init"), glang.Tt),
+						Ty: ctx.glangType(init.Lhs[i], init.Lhs[i].Type()),
+					}, e)
+				continue InitLoop
+			}
+		}
+
 		// Execute assignments left-to-right
 		for i := len(init.Lhs); i > 0; i-- {
 			if init.Lhs[i-1].Name() != "_" {
@@ -2770,5 +2798,5 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 
 	initFunc.Body = e
 
-	return []glang.Decl{nameDecl, varsDecl, functionsDecl, msetsDecl, initFunc}
+	return decls
 }
