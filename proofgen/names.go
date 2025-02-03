@@ -139,6 +139,9 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 
 	// emit instances for unfolding func_call
 	for _, funcName := range tr.functions {
+		if tr.filter.GetAction(funcName) == declfilter.Skip {
+			continue
+		}
 		fmt.Fprintf(w, "\nGlobal Instance wp_func_call_%s : \n", funcName)
 		fmt.Fprintf(w, "  WpFuncCall %s.pkg_name' \"%s\" _ is_defined :=\n", pkg.Name, funcName)
 		fmt.Fprintf(w, "  ltac:(apply wp_func_call'; reflexivity).\n")
@@ -150,6 +153,10 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		goMset := types.NewMethodSet(namedType)
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
+			if tr.filter.GetAction(typeName + "." + methodName) == declfilter.Skip {
+				continue
+			}
+
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s : \n", typeName, methodName)
 			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
 				pkg.Name, typeName, methodName)
@@ -163,6 +170,10 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		goMset = types.NewMethodSet(types.NewPointer(namedType))
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
+			if tr.filter.GetAction(typeName + "." + methodName) == declfilter.Skip {
+				continue
+			}
+
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s : \n", typeName, methodName)
 			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
 				pkg.Name, typeName, methodName)
