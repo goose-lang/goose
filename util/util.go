@@ -95,9 +95,6 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 			glang.ImportToPath(pkg.PkgPath)+".toml"),
 		)
 		filter := declfilter.Load(rawConfig)
-		if filter.HasTrusted() {
-			continue
-		}
 
 		usingFfi, ffi := getFfi(pkg)
 		translatePkg(w, pkg, usingFfi, ffi, filter)
