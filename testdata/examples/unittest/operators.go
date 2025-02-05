@@ -43,3 +43,8 @@ func AssignOps() {
 	x++
 	x--
 }
+
+func Negative() {
+	var x int64 = -10
+	x += 3
+}

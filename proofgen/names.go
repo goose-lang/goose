@@ -153,7 +153,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		goMset := types.NewMethodSet(namedType)
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
-			if tr.filter.GetAction(typeName + "." + methodName) == declfilter.Skip {
+			if tr.filter.GetAction(typeName+"."+methodName) == declfilter.Skip {
 				continue
 			}
 
@@ -170,7 +170,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		goMset = types.NewMethodSet(types.NewPointer(namedType))
 		for i := range goMset.Len() {
 			methodName := goMset.At(i).Obj().Name()
-			if tr.filter.GetAction(typeName + "." + methodName) == declfilter.Skip {
+			if tr.filter.GetAction(typeName+"."+methodName) == declfilter.Skip {
 				continue
 			}
 

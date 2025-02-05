@@ -61,3 +61,9 @@ func chanDirectional() {
 	<-x
 	y <- ""
 }
+
+func chanRange() {
+	var x chan uint64
+	for range x {
+	}
+}
