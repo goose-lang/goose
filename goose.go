@@ -1465,8 +1465,34 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	defer func(b bool) {
 		ctx.usesDefer = b
 	}(ctx.usesDefer)
+	defer func(defaultReturn glang.Expr) {
+		ctx.defaultReturn = defaultReturn
+	}(ctx.defaultReturn)
 
 	ctx.usesDefer = false
+
+	// Assemble the `defaultReturn` expr so the body's `return` statements can use it.
+	var defaultRetExpr glang.TupleExpr
+	if e.Type.Results == nil || len(e.Type.Results.List) == 0 {
+		defaultRetExpr = append(defaultRetExpr, glang.Tt)
+	} else {
+		for _, r := range e.Type.Results.List {
+			if r.Names == nil {
+
+			} else {
+				for _, name := range r.Names {
+					defaultRetExpr = append(defaultRetExpr,
+						glang.DerefExpr{
+							X:  glang.IdentExpr(name.Name),
+							Ty: ctx.glangType(r.Type, ctx.typeOf(r.Type)),
+						})
+				}
+			}
+		}
+	}
+	ctx.defaultReturn = glang.ReturnExpr{
+		Value: defaultRetExpr,
+	}
 
 	defer func(oldFuncType *types.Signature) {
 		ctx.curFuncType = oldFuncType
@@ -1481,6 +1507,18 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 			Names:   []string{arg.Name},
 			ValExpr: glang.RefExpr{Ty: arg.Type, X: glang.IdentExpr(arg.Name)},
 			Cont:    fl.Body,
+		}
+	}
+	if e.Type.Results != nil {
+		for _, r := range e.Type.Results.List {
+			t := ctx.glangType(r.Type, ctx.typeOf(r.Type))
+			for _, name := range r.Names {
+				fl.Body = glang.LetExpr{
+					Names:   []string{name.Name},
+					ValExpr: glang.RefExpr{Ty: t, X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t)},
+					Cont:    fl.Body,
+				}
+			}
 		}
 	}
 
@@ -2436,22 +2474,26 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	}
 
 	// Assemble the `defaultReturn` expr so the body's `return` statements can use it.
-	if d.Type.Results != nil {
-		var defaultRetExpr glang.TupleExpr
+	var defaultRetExpr glang.TupleExpr
+	if d.Type.Results == nil || len(d.Type.Results.List) == 0 {
+		defaultRetExpr = append(defaultRetExpr, glang.Tt)
+	} else {
 		for _, r := range d.Type.Results.List {
-			for _, name := range r.Names {
-				defaultRetExpr = append(defaultRetExpr,
-					glang.DerefExpr{
-						X:  glang.IdentExpr(name.Name),
-						Ty: ctx.glangType(r.Type, ctx.typeOf(r.Type)),
-					})
+			if r.Names == nil {
+
+			} else {
+				for _, name := range r.Names {
+					defaultRetExpr = append(defaultRetExpr,
+						glang.DerefExpr{
+							X:  glang.IdentExpr(name.Name),
+							Ty: ctx.glangType(r.Type, ctx.typeOf(r.Type)),
+						})
+				}
 			}
 		}
-		ctx.defaultReturn = glang.ReturnExpr{
-			Value: defaultRetExpr,
-		}
-	} else {
-		ctx.defaultReturn = glang.ReturnExpr{Value: glang.Tt}
+	}
+	ctx.defaultReturn = glang.ReturnExpr{
+		Value: defaultRetExpr,
 	}
 
 	body := ctx.blockStmt(d.Body, nil)
@@ -2633,7 +2675,7 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 		}
 
 		decls = append(decls, glang.ImportDecl{Path: importPath})
-		n := ctx.info.PkgNameOf(s).Pkg().Name()
+		n := ctx.info.PkgNameOf(s).Imported().Name()
 		if _, ok := ctx.importNames[n]; !ok {
 			ctx.importNames[n] = struct{}{}
 			ctx.importNamesOrdered = append(ctx.importNamesOrdered, n)
