@@ -36,7 +36,8 @@ type Ctx struct {
 
 	// XXX: this is so we can determine the expected return type when handling a
 	// `returnStmt` so the appropriate conversion is inserted
-	curFuncType *types.Signature
+	curFuncType   *types.Signature
+	defaultReturn glang.Expr // this handles
 
 	// Should be set to true when encountering a defer statement in the body of
 	// a function to communicate to its top-level funcDecl that it should
@@ -2113,6 +2114,10 @@ func (ctx *Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx *Ctx) returnStmt(s *ast.ReturnStmt, cont glang.Expr) glang.Expr {
+	if len(s.Results) == 0 {
+		return ctx.defaultReturn
+	}
+
 	exprs := make([]glang.Expr, 0, len(s.Results))
 	var expectedReturnTypes []types.Type
 	if ctx.curFuncType.Results() != nil {
@@ -2345,29 +2350,6 @@ func (ctx *Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	panic("unreachable")
 }
 
-// returnType converts an Ast.FuncType's Results to a Coq return type
-func (ctx *Ctx) returnType(results *ast.FieldList) glang.Type {
-	if results == nil {
-		return glang.TypeIdent("unitT")
-	}
-	rs := results.List
-	for _, r := range rs {
-		if len(r.Names) > 0 {
-			ctx.unsupported(r, "named returned value")
-			return glang.TypeIdent("<invalid>")
-		}
-	}
-	var ts []glang.Type
-	for _, r := range rs {
-		if len(r.Names) > 0 {
-			ctx.unsupported(r, "named returned value")
-			return glang.TypeIdent("<invalid>")
-		}
-		ts = append(ts, ctx.glangTypeFromExpr(r.Type))
-	}
-	return glang.NewTupleType(ts)
-}
-
 func funcName(f *types.Func) string {
 	maybeTypeName := ""
 	if recv := f.Type().(*types.Signature).Recv(); recv != nil {
@@ -2452,6 +2434,26 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	if d.Body == nil {
 		ctx.unsupported(d, "external function")
 	}
+
+	// Assemble the `defaultReturn` expr so the body's `return` statements can use it.
+	if d.Type.Results != nil {
+		var defaultRetExpr glang.TupleExpr
+		for _, r := range d.Type.Results.List {
+			for _, name := range r.Names {
+				defaultRetExpr = append(defaultRetExpr,
+					glang.DerefExpr{
+						X:  glang.IdentExpr(name.Name),
+						Ty: ctx.glangType(r.Type, ctx.typeOf(r.Type)),
+					})
+			}
+		}
+		ctx.defaultReturn = glang.ReturnExpr{
+			Value: defaultRetExpr,
+		}
+	} else {
+		ctx.defaultReturn = glang.ReturnExpr{Value: glang.Tt}
+	}
+
 	body := ctx.blockStmt(d.Body, nil)
 
 	if d.Name.Name == "init" {
@@ -2470,7 +2472,6 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	fd.Body = body
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
-	fd.ReturnType = ctx.returnType(d.Type.Results)
 	for _, arg := range fd.Args {
 		fd.Body = glang.LetExpr{
 			Names:   []string{arg.Name},
@@ -2485,6 +2486,19 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 			Cont:    fd.Body,
 		}
 	}
+	if d.Type.Results != nil {
+		for _, r := range d.Type.Results.List {
+			t := ctx.glangType(r.Type, ctx.typeOf(r.Type))
+			for _, name := range r.Names {
+				fd.Body = glang.LetExpr{
+					Names:   []string{name.Name},
+					ValExpr: glang.RefExpr{Ty: t, X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t)},
+					Cont:    fd.Body,
+				}
+			}
+		}
+	}
+
 	if ctx.usesDefer {
 		fd.Body = glang.NewCallExpr(glang.GallinaIdent("with_defer:"), fd.Body)
 	} else {

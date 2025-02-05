@@ -18,3 +18,13 @@ func NamedReturnMany() (x string, y string) {
 	y = "ok"
 	return
 }
+
+func NamedReturnOverride() (x string, y string) {
+	for {
+		x := "unused"
+		x += "stillUnused"
+		y = "ok"
+		break
+	}
+	return
+}

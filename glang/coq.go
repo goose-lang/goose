@@ -831,12 +831,11 @@ func (e ValueScoped) Coq(needs_paren bool) string {
 
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
-	Name       string
-	RecvArg    *FieldDecl
-	Args       []FieldDecl
-	ReturnType Type
-	Body       Expr
-	Comment    string
+	Name    string
+	RecvArg *FieldDecl
+	Args    []FieldDecl
+	Body    Expr
+	Comment string
 }
 
 // Signature renders the function declaration's bindings
