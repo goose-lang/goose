@@ -1811,6 +1811,7 @@ func (ctx *Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 		ctx.noExample(s, "declaration that is not a GenDecl")
 	}
 	if decl.Tok != token.VAR {
+		// TODO: support this via a let binding?
 		ctx.unsupported(s, "non-var declaration for %v", decl.Tok)
 	}
 	var expr glang.Expr = cont
