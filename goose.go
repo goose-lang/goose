@@ -848,20 +848,16 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 	selection := ctx.info.Selections[e]
 	if selection == nil {
-		pkg, ok := getIdent(e.X)
-		if !ok {
-			ctx.unsupported(e, "expected package selector with ident, got %T", e.X)
-		}
 		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
 			ctx.nope(e, "global variable from external package should be handled by exprAddr")
 			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
-		} else if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
+		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
 				ctx.info.TypeOf(e),
 				glang.NewCallExpr(
 					glang.GallinaIdent("func_call"),
-					glang.StringVal{Value: glang.GallinaIdent(pkg + ".pkg_name'")},
+					glang.StringVal{Value: glang.GallinaIdent(f.Pkg().Name() + ".pkg_name'")},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 				),
 			)
@@ -870,7 +866,7 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				ctx.info.TypeOf(e.Sel),
 				ctx.info.TypeOf(e),
 				glang.PackageIdent{
-					Package: pkg,
+					Package: ctx.info.ObjectOf(e.Sel).Pkg().Name(),
 					Ident:   e.Sel.Name,
 				},
 			)
@@ -2621,15 +2617,9 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 		if !ctx.filter.ShouldImport(importPath) {
 			continue
 		}
-		if s.Name != nil {
-			ctx.unsupported(s, "renaming imports")
-		}
-		// TODO: this uses the syntax of the Go import to determine the Coq
-		// import, but Go packages can contain a different name than their
-		// path. We can get this information by using the *types.Package
-		// returned by Check (or the pkg.Types field from *packages.Package).
+
 		decls = append(decls, glang.ImportDecl{Path: importPath})
-		n := ctx.info.PkgNameOf(s).Name()
+		n := ctx.info.PkgNameOf(s).Pkg().Name()
 		if _, ok := ctx.importNames[n]; !ok {
 			ctx.importNames[n] = struct{}{}
 			ctx.importNamesOrdered = append(ctx.importNamesOrdered, n)
