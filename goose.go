@@ -1234,6 +1234,9 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 		}
 		return expr
 	}
+	if e.Op == token.SUB {
+		return glang.NewCallExpr(glang.GallinaIdent("int_negative"), ctx.expr(e.X))
+	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
