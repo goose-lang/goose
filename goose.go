@@ -1696,25 +1696,6 @@ func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
 	return getIdent(e)
 }
 
-func (ctx *Ctx) mapRangeStmt(s *ast.RangeStmt) glang.Expr {
-	key, ok := getIdentOrAnonymous(s.Key)
-	if !ok {
-		ctx.nope(s.Key, "range with non-ident key")
-		return nil
-	}
-	val, ok := getIdentOrAnonymous(s.Value)
-	if !ok {
-		ctx.nope(s.Value, "range with non-ident value")
-		return nil
-	}
-	return glang.ForRangeMapExpr{
-		KeyIdent:   key,
-		ValueIdent: val,
-		Map:        ctx.expr(s.X),
-		Body:       ctx.blockStmt(s.Body, nil),
-	}
-}
-
 func (ctx *Ctx) identBinder(id *ast.Ident) glang.Binder {
 	if id == nil {
 		return glang.Binder(nil)
@@ -1723,49 +1704,90 @@ func (ctx *Ctx) identBinder(id *ast.Ident) glang.Binder {
 	return &e
 }
 
-func (ctx *Ctx) sliceRangeStmt(s *ast.RangeStmt) glang.Expr {
-	if s.Tok != token.DEFINE {
-		ctx.unsupported(s, "range with pre-existing variables")
-	}
-	key, ok := s.Key.(*ast.Ident)
-	if !ok {
-		ctx.todo(s.Key, "range with non-identifier as iteration variable")
-	}
-	valExpr := glang.Binder(nil)
-	if s.Value != nil {
-		val, ok := s.Value.(*ast.Ident)
-		if !ok {
-			ctx.todo(s.Value, "range with non-identifier as iteration variable")
-		}
-		valExpr = ctx.identBinder(val)
-	}
-
-	var e glang.Expr = glang.ForRangeSliceExpr{
-		Key:   ctx.identBinder(key),
-		Val:   valExpr,
-		Slice: glang.IdentExpr("$range"),
-		Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
-		Body:  ctx.blockStmt(s.Body, nil),
-	}
-	return glang.LetExpr{
-		Names:   []string{"$range"},
-		ValExpr: ctx.expr(s.X),
-		Cont:    e,
-	}
-}
-
 func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
+	var body glang.Expr = ctx.blockStmt(s.Body, nil)
+	if s.Key != nil {
+		body = ctx.assignFromTo(s.Key, glang.IdentExpr("$key"), body)
+	}
+	if s.Value != nil {
+		body = ctx.assignFromTo(s.Value, glang.IdentExpr("$value"), body)
+	}
+
+	var e glang.Expr
 	switch ctx.typeOf(s.X).Underlying().(type) {
 	case *types.Map:
-		return ctx.mapRangeStmt(s)
+		e = glang.ForRangeMapExpr{
+			Map:  glang.IdentExpr("$range"),
+			Body: body,
+		}
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
 	case *types.Slice:
-		return ctx.sliceRangeStmt(s)
+		e = glang.ForRangeSliceExpr{
+			Slice: glang.IdentExpr("$range"),
+			Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
+			Body:  body,
+		}
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
+	case *types.Chan:
+		e = glang.ForRangeChanExpr{
+			Chan: glang.IdentExpr("$range"),
+			Body: body,
+		}
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
 	default:
 		ctx.unsupported(s,
 			"range over %v (only maps and slices are supported)",
 			ctx.typeOf(s.X).Underlying())
 		return nil
 	}
+
+	// declare new vars if needed
+	if s.Tok == token.DEFINE {
+		if s.Key != nil {
+			key, ok := s.Key.(*ast.Ident)
+			if !ok {
+				ctx.nope(s.Key, "expected left side of of `:=` in for range to be an ident")
+			}
+			if key.Name != "_" {
+				t := ctx.glangType(s.Key, ctx.typeOf(s.Key))
+				e = glang.LetExpr{
+					Names:   []string{key.Name},
+					ValExpr: glang.RefExpr{Ty: t, X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t)},
+					Cont:    e,
+				}
+			}
+		}
+
+		if s.Value != nil {
+			value, ok := s.Value.(*ast.Ident)
+			if !ok {
+				ctx.nope(s.Value, "expected left side of of `:=` in for range to be an ident")
+			}
+			if value.Name != "_" {
+				t := ctx.glangType(s.Key, ctx.typeOf(s.Key))
+				e = glang.LetExpr{
+					Names:   []string{value.Name},
+					ValExpr: glang.RefExpr{Ty: t, X: glang.NewCallExpr(glang.GallinaIdent("zero_val"), t)},
+					Cont:    e,
+				}
+			}
+		}
+
+		e = glang.ParenExpr{Inner: e}
+	}
+	return e
 }
 
 func (ctx *Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
@@ -2370,7 +2392,7 @@ func (ctx *Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 		// in which case the loop var gets replaced by the inner loop.
 		return ctx.forStmt(s, cont)
 	case *ast.RangeStmt:
-		return glang.NewDoSeq(ctx.rangeStmt(s), cont)
+		return glang.SeqExpr{Expr: ctx.rangeStmt(s), Cont: cont}
 	case *ast.BlockStmt:
 		return ctx.blockStmt(s, cont)
 	case *ast.SwitchStmt:

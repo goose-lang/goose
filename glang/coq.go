@@ -726,8 +726,6 @@ func (e ForLoopExpr) Coq(needs_paren bool) string {
 }
 
 type ForRangeSliceExpr struct {
-	Key   Binder
-	Val   Binder
 	Ty    Expr
 	Slice Expr
 	Body  Expr
@@ -735,18 +733,27 @@ type ForRangeSliceExpr struct {
 
 func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("slice.for_range %s %s (λ: %s %s,",
+	pp.Add("slice.for_range %s %s (λ: \"$key\" \"$value\",",
 		e.Ty.Coq(true),
 		e.Slice.Coq(true),
-		binderToCoq(e.Key), binderToCoq(e.Val),
 	)
 	pp.Indent(2)
-	if e.Key != nil && *e.Key != "_" {
-		pp.Add("let: %s := ref_ty uint64T %s in", binderToCoq(e.Key), binderToCoq(e.Key))
-	}
-	if e.Val != nil && *e.Val != "_" {
-		pp.Add("let: %s := ref_ty %s %s in", binderToCoq(e.Val), e.Ty.Coq(true), binderToCoq(e.Val))
-	}
+	pp.Add("%s)", e.Body.Coq(false))
+	pp.Indent(-2)
+	return addParens(needs_paren, pp.Build())
+}
+
+type ForRangeChanExpr struct {
+	Chan Expr
+	Body Expr
+}
+
+func (e ForRangeChanExpr) Coq(needs_paren bool) string {
+	var pp buffer
+	pp.Add("chan.for_range %s (λ: \"$key\" \"$value\",",
+		e.Chan.Coq(true),
+	)
+	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq(false))
 	pp.Indent(-2)
 	return addParens(needs_paren, pp.Build())
@@ -763,8 +770,6 @@ func binderToCoq(b Binder) string {
 
 // ForRangeMapExpr is a call to the map iteration helper.
 type ForRangeMapExpr struct {
-	// name of key and value identifiers
-	KeyIdent, ValueIdent string
 	// map to iterate over
 	Map Expr
 	// body of loop, with KeyIdent and ValueIdent as free variables
@@ -773,9 +778,7 @@ type ForRangeMapExpr struct {
 
 func (e ForRangeMapExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("map.for_range %s (λ: %s %s,",
-		e.Map.Coq(true),
-		binder(e.KeyIdent), binder(e.ValueIdent))
+	pp.Add("map.for_range %s (λ: \"$key\" \"value\",", e.Map.Coq(true))
 	pp.Indent(2)
 	pp.Add("%s)", e.Body.Coq(false))
 	return addParens(needs_paren, pp.Build())
