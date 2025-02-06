@@ -5,6 +5,7 @@ Module interfacerecursion.
 Section code.
 Context `{ffi_syntax}.
 
+
 Definition A : go_type := interfaceT.
 
 Definition B : go_type := interfaceT.

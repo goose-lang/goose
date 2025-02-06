@@ -5,6 +5,7 @@ Module mutualrec.
 Section code.
 Context `{ffi_syntax}.
 
+
 Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/mutualrec".
 
 (* go: mutualrec.go:3:6 *)

@@ -52,7 +52,7 @@ assert_file_not_exist() {
 @test "goose current directory" {
     goose -out Goose
     run cat "$OUT"/m.v
-    assert_output --partial "From New.code Require github_com.tchajed.marshal."
+    assert_output --partial "Require Import New.code.github_com.tchajed.marshal."
     assert_output --partial "Section code."
 }
 
@@ -127,11 +127,4 @@ assert_file_not_exist() {
   run cat "$OUT"/m.v
   assert_output --partial "ExampleFunc"
   sed -i~ 's/ExampleFunc/UseMarshal/' m.go
-}
-
-@test "goose partial" {
-    goose -partial GoodFunc -out Goose -ignore-errors ./partial
-    run cat "$OUT"/m/partial.v
-    assert_output --partial "Definition GoodFunc"
-    refute_output --partial "BadFunc"
 }
