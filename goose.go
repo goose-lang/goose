@@ -1363,6 +1363,8 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		o := ctx.info.ObjectOf(e)
 		t, v := ctx.constantLiteral(e, o.(*types.Const).Val())
 		return ctx.handleImplicitConversion(e, t, ctx.typeOf(e), v)
+	case "recover":
+		return glang.GallinaIdent("recover")
 	default:
 		ctx.unsupported(e, "builtin identifier of type %v", ctx.typeOf(e))
 	}
@@ -2423,10 +2425,14 @@ func funcName(f *types.Func) string {
 	return maybeTypeName + f.Name()
 }
 
-// Returns a glang.FuncDecl and maybe also a glang.NameDecl. If the function is an `init`, this
+// Returns a glang.FuncDecl and maybe also a glang.NameDecl. If the function is an `init` or `_`, this
 // returns None.
 func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	funcName := funcName(ctx.info.ObjectOf(d.Name).(*types.Func))
+	if funcName == "_" {
+		return nil
+	}
+
 	ctx.usesDefer = false
 	fd := glang.FuncDecl{Name: d.Name.Name}
 	addSourceDoc(d.Doc, &fd.Comment)
