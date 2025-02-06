@@ -52,8 +52,147 @@ func (tr *typesTranslator) addDep(s string) {
 	tr.deps[tr.currentName] = append(tr.deps[tr.currentName], s)
 }
 
+func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) {
+	name := spec.Name.Name
+	defName := name + ".t"
+	tr.setCurrent(defName)
+	defer tr.unsetCurrent()
+
+	w := new(strings.Builder)
+	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nAxiom t : Type.\nEnd def.\nEnd %s.\n",
+		name, name)
+	fmt.Fprintf(w, `
+Global Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
+Admitted.
+`, name, name,
+	)
+
+	// IntoValTyped instance
+	fmt.Fprintf(w, `
+Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s.
+`,
+		name, name, tr.pkg.Name, name)
+	fmt.Fprintf(w, "Admitted.\n")
+
+	tr.defNames = append(tr.defNames, defName)
+	tr.defs[defName] = w.String()
+}
+
+func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) {
+	name := spec.Name.Name
+	defName := name + ".t"
+	tr.setCurrent(defName)
+	defer tr.unsetCurrent()
+
+	w := new(strings.Builder)
+	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nDefinition t := %s.\nEnd def.\nEnd %s.\n",
+		name, toCoqType(t, tr.pkg), name)
+
+	tr.defNames = append(tr.defNames, defName)
+	tr.defs[defName] = w.String()
+}
+
+func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Struct) {
+	name := spec.Name.Name
+	w := new(strings.Builder)
+	defName := name + ".t"
+	tr.setCurrent(defName)
+	defer tr.unsetCurrent()
+
+	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
+	for i := 0; i < s.NumFields(); i++ {
+		t := toCoqType(s.Field(i).Type(), tr.pkg)
+		tr.addDep(t)
+		fmt.Fprintf(w, "  %s : %s;\n",
+			toCoqName(s.Field(i).Name()),
+			t,
+		)
+	}
+	fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n\n", name)
+
+	// Settable instance
+	if s.NumFields() > 0 {
+		fmt.Fprintf(w, `
+Global Instance settable_%s `+"`{ffi_syntax}"+`: Settable _ :=
+  settable! %s.mk <`, name, name)
+		sep := ""
+		for i := 0; i < s.NumFields(); i++ {
+			fmt.Fprintf(w, "%s %s.%s", sep, name, toCoqName(s.Field(i).Name()))
+			sep = ";"
+		}
+		fmt.Fprintf(w, " >.\n")
+	}
+
+	fmt.Fprintf(w, `Global Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
+Admitted.
+
+`, name, name,
+	)
+
+	// IntoValTyped instance
+	fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s :=
+{|
+`,
+		name, name, tr.pkg.Name, name,
+	)
+	// default_val
+	fmt.Fprintf(w, "  default_val := %s.mk", name)
+	for i := 0; i < s.NumFields(); i++ {
+		fmt.Fprintf(w, " (default_val _)")
+	}
+	fmt.Fprintf(w, `;
+  to_val_has_go_type := ltac:(destruct falso);
+  default_val_eq_zero_val := ltac:(destruct falso);
+  to_val_inj := ltac:(destruct falso);
+  to_val_eqdec := ltac:(solve_decision);
+|}.
+`)
+
+	// IntoValStructField instances
+	for i := 0; i < s.NumFields(); i++ {
+		fieldName := s.Field(i).Name()
+		instanceName := "into_val_struct_field_" + name + "_" + fieldName
+		fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s.%s %s.%s.
+Admitted.
+
+`,
+			instanceName, fieldName, tr.pkg.Name, name, name, toCoqName(fieldName),
+		)
+	}
+
+	// PureWp instance
+	fmt.Fprintf(w, "Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
+	for i := 0; i < s.NumFields(); i++ {
+		fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+	}
+	fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", tr.pkg.Name, name)
+	sep := ""
+	for i := 0; i < s.NumFields(); i++ {
+		fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
+		sep = ";"
+	}
+	fmt.Fprint(w, "\n    ]))%%V\n    #(")
+	fmt.Fprintf(w, "%s.mk", name)
+	for i := 0; i < s.NumFields(); i++ {
+		fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+	}
+	fmt.Fprintf(w, ").\nAdmitted.\n\n")
+
+	tr.defNames = append(tr.defNames, defName)
+	tr.defs[defName] = w.String()
+}
+
+func (tr *typesTranslator) translateType(spec *ast.TypeSpec) {
+	switch s := tr.pkg.TypesInfo.TypeOf(spec.Type).(type) {
+	case *types.Struct:
+		tr.translateStructType(spec, s)
+	default:
+		tr.translateSimpleType(spec, s)
+		// panic(fmt.Sprintf("Unsupported type %s", s.String()))
+	}
+}
+
 func (tr *typesTranslator) Decl(d ast.Decl) {
-	info := tr.pkg.TypesInfo
 	switch d := d.(type) {
 	case *ast.FuncDecl:
 	case *ast.GenDecl:
@@ -75,101 +214,13 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 		case token.TYPE:
 			for _, spec := range d.Specs {
 				spec := spec.(*ast.TypeSpec)
-				if s, ok := info.TypeOf(spec.Type).(*types.Struct); ok {
-					name := spec.Name.Name
-
-					if tr.filter.GetAction(name) == declfilter.Skip ||
-						tr.filter.GetAction(name) == declfilter.Trust {
-						continue
-					}
-
-					w := new(strings.Builder)
-					// Record type
-					defName := name + ".t"
-					tr.setCurrent(defName)
-					defer tr.unsetCurrent()
-
-					fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
-					for i := 0; i < s.NumFields(); i++ {
-						t := toCoqType(s.Field(i).Type(), tr.pkg)
-						tr.addDep(t)
-						fmt.Fprintf(w, "  %s : %s;\n",
-							toCoqName(s.Field(i).Name()),
-							t,
-						)
-					}
-					fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n\n", name)
-
-					// Settable instance
-					if s.NumFields() > 0 {
-						fmt.Fprintf(w, `
-Global Instance settable_%s `+"`{ffi_syntax}"+`: Settable _ :=
-  settable! %s.mk <`, name, name)
-						sep := ""
-						for i := 0; i < s.NumFields(); i++ {
-							fmt.Fprintf(w, "%s %s.%s", sep, name, toCoqName(s.Field(i).Name()))
-							sep = ";"
-						}
-						fmt.Fprintf(w, " >.\n")
-					}
-
-					fmt.Fprintf(w, `Global Instance into_val_%s `+"`"+`{ffi_syntax} : IntoVal %s.t.
-Admitted.
-
-`, name, name,
-					)
-
-					// IntoValTyped instance
-					fmt.Fprintf(w, `Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s :=
-{|
-`,
-						name, name, tr.pkg.Name, name,
-					)
-					// default_val
-					fmt.Fprintf(w, "  default_val := %s.mk", name)
-					for i := 0; i < s.NumFields(); i++ {
-						fmt.Fprintf(w, " (default_val _)")
-					}
-					fmt.Fprintf(w, `;
-  to_val_has_go_type := ltac:(destruct falso);
-  default_val_eq_zero_val := ltac:(destruct falso);
-  to_val_inj := ltac:(destruct falso);
-  to_val_eqdec := ltac:(solve_decision);
-|}.
-`)
-
-					// IntoValStructField instances
-					for i := 0; i < s.NumFields(); i++ {
-						fieldName := s.Field(i).Name()
-						instanceName := "into_val_struct_field_" + name + "_" + fieldName
-						fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s.%s %s.%s.
-Admitted.
-
-`,
-							instanceName, fieldName, tr.pkg.Name, name, name, toCoqName(fieldName),
-						)
-					}
-
-					// PureWp instance
-					fmt.Fprintf(w, "Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
-					for i := 0; i < s.NumFields(); i++ {
-						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
-					}
-					fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", tr.pkg.Name, name)
-					sep := ""
-					for i := 0; i < s.NumFields(); i++ {
-						fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
-						sep = ";"
-					}
-					fmt.Fprint(w, "\n    ]))%%V\n    #(")
-					fmt.Fprintf(w, "%s.mk", name)
-					for i := 0; i < s.NumFields(); i++ {
-						fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
-					}
-					fmt.Fprintf(w, ").\nAdmitted.\n\n")
-
-					tr.defNames = append(tr.defNames, defName)
-					tr.defs[defName] = w.String()
+				switch tr.filter.GetAction(spec.Name.Name) {
+				case declfilter.Translate:
+					tr.translateType(spec)
+				case declfilter.Axiomatize:
+					tr.axiomatizeType(spec)
+				case declfilter.Skip, declfilter.Trust:
+					continue
 				}
 			}
 		}

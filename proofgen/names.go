@@ -54,7 +54,7 @@ func (tr *namesTranslator) Decl(d ast.Decl) {
 			}
 		}
 	case *ast.FuncDecl:
-		if d.Recv == nil && d.Name.Name != "init" {
+		if d.Recv == nil && d.Name.Name != "init" && d.Name.Name != "_" {
 			tr.functions = append(tr.functions, d.Name.Name)
 		}
 	case *ast.BadDecl:
