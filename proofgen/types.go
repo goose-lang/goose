@@ -7,6 +7,7 @@ import (
 	"go/types"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
@@ -57,6 +58,20 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 	case *ast.FuncDecl:
 	case *ast.GenDecl:
 		switch d.Tok {
+		case token.IMPORT:
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.ImportSpec)
+				importPath, _ := strconv.Unquote(spec.Path.Value)
+				if tr.filter.ShouldImport(importPath) {
+					coqImport := strings.ReplaceAll(
+						glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(
+							importPath), "/", ".")
+					if _, ok := tr.importsSet[coqImport]; !ok {
+						tr.importsList = append(tr.importsList, coqImport)
+						tr.importsSet[coqImport] = struct{}{}
+					}
+				}
+			}
 		case token.TYPE:
 			for _, spec := range d.Specs {
 				spec := spec.(*ast.TypeSpec)
@@ -184,7 +199,7 @@ func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 
 	// print in sorted order, printing error if there's a cycle
 	for _, imp := range tr.importsList {
-		fmt.Fprintf(w, "Require New.generatedproof.structs.%s.\n", imp)
+		fmt.Fprintf(w, "Require New.generatedproof.%s.\n", imp)
 	}
 	fmt.Fprintf(w, "Axiom falso : False.\n\n") // FIXME: get rid of this
 	var printingOrdered []string
