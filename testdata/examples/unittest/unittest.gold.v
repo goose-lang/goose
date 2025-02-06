@@ -1599,7 +1599,7 @@ Definition AssignOps : val :=
 Definition Negative : val :=
   rec: "Negative" <> :=
     exception_do (let: "x" := (ref_ty int64T (zero_val int64T)) in
-    let: "$r0" := (int_negative 10) in
+    let: "$r0" := #(W64 (- 10)) in
     do:  ("x" <-[int64T] "$r0");;;
     do:  ("x" <-[int64T] ((![int64T] "x") + #(W64 3)))).
 

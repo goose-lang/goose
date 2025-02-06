@@ -1232,7 +1232,17 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 		return expr
 	}
 	if e.Op == token.SUB {
-		return glang.NewCallExpr(glang.GallinaIdent("int_negative"), ctx.expr(e.X))
+		var coqExpr glang.Expr
+		xT := ctx.typeOf(e.X).Underlying()
+		if t, ok := xT.(*types.Basic); ok {
+			switch t.Kind() {
+			case types.UntypedInt:
+				coqExpr = glang.NewCallExpr(glang.GallinaIdent("-"), ctx.expr(e.X))
+			case types.Int, types.Int64, types.Int32, types.Int16, types.Int8:
+				coqExpr = glang.NewCallExpr(glang.GallinaIdent("int_negative"), ctx.expr(e.X))
+			}
+			return ctx.handleImplicitConversion(e, xT, ctx.typeOf(e), coqExpr)
+		}
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
