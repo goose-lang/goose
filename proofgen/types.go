@@ -156,7 +156,7 @@ Admitted.
 	}
 
 	// PureWp instance
-	fmt.Fprintf(w, "Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
+	fmt.Fprintf(w, "Global Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
 	for i := 0; i < s.NumFields(); i++ {
 		fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
 	}
