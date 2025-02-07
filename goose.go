@@ -897,11 +897,63 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		// 2*2 cases: receiver type could be (T) or (*T), and e.X type
 		// (including embedded fields) could be (T) or (*T).
 
-		if ctx.info.Types[e.X].Addressable() {
-			return ctx.selectionMethod(true, ctx.exprAddr(e.X), selection, e)
-		} else {
-			return ctx.selectionMethod(false, ctx.expr(e.X), selection, e)
+		if info, ok := ctx.getInterfaceInfo(ctx.typeOf(e.X)); ok {
+			var expr = ctx.expr(e.X)
+			if info.throughPointer {
+				ctx.nope(e, "cannot call method because receiver is pointer to interface, not interface")
+			}
+			return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
+				glang.GallinaString(e.Sel.Name), expr,
+			)
 		}
+
+		mset := types.NewMethodSet(ctx.typeOf(e.X))
+		for i := range mset.Len() {
+			if mset.At(i).Obj().Name() == e.Sel.Name {
+				// expression represents just (x.f), not `(&x).f`
+				t := ctx.typeOf(e.X)
+				typeNameSuffix := ""
+				if ptrType, ok := t.(*types.Pointer); ok {
+					t = ptrType.Elem()
+					typeNameSuffix = "'ptr"
+				}
+
+				named, ok := types.Unalias(t).(*types.Named)
+				if !ok {
+					ctx.unsupported(e.X, "calling method where syntactic receiver's type is not a named type")
+				}
+				pkgName, typeName := ctx.getPkgAndName(named.Obj())
+				ctx.dep.addDep(pkgName)
+				ctx.dep.addDep(typeName)
+				methodName := e.Sel.Name
+
+				return glang.NewCallExpr(
+					glang.GallinaIdent("method_call"),
+					glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+					glang.StringVal{Value: glang.GallinaString(typeName + typeNameSuffix)},
+					glang.StringVal{Value: glang.GallinaString(methodName)},
+					ctx.expr(e.X),
+				)
+			}
+		}
+
+		// if reached here, the selectorExpr denotes `(&x).f`
+		named, ok := types.Unalias(ctx.typeOf(e.X)).(*types.Named)
+		if !ok {
+			ctx.unsupported(e.X, "expected receiver's type to be a named type")
+		}
+		pkgName, typeName := ctx.getPkgAndName(named.Obj())
+		ctx.dep.addDep(pkgName)
+		ctx.dep.addDep(typeName)
+		methodName := e.Sel.Name
+
+		return glang.NewCallExpr(
+			glang.GallinaIdent("method_call"),
+			glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+			glang.StringVal{Value: glang.GallinaString(typeName + "'ptr")},
+			glang.StringVal{Value: glang.GallinaString(methodName)},
+			ctx.exprAddr(e.X),
+		)
 	}
 
 	panic("unreachable")
