@@ -47,6 +47,65 @@ func (tr *typesTranslator) addDep(s string) {
 	tr.deps[tr.currentName] = append(tr.deps[tr.currentName], s)
 }
 
+func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package) string {
+	switch t := t.(type) {
+	case *types.Basic:
+		switch t.Name() {
+		case "uint64", "int64":
+			return "w64"
+		case "uint32", "int32":
+			return "w32"
+		case "uint16", "int16":
+			return "w16"
+		case "uint8", "int8", "byte":
+			return "w8"
+		case "uint", "int":
+			return "w64"
+		case "float64":
+			return "w64"
+		case "bool":
+			return "bool"
+		case "string", "untyped string":
+			return "go_string"
+		case "Pointer", "uintptr":
+			return "loc"
+		default:
+			panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
+		}
+	case *types.Slice:
+		return "slice.t"
+	case *types.Array:
+		return fmt.Sprintf("(vec %s %d)", tr.toCoqTypeWithDeps(t.Elem(), pkg), t.Len())
+	case *types.Pointer:
+		return "loc"
+	case *types.Signature:
+		return "func.t"
+	case *types.Interface:
+		return "interface.t"
+	case *types.Map, *types.Chan:
+		return "loc"
+	case *types.Named:
+		if t.Obj().Pkg() == nil || pkg.PkgPath == t.Obj().Pkg().Path() {
+			n := t.Obj().Name() + ".t"
+			tr.addDep(n)
+			return n
+		} else {
+			n := fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
+			tr.addDep(n)
+			return n
+		}
+	case *types.Struct:
+		if t.NumFields() == 0 {
+			return "unit"
+		} else {
+			panic(fmt.Sprintf("Anonymous structs with fields are not supported (%s): %s",
+				pkg.Fset.Position(t.Field(0).Pos()).String(),
+				t.String()))
+		}
+	}
+	panic(fmt.Sprint("Unknown type ", t))
+}
+
 func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) {
 	name := spec.Name.Name
 	defName := name + ".t"
@@ -81,7 +140,7 @@ func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type)
 
 	w := new(strings.Builder)
 	fmt.Fprintf(w, "\nModule %s.\nSection def.\nContext `{ffi_syntax}.\nDefinition t := %s.\nEnd def.\nEnd %s.\n",
-		name, toCoqType(t, tr.pkg), name)
+		name, tr.toCoqTypeWithDeps(t, tr.pkg), name)
 
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = w.String()
@@ -96,8 +155,7 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 
 	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
 	for i := 0; i < s.NumFields(); i++ {
-		t := toCoqType(s.Field(i).Type(), tr.pkg)
-		tr.addDep(t)
+		t := tr.toCoqTypeWithDeps(s.Field(i).Type(), tr.pkg)
 		fmt.Fprintf(w, "  %s : %s;\n",
 			toCoqName(s.Field(i).Name()),
 			t,

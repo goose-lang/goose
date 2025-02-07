@@ -45,15 +45,11 @@ func toCoqType(t types.Type, pkg *packages.Package) string {
 	case *types.Map, *types.Chan:
 		return "loc"
 	case *types.Named:
-		u := t.Underlying()
-		if _, ok := u.(*types.Struct); ok {
-			if pkg.PkgPath == t.Obj().Pkg().Path() {
-				return t.Obj().Name() + ".t"
-			} else {
-				return fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
-			}
+		if t.Obj().Pkg() == nil || pkg.PkgPath == t.Obj().Pkg().Path() {
+			return t.Obj().Name() + ".t"
+		} else {
+			return fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
 		}
-		return toCoqType(u, pkg)
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "unit"
