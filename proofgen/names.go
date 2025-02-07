@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
@@ -25,6 +26,9 @@ type namesTranslator struct {
 
 	usingFfi bool
 	ffi      string
+
+	importsList []string
+	importsSet  map[string]struct{}
 }
 
 func (tr *namesTranslator) Decl(d ast.Decl) {
@@ -32,6 +36,20 @@ func (tr *namesTranslator) Decl(d ast.Decl) {
 	switch d := d.(type) {
 	case *ast.GenDecl:
 		switch d.Tok {
+		case token.IMPORT:
+			for _, spec := range d.Specs {
+				spec := spec.(*ast.ImportSpec)
+				importPath, _ := strconv.Unquote(spec.Path.Value)
+				if tr.filter.ShouldImport(importPath) {
+					coqImport := strings.ReplaceAll(
+						glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(
+							importPath), "/", ".")
+					if _, ok := tr.importsSet[coqImport]; !ok {
+						tr.importsList = append(tr.importsList, coqImport)
+						tr.importsSet[coqImport] = struct{}{}
+					}
+				}
+			}
 		case token.VAR:
 			for _, spec := range d.Specs {
 				s := spec.(*ast.ValueSpec)
@@ -74,12 +92,16 @@ func translateNames(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 		fmt.Fprintf(w, "Require Export New.proof.proof_prelude.\n")
 	}
 
-	tr := &namesTranslator{pkg: pkg, filter: filter}
+	tr := &namesTranslator{pkg: pkg, filter: filter, importsSet: make(map[string]struct{})}
 
 	for _, f := range pkg.Syntax {
 		for _, d := range f.Decls {
 			tr.Decl(d)
 		}
+	}
+
+	for _, imp := range tr.importsList {
+		fmt.Fprintf(w, "Require New.generatedproof.%s.\n", imp)
 	}
 
 	fmt.Fprintf(w, "Module %s.\nSection defs.\n", pkg.Name)
@@ -142,7 +164,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 		if tr.filter.GetAction(funcName) == declfilter.Skip {
 			continue
 		}
-		fmt.Fprintf(w, "\nGlobal Instance wp_func_call_%s : \n", funcName)
+		fmt.Fprintf(w, "\nGlobal Instance wp_func_call_%s :\n", funcName)
 		fmt.Fprintf(w, "  WpFuncCall %s.pkg_name' \"%s\" _ is_defined :=\n", pkg.Name, funcName)
 		fmt.Fprintf(w, "  ltac:(apply wp_func_call'; reflexivity).\n")
 	}

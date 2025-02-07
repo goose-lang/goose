@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type PackageTranslator func(io.Writer, *packages.Package, bool, string, declfilter.DeclFilter)
+type PackageTranslator func(func(string) io.Writer, *packages.Package, bool, string, declfilter.DeclFilter)
 
 func newPackageConfig(modDir string) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
@@ -87,9 +87,15 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 	} else if len(pkgs) == 0 {
 		panic("patterns matched no packages")
 	}
-	for _, pkg := range pkgs {
-		w := new(strings.Builder)
 
+	for _, pkg := range pkgs {
+		writerMap := make(map[string]*strings.Builder)
+		w := func(name string) io.Writer {
+			if _, ok := writerMap[name]; !ok {
+				writerMap[name] = new(strings.Builder)
+			}
+			return writerMap[name]
+		}
 		rawConfig, _ := os.ReadFile(path.Join(
 			configDir,
 			glang.ImportToPath(pkg.PkgPath)+".toml"),
@@ -99,18 +105,27 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 		usingFfi, ffi := getFfi(pkg)
 		translatePkg(w, pkg, usingFfi, ffi, filter)
 
-		outFile := path.Join(outRootDir, glang.ImportToPath(pkg.PkgPath))
-		outDir := path.Dir(outFile)
+		filePath := path.Join(outRootDir, glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath))
+		outDir := path.Dir(filePath)
 		err = os.MkdirAll(outDir, 0777)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, red("could not create output directory"))
 		}
-		err = writeFileIfChanged(outFile, []byte(w.String()), 0666)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			fmt.Fprintln(os.Stderr, red("could not write output"))
-			os.Exit(1)
+
+		for name, w := range writerMap {
+			outFile := filePath
+			if name == "" {
+				outFile += ".v"
+			} else {
+				outFile += "__" + name + ".v"
+			}
+			err = writeFileIfChanged(outFile, []byte(w.String()), 0666)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				fmt.Fprintln(os.Stderr, red("could not write output"))
+				os.Exit(1)
+			}
 		}
 	}
 }

@@ -250,7 +250,7 @@ func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 
 	// print in sorted order, printing error if there's a cycle
 	for _, imp := range tr.importsList {
-		fmt.Fprintf(w, "Require New.generatedproof.%s.\n", imp)
+		fmt.Fprintf(w, "Require Import New.generatedproof.%s.\n", imp)
 	}
 	fmt.Fprintf(w, "Axiom falso : False.\n\n") // FIXME: get rid of this
 	var printingOrdered []string
