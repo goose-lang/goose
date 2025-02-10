@@ -1157,6 +1157,19 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 				}()
 			}
 		}
+	} else if _, ok := compType.(*types.Interface); ok {
+		expr = glang.NewCallExpr(
+			glang.GallinaIdent("interface.eq"),
+			ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
+			ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
+		)
+		if e.Op == token.NEQ {
+			return glang.NotExpr{X: expr}
+		} else if e.Op == token.EQL {
+			return expr
+		} else {
+			ctx.nope(e, "unknown binary operation on interface objects")
+		}
 	} else {
 		op, ok = generalOps[e.Op]
 		if !ok {
@@ -1998,8 +2011,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		return e
 	}
 
-	if fromPtr, ok := from.(*types.Pointer); ok {
-		if toPtr, ok := to.(*types.Pointer); ok {
+	if fromPtr, ok := fromUnder.(*types.Pointer); ok {
+		if toPtr, ok := toUnder.(*types.Pointer); ok {
 			fromBase := fromPtr.Elem().Underlying()
 			toBase := toPtr.Elem().Underlying()
 			if types.Identical(fromBase, toBase) {
@@ -2008,6 +2021,10 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 				ctx.nope(n, "Cannot convert between pointer types from base %s to %s",
 					fromBase, toBase,
 				)
+			}
+		} else if toBasic, ok := toUnder.(*types.Basic); ok {
+			if toBasic.Kind() == types.UnsafePointer {
+				return e
 			}
 		}
 	}
