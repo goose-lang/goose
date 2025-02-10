@@ -146,7 +146,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 				continue
 			}
 
-			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s : \n", typeName, methodName)
+			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s :\n", typeName, methodName)
 			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
 				pkg.Name, typeName, methodName)
 			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")

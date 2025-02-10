@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"strconv"
 
 	"github.com/goose-lang/goose/glang"
 )
@@ -27,10 +28,15 @@ func (ctx *Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
 func (ctx *Ctx) structType(t *types.Struct) glang.Type {
 	ty := glang.StructType{}
 	for i := range t.NumFields() {
-		fieldt := t.Field(i).Type()
+		fieldType := t.Field(i).Type()
+		fieldName := t.Field(i).Name()
+		if fieldName == "_" {
+			fieldName = "_" + strconv.Itoa(i)
+		}
+
 		ty.Fields = append(ty.Fields, glang.FieldDecl{
-			Name: t.Field(i).Name(),
-			Type: ctx.glangType(t.Field(i), fieldt),
+			Name: fieldName,
+			Type: ctx.glangType(t.Field(i), fieldType),
 		})
 	}
 	return ty

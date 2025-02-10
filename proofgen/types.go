@@ -7,6 +7,7 @@ import (
 	"go/types"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
@@ -153,11 +154,19 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 	tr.setCurrent(defName)
 	defer tr.unsetCurrent()
 
+	getFieldName := func(i int) string {
+		fieldName := s.Field(i).Name()
+		if fieldName == "_" {
+			fieldName = "_" + strconv.Itoa(i)
+		}
+		return fieldName
+	}
+
 	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
 	for i := 0; i < s.NumFields(); i++ {
 		t := tr.toCoqTypeWithDeps(s.Field(i).Type(), tr.pkg)
 		fmt.Fprintf(w, "  %s : %s;\n",
-			toCoqName(s.Field(i).Name()),
+			toCoqName(getFieldName(i)),
 			t,
 		)
 	}
@@ -170,7 +179,7 @@ Global Instance settable_%s `+"`{ffi_syntax}"+`: Settable _ :=
   settable! %s.mk <`, name, name)
 		sep := ""
 		for i := 0; i < s.NumFields(); i++ {
-			fmt.Fprintf(w, "%s %s.%s", sep, name, toCoqName(s.Field(i).Name()))
+			fmt.Fprintf(w, "%s %s.%s", sep, name, toCoqName(getFieldName(i)))
 			sep = ";"
 		}
 		fmt.Fprintf(w, " >.\n")
@@ -203,31 +212,30 @@ Admitted.
 
 	// IntoValStructField instances
 	for i := 0; i < s.NumFields(); i++ {
-		fieldName := s.Field(i).Name()
-		instanceName := "into_val_struct_field_" + name + "_" + fieldName
+		instanceName := "into_val_struct_field_" + name + "_" + getFieldName(i)
 		fmt.Fprintf(w, `Global Instance %s `+"`"+`{ffi_syntax} : IntoValStructField "%s" %s.%s %s.%s.
 Admitted.
 
 `,
-			instanceName, fieldName, tr.pkg.Name, name, name, toCoqName(fieldName),
+			instanceName, getFieldName(i), tr.pkg.Name, name, name, toCoqName(getFieldName(i)),
 		)
 	}
 
 	// PureWp instance
 	fmt.Fprintf(w, "Global Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
 	for i := 0; i < s.NumFields(); i++ {
-		fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+		fmt.Fprintf(w, " %s", toCoqName(getFieldName(i)))
 	}
 	fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", tr.pkg.Name, name)
 	sep := ""
 	for i := 0; i < s.NumFields(); i++ {
-		fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, s.Field(i).Name(), toCoqName(s.Field(i).Name()))
+		fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, getFieldName(i), toCoqName(getFieldName(i)))
 		sep = ";"
 	}
 	fmt.Fprint(w, "\n    ]))%%V\n    #(")
 	fmt.Fprintf(w, "%s.mk", name)
 	for i := 0; i < s.NumFields(); i++ {
-		fmt.Fprintf(w, " %s", toCoqName(s.Field(i).Name()))
+		fmt.Fprintf(w, " %s", toCoqName(getFieldName(i)))
 	}
 	fmt.Fprintf(w, ").\nAdmitted.\n\n")
 

@@ -693,7 +693,7 @@ func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	case types.MethodExpr:
 		ctx.nope(e, "method expr is not addressable")
 	}
-	ctx.nope(e, "unexpected kinf of selection")
+	ctx.nope(e, "unexpected kind of selection")
 	panic("unreachable")
 }
 
