@@ -170,7 +170,12 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 			t,
 		)
 	}
-	fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n\n", name)
+	fmt.Fprintf(w, "}.\nEnd def.\nEnd %s.\n", name)
+
+	fmt.Fprint(w, `
+Section instances.
+Context `+"`"+`{ffi_syntax}.
+`)
 
 	// Settable instance
 	if s.NumFields() > 0 {
@@ -221,6 +226,10 @@ Admitted.
 		)
 	}
 
+	fmt.Fprint(w, `
+Context `+"`"+`{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
+`)
+
 	// PureWp instance
 	fmt.Fprintf(w, "Global Instance wp_struct_make_%s `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}", name)
 	for i := 0; i < s.NumFields(); i++ {
@@ -238,6 +247,26 @@ Admitted.
 		fmt.Fprintf(w, " %s", toCoqName(getFieldName(i)))
 	}
 	fmt.Fprintf(w, ").\nAdmitted.\n\n")
+
+	if s.NumFields() > 0 {
+		// StructFieldsSplit instance
+		fmt.Fprint(w, `
+Global Instance `+name+`_struct_fields_split l (v : `+name+`.t) :
+  StructFieldsSplit l v (`)
+		sep = ""
+		for i := 0; i < s.NumFields(); i++ {
+			fmt.Fprintf(w, sep+"\n"+
+				`    "H`+getFieldName(i)+`" ∷ l ↦s[`+tr.pkg.Name+`.`+name+` :: "`+getFieldName(i)+`"] v.(`+name+`.`+toCoqName(getFieldName(i))+`)`)
+			sep = " ∗"
+		}
+		fmt.Fprint(w, `
+  ).
+Admitted.
+`)
+	}
+	fmt.Fprint(w, `
+End instances.
+`)
 
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = w.String()
