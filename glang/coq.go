@@ -508,6 +508,14 @@ func (l Int32Val) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#(W32 %s)", l.Value.Coq(true))
 }
 
+type Int16Val struct {
+	Value Expr
+}
+
+func (l Int16Val) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#(W16 %s)", l.Value.Coq(true))
+}
+
 type Int8Val struct {
 	Value Expr
 }

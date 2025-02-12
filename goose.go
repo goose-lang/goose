@@ -2216,11 +2216,41 @@ func (ctx *Ctx) incDecStmt(stmt *ast.IncDecStmt, cont glang.Expr) glang.Expr {
 	if stmt.Tok == token.DEC {
 		op = glang.OpMinus
 	}
-	return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
-		X:  ctx.expr(stmt.X),
-		Op: op,
-		Y:  glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
-	}, cont)
+
+	b, ok := ctx.typeOf(stmt.X).Underlying().(*types.Basic)
+	if !ok {
+		ctx.nope(stmt, "Expected underlying type of inc/dec value to be a basic type")
+	}
+
+	switch b.Kind() {
+	case types.Int64, types.Uint64, types.Int, types.Uint:
+		return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
+			X:  ctx.expr(stmt.X),
+			Op: op,
+			Y:  glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
+		}, cont)
+	case types.Int32, types.Uint32:
+		return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
+			X:  ctx.expr(stmt.X),
+			Op: op,
+			Y:  glang.Int32Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
+		}, cont)
+	case types.Int16, types.Uint16:
+		return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
+			X:  ctx.expr(stmt.X),
+			Op: op,
+			Y:  glang.Int16Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
+		}, cont)
+	case types.Int8, types.Uint8:
+		return ctx.assignFromTo(stmt.X, glang.BinaryExpr{
+			X:  ctx.expr(stmt.X),
+			Op: op,
+			Y:  glang.Int8Val{Value: glang.ZLiteral{Value: big.NewInt(1)}},
+		}, cont)
+	default:
+		ctx.unsupported(stmt, "unknown basic type in inc/dec")
+	}
+	panic("unreachable")
 }
 
 func (ctx *Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
