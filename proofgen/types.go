@@ -251,12 +251,12 @@ Context `+"`"+`{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 	if s.NumFields() > 0 {
 		// StructFieldsSplit instance
 		fmt.Fprint(w, `
-Global Instance `+name+`_struct_fields_split l (v : `+name+`.t) :
-  StructFieldsSplit l v (`)
+Global Instance `+name+`_struct_fields_split dq l (v : `+name+`.t) :
+  StructFieldsSplit dq l v (`)
 		sep = ""
 		for i := 0; i < s.NumFields(); i++ {
 			fmt.Fprintf(w, sep+"\n"+
-				`    "H`+getFieldName(i)+`" ∷ l ↦s[`+tr.pkg.Name+`.`+name+` :: "`+getFieldName(i)+`"] v.(`+name+`.`+toCoqName(getFieldName(i))+`)`)
+				`    "H`+getFieldName(i)+`" ∷ l ↦s[`+tr.pkg.Name+`.`+name+` :: "`+getFieldName(i)+`"]{dq} v.(`+name+`.`+toCoqName(getFieldName(i))+`)`)
 			sep = " ∗"
 		}
 		fmt.Fprint(w, `
