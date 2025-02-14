@@ -119,8 +119,10 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
+	case *types.Alias:
+		return ctx.coqTypeOfType(n, t.Underlying())
 	}
-	ctx.nope(n, "unknown type %v", t)
+	ctx.nope(n, "unknown type %v (of Go type %T)", t, t)
 	return nil // unreachable
 }
 
