@@ -257,10 +257,18 @@ func isWaitGroup(t types.Type) bool {
 }
 
 func isProphId(t types.Type) bool {
+	// "dereference" alias types to get down to *prophId
+	for {
+		if alias, ok := t.(*types.Alias); ok {
+			t = alias.Rhs()
+		} else {
+			break
+		}
+	}
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
-			return (name.Pkg().Name() == "machine" || name.Pkg().Name() == "primitive") &&
+			return name.Pkg().Name() == "primitive" &&
 				name.Name() == "prophId"
 		}
 	}
@@ -284,6 +292,14 @@ func isString(t types.Type) bool {
 }
 
 func isDisk(t types.Type) bool {
+	// "dereference" only alias types (Underlying() will also get rid of Named types)
+	for {
+		if aliasType, ok := t.(*types.Alias); ok {
+			t = aliasType.Rhs()
+		} else {
+			break
+		}
+	}
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
 		if (obj.Pkg().Path() == "github.com/goose-lang/goose/machine/disk" || obj.Pkg().Path() == "github.com/goose-lang/primitive/disk") &&
