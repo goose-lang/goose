@@ -69,6 +69,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	if isProphId(t) {
 		return coq.TypeIdent("ProphIdT")
 	}
+	t = types.Unalias(t)
 	switch t := t.(type) {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
@@ -119,8 +120,6 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
-	case *types.Alias:
-		return ctx.coqTypeOfType(n, t.Underlying())
 	}
 	ctx.nope(n, "unknown type %v (of Go type %T)", t, t)
 	return nil // unreachable
@@ -213,6 +212,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 }
 
 func isLockRef(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -224,6 +224,7 @@ func isLockRef(t types.Type) bool {
 }
 
 func isCFMutexRef(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -235,6 +236,7 @@ func isCFMutexRef(t types.Type) bool {
 }
 
 func isCondVar(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -246,6 +248,7 @@ func isCondVar(t types.Type) bool {
 }
 
 func isWaitGroup(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -257,14 +260,7 @@ func isWaitGroup(t types.Type) bool {
 }
 
 func isProphId(t types.Type) bool {
-	// "dereference" alias types to get down to *prophId
-	for {
-		if alias, ok := t.(*types.Alias); ok {
-			t = alias.Rhs()
-		} else {
-			break
-		}
-	}
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -292,14 +288,7 @@ func isString(t types.Type) bool {
 }
 
 func isDisk(t types.Type) bool {
-	// "dereference" only alias types (Underlying() will also get rid of Named types)
-	for {
-		if aliasType, ok := t.(*types.Alias); ok {
-			t = aliasType.Rhs()
-		} else {
-			break
-		}
-	}
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
 		if (obj.Pkg().Path() == "github.com/goose-lang/goose/machine/disk" || obj.Pkg().Path() == "github.com/goose-lang/primitive/disk") &&
@@ -311,6 +300,7 @@ func isDisk(t types.Type) bool {
 }
 
 func isAtomicPointerType(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
 		if obj.Pkg().Path() == "sync/atomic" && obj.Name() == "Pointer" {
