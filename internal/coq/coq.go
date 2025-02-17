@@ -112,9 +112,10 @@ func (d FieldDecl) Coq(needs_paren bool) string {
 
 // StructDecl is a Coq record for a Go struct
 type StructDecl struct {
-	Name    string
-	Fields  []FieldDecl
-	Comment string
+	Name           string
+	Fields         []FieldDecl
+	TypeParameters []TypeIdent
+	Comment        string
 }
 
 // CoqDecl implements the Decl interface
@@ -125,7 +126,16 @@ type StructDecl struct {
 func (d StructDecl) CoqDecl() string {
 	var pp buffer
 	pp.AddComment(d.Comment)
-	pp.Add("Definition %s := struct.decl [", d.Name)
+	// For generic structs, add type params and return type (return type is the same
+	// but can't be inferred with params).
+	var builder strings.Builder
+	if d.TypeParameters != nil {
+		for _, tp := range d.TypeParameters {
+			fmt.Fprintf(&builder, "(%s: ty) ", tp)
+		}
+		fmt.Fprintf(&builder, ": struct.descriptor ")
+	}
+	pp.Add("Definition %s %s:= struct.decl [", d.Name, builder.String())
 	pp.Indent(2)
 	for i, fd := range d.Fields {
 		sep := ";"

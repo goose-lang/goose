@@ -227,6 +227,75 @@ func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
+// Get the type parameters for a struct declaration. This is used to create a descriptor
+// function that takes type parameters as arguments.
+func (ctx Ctx) structTypeParams(fs *ast.FieldList) []coq.TypeIdent {
+	var typeParams []coq.TypeIdent
+	if fs == nil {
+		return nil
+	}
+	for _, f := range fs.List {
+		for _, name := range f.Names {
+			typeParams = append(typeParams, coq.TypeIdent(name.Name))
+		}
+		if len(f.Names) == 0 { // Unnamed parameter
+			ctx.unsupported(fs, "unnamed type parameters")
+		}
+	}
+	return typeParams
+}
+
+// This function uses DFS on the tree of generic struct fields to produce a gallina function
+// call to a function that gets the struct's descriptor. If the struct does not use generic
+// type parameters, this will just be the struct's name, with the path removed if it is in
+// the same module as the context. For a generic struct, it will return a the struct's name
+// followed by the type parameters(evaluated recursively in case a type parameter is a
+// struct), which amounts to a function call to the descriptor function with the type
+// parameters as arguments.
+func getStructDescriptorFunction(ctx Ctx, curr_type types.Type) string {
+	name := ""
+	// Get the name of the struct if this is a struct.
+	if t, ok := curr_type.(*types.Named); ok {
+		name = ctx.qualifiedName(t.Obj())
+	}
+	// For pointers, we don't need anything beyond that the type parameter will be a pointer.
+	if _, ok := curr_type.Underlying().(*types.Pointer); ok {
+		return "ptrT"
+	}
+
+	var builder strings.Builder
+	if structType, ok := curr_type.Underlying().(*types.Struct); ok {
+		// Base case #1: Non-generic struct, just return the name
+		if structType.NumFields() == 0 {
+			return name
+		}
+
+		// Recursive case: Generic struct, for each field, check if it is a generic type. If
+		// so, recursively call this function.
+		struct_desc_module := ""
+		for i := 0; i < structType.NumFields(); i++ {
+			field := structType.Field(i)
+			declared_type := field.Type()
+			origin_type := field.Origin().Type()
+			// This is a convenient way to tell if a type is generic. For example, if "T any"
+			// is used as a generic type for a field of a struct, we will compare "any" with
+			// the type parameter name "T" which will make it clear that we need to keep
+			// track of the type parameter assignment.
+			if origin_type.Underlying() != declared_type.Underlying() {
+				fmt.Fprintf(&builder, " %s", getStructDescriptorFunction(ctx, declared_type))
+			}
+		}
+		if len(builder.String()) > 0 {
+			struct_desc_module = fmt.Sprintf("(%s%s)", name, builder.String())
+		} else {
+			struct_desc_module = name
+		}
+		return struct_desc_module
+	}
+	// Base case #2: A non-struct type, just return the type.
+	return curr_type.String()
+}
+
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 	if doc == nil {
 		return
@@ -248,9 +317,6 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
-	if spec.TypeParams != nil {
-		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
-	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
 		ty := coq.StructDecl{
@@ -259,6 +325,10 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
 		ty.Fields = ctx.structFields(goTy.Fields)
+		// This is a generic struct and we must keep track of type parameters.
+		if spec.TypeParams != nil {
+			ty.TypeParameters = ctx.structTypeParams(spec.TypeParams)
+		}
 		return ty
 	case *ast.InterfaceType:
 		ty := coq.InterfaceDecl{
@@ -269,6 +339,9 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		ty.Methods = ctx.structFields(goTy.Methods)
 		return ty
 	default:
+		if spec.TypeParams != nil {
+			ctx.futureWork(spec, "generic named type only allowed for generic struct")
+		}
 		if spec.Assign == 0 {
 			return coq.TypeDef{
 				Name: spec.Name.Name,

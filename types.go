@@ -199,6 +199,10 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 		return ctx.coqFuncType(e)
 	case *ast.IndexExpr:
 		ctx.todo(e, "unsupported generic type instantiation")
+	case *ast.IndexListExpr:
+		// Type parameter list for generic struct
+		return ctx.coqTypeOfType(e, ctx.typeOf(e))
+
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
@@ -355,7 +359,9 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		name := ctx.qualifiedName(t.Obj())
+		// For a generic struct, we have to call the descriptor function with type params,
+		// otherwise, this will just return the struct name.
+		name := getStructDescriptorFunction(ctx, t)
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
 				name:           name,

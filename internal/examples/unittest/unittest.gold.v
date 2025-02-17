@@ -946,6 +946,47 @@ Definition stringLength: val :=
   rec: "stringLength" "s" :=
     StringLength "s".
 
+(* struct_generic.go *)
+
+Definition NonGenericKVPair := struct.decl [
+  "Key" :: uint64T;
+  "Value" :: stringT
+].
+
+Definition KVPair (K: ty) (V: ty) : struct.descriptor := struct.decl [
+  "Key" :: K;
+  "Value" :: V;
+  "Other" :: struct.t NonGenericKVPair
+].
+
+Definition IndexedKVPair (K: ty) (V: ty) : struct.descriptor := struct.decl [
+  "Key" :: K;
+  "Value" :: V;
+  "Index" :: uint64T
+].
+
+Definition testGenericStructs: val :=
+  rec: "testGenericStructs" <> :=
+    let: "kv_pair_generic" := struct.mk (KVPair uint64 string) [
+    ] in
+    let: "kv_pair_generic_ptr" := struct.mk (KVPair uint64 ptrT) [
+    ] in
+    let: "kv_pair_partly_generic" := struct.mk (IndexedKVPair uint64 string) [
+    ] in
+    let: "kv_pair_non_generic" := struct.mk NonGenericKVPair [
+    ] in
+    let: "kv_pair_inner_generic" := struct.alloc (KVPair uint64 (KVPair uint64 string)) (zero_val (struct.t (KVPair uint64 (KVPair uint64 string)))) in
+    let: "kv_pair_inner_non_generic" := struct.mk (KVPair uint64 NonGenericKVPair) [
+    ] in
+    struct.storeF (KVPair uint64 string) "Key" "kv_pair_generic" #1;;
+    struct.storeF (IndexedKVPair uint64 string) "Value" "kv_pair_partly_generic" #(str"generic_val");;
+    struct.storeF NonGenericKVPair "Key" "kv_pair_non_generic" #2;;
+    struct.storeF (KVPair uint64 (KVPair uint64 string)) "Key" "kv_pair_inner_generic" #3;;
+    struct.storeF (KVPair uint64 (KVPair uint64 string)) "Value" "kv_pair_inner_generic" "kv_pair_generic";;
+    struct.storeF (KVPair uint64 NonGenericKVPair) "Key" "kv_pair_inner_non_generic" #4;;
+    struct.storeF (KVPair uint64 ptrT) "Key" "kv_pair_generic_ptr" #0;;
+    struct.get (KVPair uint64 string) "Key" (struct.loadF (KVPair uint64 (KVPair uint64 string)) "Value" "kv_pair_inner_generic").
+
 (* struct_method.go *)
 
 Definition Point := struct.decl [
