@@ -245,55 +245,25 @@ func (ctx Ctx) structTypeParams(fs *ast.FieldList) []coq.TypeIdent {
 	return typeParams
 }
 
-// This function uses DFS on the tree of generic struct fields to produce a gallina function
-// call to a function that gets the struct's descriptor. If the struct does not use generic
-// type parameters, this will just be the struct's name, with the path removed if it is in
-// the same module as the context. For a generic struct, it will return a the struct's name
-// followed by the type parameters(evaluated recursively in case a type parameter is a
-// struct), which amounts to a function call to the descriptor function with the type
-// parameters as arguments.
-func getStructDescriptorFunction(ctx Ctx, curr_type types.Type) string {
-	name := ""
-	// Get the name of the struct if this is a struct.
+// This function uses DFS on the tree of generic struct fields to construct a struct coq type
+// which is represented as a tree where nodes store the name of the struct and a list of the
+// coq types of type params for generic structs. So for non-generic structs, the coq type will
+// only store the name.
+func getStructDescriptor(ctx Ctx, curr_type types.Type) coq.Type {
 	if t, ok := curr_type.(*types.Named); ok {
-		name = ctx.qualifiedName(t.Obj())
-	}
-	// For pointers, we don't need anything beyond that the type parameter will be a pointer.
-	if _, ok := curr_type.Underlying().(*types.Pointer); ok {
-		return "ptrT"
-	}
-
-	var builder strings.Builder
-	if structType, ok := curr_type.Underlying().(*types.Struct); ok {
-		// Base case #1: Non-generic struct, just return the name
-		if structType.NumFields() == 0 {
-			return name
-		}
-
-		// Recursive case: Generic struct, for each field, check if it is a generic type. If
-		// so, recursively call this function.
-		struct_desc_module := ""
-		for i := 0; i < structType.NumFields(); i++ {
-			field := structType.Field(i)
-			declared_type := field.Type()
-			origin_type := field.Origin().Type()
-			// This is a convenient way to tell if a type is generic. For example, if "T any"
-			// is used as a generic type for a field of a struct, we will compare "any" with
-			// the type parameter name "T" which will make it clear that we need to keep
-			// track of the type parameter assignment.
-			if origin_type.Underlying() != declared_type.Underlying() {
-				fmt.Fprintf(&builder, " %s", getStructDescriptorFunction(ctx, declared_type))
+		name := ctx.qualifiedName(t.Obj())
+		var children []coq.Type
+		// Recursive case: generic struct, call on each type parameter.
+		if t.TypeParams() != nil {
+			for i := 0; i < t.TypeParams().Len(); i++ {
+				children = append(children, getStructDescriptor(ctx, t.TypeArgs().At(i)))
 			}
 		}
-		if len(builder.String()) > 0 {
-			struct_desc_module = fmt.Sprintf("(%s%s)", name, builder.String())
-		} else {
-			struct_desc_module = name
-		}
-		return struct_desc_module
+		return coq.StructType{Name: name, Params: children}
 	}
-	// Base case #2: A non-struct type, just return the type.
-	return curr_type.String()
+	// Base case: type is not a struct, just get the coq type.
+	return ctx.coqTypeOfType(nil, curr_type)
+
 }
 
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
@@ -598,14 +568,14 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 	tyName := ctx.qualifiedName(namedTy.Obj())
 	callArgs := append([]ast.Expr{f.X}, args...)
 	var typeArgs []coq.Expr
-	// TODO: this passes the struct's generic type arguments only for
-	// *atomic.Pointer[T]. We need to do this in general (including for method
-	// calls through a pointer) since structs that are generic will use the
-	// struct type arguments in the model.
-	if isPointerToAtomicPointer(selectorType) {
-		// get the type arguments to the atomic.Pointer
-		atomicPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
-		typeArgs = append(typeArgs, ctx.typeList(call, atomicPointerTy.TypeArgs())...)
+	// Get type parameters for named structs.
+	if isPointerToNamedPtrType(selectorType) {
+		NamedPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
+		typeArgs = append(typeArgs, ctx.typeList(call, NamedPointerTy.TypeArgs())...)
+	}
+	if isNamedType(selectorType) {
+		NamedTy := selectorType.(*types.Named)
+		typeArgs = append(typeArgs, ctx.typeList(call, NamedTy.TypeArgs())...)
 	}
 	// append the type arguments specific to this function
 	typeArgs = append(typeArgs, ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs)...)
@@ -769,7 +739,7 @@ func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.name), e)
+		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.structCoqType), e)
 	}
 	return coq.NewCallExpr(coq.GallinaIdent("ref"), e)
 }
@@ -920,7 +890,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		m := coq.MethodName(structInfo.name, e.Sel.Name)
+		m := coq.MethodName(structInfo.structCoqType.Name, e.Sel.Name)
 		ctx.dep.addDep(m)
 		return coq.NewCallExpr(coq.GallinaIdent(m), ctx.expr(e.X))
 	}
@@ -932,9 +902,9 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.StructFieldAccessExpr {
-	ctx.dep.addDep(info.name)
+	ctx.dep.addDep(info.structCoqType.Name)
 	return coq.StructFieldAccessExpr{
-		Struct:         info.name,
+		Struct:         info.structCoqType,
 		Field:          e.Sel.Name,
 		X:              ctx.expr(e.X),
 		ThroughPointer: info.throughPointer,
@@ -964,8 +934,8 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 
 func (ctx Ctx) structLiteral(info structTypeInfo,
 	e *ast.CompositeLit) coq.StructLiteral {
-	ctx.dep.addDep(info.name)
-	lit := coq.NewStructLiteral(info.name)
+	ctx.dep.addDep(info.structCoqType.Name)
+	lit := coq.NewStructLiteral(info.structCoqType)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
@@ -1175,7 +1145,8 @@ func (ctx Ctx) coqRecurFunc(fullFuncName string, e *ast.Ident) coq.Expr {
 	}
 	fun := obj.(*types.Func)
 
-	if fun.Scope().Contains(e.Pos()) {
+	// scope is nil for instantiated functions
+	if fun.Scope() != nil && fun.Scope().Contains(e.Pos()) {
 		return coq.GallinaString(fullFuncName)
 	} else {
 		return coq.GallinaIdent(fullFuncName)
@@ -1248,7 +1219,7 @@ func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok && info.throughPointer {
 		return coq.NewCallExpr(coq.GallinaIdent("struct.load"),
-			coq.StructDesc(info.name),
+			coq.StructDesc(info.structCoqType),
 			ctx.expr(e))
 	}
 	return coq.DerefExpr{
@@ -1699,7 +1670,7 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		} else {
 			structExpr = ctx.refExpr(s.X)
 		}
-		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.name),
+		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.structCoqType),
 			coq.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
@@ -1754,7 +1725,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
 			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.store"),
-				coq.StructDesc(info.name),
+				coq.StructDesc(info.structCoqType),
 				ctx.expr(lhs.X),
 				rhs))
 		}
@@ -1783,7 +1754,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		if ok {
 			fieldName := lhs.Sel.Name
 			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.storeF"),
-				coq.StructDesc(info.name),
+				coq.StructDesc(info.structCoqType),
 				coq.GallinaString(fieldName),
 				structExpr,
 				rhs))
@@ -2041,6 +2012,21 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		rcvrTy := rcvr.Type
 		if star, ok := rcvrTy.(*ast.StarExpr); ok {
 			rcvrTy = star.X
+		}
+		// For generic structs, get the type params
+		if index_expr, ok := rcvrTy.(*ast.IndexExpr); ok {
+			if type_param, ok := index_expr.Index.(*ast.Ident); ok {
+				fd.TypeParams = append(fd.TypeParams, coq.TypeIdent(type_param.Name))
+			}
+			rcvrTy = index_expr.X
+		}
+		if index_list_expr, ok := rcvrTy.(*ast.IndexListExpr); ok {
+			for _, typeParam := range index_list_expr.Indices {
+				if ident, ok := typeParam.(*ast.Ident); ok {
+					fd.TypeParams = append(fd.TypeParams, coq.TypeIdent(ident.Name))
+				}
+			}
+			rcvrTy = index_list_expr.X
 		}
 		ident, ok := rcvrTy.(*ast.Ident)
 		if !ok {

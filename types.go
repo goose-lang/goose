@@ -108,7 +108,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("ptrT")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			return coq.StructName(info.name)
+			return info.structCoqType
 		}
 		return coq.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
@@ -198,7 +198,8 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.FuncType:
 		return ctx.coqFuncType(e)
 	case *ast.IndexExpr:
-		ctx.todo(e, "unsupported generic type instantiation")
+		// Type parameter list(single type param) for generic struct
+		return ctx.coqTypeOfType(e, ctx.typeOf(e))
 	case *ast.IndexListExpr:
 		// Type parameter list for generic struct
 		return ctx.coqTypeOfType(e, ctx.typeOf(e))
@@ -301,9 +302,23 @@ func isAtomicPointerType(t types.Type) bool {
 	return false
 }
 
-func isPointerToAtomicPointer(t types.Type) bool {
+func isNamedPtrType(t types.Type) bool {
+	if _, ok := t.(*types.Named); ok {
+		return true
+	}
+	return false
+}
+
+func isPointerToNamedPtrType(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
-		return isAtomicPointerType(t.Elem())
+		return isNamedPtrType(t.Elem())
+	}
+	return false
+}
+
+func isNamedType(t types.Type) bool {
+	if _, ok := t.(*types.Named); ok {
+		return true
 	}
 	return false
 }
@@ -347,7 +362,7 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 }
 
 type structTypeInfo struct {
-	name           string
+	structCoqType  coq.StructType
 	throughPointer bool
 	structType     *types.Struct
 }
@@ -359,12 +374,10 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		// For a generic struct, we have to call the descriptor function with type params,
-		// otherwise, this will just return the struct name.
-		name := getStructDescriptorFunction(ctx, t)
+		struct_coq_type := getStructDescriptor(ctx, t).(coq.StructType)
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
-				name:           name,
+				structCoqType:  struct_coq_type,
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true

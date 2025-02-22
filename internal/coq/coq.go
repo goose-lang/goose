@@ -133,7 +133,7 @@ func (d StructDecl) CoqDecl() string {
 		for _, tp := range d.TypeParameters {
 			fmt.Fprintf(&builder, "(%s: ty) ", tp)
 		}
-		fmt.Fprintf(&builder, ": struct.descriptor ")
+		fmt.Fprintf(&builder, ": descriptor ")
 	}
 	pp.Add("Definition %s %s:= struct.decl [", d.Name, builder.String())
 	pp.Indent(2)
@@ -314,13 +314,14 @@ func (t TypeIdent) Coq(needs_paren bool) string {
 	return string(t)
 }
 
-// StructName refers to a struct type from its name.
-//
-// This is Type rather than an Expr.
-type StructName string
+// Stores type params only for generic structs.
+type StructType struct {
+	Name   string
+	Params []Type
+}
 
-func (t StructName) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(string(t))).Coq(needs_paren)
+func (t StructType) Coq(needs_paren bool) string {
+	return NewCallExpr(GallinaIdent("struct.t"), StructDesc(t)).Coq(needs_paren)
 }
 
 type MapType struct {
@@ -467,7 +468,7 @@ func (s CallExpr) Coq(needs_paren bool) string {
 }
 
 type StructFieldAccessExpr struct {
-	Struct string
+	Struct StructType
 	Field  string
 	X      Expr
 	// the expression X is a pointer to a struct (whether because of pointer
@@ -475,8 +476,21 @@ type StructFieldAccessExpr struct {
 	ThroughPointer bool
 }
 
-func StructDesc(name string) Expr {
-	return GallinaIdent(name)
+// Struct types are represented as a tree where children are type parameters for generic
+// structs. When called on a non-generic struct, this will just return the name. When called
+// on a generic struct, this will get the coq type strings for each of the type parameters,
+// which will end up recursively calling these function for any type parameters that are
+// also generic structs. So this amounts to a DFS of the tree formed by generic struct type
+// params.
+func StructDesc(struc StructType) Expr {
+	var builder strings.Builder
+	if len(struc.Params) == 0 {
+		return GallinaIdent(struc.Name)
+	}
+	for _, p := range struc.Params {
+		fmt.Fprintf(&builder, " %s", p.Coq(true))
+	}
+	return GallinaIdent(fmt.Sprintf("(%s%s)", struc.Name, builder.String()))
 }
 
 func (e StructFieldAccessExpr) Coq(needs_paren bool) string {
@@ -531,14 +545,14 @@ type fieldVal struct {
 // Relies on Coq record syntax to correctly order fields for the record's
 // constructor.
 type StructLiteral struct {
-	StructName string
+	StructName StructType
 	elts       []fieldVal
 	Allocation bool // if true, struct is being allocated on the heap
 }
 
 // NewStructLiteral creates a StructLiteral with no values.
-func NewStructLiteral(structName string) StructLiteral {
-	return StructLiteral{StructName: structName}
+func NewStructLiteral(named_struct StructType) StructLiteral {
+	return StructLiteral{StructName: named_struct}
 }
 
 // AddField appends a new (field, val) pair to a StructLiteral.
