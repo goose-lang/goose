@@ -15,12 +15,6 @@ func (ctx *Ctx) typeOf(e ast.Expr) types.Type {
 	return ctx.info.TypeOf(e)
 }
 
-func (ctx *Ctx) getType(e ast.Expr) (typ types.Type, ok bool) {
-	typ = ctx.typeOf(e)
-	ok = typ != types.Typ[types.Invalid]
-	return
-}
-
 func (ctx *Ctx) glangTypeFromExpr(e ast.Expr) glang.Type {
 	return ctx.glangType(e, ctx.typeOf(e))
 }

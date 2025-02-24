@@ -192,15 +192,6 @@ func (es MultipleErrors) Error() string {
 	return strings.Join(errs, "\n\n")
 }
 
-type NamedFile struct {
-	Path string
-	Ast  *ast.File
-}
-
-func (f NamedFile) Name() string {
-	return path.Base(f.Path)
-}
-
 func pkgErrors(errors []packages.Error) error {
 	var errs []error
 	for _, err := range errors {

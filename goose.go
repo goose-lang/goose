@@ -1061,13 +1061,6 @@ func (ctx *Ctx) basicLiteral(e *ast.BasicLit) glang.Expr {
 	return ctx.handleImplicitConversion(e, t, tv.Type, v)
 }
 
-func (ctx *Ctx) isNilCompareExpr(e *ast.BinaryExpr) bool {
-	if !(e.Op == token.EQL || e.Op == token.NEQ) {
-		return false
-	}
-	return ctx.info.Types[e.Y].IsNil()
-}
-
 func (ctx *Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
 	if types.AssignableTo(t1, t2) {
 		return t2
@@ -1311,14 +1304,6 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
-}
-
-func (ctx *Ctx) variable(s *ast.Ident) glang.Expr {
-	if _, ok := ctx.info.Uses[s].(*types.Const); ok {
-		ctx.dep.addDep(s.Name)
-		return glang.GallinaIdent(s.Name)
-	}
-	return glang.DerefExpr{X: glang.IdentExpr(s.Name), Ty: ctx.glangType(s, ctx.typeOf(s))}
 }
 
 func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
@@ -1764,21 +1749,6 @@ func (ctx *Ctx) forStmt(s *ast.ForStmt, cont glang.Expr) glang.Expr {
 		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
 	}
 	return glang.SeqExpr{Expr: e, Cont: cont}
-}
-
-func getIdentOrAnonymous(e ast.Expr) (ident string, ok bool) {
-	if e == nil {
-		return "_", true
-	}
-	return getIdent(e)
-}
-
-func (ctx *Ctx) identBinder(id *ast.Ident) glang.Binder {
-	if id == nil {
-		return glang.Binder(nil)
-	}
-	e := glang.IdentExpr(id.Name)
-	return &e
 }
 
 func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
