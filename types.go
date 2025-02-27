@@ -69,6 +69,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	if isProphId(t) {
 		return coq.TypeIdent("ProphIdT")
 	}
+	t = types.Unalias(t)
 	switch t := t.(type) {
 	case *types.Struct:
 		ctx.unsupported(n, "type for anonymous struct")
@@ -120,7 +121,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
 	}
-	ctx.nope(n, "unknown type %v", t)
+	ctx.nope(n, "unknown type %v (of Go type %T)", t, t)
 	return nil // unreachable
 }
 
@@ -211,6 +212,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 }
 
 func isLockRef(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -222,6 +224,7 @@ func isLockRef(t types.Type) bool {
 }
 
 func isCFMutexRef(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -233,6 +236,7 @@ func isCFMutexRef(t types.Type) bool {
 }
 
 func isCondVar(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -244,6 +248,7 @@ func isCondVar(t types.Type) bool {
 }
 
 func isWaitGroup(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
@@ -255,10 +260,11 @@ func isWaitGroup(t types.Type) bool {
 }
 
 func isProphId(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
 		if t, ok := t.Elem().(*types.Named); ok {
 			name := t.Obj()
-			return (name.Pkg().Name() == "machine" || name.Pkg().Name() == "primitive") &&
+			return name.Pkg().Name() == "primitive" &&
 				name.Name() == "prophId"
 		}
 	}
@@ -282,6 +288,7 @@ func isString(t types.Type) bool {
 }
 
 func isDisk(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
 		if (obj.Pkg().Path() == "github.com/goose-lang/goose/machine/disk" || obj.Pkg().Path() == "github.com/goose-lang/primitive/disk") &&
@@ -293,6 +300,7 @@ func isDisk(t types.Type) bool {
 }
 
 func isAtomicPointerType(t types.Type) bool {
+	t = types.Unalias(t)
 	if t, ok := t.(*types.Named); ok {
 		obj := t.Obj()
 		if obj.Pkg().Path() == "sync/atomic" && obj.Name() == "Pointer" {

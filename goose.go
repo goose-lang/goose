@@ -505,6 +505,19 @@ func (ctx Ctx) packageMethod(f *ast.SelectorExpr,
 		args)
 }
 
+// typeName attempts to get the type name, but this doesn't always make sense
+// (e.g., an anonymous struct)
+func (ctx Ctx) typeName(n ast.Node, t types.Type) string {
+	if t, ok := t.(*types.Named); ok {
+		return ctx.qualifiedName(t.Obj())
+	}
+	if t, ok := t.(*types.Alias); ok {
+		return ctx.qualifiedName(t.Obj())
+	}
+	ctx.errorReporter.todo(n, "don't have a name for type %v", t)
+	return ""
+}
+
 func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr {
 	args := call.Args
 	selectorType, ok := ctx.getType(f.X)
@@ -564,8 +577,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 		}
 	}
 
-	namedTy := deref.(*types.Named)
-	tyName := ctx.qualifiedName(namedTy.Obj())
+	tyName := ctx.typeName(f, deref)
 	callArgs := append([]ast.Expr{f.X}, args...)
 	var typeArgs []coq.Expr
 	// Get type parameters for named structs.
