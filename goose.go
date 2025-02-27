@@ -249,17 +249,17 @@ func (ctx Ctx) structTypeParams(fs *ast.FieldList) []coq.TypeIdent {
 // which is represented as a tree where nodes store the name of the struct and a list of the
 // coq types of type params for generic structs. So for non-generic structs, the coq type will
 // only store the name.
-func getStructDescriptor(ctx Ctx, curr_type types.Type) coq.Type {
+func getStructType(ctx Ctx, curr_type types.Type) coq.Type {
 	if t, ok := curr_type.(*types.Named); ok {
 		name := ctx.qualifiedName(t.Obj())
 		var children []coq.Type
 		// Recursive case: generic struct, call on each type parameter.
 		if t.TypeParams() != nil {
 			for i := 0; i < t.TypeParams().Len(); i++ {
-				children = append(children, getStructDescriptor(ctx, t.TypeArgs().At(i)))
+				children = append(children, getStructType(ctx, t.TypeArgs().At(i)))
 			}
 		}
-		return coq.StructType{Name: name, Params: children}
+		return coq.StructType{Name: name, TypeParams: children}
 	}
 	// Base case: type is not a struct, just get the coq type.
 	return ctx.coqTypeOfType(nil, curr_type)
@@ -569,7 +569,7 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 	callArgs := append([]ast.Expr{f.X}, args...)
 	var typeArgs []coq.Expr
 	// Get type parameters for named structs.
-	if isPointerToNamedPtrType(selectorType) {
+	if isPointerToNamedType(selectorType) {
 		NamedPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
 		typeArgs = append(typeArgs, ctx.typeList(call, NamedPointerTy.TypeArgs())...)
 	}

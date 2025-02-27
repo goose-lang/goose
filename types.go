@@ -302,16 +302,9 @@ func isAtomicPointerType(t types.Type) bool {
 	return false
 }
 
-func isNamedPtrType(t types.Type) bool {
-	if _, ok := t.(*types.Named); ok {
-		return true
-	}
-	return false
-}
-
-func isPointerToNamedPtrType(t types.Type) bool {
+func isPointerToNamedType(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
-		return isNamedPtrType(t.Elem())
+		return isNamedType(t.Elem())
 	}
 	return false
 }
@@ -374,7 +367,7 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		struct_coq_type := getStructDescriptor(ctx, t).(coq.StructType)
+		struct_coq_type := getStructType(ctx, t).(coq.StructType)
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
 				structCoqType:  struct_coq_type,

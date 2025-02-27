@@ -314,10 +314,10 @@ func (t TypeIdent) Coq(needs_paren bool) string {
 	return string(t)
 }
 
-// Stores type params only for generic structs.
+// StructType represents a named struct.
 type StructType struct {
-	Name   string
-	Params []Type
+	Name       string
+	TypeParams []Type
 }
 
 func (t StructType) Coq(needs_paren bool) string {
@@ -484,10 +484,10 @@ type StructFieldAccessExpr struct {
 // params.
 func StructDesc(struc StructType) Expr {
 	var builder strings.Builder
-	if len(struc.Params) == 0 {
+	if len(struc.TypeParams) == 0 {
 		return GallinaIdent(struc.Name)
 	}
-	for _, p := range struc.Params {
+	for _, p := range struc.TypeParams {
 		fmt.Fprintf(&builder, " %s", p.Coq(true))
 	}
 	return GallinaIdent(fmt.Sprintf("(%s%s)", struc.Name, builder.String()))
