@@ -121,7 +121,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		return coq.InterfaceDecl{Name: ""}
 	case *types.Chan:
 		chan_coq_type := ctx.coqTypeOfType(n, t.Elem())
-		return coq.StructType{Name: "Channel", Params: []coq.Type{chan_coq_type}}
+		return coq.StructType{Name: "Channel", TypeParams: []coq.Type{chan_coq_type}}
 	case *types.Tuple:
 		ctx.nope(n, "tuples not handled here")
 		return nil
@@ -212,7 +212,7 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.ChanType:
 		// Channels are represented as a generic struct in Goose.
 		chan_coq_type := ctx.coqType(e.Value)
-		return coq.StructType{Name: "Channel", Params: []coq.Type{chan_coq_type}}
+		return coq.StructType{Name: "Channel", TypeParams: []coq.Type{chan_coq_type}}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
