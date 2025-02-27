@@ -108,7 +108,7 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 			return coq.TypeIdent("ptrT")
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
-			return coq.StructName(info.name)
+			return info.structCoqType
 		}
 		return coq.TypeIdent(ctx.qualifiedName(t.Obj()))
 	case *types.Slice:
@@ -119,6 +119,12 @@ func (ctx Ctx) coqTypeOfType(n ast.Node, t types.Type) coq.Type {
 		ctx.unsupported(n, "function type")
 	case *types.Interface:
 		return coq.InterfaceDecl{Name: ""}
+	case *types.Chan:
+		chan_coq_type := ctx.coqTypeOfType(n, t.Elem())
+		return coq.StructType{Name: "Channel", TypeParams: []coq.Type{chan_coq_type}}
+	case *types.Tuple:
+		ctx.nope(n, "tuples not handled here")
+		return nil
 	}
 	ctx.nope(n, "unknown type %v", t)
 	return nil // unreachable
@@ -198,7 +204,15 @@ func (ctx Ctx) coqType(e ast.Expr) coq.Type {
 	case *ast.FuncType:
 		return ctx.coqFuncType(e)
 	case *ast.IndexExpr:
-		ctx.todo(e, "unsupported generic type instantiation")
+		// Type parameter list(single type param) for generic struct
+		return ctx.coqTypeOfType(e, ctx.typeOf(e))
+	case *ast.IndexListExpr:
+		// Type parameter list for generic struct
+		return ctx.coqTypeOfType(e, ctx.typeOf(e))
+	case *ast.ChanType:
+		// Channels are represented as a generic struct in Goose.
+		chan_coq_type := ctx.coqType(e.Value)
+		return coq.StructType{Name: "Channel", TypeParams: []coq.Type{chan_coq_type}}
 	default:
 		ctx.unsupported(e, "unexpected type expr")
 	}
@@ -297,9 +311,16 @@ func isAtomicPointerType(t types.Type) bool {
 	return false
 }
 
-func isPointerToAtomicPointer(t types.Type) bool {
+func isPointerToNamedType(t types.Type) bool {
 	if t, ok := t.(*types.Pointer); ok {
-		return isAtomicPointerType(t.Elem())
+		return isNamedType(t.Elem())
+	}
+	return false
+}
+
+func isNamedType(t types.Type) bool {
+	if _, ok := t.(*types.Named); ok {
+		return true
 	}
 	return false
 }
@@ -343,7 +364,7 @@ func getIntegerType(t types.Type) (intTypeInfo, bool) {
 }
 
 type structTypeInfo struct {
-	name           string
+	structCoqType  coq.StructType
 	throughPointer bool
 	structType     *types.Struct
 }
@@ -355,10 +376,10 @@ func (ctx Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 		t = pt.Elem()
 	}
 	if t, ok := t.(*types.Named); ok {
-		name := ctx.qualifiedName(t.Obj())
+		struct_coq_type := getStructType(ctx, t).(coq.StructType)
 		if structType, ok := t.Underlying().(*types.Struct); ok {
 			return structTypeInfo{
-				name:           name,
+				structCoqType:  struct_coq_type,
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true

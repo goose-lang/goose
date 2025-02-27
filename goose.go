@@ -227,6 +227,45 @@ func (ctx Ctx) structFields(fs *ast.FieldList) []coq.FieldDecl {
 	return decls
 }
 
+// Get the type parameters for a struct declaration. This is used to create a descriptor
+// function that takes type parameters as arguments.
+func (ctx Ctx) structTypeParams(fs *ast.FieldList) []coq.TypeIdent {
+	var typeParams []coq.TypeIdent
+	if fs == nil {
+		return nil
+	}
+	for _, f := range fs.List {
+		for _, name := range f.Names {
+			typeParams = append(typeParams, coq.TypeIdent(name.Name))
+		}
+		if len(f.Names) == 0 { // Unnamed parameter
+			ctx.unsupported(fs, "unnamed type parameters")
+		}
+	}
+	return typeParams
+}
+
+// This function uses DFS on the tree of generic struct fields to construct a struct coq type
+// which is represented as a tree where nodes store the name of the struct and a list of the
+// coq types of type params for generic structs. So for non-generic structs, the coq type will
+// only store the name.
+func getStructType(ctx Ctx, curr_type types.Type) coq.Type {
+	if t, ok := curr_type.(*types.Named); ok {
+		name := ctx.qualifiedName(t.Obj())
+		var children []coq.Type
+		// Recursive case: generic struct, call on each type parameter.
+		if t.TypeParams() != nil {
+			for i := 0; i < t.TypeParams().Len(); i++ {
+				children = append(children, getStructType(ctx, t.TypeArgs().At(i)))
+			}
+		}
+		return coq.StructType{Name: name, TypeParams: children}
+	}
+	// Base case: type is not a struct, just get the coq type.
+	return ctx.coqTypeOfType(nil, curr_type)
+
+}
+
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
 	if doc == nil {
 		return
@@ -248,9 +287,6 @@ func (ctx Ctx) addSourceFile(node ast.Node, comment *string) {
 }
 
 func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
-	if spec.TypeParams != nil {
-		ctx.futureWork(spec, "generic named type (e.g. no generic structs)")
-	}
 	switch goTy := spec.Type.(type) {
 	case *ast.StructType:
 		ty := coq.StructDecl{
@@ -259,6 +295,10 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		addSourceDoc(doc, &ty.Comment)
 		ctx.addSourceFile(spec, &ty.Comment)
 		ty.Fields = ctx.structFields(goTy.Fields)
+		// This is a generic struct and we must keep track of type parameters.
+		if spec.TypeParams != nil {
+			ty.TypeParameters = ctx.structTypeParams(spec.TypeParams)
+		}
 		return ty
 	case *ast.InterfaceType:
 		ty := coq.InterfaceDecl{
@@ -269,6 +309,9 @@ func (ctx Ctx) typeDecl(doc *ast.CommentGroup, spec *ast.TypeSpec) coq.Decl {
 		ty.Methods = ctx.structFields(goTy.Methods)
 		return ty
 	default:
+		if spec.TypeParams != nil {
+			ctx.futureWork(spec, "generic named type only allowed for generic struct")
+		}
 		if spec.Assign == 0 {
 			return coq.TypeDef{
 				Name: spec.Name.Name,
@@ -525,14 +568,14 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 	tyName := ctx.qualifiedName(namedTy.Obj())
 	callArgs := append([]ast.Expr{f.X}, args...)
 	var typeArgs []coq.Expr
-	// TODO: this passes the struct's generic type arguments only for
-	// *atomic.Pointer[T]. We need to do this in general (including for method
-	// calls through a pointer) since structs that are generic will use the
-	// struct type arguments in the model.
-	if isPointerToAtomicPointer(selectorType) {
-		// get the type arguments to the atomic.Pointer
-		atomicPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
-		typeArgs = append(typeArgs, ctx.typeList(call, atomicPointerTy.TypeArgs())...)
+	// Get type parameters for named structs.
+	if isPointerToNamedType(selectorType) {
+		NamedPointerTy := selectorType.(*types.Pointer).Elem().(*types.Named)
+		typeArgs = append(typeArgs, ctx.typeList(call, NamedPointerTy.TypeArgs())...)
+	}
+	if isNamedType(selectorType) {
+		NamedTy := selectorType.(*types.Named)
+		typeArgs = append(typeArgs, ctx.typeList(call, NamedTy.TypeArgs())...)
 	}
 	// append the type arguments specific to this function
 	typeArgs = append(typeArgs, ctx.typeList(call, ctx.info.Instances[f.Sel].TypeArgs)...)
@@ -617,6 +660,17 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		// XXX: this could be a struct field of type `func()`; right now we
 		// don't support generic structs, so code with a generic function field
 		// will be rejected. But, in the future, that might change.
+
+		// We technically need to pass the channel's type in to the close function because
+		// the model is made using generic structs which don't allow you to define methods
+		// a struct without the type parameter.
+		if f.Name == "close" {
+			chan_type, ok := ctx.typeOf(args[0]).(*types.Chan)
+			if ok {
+				typeArgs = append(typeArgs, ctx.coqTypeOfType(args[0], chan_type.Elem()))
+
+			}
+		}
 		retExpr = ctx.newCoqCallTypeArgs(ctx.identExpr(f), typeArgs, args)
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
@@ -666,6 +720,19 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			ctx.coqTypeOfType(args[0], ty.Key()),
 			ctx.coqTypeOfType(args[0], ty.Elem()),
 			coq.UnitLiteral{})
+	case *types.Chan:
+		// For unbuffered channels, we explicitly pass 0, otherwise pass the buffer size.
+		buffer_size := 0
+		if len(args) > 1 {
+			if e, ok := args[1].(*ast.BasicLit); ok {
+				if e.Kind == token.INT {
+					buffer_size, _ = strconv.Atoi(e.Value)
+				}
+			}
+		}
+		return coq.NewCallExpr(coq.GallinaIdent("NewChannelRef"),
+			ctx.coqTypeOfType(args[0], ty.Elem()),
+			coq.IntLiteral{Value: uint64(buffer_size)})
 	default:
 		ctx.unsupported(args[0],
 			"make type should be slice or map, got %v", ty)
@@ -696,7 +763,7 @@ func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 	// (new(*T) should be translated to ref (zero_val ptrT) as usual,
 	// a pointer to a nil pointer)
 	if info, ok := ctx.getStructInfo(ctx.typeOf(ty)); ok && !info.throughPointer {
-		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.name), e)
+		return coq.NewCallExpr(coq.GallinaIdent("struct.alloc"), coq.StructDesc(info.structCoqType), e)
 	}
 	return coq.NewCallExpr(coq.GallinaIdent("ref"), e)
 }
@@ -847,7 +914,7 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 	// of a struct access
 	_, isFuncType := (ctx.typeOf(e)).(*types.Signature)
 	if isFuncType {
-		m := coq.MethodName(structInfo.name, e.Sel.Name)
+		m := coq.MethodName(structInfo.structCoqType.Name, e.Sel.Name)
 		ctx.dep.addDep(m)
 		return coq.NewCallExpr(coq.GallinaIdent(m), ctx.expr(e.X))
 	}
@@ -859,9 +926,9 @@ func (ctx Ctx) selectExpr(e *ast.SelectorExpr) coq.Expr {
 }
 
 func (ctx Ctx) structSelector(info structTypeInfo, e *ast.SelectorExpr) coq.StructFieldAccessExpr {
-	ctx.dep.addDep(info.name)
+	ctx.dep.addDep(info.structCoqType.Name)
 	return coq.StructFieldAccessExpr{
-		Struct:         info.name,
+		Struct:         info.structCoqType,
 		Field:          e.Sel.Name,
 		X:              ctx.expr(e.X),
 		ThroughPointer: info.throughPointer,
@@ -891,8 +958,8 @@ func (ctx Ctx) compositeLiteral(e *ast.CompositeLit) coq.Expr {
 
 func (ctx Ctx) structLiteral(info structTypeInfo,
 	e *ast.CompositeLit) coq.StructLiteral {
-	ctx.dep.addDep(info.name)
-	lit := coq.NewStructLiteral(info.name)
+	ctx.dep.addDep(info.structCoqType.Name)
+	lit := coq.NewStructLiteral(info.structCoqType)
 	for _, el := range e.Elts {
 		switch el := el.(type) {
 		case *ast.KeyValueExpr:
@@ -1075,6 +1142,18 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		// e is something else
 		return ctx.refExpr(e.X)
 	}
+	if e.Op == token.ARROW {
+		// If we are using the ok variable that <- can return optionally, we have a different
+		// function in the model.
+		tuple_type, ok := ctx.typeOf(e).(*types.Tuple)
+		if ok {
+			return coq.NewCallExpr(coq.GallinaIdent("Channel__Receive"), ctx.coqTypeOfType(e, tuple_type.At(0).Type()), ctx.expr(e.X))
+		} else {
+
+			return coq.NewCallExpr(coq.GallinaIdent("Channel__ReceiveDiscardOk"), ctx.coqTypeOfType(e, ctx.typeOf(e)), ctx.expr(e.X))
+		}
+
+	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
@@ -1102,7 +1181,8 @@ func (ctx Ctx) coqRecurFunc(fullFuncName string, e *ast.Ident) coq.Expr {
 	}
 	fun := obj.(*types.Func)
 
-	if fun.Scope().Contains(e.Pos()) {
+	// scope is nil for instantiated functions
+	if fun.Scope() != nil && fun.Scope().Contains(e.Pos()) {
 		return coq.GallinaString(fullFuncName)
 	} else {
 		return coq.GallinaIdent(fullFuncName)
@@ -1131,6 +1211,9 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 			return coq.True
 		case "false":
 			return coq.False
+		case "close":
+			return coq.GallinaIdent("Channel__Close")
+
 		}
 		ctx.unsupported(e, "special identifier")
 	}
@@ -1175,7 +1258,7 @@ func (ctx Ctx) derefExpr(e ast.Expr) coq.Expr {
 	info, ok := ctx.getStructInfo(ctx.typeOf(e))
 	if ok && info.throughPointer {
 		return coq.NewCallExpr(coq.GallinaIdent("struct.load"),
-			coq.StructDesc(info.name),
+			coq.StructDesc(info.structCoqType),
 			ctx.expr(e))
 	}
 	return coq.DerefExpr{
@@ -1510,6 +1593,9 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 		return ctx.mapRangeStmt(s)
 	case *types.Slice:
 		return ctx.sliceRangeStmt(s)
+	case *types.Chan:
+		ctx.todo(s, "implement channel range for loop")
+		return nil
 	default:
 		ctx.unsupported(s,
 			"range over %v (only maps and slices are supported)",
@@ -1626,7 +1712,7 @@ func (ctx Ctx) refExpr(s ast.Expr) coq.Expr {
 		} else {
 			structExpr = ctx.refExpr(s.X)
 		}
-		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.name),
+		return coq.NewCallExpr(coq.GallinaIdent("struct.fieldRef"), coq.StructDesc(info.structCoqType),
 			coq.GallinaString(fieldName), structExpr)
 	// TODO: should move support for slice indexing here as well
 	default:
@@ -1681,7 +1767,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		info, ok := ctx.getStructInfo(ctx.typeOf(lhs.X))
 		if ok && info.throughPointer {
 			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.store"),
-				coq.StructDesc(info.name),
+				coq.StructDesc(info.structCoqType),
 				ctx.expr(lhs.X),
 				rhs))
 		}
@@ -1710,7 +1796,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		if ok {
 			fieldName := lhs.Sel.Name
 			return coq.NewAnon(coq.NewCallExpr(coq.GallinaIdent("struct.storeF"),
-				coq.StructDesc(info.name),
+				coq.StructDesc(info.structCoqType),
 				coq.GallinaString(fieldName),
 				structExpr,
 				rhs))
@@ -1787,6 +1873,10 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 		ctx.unsupported(s, "%v assignment", s.Tok)
 	}
 	return ctx.assignFromTo(s, lhs, rhs)
+}
+
+func (ctx Ctx) sendStmt(s *ast.SendStmt) coq.Expr {
+	return coq.NewCallExpr(coq.GallinaIdent("Channel__Send"), ctx.coqTypeOfType(s.Value, ctx.typeOf(s.Value)), ctx.expr(s.Chan), ctx.expr(s.Value))
 }
 
 func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
@@ -1894,7 +1984,9 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "check for type switch statement")
 	case *ast.SelectStmt:
-		ctx.unsupported(s, "select statement")
+		ctx.todo(s, "add support for select statement")
+	case *ast.SendStmt:
+		binding = coq.NewAnon(ctx.sendStmt(s))
 	default:
 		ctx.unsupported(s, "statement")
 	}
@@ -1968,6 +2060,21 @@ func (ctx Ctx) funcDecl(d *ast.FuncDecl) coq.FuncDecl {
 		rcvrTy := rcvr.Type
 		if star, ok := rcvrTy.(*ast.StarExpr); ok {
 			rcvrTy = star.X
+		}
+		// For generic structs, get the type params
+		if index_expr, ok := rcvrTy.(*ast.IndexExpr); ok {
+			if type_param, ok := index_expr.Index.(*ast.Ident); ok {
+				fd.TypeParams = append(fd.TypeParams, coq.TypeIdent(type_param.Name))
+			}
+			rcvrTy = index_expr.X
+		}
+		if index_list_expr, ok := rcvrTy.(*ast.IndexListExpr); ok {
+			for _, typeParam := range index_list_expr.Indices {
+				if ident, ok := typeParam.(*ast.Ident); ok {
+					fd.TypeParams = append(fd.TypeParams, coq.TypeIdent(ident.Name))
+				}
+			}
+			rcvrTy = index_list_expr.X
 		}
 		ident, ok := rcvrTy.(*ast.Ident)
 		if !ok {
