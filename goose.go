@@ -1713,7 +1713,7 @@ func (ctx Ctx) assignFromTo(s ast.Node,
 		}
 		ctx.unsupported(s, "variable %s is not assignable\n\t(declare it with 'var' to pointer-wrap in GooseLang and support re-assignment)", lhs.Name)
 	case *ast.IndexExpr:
-		targetTy := ctx.typeOf(lhs.X)
+		targetTy := ctx.typeOf(lhs.X).Underlying()
 		switch targetTy := targetTy.(type) {
 		case *types.Slice:
 			value := rhs

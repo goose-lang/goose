@@ -36,6 +36,7 @@ func makeNamed() SliceNamed {
 func useAlias() uint32 {
 	s := make(SliceAlias, 10)
 	s2 := make(SliceAlias, 5)
+	s[1] = 2
 	copy(s, s2)
 	return s[2]
 }
