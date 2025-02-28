@@ -866,7 +866,9 @@ Definition ReplicatedDiskRecover: val :=
 
 (* slices.go *)
 
-Definition SliceAlias: ty := slice.T boolT.
+Definition SliceNamed: ty := slice.T boolT.
+
+Notation SliceAlias := (slice.T uint32T) (only parsing).
 
 Definition sliceOps: val :=
   rec: "sliceOps" <> :=
@@ -893,9 +895,14 @@ Definition sliceOfThings__getThingRef: val :=
   rec: "sliceOfThings__getThingRef" "ts" "i" :=
     SliceRef (struct.t thing) (struct.get sliceOfThings "things" "ts") "i".
 
-Definition makeAlias: val :=
-  rec: "makeAlias" <> :=
+Definition makeNamed: val :=
+  rec: "makeNamed" <> :=
     NewSlice boolT #10.
+
+Definition useAlias: val :=
+  rec: "useAlias" <> :=
+    let: "s" := NewSlice uint32T #10 in
+    SliceGet uint32T "s" #2.
 
 (* spawn.go *)
 

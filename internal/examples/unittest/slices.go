@@ -1,6 +1,8 @@
 package unittest
 
-type SliceAlias []bool
+type SliceNamed []bool
+
+type SliceAlias = []uint32
 
 func sliceOps() uint64 {
 	x := make([]uint64, 10)
@@ -27,6 +29,13 @@ func (ts sliceOfThings) getThingRef(i uint64) *thing {
 	return &ts.things[i]
 }
 
-func makeAlias() SliceAlias {
-	return make(SliceAlias, 10)
+func makeNamed() SliceNamed {
+	return make(SliceNamed, 10)
+}
+
+func useAlias() uint32 {
+	s := make(SliceAlias, 10)
+	s2 := make(SliceAlias, 5)
+	copy(s, s2)
+	return s[2]
 }
