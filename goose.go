@@ -814,7 +814,7 @@ func (ctx Ctx) callExpr(s *ast.CallExpr) coq.Expr {
 		return ctx.copyExpr(s, s.Args[0], s.Args[1])
 	}
 	if isIdent(s.Fun, "delete") {
-		if _, ok := ctx.typeOf(s.Args[0]).(*types.Map); !ok {
+		if _, ok := ctx.typeOf(s.Args[0]).Underlying().(*types.Map); !ok {
 			ctx.unsupported(s, "delete on non-map")
 		}
 		return coq.NewCallExpr(coq.GallinaIdent("MapDelete"), ctx.expr(s.Args[0]), ctx.expr(s.Args[1]))

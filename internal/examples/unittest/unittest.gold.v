@@ -610,8 +610,15 @@ Definition IntWrapper: ty := uint64T.
 
 Definition MapWrapper: ty := mapT boolT.
 
-Definition MapTypeAliases: val :=
-  rec: "MapTypeAliases" "m1" "m2" :=
+Notation MapAlias := MapWrapper (only parsing).
+
+Definition MapNamedType: val :=
+  rec: "MapNamedType" "m1" "m2" :=
+    MapInsert "m1" #4 (Fst (MapGet "m2" #0));;
+    #().
+
+Definition MapAliasType: val :=
+  rec: "MapAliasType" "m1" "m2" :=
     MapInsert "m1" #4 (Fst (MapGet "m2" #0));;
     #().
 
