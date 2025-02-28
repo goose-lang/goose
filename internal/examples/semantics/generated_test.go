@@ -108,6 +108,12 @@ func (suite *GoTestSuite) TestByteSliceToString() {
 	suite.Equal(true, testByteSliceToString())
 }
 
+func (suite *GoTestSuite) TestStringToByteSliceAlias() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testStringToByteSliceAlias())
+}
+
 func (suite *GoTestSuite) TestCopySimple() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)
