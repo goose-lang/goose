@@ -272,7 +272,7 @@ func isProphId(t types.Type) bool {
 }
 
 func isByteSlice(t types.Type) bool {
-	if t, ok := t.(*types.Slice); ok {
+	if t, ok := types.Unalias(t).(*types.Slice); ok {
 		if elTy, ok := t.Elem().(*types.Basic); ok {
 			return elTy.Name() == "byte"
 		}
@@ -281,7 +281,7 @@ func isByteSlice(t types.Type) bool {
 }
 
 func isString(t types.Type) bool {
-	if t, ok := t.(*types.Basic); ok {
+	if t, ok := types.Unalias(t).(*types.Basic); ok {
 		return t.Name() == "string"
 	}
 	return false

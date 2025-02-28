@@ -27,3 +27,10 @@ func testByteSliceToString() bool {
 	x[2] = 67
 	return byteSliceToString(x) == "ABC"
 }
+
+type args = string
+
+func testStringToByteSliceAlias() bool {
+	x := args("ABC")
+	return []byte(x)[0] == 65
+}
