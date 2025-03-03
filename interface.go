@@ -201,9 +201,7 @@ func (tr TranslationConfig) translatePackage(pkg *packages.Package) (coq.File, e
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
 	}
-	coqFile.CodeHeader, coqFile.CodeFooter = codeHeaderFooter(ctx.PkgConfig.Ffi, isTranslatedPreludeFile[coqFile.PkgPath])
-	coqFile.TranslatedModelHeader, coqFile.TranslatedModelFooter = translatedModelHeaderFooter(isTranslatedPreludeFile[coqFile.PkgPath])
-	coqFile.FfiHeader = ffiHeaderFooter(ctx.PkgConfig.Ffi)
+	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.PkgConfig.Ffi)
 	coqFile.Prelude = ctx.PkgConfig.Prelude
 
 	imports, decls, errs := ctx.Decls(files...)
@@ -216,35 +214,14 @@ func (tr TranslationConfig) translatePackage(pkg *packages.Package) (coq.File, e
 	return coqFile, nil
 }
 
-func ffiHeaderFooter(ffi string) string {
-	if ffi != "none" {
-		return fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
-			"%s_prelude.", ffi)
-	}
-	return ""
-}
-
-func codeHeaderFooter(ffi string, isTranslatedPreludeFile bool) (header string, footer string) {
-	if ffi == "none" && !isTranslatedPreludeFile {
+func ffiHeaderFooter(ffi string) (header string, footer string) {
+	if ffi == "none" {
 		header = "Section code.\n" +
 			"Context `{ext_ty: ext_types}."
 		footer = "\nEnd code.\n"
 	} else {
-		header = ""
-		footer = ""
-	}
-	return
-}
-
-func translatedModelHeaderFooter(isTranslatedPreludeFile bool) (header string, footer string) {
-	fmt.Println(isTranslatedPreludeFile)
-	if isTranslatedPreludeFile {
-		header = "Section goose_lang.\n" +
-			"Context `{ext_ty: ext_types}."
-		footer = "\nEnd goose_lang.\n"
-	} else {
-		header = ""
-		footer = ""
+		header = fmt.Sprintf("From Perennial.goose_lang Require Import ffi."+
+			"%s_prelude.", ffi)
 	}
 	return
 }
