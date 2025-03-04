@@ -27,6 +27,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const preludeImport string = `
+From Perennial.goose_lang Require Import prelude.
+`
+
+const basePreludeImport string = `
+From Perennial.goose_lang Require Import base_prelude.
+`
+
 // Ctx is a context for resolving Go code's types and source code
 type Ctx struct {
 	idents  identCtx
@@ -58,7 +66,8 @@ const (
 // PkgConfig holds package configuration for Coq conversion
 type PkgConfig struct {
 	TranslationConfig
-	Ffi string
+	Ffi     string
+	Prelude string
 }
 
 func getFfi(pkg *packages.Package) string {
@@ -88,12 +97,21 @@ func getFfi(pkg *packages.Package) string {
 	return "none"
 }
 
+// Get the prelude import, which in most cases will include both the base prelude and the prelude for translated Go models. When we are translating the Go models themselves, we include only the base prelude so we don't create a circular dependency.
+func getPrelude(pkgPath string) string {
+	if isTranslatedPreludeFile[pkgPath] {
+		return basePreludeImport
+	}
+	return preludeImport
+}
+
 // NewPkgCtx initializes a context based on a properly loaded package
 func NewPkgCtx(pkg *packages.Package, tr TranslationConfig) Ctx {
 	// Figure out which FFI we're using
 	config := PkgConfig{
 		TranslationConfig: tr,
 		Ffi:               getFfi(pkg),
+		Prelude:           getPrelude(pkg.PkgPath),
 	}
 
 	return Ctx{
@@ -2138,6 +2156,10 @@ var ffiMapping = map[string]string{
 	"github.com/goose-lang/goose/machine/async_disk": "async_disk",
 	"github.com/goose-lang/primitive/disk":           "disk",
 	"github.com/goose-lang/primitive/async_disk":     "async_disk",
+}
+
+var isTranslatedPreludeFile = map[string]bool{
+	"github.com/goose-lang/goose/channel": true,
 }
 
 func (ctx Ctx) imports(d []ast.Spec) []coq.Decl {

@@ -202,6 +202,7 @@ func (tr TranslationConfig) translatePackage(pkg *packages.Package) (coq.File, e
 		GoPackage: pkg.Name,
 	}
 	coqFile.ImportHeader, coqFile.Footer = ffiHeaderFooter(ctx.PkgConfig.Ffi)
+	coqFile.Prelude = ctx.PkgConfig.Prelude
 
 	imports, decls, errs := ctx.Decls(files...)
 	coqFile.Imports = imports
