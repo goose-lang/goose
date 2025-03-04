@@ -263,6 +263,7 @@ func newPackageConfig(modDir string) *packages.Config {
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
 	return &packages.Config{
 		Dir:        modDir,
+		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64"),
 		Mode:       mode,
 		BuildFlags: []string{"-tags", "goose"},
 		Fset:       token.NewFileSet(),
