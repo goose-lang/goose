@@ -169,8 +169,8 @@ Global Instance is_pkg_defined : PkgIsDefined %s.pkg_name' is_defined :=
 			}
 
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s :\n", typeName, methodName)
-			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
-				pkg.Name, typeName, methodName)
+			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ (pkg_defined %s.pkg_name') :=\n",
+				pkg.Name, typeName, methodName, pkg.Name)
 			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 		}
 	}

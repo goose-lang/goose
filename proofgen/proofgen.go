@@ -24,12 +24,14 @@ func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filt
 		fmt.Fprintf(w, "Require Export New.manualproof.%s.\n", coqPath)
 	}
 
-	translateImports(w, pkg, usingFfi, ffi, filter)
+	tr := translateImports(w, pkg, usingFfi, ffi, filter)
 
 	fmt.Fprintf(w, "Require Export New.code.%s.\n", coqPath)
 	fmt.Fprintf(w, "Require Export New.golang.theory.\n\n")
 
 	fmt.Fprintf(w, "Module %s.\n", pkg.Name)
+
+	tr.translateImportList(w, pkg)
 
 	translateTypes(w, pkg, usingFfi, ffi, filter)
 	translateNames(w, pkg, usingFfi, ffi, filter)

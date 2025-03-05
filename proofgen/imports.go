@@ -42,7 +42,7 @@ func (tr *importsTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
+func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) *importsTranslator {
 	tr := &importsTranslator{
 		importsSet: make(map[string]struct{}),
 		filter:     filter,
@@ -54,5 +54,30 @@ func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi str
 	}
 	for _, imp := range tr.importsList {
 		fmt.Fprintf(w, "Require Export New.generatedproof.%s.\n", imp)
+	}
+	return tr
+}
+
+func importPackageIdentifier(pkgPath string) string {
+	i := strings.LastIndex(pkgPath, ".")
+	if i < 0 {
+		return pkgPath
+	}
+	return pkgPath[i+1:]
+}
+
+func (tr *importsTranslator) translateImportList(w io.Writer, pkg *packages.Package) {
+	fmt.Fprintf(w, "Definition imported_pkgs: list go_string := ")
+	if len(tr.importsList) == 0 {
+		fmt.Fprintf(w, "[].\n")
+	} else {
+		fmt.Fprintf(w, "[\n")
+		var lines []string
+		for _, imp := range tr.importsList {
+
+			lines = append(lines, fmt.Sprintf("  New.code.%s.%s.pkg_name'", imp, importPackageIdentifier(imp)))
+		}
+		fmt.Fprintf(w, strings.Join(lines, ";\n"))
+		fmt.Fprintf(w, "\n]%%go.\n")
 	}
 }
