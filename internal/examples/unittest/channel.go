@@ -6,7 +6,7 @@ func chan_stuff(c chan uint64, d chan uint64) <-chan uint64 {
 	return d
 }
 
-func main() {
+func more_chan_stuff() {
 	c := make(chan uint64)
 	d := make(chan uint64)
 	c <- 1

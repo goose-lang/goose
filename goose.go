@@ -695,7 +695,7 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		// the model is made using generic structs which don't allow you to define methods
 		// a struct without the type parameter.
 		if f.Name == "close" {
-			chan_type, ok := ctx.typeOf(args[0]).(*types.Chan)
+			chan_type, ok := ctx.typeOf(args[0]).Underlying().(*types.Chan)
 			if ok {
 				typeArgs = append(typeArgs, ctx.coqTypeOfType(args[0], chan_type.Elem()))
 

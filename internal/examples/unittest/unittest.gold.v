@@ -13,8 +13,8 @@ Definition chan_stuff: val :=
     Channel__Send uint64T "c" (![uint64T] "to_send");;
     "d".
 
-Definition main: val :=
-  rec: "main" <> :=
+Definition more_chan_stuff: val :=
+  rec: "more_chan_stuff" <> :=
     let: "c" := NewChannelRef uint64T #0 in
     let: "d" := NewChannelRef uint64T #0 in
     Channel__Send uint64T "c" #1;;
