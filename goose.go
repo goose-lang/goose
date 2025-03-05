@@ -2825,6 +2825,21 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 	return nil
 }
 
+func importPackageIdentifier(importPath string) string {
+	pkgPath := glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(importPath)
+	i := strings.LastIndex(pkgPath, ".")
+	if i < 0 {
+		return pkgPath
+	}
+	return pkgPath[i+1:]
+}
+
+func importGallinaIdent(importPath string) glang.GallinaIdent {
+	ident := importPackageIdentifier(importPath)
+	pkgIdent := fmt.Sprintf("New.code.%s.%s.pkg_name'", importPath, ident)
+	return glang.GallinaIdent(pkgIdent)
+}
+
 func (ctx *Ctx) initFunctions() []glang.Decl {
 	var decls = []glang.Decl{}
 	nameDecl := glang.ConstDecl{
@@ -2881,6 +2896,40 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		Type: glang.GallinaIdent("list (go_string * (list (go_string * val)))"),
 	}
 	decls = append(decls, msetsDecl)
+
+	var imports glang.ListExpr
+	for _, impName := range ctx.importNamesOrdered {
+		imports = append(imports, glang.GallinaIdent(fmt.Sprintf("%s.pkg_name'", impName)))
+	}
+	infoRecord := glang.RecordLiteral{
+		Fields: []glang.RecordField{
+			{Name: "pkg_info.vars",
+				Value: glang.GallinaIdent("vars'")},
+			{Name: "pkg_info.functions",
+				Value: glang.GallinaIdent("functions'")},
+			{Name: "pkg_info.msets",
+				Value: glang.GallinaIdent("msets'")},
+			{Name: "pkg_info.imported_pkgs",
+				Value: imports},
+		},
+	}
+	infoDecl := glang.ConstDecl{
+		Name: "info'",
+		Val:  infoRecord,
+		Type: glang.GallinaIdent("pkg_info.t"),
+	}
+	decls = append(decls, infoDecl)
+
+	infoInstanceDecl := glang.InstanceDecl{
+		Type: glang.NewCallExpr(glang.GallinaIdent("PkgInfo"),
+			glang.GallinaIdent("pkg_name'"),
+			glang.GallinaIdent("info'"),
+		),
+		Global: true,
+		Body:   glang.EmptyInstanceExpr{},
+		Name:   "", // no name required
+	}
+	decls = append(decls, infoInstanceDecl)
 
 	var e glang.Expr
 
