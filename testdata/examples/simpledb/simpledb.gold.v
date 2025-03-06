@@ -1027,15 +1027,13 @@ Definition functions' : list (go_string * val) := [("UseMarshal"%go, UseMarshal)
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Table"%go, []); ("Table'ptr"%go, []); ("Entry"%go, []); ("Entry'ptr"%go, []); ("lazyFileBuf"%go, []); ("lazyFileBuf'ptr"%go, []); ("bufFile"%go, []); ("bufFile'ptr"%go, []); ("tableWriter"%go, []); ("tableWriter'ptr"%go, []); ("Database"%go, []); ("Database'ptr"%go, [])].
 
-Definition info' : pkg_info.t := {|
-             pkg_info.vars := vars';
-             pkg_info.functions := functions';
-             pkg_info.msets := msets';
-             pkg_info.imported_pkgs := [sync.pkg_name'; primitive.pkg_name'; filesys.pkg_name'; marshal.pkg_name'];
-           |}.
-
-#[global] Instance  : PkgInfo pkg_name' info' :=
-  {}.
+#[global] Instance info' : PkgInfo pkg_name' :=
+  {|
+    pkg_vars := vars';
+    pkg_functions := functions';
+    pkg_msets := msets';
+    pkg_imported_pkgs := [sync.pkg_name'; primitive.pkg_name'; filesys.pkg_name'; marshal.pkg_name'];
+  |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=

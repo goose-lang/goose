@@ -39,15 +39,13 @@ Definition functions' : list (go_string * val) := [].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("c"%go, []); ("c'ptr"%go, [("Bar"%go, c__Bar); ("Foo"%go, c__Foo)])].
 
-Definition info' : pkg_info.t := {|
-             pkg_info.vars := vars';
-             pkg_info.functions := functions';
-             pkg_info.msets := msets';
-             pkg_info.imported_pkgs := [];
-           |}.
-
-#[global] Instance  : PkgInfo pkg_name' info' :=
-  {}.
+#[global] Instance info' : PkgInfo pkg_name' :=
+  {|
+    pkg_vars := vars';
+    pkg_functions := functions';
+    pkg_msets := msets';
+    pkg_imported_pkgs := [];
+  |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
