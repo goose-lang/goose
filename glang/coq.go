@@ -925,12 +925,6 @@ func (d InstanceDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
-type EmptyInstanceExpr struct{}
-
-func (d EmptyInstanceExpr) Coq(needs_paren bool) string {
-	return addParens(needs_paren, "{}")
-}
-
 type AxiomDecl struct {
 	DeclName string
 	Type     Expr

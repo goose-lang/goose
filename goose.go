@@ -2903,31 +2903,24 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	}
 	infoRecord := glang.RecordLiteral{
 		Fields: []glang.RecordField{
-			{Name: "pkg_info.vars",
+			{Name: "pkg_vars",
 				Value: glang.GallinaIdent("vars'")},
-			{Name: "pkg_info.functions",
+			{Name: "pkg_functions",
 				Value: glang.GallinaIdent("functions'")},
-			{Name: "pkg_info.msets",
+			{Name: "pkg_msets",
 				Value: glang.GallinaIdent("msets'")},
-			{Name: "pkg_info.imported_pkgs",
+			{Name: "pkg_imported_pkgs",
 				Value: imports},
 		},
 	}
-	infoDecl := glang.ConstDecl{
-		Name: "info'",
-		Val:  infoRecord,
-		Type: glang.GallinaIdent("pkg_info.t"),
-	}
-	decls = append(decls, infoDecl)
 
 	infoInstanceDecl := glang.InstanceDecl{
 		Type: glang.NewCallExpr(glang.GallinaIdent("PkgInfo"),
 			glang.GallinaIdent("pkg_name'"),
-			glang.GallinaIdent("info'"),
 		),
 		Global: true,
-		Body:   glang.EmptyInstanceExpr{},
-		Name:   "", // no name required
+		Body:   infoRecord,
+		Name:   "info'", // no name required
 	}
 	decls = append(decls, infoInstanceDecl)
 
