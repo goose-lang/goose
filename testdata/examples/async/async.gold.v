@@ -33,6 +33,16 @@ Definition functions' : list (go_string * val) := [("TakesDisk"%go, TakesDisk); 
 
 Definition msets' : list (go_string * (list (go_string * val))) := [].
 
+Definition info' : pkg_info.t := {|
+             pkg_info.vars := vars';
+             pkg_info.functions := functions';
+             pkg_info.msets := msets';
+             pkg_info.imported_pkgs := [async_disk.pkg_name'];
+           |}.
+
+#[global] Instance  : PkgInfo pkg_name' info' :=
+  {}.
+
 Definition initialize' : val :=
   rec: "initialize'" <> :=
     globals.package_init pkg_name' vars' functions' msets' (λ: <>,

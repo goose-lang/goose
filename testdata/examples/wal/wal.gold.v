@@ -366,6 +366,16 @@ Definition msets' : list (go_string * (list (go_string * val))) := [("Log"%go, [
                  method_call #pkg_name' #"Log" #"unlock" (![Log] "$recvAddr")
                  )%V)])].
 
+Definition info' : pkg_info.t := {|
+             pkg_info.vars := vars';
+             pkg_info.functions := functions';
+             pkg_info.msets := msets';
+             pkg_info.imported_pkgs := [sync.pkg_name'; primitive.pkg_name'; disk.pkg_name'];
+           |}.
+
+#[global] Instance  : PkgInfo pkg_name' info' :=
+  {}.
+
 Definition initialize' : val :=
   rec: "initialize'" <> :=
     globals.package_init pkg_name' vars' functions' msets' (λ: <>,
