@@ -690,6 +690,17 @@ func (ctx Ctx) methodExpr(call *ast.CallExpr) coq.Expr {
 		// XXX: this could be a struct field of type `func()`; right now we
 		// don't support generic structs, so code with a generic function field
 		// will be rejected. But, in the future, that might change.
+
+		// We technically need to pass the channel's type in to the close function because
+		// the model is made using generic structs which don't allow you to define methods
+		// a struct without the type parameter.
+		if f.Name == "close" {
+			chan_type, ok := ctx.typeOf(args[0]).Underlying().(*types.Chan)
+			if ok {
+				typeArgs = append(typeArgs, ctx.coqTypeOfType(args[0], chan_type.Elem()))
+
+			}
+		}
 		retExpr = ctx.newCoqCallTypeArgs(ctx.identExpr(f), typeArgs, args)
 	case *ast.SelectorExpr:
 		retExpr = ctx.selectorMethod(f, call)
@@ -739,6 +750,19 @@ func (ctx Ctx) makeExpr(args []ast.Expr) coq.CallExpr {
 			ctx.coqTypeOfType(args[0], ty.Key()),
 			ctx.coqTypeOfType(args[0], ty.Elem()),
 			coq.UnitLiteral{})
+	case *types.Chan:
+		// For unbuffered channels, we explicitly pass 0, otherwise pass the buffer size.
+		buffer_size := 0
+		if len(args) > 1 {
+			if e, ok := args[1].(*ast.BasicLit); ok {
+				if e.Kind == token.INT {
+					buffer_size, _ = strconv.Atoi(e.Value)
+				}
+			}
+		}
+		return coq.NewCallExpr(coq.GallinaIdent("NewChannelRef"),
+			ctx.coqTypeOfType(args[0], ty.Elem()),
+			coq.IntLiteral{Value: uint64(buffer_size)})
 	default:
 		ctx.unsupported(args[0],
 			"make type should be slice or map, got %v", ty)
@@ -1148,6 +1172,18 @@ func (ctx Ctx) unaryExpr(e *ast.UnaryExpr) coq.Expr {
 		// e is something else
 		return ctx.refExpr(e.X)
 	}
+	if e.Op == token.ARROW {
+		// If we are using the ok variable that <- can return optionally, we have a different
+		// function in the model.
+		tuple_type, ok := ctx.typeOf(e).(*types.Tuple)
+		if ok {
+			return coq.NewCallExpr(coq.GallinaIdent("Channel__Receive"), ctx.coqTypeOfType(e, tuple_type.At(0).Type()), ctx.expr(e.X))
+		} else {
+
+			return coq.NewCallExpr(coq.GallinaIdent("Channel__ReceiveDiscardOk"), ctx.coqTypeOfType(e, ctx.typeOf(e)), ctx.expr(e.X))
+		}
+
+	}
 	ctx.unsupported(e, "unary expression %s", e.Op)
 	return nil
 }
@@ -1205,6 +1241,9 @@ func (ctx Ctx) identExpr(e *ast.Ident) coq.Expr {
 			return coq.True
 		case "false":
 			return coq.False
+		case "close":
+			return coq.GallinaIdent("Channel__Close")
+
 		}
 		ctx.unsupported(e, "special identifier")
 	}
@@ -1584,6 +1623,9 @@ func (ctx Ctx) rangeStmt(s *ast.RangeStmt) coq.Expr {
 		return ctx.mapRangeStmt(s)
 	case *types.Slice:
 		return ctx.sliceRangeStmt(s)
+	case *types.Chan:
+		ctx.todo(s, "implement channel range for loop")
+		return nil
 	default:
 		ctx.unsupported(s,
 			"range over %v (only maps and slices are supported)",
@@ -1863,6 +1905,10 @@ func (ctx Ctx) assignStmt(s *ast.AssignStmt) coq.Binding {
 	return ctx.assignFromTo(s, lhs, rhs)
 }
 
+func (ctx Ctx) sendStmt(s *ast.SendStmt) coq.Expr {
+	return coq.NewCallExpr(coq.GallinaIdent("Channel__Send"), ctx.coqTypeOfType(s.Value, ctx.typeOf(s.Value)), ctx.expr(s.Chan), ctx.expr(s.Value))
+}
+
 func (ctx Ctx) incDecStmt(stmt *ast.IncDecStmt) coq.Binding {
 	ident := getIdentOrNil(stmt.X)
 	if ident == nil {
@@ -1968,7 +2014,9 @@ func (ctx Ctx) stmtInBlock(s ast.Stmt, usage ExprValUsage) (coq.Binding, bool) {
 	case *ast.TypeSwitchStmt:
 		ctx.todo(s, "check for type switch statement")
 	case *ast.SelectStmt:
-		ctx.unsupported(s, "select statement")
+		ctx.todo(s, "add support for select statement")
+	case *ast.SendStmt:
+		binding = coq.NewAnon(ctx.sendStmt(s))
 	default:
 		ctx.unsupported(s, "statement")
 	}
