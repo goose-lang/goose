@@ -3038,9 +3038,6 @@ InitLoop:
 	e = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 	e = glang.NewCallExpr(glang.GallinaIdent("globals.package_init"),
 		glang.GallinaIdent("pkg_name'"),
-		glang.GallinaIdent("vars'"),
-		glang.GallinaIdent("functions'"),
-		glang.GallinaIdent("msets'"),
 		glang.FuncLit{Args: nil, Body: e},
 	)
 
