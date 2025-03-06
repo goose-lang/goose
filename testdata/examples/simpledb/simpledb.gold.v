@@ -1039,7 +1039,7 @@ Definition info' : pkg_info.t := {|
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' vars' functions' msets' (λ: <>,
+    globals.package_init pkg_name' (λ: <>,
       exception_do (do:  marshal.initialize';;;
       do:  filesys.initialize';;;
       do:  primitive.initialize';;;
