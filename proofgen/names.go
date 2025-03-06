@@ -98,8 +98,8 @@ Class GlobalAddrs :=
 
 	// emit `is_defined`
 	fmt.Fprintf(w, `
-Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functions' %s.msets'.
-`, pkg.Name, pkg.Name, pkg.Name)
+Definition is_defined := is_global_definitions %s.pkg_name' var_addrs.
+`, pkg.Name)
 	// emit `PkgIsDefined instance`
 	fmt.Fprintf(w, `
 Global Instance : PkgIsDefined %s.pkg_name' is_defined :=
