@@ -662,7 +662,13 @@ func (ctx *Ctx) getPkgAndName(obj types.Object) (pkg string, name string) {
 	if obj.Pkg() == nil {
 		ctx.unsupported(obj, "expected object to have package")
 	}
-	return obj.Pkg().Name(), obj.Name()
+	name = obj.Name()
+	if obj.Pkg().Path() == ctx.pkgPath {
+		pkg = ctx.pkgIdent
+	} else {
+		pkg = obj.Pkg().Name()
+	}
+	return
 }
 
 func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
