@@ -240,6 +240,7 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 
 func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
 	ffi := getFfi(pkg)
+	header += fmt.Sprintf("Definition %s : go_string := \"%s\".\n\n", pkg.Name, pkg.PkgPath)
 	if ffi == "none" {
 		header += fmt.Sprintf("Module %s.\n", pkg.Name)
 		header += "Section code.\n" +
