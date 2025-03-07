@@ -96,10 +96,13 @@ Class GlobalAddrs :=
 	}
 	fmt.Fprintln(w, "\n  ].")
 
-	// emit `is_defined`
+	// emit `PkgIsDefined instance`
 	fmt.Fprintf(w, `
-Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functions' %s.msets'.
-`, pkg.Name, pkg.Name, pkg.Name)
+Global Instance is_pkg_defined_instance : IsPkgDefined %s :=
+{|
+  is_pkg_defined := is_global_definitions %s var_addrs;
+|}.
+`, pkg.Name, pkg.Name)
 
 	// emit `own_allocated`
 	fmt.Fprint(w, "\nDefinition own_allocated `{!GlobalAddrs} : iProp Σ :=\n")
@@ -121,7 +124,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 	// emit instances for global.get
 	for _, varName := range tr.varNames {
 		fmt.Fprintf(w, "\nGlobal Instance wp_globals_get_%s : \n", varName)
-		fmt.Fprintf(w, "  WpGlobalsGet %s.pkg_name' \"%s\" %s is_defined.\n", pkg.Name, varName, varName)
+		fmt.Fprintf(w, "  WpGlobalsGet %s \"%s\" %s (is_pkg_defined %s).\n", pkg.Name, varName, varName, pkg.Name)
 		fmt.Fprintf(w, "Proof. apply wp_globals_get'. reflexivity. Qed.\n")
 	}
 
@@ -131,7 +134,7 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 			continue
 		}
 		fmt.Fprintf(w, "\nGlobal Instance wp_func_call_%s :\n", funcName)
-		fmt.Fprintf(w, "  WpFuncCall %s.pkg_name' \"%s\" _ is_defined :=\n", pkg.Name, funcName)
+		fmt.Fprintf(w, "  WpFuncCall %s \"%s\" _ (is_pkg_defined %s) :=\n", pkg.Name, funcName, pkg.Name)
 		fmt.Fprintf(w, "  ltac:(apply wp_func_call'; reflexivity).\n")
 	}
 
@@ -147,8 +150,8 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 			}
 
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s :\n", typeName, methodName)
-			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
-				pkg.Name, typeName, methodName)
+			fmt.Fprintf(w, "  WpMethodCall %s \"%s\" \"%s\" _ (is_pkg_defined %s) :=\n",
+				pkg.Name, typeName, methodName, pkg.Name)
 			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 			// XXX: by using an ltac expression to generate the instance, we can
 			// leave an evar for the method val, avoiding the need to write out
@@ -164,8 +167,8 @@ Definition is_defined := is_global_definitions %s.pkg_name' var_addrs %s.functio
 			}
 
 			fmt.Fprintf(w, "\nGlobal Instance wp_method_call_%s_%s :\n", typeName, methodName)
-			fmt.Fprintf(w, "  WpMethodCall %s.pkg_name' \"%s\" \"%s\" _ is_defined :=\n",
-				pkg.Name, typeName, methodName)
+			fmt.Fprintf(w, "  WpMethodCall %s \"%s\" \"%s\" _ (is_pkg_defined %s) :=\n",
+				pkg.Name, typeName, methodName, pkg.Name)
 			fmt.Fprintf(w, "  ltac:(apply wp_method_call'; reflexivity).\n")
 		}
 	}

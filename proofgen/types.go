@@ -241,7 +241,7 @@ Context `+"`"+`{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 		fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, getFieldName(i), toCoqName(getFieldName(i)))
 		sep = ";"
 	}
-	fmt.Fprint(w, "\n    ]))%%V\n    #(")
+	fmt.Fprintf(w, "%s", "\n    ]))"+`%struct`+"\n    #(")
 	fmt.Fprintf(w, "%s.mk", name)
 	for i := 0; i < s.NumFields(); i++ {
 		fmt.Fprintf(w, " %s", toCoqName(getFieldName(i)))
@@ -341,7 +341,7 @@ func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 		for _, depName := range tr.deps[n] {
 			printDefAndDeps(depName)
 		}
-		fmt.Fprintf(w, tr.defs[n])
+		fmt.Fprint(w, tr.defs[n])
 		printed[n] = true
 	}
 	for _, d := range tr.defNames {

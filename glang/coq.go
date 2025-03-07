@@ -899,6 +899,32 @@ func (d ConstDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
+type InstanceDecl struct {
+	Type Expr
+	// If not global, instance will be export
+	Global bool
+	Body   Expr
+	// Can be empty (instance gets an automatic name in Coq)
+	Name string
+}
+
+func (d InstanceDecl) CoqDecl() string {
+	var pp buffer
+	qualifier := "#[export]"
+	if d.Global {
+		qualifier = "#[global]"
+	}
+	pp.Add("%s Instance %s : %s :=",
+		qualifier, d.Name, d.Type.Coq(false))
+	pp.Indent(2)
+	pp.Add("%s.", d.Body.Coq(false))
+	return pp.Build()
+}
+
+func (d InstanceDecl) DefName() (bool, string) {
+	return true, d.Name
+}
+
 type AxiomDecl struct {
 	DeclName string
 	Type     Expr
@@ -987,6 +1013,32 @@ func (decls ImportDecls) PrintImports() string {
 	}
 	sort.Strings(ss)
 	return strings.Join(ss, "\n")
+}
+
+type RecordField struct {
+	Name  string
+	Value Expr
+}
+
+// RecordLiteral represents a Gallina record literal
+type RecordLiteral struct {
+	Fields []RecordField
+}
+
+func (r RecordField) Coq(needs_paren bool) string {
+	return fmt.Sprintf("%s := %s", r.Name, r.Value.Coq(needs_paren))
+}
+
+func (r RecordLiteral) Coq(needs_paren bool) string {
+	var pp buffer
+	pp.AddLine("{|")
+	pp.Indent(2)
+	for _, field := range r.Fields {
+		pp.Add("%s;", field.Coq(false))
+	}
+	pp.Indent(-2)
+	pp.AddLine("|}")
+	return addParens(needs_paren, pp.Build())
 }
 
 // File represents a complete Coq file (a sequence of declarations).

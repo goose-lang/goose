@@ -32,6 +32,16 @@ type Ctx struct {
 	namesToTranslate map[string]bool
 	info             *types.Info
 	pkgPath          string
+
+	// XXX: Initially tried using `pkg.Name` as the Gallina identifier holding
+	// the full package path, but that doesn't work in a `package main` with a `func main`.
+	// In that case, as soon as `func main` is defined inside `Module main.`,
+	// reference to simply `main` (which should be the go_string holding the
+	// package path) end up referring to the function. So, this uses `filename +
+	// "." + pkg.Name` to refer to the Gallina definition that holds a package's
+	// full path as a go_string (e.g. in `globals_test`, instead of `func_call #main ...`,
+	// this results in `func_call #globals_test.main ...`).
+	pkgIdent string
 	errorReporter
 
 	// XXX: this is so we can determine the expected return type when handling a
@@ -87,9 +97,12 @@ func getFfi(pkg *packages.Package) string {
 
 // NewPkgCtx initializes a context based on a properly loaded package
 func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
+	ss := strings.Split(pkg.PkgPath, "/")
+	pkgIdent := ss[len(ss)-1]
 	return Ctx{
 		info:          pkg.TypesInfo,
 		pkgPath:       pkg.PkgPath,
+		pkgIdent:      pkgIdent + "." + pkg.Name,
 		errorReporter: newErrorReporter(pkg.Fset),
 		dep:           newDepTracker(),
 		importNames:   make(map[string]struct{}),
@@ -646,26 +659,28 @@ func (ctx *Ctx) qualifiedName(obj types.Object) string {
 }
 
 func (ctx *Ctx) getPkgAndName(obj types.Object) (pkg string, name string) {
-	name = obj.Name()
-	pkg = "pkg_name'"
-	if obj.Pkg() == nil || ctx.pkgPath == obj.Pkg().Path() {
-		return
+	if obj.Pkg() == nil {
+		ctx.unsupported(obj, "expected object to have package")
 	}
-	pkg = obj.Pkg().Name() + "." + pkg
+	name = obj.Name()
+	if obj.Pkg().Path() == ctx.pkgPath {
+		pkg = ctx.pkgIdent
+	} else {
+		pkg = obj.Pkg().Name()
+	}
 	return
 }
 
 func (ctx *Ctx) selectorExprAddr(e *ast.SelectorExpr) glang.Expr {
 	selection := ctx.info.Selections[e]
 	if selection == nil {
-		pkg, ok := getIdent(e.X)
+		pkgName, ok := getIdent(e.X)
 		if !ok {
 			ctx.unsupported(e, "expected package selector with idtent, got %T", e.X)
 		}
 		if _, ok := ctx.info.ObjectOf(e.Sel).(*types.Var); ok {
-			ctx.dep.addDep("pkg_name'")
 			return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-				glang.StringVal{Value: glang.GallinaIdent(pkg + ".pkg_name'")},
+				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
 				glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 			)
 		} else {
@@ -858,7 +873,7 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				ctx.info.TypeOf(e),
 				glang.NewCallExpr(
 					glang.GallinaIdent("func_call"),
-					glang.StringVal{Value: glang.GallinaIdent(f.Pkg().Name() + ".pkg_name'")},
+					glang.StringVal{Value: glang.GallinaIdent(f.Pkg().Name())},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 				),
 			)
@@ -1307,12 +1322,13 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 }
 
 func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
-	ctx.dep.addDep("pkg_name'")
-
 	typeArgs := ctx.info.Instances[s].TypeArgs
 	if typeArgs.Len() == 0 {
+		if ctx.info.ObjectOf(s).Pkg().Path() != ctx.pkgPath {
+			ctx.nope(s, "expected function ident to refer to local function")
+		}
 		return glang.NewCallExpr(glang.GallinaIdent("func_call"),
-			glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+			glang.StringVal{Value: glang.GallinaIdent(ctx.pkgIdent)},
 			glang.StringVal{Value: glang.StringLiteral{Value: s.Name}},
 		)
 	}
@@ -1904,9 +1920,14 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		obj := ctx.info.ObjectOf(e)
 		if _, ok := obj.(*types.Var); ok {
 			if obj.Pkg().Scope() == obj.Parent() {
-				ctx.dep.addDep("pkg_name'")
+				pkgIdent := ""
+				if obj.Pkg().Path() == ctx.pkgPath {
+					pkgIdent = ctx.pkgIdent
+				} else {
+					pkgIdent = obj.Pkg().Name()
+				}
 				return glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-					glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+					glang.StringVal{Value: glang.GallinaIdent(pkgIdent)},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Name}},
 				)
 			} else {
@@ -2827,12 +2848,6 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 
 func (ctx *Ctx) initFunctions() []glang.Decl {
 	var decls = []glang.Decl{}
-	nameDecl := glang.ConstDecl{
-		Name: "pkg_name'",
-		Val:  glang.GallinaString(ctx.pkgPath),
-		Type: glang.GallinaIdent("go_string"),
-	}
-	decls = append(decls, nameDecl)
 
 	ctx.dep.setCurrentName("initialize'")
 	initFunc := glang.FuncDecl{Name: "initialize'"}
@@ -2882,6 +2897,33 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	}
 	decls = append(decls, msetsDecl)
 
+	var imports glang.ListExpr
+	for _, impName := range ctx.importNamesOrdered {
+		imports = append(imports, glang.GallinaIdent(fmt.Sprintf("%s", impName)))
+	}
+	infoRecord := glang.RecordLiteral{
+		Fields: []glang.RecordField{
+			{Name: "pkg_vars",
+				Value: glang.GallinaIdent("vars'")},
+			{Name: "pkg_functions",
+				Value: glang.GallinaIdent("functions'")},
+			{Name: "pkg_msets",
+				Value: glang.GallinaIdent("msets'")},
+			{Name: "pkg_imported_pkgs",
+				Value: imports},
+		},
+	}
+
+	infoInstanceDecl := glang.InstanceDecl{
+		Type: glang.NewCallExpr(glang.GallinaIdent("PkgInfo"),
+			glang.GallinaIdent(ctx.pkgIdent),
+		),
+		Global: true,
+		Body:   infoRecord,
+		Name:   "info'", // no name required
+	}
+	decls = append(decls, infoInstanceDecl)
+
 	var e glang.Expr
 
 	// add all init() function bodies
@@ -2919,7 +2961,7 @@ InitLoop:
 				e = glang.NewDoSeq(
 					glang.StoreStmt{
 						Dst: glang.NewCallExpr(glang.GallinaIdent("globals.get"),
-							glang.StringVal{Value: glang.GallinaIdent("pkg_name'")},
+							glang.StringVal{Value: glang.GallinaIdent(ctx.pkgIdent)},
 							glang.StringVal{Value: glang.StringLiteral{Value: init.Lhs[i-1].Name()}},
 						),
 						X:  glang.IdentExpr(fmt.Sprintf("$r%d", i-1)),
@@ -2988,10 +3030,7 @@ InitLoop:
 
 	e = glang.NewCallExpr(glang.GallinaIdent("exception_do"), e)
 	e = glang.NewCallExpr(glang.GallinaIdent("globals.package_init"),
-		glang.GallinaIdent("pkg_name'"),
-		glang.GallinaIdent("vars'"),
-		glang.GallinaIdent("functions'"),
-		glang.GallinaIdent("msets'"),
+		glang.GallinaIdent(ctx.pkgIdent),
 		glang.FuncLit{Args: nil, Body: e},
 	)
 

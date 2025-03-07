@@ -42,7 +42,7 @@ func (tr *importsTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
+func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) *importsTranslator {
 	tr := &importsTranslator{
 		importsSet: make(map[string]struct{}),
 		filter:     filter,
@@ -55,4 +55,5 @@ func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi str
 	for _, imp := range tr.importsList {
 		fmt.Fprintf(w, "Require Export New.generatedproof.%s.\n", imp)
 	}
+	return tr
 }
