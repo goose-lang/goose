@@ -20,7 +20,7 @@ Definition c__Foo : val :=
   rec: "c__Foo" "c" <> :=
     exception_do (let: "c" := (ref_ty ptrT "c") in
     let: "y" := (ref_ty B (zero_val B)) in
-    let: "$r0" := (interface.make #interfacerecursion #"c'ptr" (![ptrT] "c")) in
+    let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![ptrT] "c")) in
     do:  ("y" <-[B] "$r0");;;
     do:  ((interface.get "Bar" (![B] "y")) #())).
 
@@ -29,7 +29,7 @@ Definition c__Bar : val :=
   rec: "c__Bar" "c" <> :=
     exception_do (let: "c" := (ref_ty ptrT "c") in
     let: "y" := (ref_ty A (zero_val A)) in
-    let: "$r0" := (interface.make #interfacerecursion #"c'ptr" (![ptrT] "c")) in
+    let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![ptrT] "c")) in
     do:  ("y" <-[A] "$r0");;;
     do:  ((interface.get "Foo" (![A] "y")) #())).
 

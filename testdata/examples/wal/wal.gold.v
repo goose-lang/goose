@@ -110,16 +110,16 @@ Definition Log__unlock : val :=
 Definition Log__BeginTxn : val :=
   rec: "Log__BeginTxn" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") = #(W64 0)
     then
-      do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
+      do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
       return: (#true)
     else do:  #());;;
-    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
     return: (#false)).
 
 (* Read from the logical disk.
@@ -131,7 +131,7 @@ Definition Log__Read : val :=
   rec: "Log__Read" "l" "a" :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "v" := (ref_ty sliceT (zero_val sliceT)) in
     let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a")) in
@@ -141,10 +141,10 @@ Definition Log__Read : val :=
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
+      do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
       return: (![sliceT] "v")
     else do:  #());;;
-    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
     let: "dv" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (logLength + (![uint64T] "a")) in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0") in
@@ -168,7 +168,7 @@ Definition Log__Write : val :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "v" := (ref_ty sliceT "v") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
@@ -194,7 +194,7 @@ Definition Log__Write : val :=
     do:  (map.insert (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
     let: "$r0" := ((![uint64T] "length") + #(W64 1)) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #())).
 
 (* Commit the current transaction.
 
@@ -202,11 +202,11 @@ Definition Log__Write : val :=
 Definition Log__Commit : val :=
   rec: "Log__Commit" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
-    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
     let: "header" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "length") in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
@@ -288,7 +288,7 @@ Definition clearLog : val :=
 Definition Log__Apply : val :=
   rec: "Log__Apply" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
@@ -299,7 +299,7 @@ Definition Log__Apply : val :=
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "$r0" := #(W64 0) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #())).
 
 (* Open recovers the log following a crash or shutdown
 
@@ -349,21 +349,21 @@ Definition vars' : list (go_string * go_type) := [].
 Definition functions' : list (go_string * val) := [("intToBlock"%go, intToBlock); ("blockToInt"%go, blockToInt); ("New"%go, New); ("getLogEntry"%go, getLogEntry); ("applyLog"%go, applyLog); ("clearLog"%go, clearLog); ("Open"%go, Open)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Log"%go, [("Apply"%go, Log__Apply); ("BeginTxn"%go, Log__BeginTxn); ("Commit"%go, Log__Commit); ("Read"%go, Log__Read); ("Size"%go, Log__Size); ("Write"%go, Log__Write); ("lock"%go, Log__lock); ("unlock"%go, Log__unlock)]); ("Log'ptr"%go, [("Apply"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"Apply" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Apply" (![Log] "$recvAddr")
                  )%V); ("BeginTxn"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"BeginTxn" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"BeginTxn" (![Log] "$recvAddr")
                  )%V); ("Commit"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"Commit" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Commit" (![Log] "$recvAddr")
                  )%V); ("Read"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"Read" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Read" (![Log] "$recvAddr")
                  )%V); ("Size"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"Size" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Size" (![Log] "$recvAddr")
                  )%V); ("Write"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"Write" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Write" (![Log] "$recvAddr")
                  )%V); ("lock"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"lock" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"lock" (![Log] "$recvAddr")
                  )%V); ("unlock"%go, (λ: "$recvAddr",
-                 method_call #awol #"Log" #"unlock" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"unlock" (![Log] "$recvAddr")
                  )%V)])].
 
 #[global] Instance info' : PkgInfo wal.awol :=

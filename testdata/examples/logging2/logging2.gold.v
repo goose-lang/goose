@@ -67,7 +67,7 @@ Definition Init : val :=
     }]) in
     do:  ("log" <-[Log] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    (method_call #logging2 #"Log" #"writeHdr" (![Log] "log")) "$a0");;;
+    (method_call #logging2.logging2 #"Log" #"writeHdr" (![Log] "log")) "$a0");;;
     return: (![Log] "log")).
 
 (* go: logging2.go:45:16 *)
@@ -113,11 +113,11 @@ Definition Log__Read : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((method_call #logging2 #"Log" #"readHdr" (![Log] "log")) #()) in
+    let: "$r0" := ((method_call #logging2.logging2 #"Log" #"readHdr" (![Log] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
     let: "blks" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "disklen") in
-    (method_call #logging2 #"Log" #"readBlocks" (![Log] "log")) "$a0") in
+    (method_call #logging2.logging2 #"Log" #"readBlocks" (![Log] "log")) "$a0") in
     do:  ("blks" <-[sliceT] "$r0");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     return: (![sliceT] "blks")).
@@ -187,7 +187,7 @@ Definition Log__diskAppendWait : val :=
     let: "txn" := (ref_ty uint64T "txn") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       let: "logtxn" := (ref_ty uint64T (zero_val uint64T)) in
-      let: "$r0" := ((method_call #logging2 #"Log" #"readLogTxnNxt" (![Log] "log")) #()) in
+      let: "$r0" := ((method_call #logging2.logging2 #"Log" #"readLogTxnNxt" (![Log] "log")) #()) in
       do:  ("logtxn" <-[uint64T] "$r0");;;
       (if: (![uint64T] "txn") < (![uint64T] "logtxn")
       then break: #()
@@ -202,7 +202,7 @@ Definition Log__Append : val :=
     let: "txn" := (ref_ty uint64T (zero_val uint64T)) in
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] "l") in
-    (method_call #logging2 #"Log" #"memAppend" (![Log] "log")) "$a0") in
+    (method_call #logging2.logging2 #"Log" #"memAppend" (![Log] "log")) "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("ok" <-[boolT] "$r0");;;
@@ -210,7 +210,7 @@ Definition Log__Append : val :=
     (if: ![boolT] "ok"
     then
       do:  (let: "$a0" := (![uint64T] "txn") in
-      (method_call #logging2 #"Log" #"diskAppendWait" (![Log] "log")) "$a0")
+      (method_call #logging2.logging2 #"Log" #"diskAppendWait" (![Log] "log")) "$a0")
     else do:  #());;;
     return: (![boolT] "ok")).
 
@@ -241,7 +241,7 @@ Definition Log__diskAppend : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "logLock" "log"))) #());;;
     let: "disklen" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((method_call #logging2 #"Log" #"readHdr" (![Log] "log")) #()) in
+    let: "$r0" := ((method_call #logging2.logging2 #"Log" #"readHdr" (![Log] "log")) #()) in
     do:  ("disklen" <-[uint64T] "$r0");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     let: "memlen" := (ref_ty uint64T (zero_val uint64T)) in
@@ -260,9 +260,9 @@ Definition Log__diskAppend : val :=
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
     do:  (let: "$a0" := (![sliceT] "blks") in
     let: "$a1" := (![uint64T] "disklen") in
-    (method_call #logging2 #"Log" #"writeBlocks" (![Log] "log")) "$a0" "$a1");;;
+    (method_call #logging2.logging2 #"Log" #"writeBlocks" (![Log] "log")) "$a0" "$a1");;;
     do:  (let: "$a0" := (![uint64T] "memlen") in
-    (method_call #logging2 #"Log" #"writeHdr" (![Log] "log")) "$a0");;;
+    (method_call #logging2.logging2 #"Log" #"writeHdr" (![Log] "log")) "$a0");;;
     let: "$r0" := (![uint64T] "memnxt") in
     do:  ((![ptrT] (struct.field_ref Log "logTxnNxt" "log")) <-[uint64T] "$r0");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "logLock" "log"))) #())).
@@ -272,7 +272,7 @@ Definition Log__Logger : val :=
   rec: "Log__Logger" "log" <> :=
     exception_do (let: "log" := (ref_ty Log "log") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      do:  ((method_call #logging2 #"Log" #"diskAppend" (![Log] "log")) #()))).
+      do:  ((method_call #logging2.logging2 #"Log" #"diskAppend" (![Log] "log")) #()))).
 
 Definition Txn : go_type := structT [
   "log" :: ptrT;
@@ -364,7 +364,7 @@ Definition Txn__Commit : val :=
       do:  ((![ptrT] "blks") <-[sliceT] "$r0")));;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] (![ptrT] "blks")) in
-    (method_call #logging2 #"Log" #"Append" (![Log] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0") in
+    (method_call #logging2.logging2 #"Log" #"Append" (![Log] (![ptrT] (struct.field_ref Txn "log" "txn")))) "$a0") in
     do:  ("ok" <-[boolT] "$r0");;;
     return: (![boolT] "ok")).
 
@@ -373,35 +373,35 @@ Definition vars' : list (go_string * go_type) := [].
 Definition functions' : list (go_string * val) := [("Init"%go, Init); ("Begin"%go, Begin)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Log"%go, [("Append"%go, Log__Append); ("Logger"%go, Log__Logger); ("Read"%go, Log__Read); ("diskAppend"%go, Log__diskAppend); ("diskAppendWait"%go, Log__diskAppendWait); ("memAppend"%go, Log__memAppend); ("memWrite"%go, Log__memWrite); ("readBlocks"%go, Log__readBlocks); ("readHdr"%go, Log__readHdr); ("readLogTxnNxt"%go, Log__readLogTxnNxt); ("writeBlocks"%go, Log__writeBlocks); ("writeHdr"%go, Log__writeHdr)]); ("Log'ptr"%go, [("Append"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"Append" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"Append" (![Log] "$recvAddr")
                  )%V); ("Logger"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"Logger" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"Logger" (![Log] "$recvAddr")
                  )%V); ("Read"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"Read" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"Read" (![Log] "$recvAddr")
                  )%V); ("diskAppend"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"diskAppend" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"diskAppend" (![Log] "$recvAddr")
                  )%V); ("diskAppendWait"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"diskAppendWait" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"diskAppendWait" (![Log] "$recvAddr")
                  )%V); ("memAppend"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"memAppend" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"memAppend" (![Log] "$recvAddr")
                  )%V); ("memWrite"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"memWrite" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"memWrite" (![Log] "$recvAddr")
                  )%V); ("readBlocks"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"readBlocks" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"readBlocks" (![Log] "$recvAddr")
                  )%V); ("readHdr"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"readHdr" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"readHdr" (![Log] "$recvAddr")
                  )%V); ("readLogTxnNxt"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"readLogTxnNxt" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"readLogTxnNxt" (![Log] "$recvAddr")
                  )%V); ("writeBlocks"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"writeBlocks" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"writeBlocks" (![Log] "$recvAddr")
                  )%V); ("writeHdr"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Log" #"writeHdr" (![Log] "$recvAddr")
+                 method_call #logging2.logging2 #"Log" #"writeHdr" (![Log] "$recvAddr")
                  )%V)]); ("Txn"%go, [("Commit"%go, Txn__Commit); ("Read"%go, Txn__Read); ("Write"%go, Txn__Write)]); ("Txn'ptr"%go, [("Commit"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Txn" #"Commit" (![Txn] "$recvAddr")
+                 method_call #logging2.logging2 #"Txn" #"Commit" (![Txn] "$recvAddr")
                  )%V); ("Read"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Txn" #"Read" (![Txn] "$recvAddr")
+                 method_call #logging2.logging2 #"Txn" #"Read" (![Txn] "$recvAddr")
                  )%V); ("Write"%go, (λ: "$recvAddr",
-                 method_call #logging2 #"Txn" #"Write" (![Txn] "$recvAddr")
+                 method_call #logging2.logging2 #"Txn" #"Write" (![Txn] "$recvAddr")
                  )%V)])].
 
 #[global] Instance info' : PkgInfo logging2.logging2 :=
