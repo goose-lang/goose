@@ -41,7 +41,7 @@ type Ctx struct {
 	// "." + pkg.Name` to refer to the Gallina definition that holds a package's
 	// full path as a go_string (e.g. in `globals_test`, instead of `func_call #main ...`,
 	// this results in `func_call #globals_test.main ...`).
-	pkgIdent         string
+	pkgIdent string
 	errorReporter
 
 	// XXX: this is so we can determine the expected return type when handling a
