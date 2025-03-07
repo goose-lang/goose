@@ -4,6 +4,8 @@ Require Export New.code.github_com.goose_lang.primitive.
 Require Export New.code.github_com.goose_lang.primitive.disk.
 Require Export New.code.sync.
 
+Definition awol : go_string := "github.com/goose-lang/goose/testdata/examples/wal".
+
 From New Require Import disk_prelude.
 Module awol.
 Section code.
@@ -30,7 +32,7 @@ Definition intToBlock : val :=
     do:  ("b" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := (![sliceT] "b") in
     let: "$a1" := (![uint64T] "a") in
-    (func_call #primitive.pkg_name' #"UInt64Put"%go) "$a0" "$a1");;;
+    (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
     return: (![sliceT] "b")).
 
 (* go: log.go:31:6 *)
@@ -39,11 +41,9 @@ Definition blockToInt : val :=
     exception_do (let: "v" := (ref_ty sliceT "v") in
     let: "a" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "v") in
-    (func_call #primitive.pkg_name' #"UInt64Get"%go) "$a0") in
+    (func_call #primitive #"UInt64Get"%go) "$a0") in
     do:  ("a" <-[uint64T] "$r0");;;
     return: (![uint64T] "a")).
-
-Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/wal".
 
 (* New initializes a fresh log
 
@@ -51,7 +51,7 @@ Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/exampl
 Definition New : val :=
   rec: "New" <> :=
     exception_do (let: "d" := (ref_ty disk.Disk (zero_val disk.Disk)) in
-    let: "$r0" := ((func_call #disk.pkg_name' #"Get"%go) #()) in
+    let: "$r0" := ((func_call #disk #"Get"%go) #()) in
     do:  ("d" <-[disk.Disk] "$r0");;;
     let: "diskSize" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := ((interface.get "Size" (![disk.Disk] "d")) #()) in
@@ -66,7 +66,7 @@ Definition New : val :=
     do:  ("cache" <-[mapT uint64T sliceT] "$r0");;;
     let: "header" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
-    (func_call #pkg_name' #"intToBlock"%go) "$a0") in
+    (func_call #wal.awol #"intToBlock"%go) "$a0") in
     do:  ("header" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT] "header") in
@@ -94,13 +94,13 @@ Definition New : val :=
 Definition Log__lock : val :=
   rec: "Log__lock" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
 
 (* go: log.go:56:14 *)
 Definition Log__unlock : val :=
   rec: "Log__unlock" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -110,16 +110,16 @@ Definition Log__unlock : val :=
 Definition Log__BeginTxn : val :=
   rec: "Log__BeginTxn" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #pkg_name' #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
     (if: (![uint64T] "length") = #(W64 0)
     then
-      do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #());;;
+      do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
       return: (#true)
     else do:  #());;;
-    do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
     return: (#false)).
 
 (* Read from the logical disk.
@@ -131,7 +131,7 @@ Definition Log__Read : val :=
   rec: "Log__Read" "l" "a" :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #pkg_name' #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "ok" := (ref_ty boolT (zero_val boolT)) in
     let: "v" := (ref_ty sliceT (zero_val sliceT)) in
     let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a")) in
@@ -141,10 +141,10 @@ Definition Log__Read : val :=
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #());;;
+      do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
       return: (![sliceT] "v")
     else do:  #());;;
-    do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
     let: "dv" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (logLength + (![uint64T] "a")) in
     (interface.get "Read" (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0") in
@@ -168,7 +168,7 @@ Definition Log__Write : val :=
     exception_do (let: "l" := (ref_ty Log "l") in
     let: "v" := (ref_ty sliceT "v") in
     let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #pkg_name' #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
@@ -179,7 +179,7 @@ Definition Log__Write : val :=
     else do:  #());;;
     let: "aBlock" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "a") in
-    (func_call #pkg_name' #"intToBlock"%go) "$a0") in
+    (func_call #wal.awol #"intToBlock"%go) "$a0") in
     do:  ("aBlock" <-[sliceT] "$r0");;;
     let: "nextAddr" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (#(W64 1) + (#(W64 2) * (![uint64T] "length"))) in
@@ -194,7 +194,7 @@ Definition Log__Write : val :=
     do:  (map.insert (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
     let: "$r0" := ((![uint64T] "length") + #(W64 1)) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #())).
 
 (* Commit the current transaction.
 
@@ -202,14 +202,14 @@ Definition Log__Write : val :=
 Definition Log__Commit : val :=
   rec: "Log__Commit" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #pkg_name' #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
-    do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #());;;
     let: "header" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "length") in
-    (func_call #pkg_name' #"intToBlock"%go) "$a0") in
+    (func_call #wal.awol #"intToBlock"%go) "$a0") in
     do:  ("header" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT] "header") in
@@ -229,7 +229,7 @@ Definition getLogEntry : val :=
     do:  ("aBlock" <-[sliceT] "$r0");;;
     let: "a" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "aBlock") in
-    (func_call #pkg_name' #"blockToInt"%go) "$a0") in
+    (func_call #wal.awol #"blockToInt"%go) "$a0") in
     do:  ("a" <-[uint64T] "$r0");;;
     let: "v" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := ((![uint64T] "diskAddr") + #(W64 1)) in
@@ -254,7 +254,7 @@ Definition applyLog : val :=
         let: "a" := (ref_ty uint64T (zero_val uint64T)) in
         let: ("$ret0", "$ret1") := (let: "$a0" := (![disk.Disk] "d") in
         let: "$a1" := (![uint64T] "i") in
-        (func_call #pkg_name' #"getLogEntry"%go) "$a0" "$a1") in
+        (func_call #wal.awol #"getLogEntry"%go) "$a0" "$a1") in
         let: "$r0" := "$ret0" in
         let: "$r1" := "$ret1" in
         do:  ("a" <-[uint64T] "$r0");;;
@@ -274,7 +274,7 @@ Definition clearLog : val :=
     exception_do (let: "d" := (ref_ty disk.Disk "d") in
     let: "header" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
-    (func_call #pkg_name' #"intToBlock"%go) "$a0") in
+    (func_call #wal.awol #"intToBlock"%go) "$a0") in
     do:  ("header" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![sliceT] "header") in
@@ -288,18 +288,18 @@ Definition clearLog : val :=
 Definition Log__Apply : val :=
   rec: "Log__Apply" "l" <> :=
     exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #pkg_name' #"Log" #"lock" (![Log] "l")) #());;;
+    do:  ((method_call #awol #"Log" #"lock" (![Log] "l")) #());;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
     do:  ("length" <-[uint64T] "$r0");;;
     do:  (let: "$a0" := (![disk.Disk] (struct.field_ref Log "d" "l")) in
     let: "$a1" := (![uint64T] "length") in
-    (func_call #pkg_name' #"applyLog"%go) "$a0" "$a1");;;
+    (func_call #wal.awol #"applyLog"%go) "$a0" "$a1");;;
     do:  (let: "$a0" := (![disk.Disk] (struct.field_ref Log "d" "l")) in
-    (func_call #pkg_name' #"clearLog"%go) "$a0");;;
+    (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "$r0" := #(W64 0) in
     do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #pkg_name' #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ((method_call #awol #"Log" #"unlock" (![Log] "l")) #())).
 
 (* Open recovers the log following a crash or shutdown
 
@@ -307,7 +307,7 @@ Definition Log__Apply : val :=
 Definition Open : val :=
   rec: "Open" <> :=
     exception_do (let: "d" := (ref_ty disk.Disk (zero_val disk.Disk)) in
-    let: "$r0" := ((func_call #disk.pkg_name' #"Get"%go) #()) in
+    let: "$r0" := ((func_call #disk #"Get"%go) #()) in
     do:  ("d" <-[disk.Disk] "$r0");;;
     let: "header" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
@@ -315,13 +315,13 @@ Definition Open : val :=
     do:  ("header" <-[sliceT] "$r0");;;
     let: "length" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "header") in
-    (func_call #pkg_name' #"blockToInt"%go) "$a0") in
+    (func_call #wal.awol #"blockToInt"%go) "$a0") in
     do:  ("length" <-[uint64T] "$r0");;;
     do:  (let: "$a0" := (![disk.Disk] "d") in
     let: "$a1" := (![uint64T] "length") in
-    (func_call #pkg_name' #"applyLog"%go) "$a0" "$a1");;;
+    (func_call #wal.awol #"applyLog"%go) "$a0" "$a1");;;
     do:  (let: "$a0" := (![disk.Disk] "d") in
-    (func_call #pkg_name' #"clearLog"%go) "$a0");;;
+    (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "cache" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
     let: "$r0" := (map.make uint64T sliceT #()) in
     do:  ("cache" <-[mapT uint64T sliceT] "$r0");;;
@@ -349,34 +349,34 @@ Definition vars' : list (go_string * go_type) := [].
 Definition functions' : list (go_string * val) := [("intToBlock"%go, intToBlock); ("blockToInt"%go, blockToInt); ("New"%go, New); ("getLogEntry"%go, getLogEntry); ("applyLog"%go, applyLog); ("clearLog"%go, clearLog); ("Open"%go, Open)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Log"%go, [("Apply"%go, Log__Apply); ("BeginTxn"%go, Log__BeginTxn); ("Commit"%go, Log__Commit); ("Read"%go, Log__Read); ("Size"%go, Log__Size); ("Write"%go, Log__Write); ("lock"%go, Log__lock); ("unlock"%go, Log__unlock)]); ("Log'ptr"%go, [("Apply"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"Apply" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"Apply" (![Log] "$recvAddr")
                  )%V); ("BeginTxn"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"BeginTxn" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"BeginTxn" (![Log] "$recvAddr")
                  )%V); ("Commit"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"Commit" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"Commit" (![Log] "$recvAddr")
                  )%V); ("Read"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"Read" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"Read" (![Log] "$recvAddr")
                  )%V); ("Size"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"Size" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"Size" (![Log] "$recvAddr")
                  )%V); ("Write"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"Write" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"Write" (![Log] "$recvAddr")
                  )%V); ("lock"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"lock" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"lock" (![Log] "$recvAddr")
                  )%V); ("unlock"%go, (λ: "$recvAddr",
-                 method_call #pkg_name' #"Log" #"unlock" (![Log] "$recvAddr")
+                 method_call #awol #"Log" #"unlock" (![Log] "$recvAddr")
                  )%V)])].
 
-#[global] Instance info' : PkgInfo pkg_name' :=
+#[global] Instance info' : PkgInfo wal.awol :=
   {|
     pkg_vars := vars';
     pkg_functions := functions';
     pkg_msets := msets';
-    pkg_imported_pkgs := [sync.pkg_name'; primitive.pkg_name'; disk.pkg_name'];
+    pkg_imported_pkgs := [sync; primitive; disk];
   |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
+    globals.package_init wal.awol (λ: <>,
       exception_do (do:  disk.initialize';;;
       do:  primitive.initialize';;;
       do:  sync.initialize')

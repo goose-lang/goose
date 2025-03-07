@@ -5,6 +5,8 @@ Require Export New.code.github_com.goose_lang.primitive.filesys.
 Require Export New.code.github_com.tchajed.marshal.
 Require Export New.code.sync.
 
+Definition simpledb : go_string := "github.com/goose-lang/goose/testdata/examples/simpledb".
+
 Module simpledb.
 Section code.
 Context `{ffi_syntax}.
@@ -14,7 +16,7 @@ Context `{ffi_syntax}.
 Definition UseMarshal : val :=
   rec: "UseMarshal" <> :=
     exception_do (do:  (let: "$a0" := #(W64 0) in
-    (func_call #marshal.pkg_name' #"NewEnc"%go) "$a0")).
+    (func_call #marshal #"NewEnc"%go) "$a0")).
 
 Definition Table : go_type := structT [
   "Index" :: mapT uint64T uint64T;
@@ -33,17 +35,17 @@ Definition CreateTable : val :=
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
-    (func_call #filesys.pkg_name' #"Create"%go) "$a0" "$a1") in
+    (func_call #filesys #"Create"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("f" <-[fileT] "$r0");;;
     do:  "$r1";;;
     do:  (let: "$a0" := (![fileT] "f") in
-    (func_call #filesys.pkg_name' #"Close"%go) "$a0");;;
+    (func_call #filesys #"Close"%go) "$a0");;;
     let: "f2" := (ref_ty fileT (zero_val fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
-    (func_call #filesys.pkg_name' #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f2" <-[fileT] "$r0");;;
     return: (let: "$Index" := (![mapT uint64T uint64T] "index") in
      let: "$File" := (![fileT] "f2") in
@@ -74,11 +76,9 @@ Definition DecodeUInt64 : val :=
     else do:  #());;;
     let: "n" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "p") in
-    (func_call #primitive.pkg_name' #"UInt64Get"%go) "$a0") in
+    (func_call #primitive #"UInt64Get"%go) "$a0") in
     do:  ("n" <-[uint64T] "$r0");;;
     return: (![uint64T] "n", #(W64 8))).
-
-Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/simpledb".
 
 (* DecodeEntry is a Decoder(Entry)
 
@@ -89,7 +89,7 @@ Definition DecodeEntry : val :=
     let: "l1" := (ref_ty uint64T (zero_val uint64T)) in
     let: "key" := (ref_ty uint64T (zero_val uint64T)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] "data") in
-    (func_call #pkg_name' #"DecodeUInt64"%go) "$a0") in
+    (func_call #simpledb.simpledb #"DecodeUInt64"%go) "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("key" <-[uint64T] "$r0");;;
@@ -107,7 +107,7 @@ Definition DecodeEntry : val :=
     let: "valueLen" := (ref_ty uint64T (zero_val uint64T)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (let: "$s" := (![sliceT] "data") in
     slice.slice byteT "$s" (![uint64T] "l1") (slice.len "$s")) in
-    (func_call #pkg_name' #"DecodeUInt64"%go) "$a0") in
+    (func_call #simpledb.simpledb #"DecodeUInt64"%go) "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("valueLen" <-[uint64T] "$r0");;;
@@ -166,7 +166,7 @@ Definition readTableIndex : val :=
       let: "l" := (ref_ty uint64T (zero_val uint64T)) in
       let: "e" := (ref_ty Entry (zero_val Entry)) in
       let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
-      (func_call #pkg_name' #"DecodeEntry"%go) "$a0") in
+      (func_call #simpledb.simpledb #"DecodeEntry"%go) "$a0") in
       let: "$r0" := "$ret0" in
       let: "$r1" := "$ret1" in
       do:  ("e" <-[Entry] "$r0");;;
@@ -190,7 +190,7 @@ Definition readTableIndex : val :=
         let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.len "$a0")) in
         let: "$a2" := #(W64 4096) in
-        (func_call #filesys.pkg_name' #"ReadAt"%go) "$a0" "$a1" "$a2") in
+        (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[sliceT] "$r0");;;
         (if: (let: "$a0" := (![sliceT] "p") in
         slice.len "$a0") = #(W64 0)
@@ -222,11 +222,11 @@ Definition RecoverTable : val :=
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
-    (func_call #filesys.pkg_name' #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
     do:  (let: "$a0" := (![fileT] "f") in
     let: "$a1" := (![mapT uint64T uint64T] "index") in
-    (func_call #pkg_name' #"readTableIndex"%go) "$a0" "$a1");;;
+    (func_call #simpledb.simpledb #"readTableIndex"%go) "$a0" "$a1");;;
     return: (let: "$Index" := (![mapT uint64T uint64T] "index") in
      let: "$File" := (![fileT] "f") in
      struct.make Table [{
@@ -241,7 +241,7 @@ Definition CloseTable : val :=
   rec: "CloseTable" "t" :=
     exception_do (let: "t" := (ref_ty Table "t") in
     do:  (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
-    (func_call #filesys.pkg_name' #"Close"%go) "$a0")).
+    (func_call #filesys #"Close"%go) "$a0")).
 
 (* go: simpledb.go:123:6 *)
 Definition readValue : val :=
@@ -252,11 +252,11 @@ Definition readValue : val :=
     let: "$r0" := (let: "$a0" := (![fileT] "f") in
     let: "$a1" := (![uint64T] "off") in
     let: "$a2" := #(W64 512) in
-    (func_call #filesys.pkg_name' #"ReadAt"%go) "$a0" "$a1" "$a2") in
+    (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("startBuf" <-[sliceT] "$r0");;;
     let: "totalBytes" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "startBuf") in
-    (func_call #primitive.pkg_name' #"UInt64Get"%go) "$a0") in
+    (func_call #primitive #"UInt64Get"%go) "$a0") in
     do:  ("totalBytes" <-[uint64T] "$r0");;;
     let: "buf" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$s" := (![sliceT] "startBuf") in
@@ -272,7 +272,7 @@ Definition readValue : val :=
       let: "$r0" := (let: "$a0" := (![fileT] "f") in
       let: "$a1" := ((![uint64T] "off") + #(W64 512)) in
       let: "$a2" := ((![uint64T] "totalBytes") - (![uint64T] "haveBytes")) in
-      (func_call #filesys.pkg_name' #"ReadAt"%go) "$a0" "$a1" "$a2") in
+      (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
       do:  ("buf2" <-[sliceT] "$r0");;;
       let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
       let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
@@ -302,7 +302,7 @@ Definition tableRead : val :=
     let: "p" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
     let: "$a1" := (![uint64T] "off") in
-    (func_call #pkg_name' #"readValue"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"readValue"%go) "$a0" "$a1") in
     do:  ("p" <-[sliceT] "$r0");;;
     return: (![sliceT] "p", #true)).
 
@@ -338,7 +338,7 @@ Definition bufFlush : val :=
     else do:  #());;;
     do:  (let: "$a0" := (![fileT] (struct.field_ref bufFile "file" "f")) in
     let: "$a1" := (![sliceT] "buf") in
-    (func_call #filesys.pkg_name' #"Append"%go) "$a0" "$a1");;;
+    (func_call #filesys #"Append"%go) "$a0" "$a1");;;
     let: "$r0" := #slice.nil in
     do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT] "$r0")).
 
@@ -363,9 +363,9 @@ Definition bufClose : val :=
   rec: "bufClose" "f" :=
     exception_do (let: "f" := (ref_ty bufFile "f") in
     do:  (let: "$a0" := (![bufFile] "f") in
-    (func_call #pkg_name' #"bufFlush"%go) "$a0");;;
+    (func_call #simpledb.simpledb #"bufFlush"%go) "$a0");;;
     do:  (let: "$a0" := (![fileT] (struct.field_ref bufFile "file" "f")) in
-    (func_call #filesys.pkg_name' #"Close"%go) "$a0")).
+    (func_call #filesys #"Close"%go) "$a0")).
 
 Definition tableWriter : go_type := structT [
   "index" :: mapT uint64T uint64T;
@@ -384,14 +384,14 @@ Definition newTableWriter : val :=
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "p") in
-    (func_call #filesys.pkg_name' #"Create"%go) "$a0" "$a1") in
+    (func_call #filesys #"Create"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("f" <-[fileT] "$r0");;;
     do:  "$r1";;;
     let: "buf" := (ref_ty bufFile (zero_val bufFile)) in
     let: "$r0" := (let: "$a0" := (![fileT] "f") in
-    (func_call #pkg_name' #"newBuf"%go) "$a0") in
+    (func_call #simpledb.simpledb #"newBuf"%go) "$a0") in
     do:  ("buf" <-[bufFile] "$r0");;;
     let: "off" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
@@ -414,7 +414,7 @@ Definition tableWriterAppend : val :=
     let: "w" := (ref_ty tableWriter "w") in
     do:  (let: "$a0" := (![bufFile] (struct.field_ref tableWriter "file" "w")) in
     let: "$a1" := (![sliceT] "p") in
-    (func_call #pkg_name' #"bufAppend"%go) "$a0" "$a1");;;
+    (func_call #simpledb.simpledb #"bufAppend"%go) "$a0" "$a1");;;
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
     do:  ("off" <-[uint64T] "$r0");;;
@@ -427,11 +427,11 @@ Definition tableWriterClose : val :=
   rec: "tableWriterClose" "w" :=
     exception_do (let: "w" := (ref_ty tableWriter "w") in
     do:  (let: "$a0" := (![bufFile] (struct.field_ref tableWriter "file" "w")) in
-    (func_call #pkg_name' #"bufClose"%go) "$a0");;;
+    (func_call #simpledb.simpledb #"bufClose"%go) "$a0");;;
     let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] (struct.field_ref tableWriter "name" "w")) in
-    (func_call #filesys.pkg_name' #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
     return: (let: "$Index" := (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) in
      let: "$File" := (![fileT] "f") in
@@ -452,7 +452,7 @@ Definition EncodeUInt64 : val :=
     do:  ("tmp" <-[sliceT] "$r0");;;
     do:  (let: "$a0" := (![sliceT] "tmp") in
     let: "$a1" := (![uint64T] "x") in
-    (func_call #primitive.pkg_name' #"UInt64Put"%go) "$a0" "$a1");;;
+    (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
     let: "p2" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "p") in
     let: "$a1" := (![sliceT] "tmp") in
@@ -471,7 +471,7 @@ Definition EncodeSlice : val :=
     let: "$r0" := (let: "$a0" := (let: "$a0" := (![sliceT] "data") in
     slice.len "$a0") in
     let: "$a1" := (![sliceT] "p") in
-    (func_call #pkg_name' #"EncodeUInt64"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"EncodeUInt64"%go) "$a0" "$a1") in
     do:  ("p2" <-[sliceT] "$r0");;;
     let: "p3" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "p2") in
@@ -492,12 +492,12 @@ Definition tablePut : val :=
     let: "tmp2" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![uint64T] "k") in
     let: "$a1" := (![sliceT] "tmp") in
-    (func_call #pkg_name' #"EncodeUInt64"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"EncodeUInt64"%go) "$a0" "$a1") in
     do:  ("tmp2" <-[sliceT] "$r0");;;
     let: "tmp3" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "v") in
     let: "$a1" := (![sliceT] "tmp2") in
-    (func_call #pkg_name' #"EncodeSlice"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"EncodeSlice"%go) "$a0" "$a1") in
     do:  ("tmp3" <-[sliceT] "$r0");;;
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
@@ -507,7 +507,7 @@ Definition tablePut : val :=
     do:  (map.insert (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) (![uint64T] "k") "$r0");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
     let: "$a1" := (![sliceT] "tmp3") in
-    (func_call #pkg_name' #"tableWriterAppend"%go) "$a0" "$a1")).
+    (func_call #simpledb.simpledb #"tableWriterAppend"%go) "$a0" "$a1")).
 
 Definition Database : go_type := structT [
   "wbuffer" :: ptrT;
@@ -538,10 +538,10 @@ Definition makeValueBuffer : val :=
 Definition NewDb : val :=
   rec: "NewDb" <> :=
     exception_do (let: "wbuf" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := ((func_call #pkg_name' #"makeValueBuffer"%go) #()) in
+    let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("wbuf" <-[ptrT] "$r0");;;
     let: "rbuf" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := ((func_call #pkg_name' #"makeValueBuffer"%go) #()) in
+    let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("rbuf" <-[ptrT] "$r0");;;
     let: "bufferL" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
@@ -556,7 +556,7 @@ Definition NewDb : val :=
     do:  ((![ptrT] "tableNameRef") <-[stringT] "$r0");;;
     let: "table" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (let: "$a0" := (![stringT] "tableName") in
-    (func_call #pkg_name' #"CreateTable"%go) "$a0") in
+    (func_call #simpledb.simpledb #"CreateTable"%go) "$a0") in
     do:  ("table" <-[Table] "$r0");;;
     let: "tableRef" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty Table (zero_val Table)) in
@@ -598,7 +598,7 @@ Definition Read : val :=
   rec: "Read" "db" "k" :=
     exception_do (let: "k" := (ref_ty uint64T "k") in
     let: "db" := (ref_ty Database "db") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
     let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
     let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
     do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
@@ -611,7 +611,7 @@ Definition Read : val :=
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+      do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
       return: (![sliceT] "v", #true)
     else do:  #());;;
     let: "rbuf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
@@ -625,23 +625,23 @@ Definition Read : val :=
     do:  ("ok" <-[boolT] "$r1");;;
     (if: ![boolT] "ok"
     then
-      do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+      do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
       return: (![sliceT] "v2", #true)
     else do:  #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
     let: "tbl" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (![Table] (![ptrT] (struct.field_ref Database "table" "db"))) in
     do:  ("tbl" <-[Table] "$r0");;;
     let: "v3" := (ref_ty sliceT (zero_val sliceT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![Table] "tbl") in
     let: "$a1" := (![uint64T] "k") in
-    (func_call #pkg_name' #"tableRead"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"tableRead"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("v3" <-[sliceT] "$r0");;;
     do:  ("ok" <-[boolT] "$r1");;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
     return: (![sliceT] "v3", ![boolT] "ok")).
 
 (* Write sets a key to a new value.
@@ -657,13 +657,13 @@ Definition Write : val :=
     exception_do (let: "v" := (ref_ty sliceT "v") in
     let: "k" := (ref_ty uint64T "k") in
     let: "db" := (ref_ty Database "db") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
     let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
     let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
     do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
     let: "$r0" := (![sliceT] "v") in
     do:  (map.insert (![mapT uint64T sliceT] "buf") (![uint64T] "k") "$r0");;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #())).
 
 (* go: simpledb.go:333:6 *)
 Definition freshTable : val :=
@@ -691,7 +691,7 @@ Definition tablePutBuffer : val :=
       do:  (let: "$a0" := (![tableWriter] "w") in
       let: "$a1" := (![uint64T] "k") in
       let: "$a2" := (![sliceT] "v") in
-      (func_call #pkg_name' #"tablePut"%go) "$a0" "$a1" "$a2")))).
+      (func_call #simpledb.simpledb #"tablePut"%go) "$a0" "$a1" "$a2")))).
 
 (* add all of table t to the table w being created; skip any keys in the (read)
    buffer b since those writes overwrite old ones
@@ -714,7 +714,7 @@ Definition tablePutOldTable : val :=
       let: "l" := (ref_ty uint64T (zero_val uint64T)) in
       let: "e" := (ref_ty Entry (zero_val Entry)) in
       let: ("$ret0", "$ret1") := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
-      (func_call #pkg_name' #"DecodeEntry"%go) "$a0") in
+      (func_call #simpledb.simpledb #"DecodeEntry"%go) "$a0") in
       let: "$r0" := "$ret0" in
       let: "$r1" := "$ret1" in
       do:  ("e" <-[Entry] "$r0");;;
@@ -732,7 +732,7 @@ Definition tablePutOldTable : val :=
           do:  (let: "$a0" := (![tableWriter] "w") in
           let: "$a1" := (![uint64T] (struct.field_ref Entry "Key" "e")) in
           let: "$a2" := (![sliceT] (struct.field_ref Entry "Value" "e")) in
-          (func_call #pkg_name' #"tablePut"%go) "$a0" "$a1" "$a2")
+          (func_call #simpledb.simpledb #"tablePut"%go) "$a0" "$a1" "$a2")
         else do:  #());;;
         let: "$r0" := (let: "$offset" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (![uint64T] "l")) in
         let: "$next" := (let: "$s" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
@@ -749,7 +749,7 @@ Definition tablePutOldTable : val :=
         let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
         slice.len "$a0")) in
         let: "$a2" := #(W64 4096) in
-        (func_call #filesys.pkg_name' #"ReadAt"%go) "$a0" "$a1" "$a2") in
+        (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[sliceT] "$r0");;;
         (if: (let: "$a0" := (![sliceT] "p") in
         slice.len "$a0") = #(W64 0)
@@ -786,11 +786,11 @@ Definition constructNewTable : val :=
     do:  ("oldName" <-[stringT] "$r0");;;
     let: "name" := (ref_ty stringT (zero_val stringT)) in
     let: "$r0" := (let: "$a0" := (![stringT] "oldName") in
-    (func_call #pkg_name' #"freshTable"%go) "$a0") in
+    (func_call #simpledb.simpledb #"freshTable"%go) "$a0") in
     do:  ("name" <-[stringT] "$r0");;;
     let: "w" := (ref_ty tableWriter (zero_val tableWriter)) in
     let: "$r0" := (let: "$a0" := (![stringT] "name") in
-    (func_call #pkg_name' #"newTableWriter"%go) "$a0") in
+    (func_call #simpledb.simpledb #"newTableWriter"%go) "$a0") in
     do:  ("w" <-[tableWriter] "$r0");;;
     let: "oldTable" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (![Table] (![ptrT] (struct.field_ref Database "table" "db"))) in
@@ -798,13 +798,13 @@ Definition constructNewTable : val :=
     do:  (let: "$a0" := (![tableWriter] "w") in
     let: "$a1" := (![Table] "oldTable") in
     let: "$a2" := (![mapT uint64T sliceT] "wbuf") in
-    (func_call #pkg_name' #"tablePutOldTable"%go) "$a0" "$a1" "$a2");;;
+    (func_call #simpledb.simpledb #"tablePutOldTable"%go) "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
     let: "$a1" := (![mapT uint64T sliceT] "wbuf") in
-    (func_call #pkg_name' #"tablePutBuffer"%go) "$a0" "$a1");;;
+    (func_call #simpledb.simpledb #"tablePutBuffer"%go) "$a0" "$a1");;;
     let: "newTable" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (let: "$a0" := (![tableWriter] "w") in
-    (func_call #pkg_name' #"tableWriterClose"%go) "$a0") in
+    (func_call #simpledb.simpledb #"tableWriterClose"%go) "$a0") in
     do:  ("newTable" <-[Table] "$r0");;;
     return: (![Table] "oldTable", ![Table] "newTable")).
 
@@ -817,8 +817,8 @@ Definition constructNewTable : val :=
 Definition Compact : val :=
   rec: "Compact" "db" :=
     exception_do (let: "db" := (ref_ty Database "db") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
     let: "buf" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
     let: "$r0" := (![mapT uint64T sliceT] (![ptrT] (struct.field_ref Database "wbuffer" "db"))) in
     do:  ("buf" <-[mapT uint64T sliceT] "$r0");;;
@@ -829,8 +829,8 @@ Definition Compact : val :=
     do:  ((![ptrT] (struct.field_ref Database "wbuffer" "db")) <-[mapT uint64T sliceT] "$r0");;;
     let: "$r0" := (![mapT uint64T sliceT] "buf") in
     do:  ((![ptrT] (struct.field_ref Database "rbuffer" "db")) <-[mapT uint64T sliceT] "$r0");;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
     let: "oldTableName" := (ref_ty stringT (zero_val stringT)) in
     let: "$r0" := (![stringT] (![ptrT] (struct.field_ref Database "tableName" "db"))) in
     do:  ("oldTableName" <-[stringT] "$r0");;;
@@ -838,14 +838,14 @@ Definition Compact : val :=
     let: "oldTable" := (ref_ty Table (zero_val Table)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![Database] "db") in
     let: "$a1" := (![mapT uint64T sliceT] "buf") in
-    (func_call #pkg_name' #"constructNewTable"%go) "$a0" "$a1") in
+    (func_call #simpledb.simpledb #"constructNewTable"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("oldTable" <-[Table] "$r0");;;
     do:  ("t" <-[Table] "$r1");;;
     let: "newTable" := (ref_ty stringT (zero_val stringT)) in
     let: "$r0" := (let: "$a0" := (![stringT] "oldTableName") in
-    (func_call #pkg_name' #"freshTable"%go) "$a0") in
+    (func_call #simpledb.simpledb #"freshTable"%go) "$a0") in
     do:  ("newTable" <-[stringT] "$r0");;;
     let: "$r0" := (![Table] "t") in
     do:  ((![ptrT] (struct.field_ref Database "table" "db")) <-[Table] "$r0");;;
@@ -857,14 +857,14 @@ Definition Compact : val :=
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := #"manifest"%go in
     let: "$a2" := (![sliceT] "manifestData") in
-    (func_call #filesys.pkg_name' #"AtomicCreate"%go) "$a0" "$a1" "$a2");;;
+    (func_call #filesys #"AtomicCreate"%go) "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![Table] "oldTable") in
-    (func_call #pkg_name' #"CloseTable"%go) "$a0");;;
+    (func_call #simpledb.simpledb #"CloseTable"%go) "$a0");;;
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "oldTableName") in
-    (func_call #filesys.pkg_name' #"Delete"%go) "$a0" "$a1");;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #())).
+    (func_call #filesys #"Delete"%go) "$a0" "$a1");;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "tableL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #())).
 
 (* go: simpledb.go:450:6 *)
 Definition recoverManifest : val :=
@@ -872,19 +872,19 @@ Definition recoverManifest : val :=
     exception_do (let: "f" := (ref_ty fileT (zero_val fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := #"manifest"%go in
-    (func_call #filesys.pkg_name' #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[fileT] "$r0");;;
     let: "manifestData" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![fileT] "f") in
     let: "$a1" := #(W64 0) in
     let: "$a2" := #(W64 4096) in
-    (func_call #filesys.pkg_name' #"ReadAt"%go) "$a0" "$a1" "$a2") in
+    (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("manifestData" <-[sliceT] "$r0");;;
     let: "tableName" := (ref_ty stringT (zero_val stringT)) in
     let: "$r0" := (string.from_bytes (![sliceT] "manifestData")) in
     do:  ("tableName" <-[stringT] "$r0");;;
     do:  (let: "$a0" := (![fileT] "f") in
-    (func_call #filesys.pkg_name' #"Close"%go) "$a0");;;
+    (func_call #filesys #"Close"%go) "$a0");;;
     return: (![stringT] "tableName")).
 
 (* delete 'name' if it isn't tableName or "manifest"
@@ -902,7 +902,7 @@ Definition deleteOtherFile : val :=
     else do:  #());;;
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![stringT] "name") in
-    (func_call #filesys.pkg_name' #"Delete"%go) "$a0" "$a1")).
+    (func_call #filesys #"Delete"%go) "$a0" "$a1")).
 
 (* go: simpledb.go:474:6 *)
 Definition deleteOtherFiles : val :=
@@ -910,7 +910,7 @@ Definition deleteOtherFiles : val :=
     exception_do (let: "tableName" := (ref_ty stringT "tableName") in
     let: "files" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
-    (func_call #filesys.pkg_name' #"List"%go) "$a0") in
+    (func_call #filesys #"List"%go) "$a0") in
     do:  ("files" <-[sliceT] "$r0");;;
     let: "nfiles" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "files") in
@@ -928,7 +928,7 @@ Definition deleteOtherFiles : val :=
       do:  ("name" <-[stringT] "$r0");;;
       do:  (let: "$a0" := (![stringT] "name") in
       let: "$a1" := (![stringT] "tableName") in
-      (func_call #pkg_name' #"deleteOtherFile"%go) "$a0" "$a1");;;
+      (func_call #simpledb.simpledb #"deleteOtherFile"%go) "$a0" "$a1");;;
       let: "$r0" := ((![uint64T] "i") + #(W64 1)) in
       do:  ("i" <-[uint64T] "$r0");;;
       continue: #()))).
@@ -939,11 +939,11 @@ Definition deleteOtherFiles : val :=
 Definition Recover : val :=
   rec: "Recover" <> :=
     exception_do (let: "tableName" := (ref_ty stringT (zero_val stringT)) in
-    let: "$r0" := ((func_call #pkg_name' #"recoverManifest"%go) #()) in
+    let: "$r0" := ((func_call #simpledb.simpledb #"recoverManifest"%go) #()) in
     do:  ("tableName" <-[stringT] "$r0");;;
     let: "table" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (let: "$a0" := (![stringT] "tableName") in
-    (func_call #pkg_name' #"RecoverTable"%go) "$a0") in
+    (func_call #simpledb.simpledb #"RecoverTable"%go) "$a0") in
     do:  ("table" <-[Table] "$r0");;;
     let: "tableRef" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty Table (zero_val Table)) in
@@ -956,12 +956,12 @@ Definition Recover : val :=
     let: "$r0" := (![stringT] "tableName") in
     do:  ((![ptrT] "tableNameRef") <-[stringT] "$r0");;;
     do:  (let: "$a0" := (![stringT] "tableName") in
-    (func_call #pkg_name' #"deleteOtherFiles"%go) "$a0");;;
+    (func_call #simpledb.simpledb #"deleteOtherFiles"%go) "$a0");;;
     let: "wbuffer" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := ((func_call #pkg_name' #"makeValueBuffer"%go) #()) in
+    let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("wbuffer" <-[ptrT] "$r0");;;
     let: "rbuffer" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := ((func_call #pkg_name' #"makeValueBuffer"%go) #()) in
+    let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("rbuffer" <-[ptrT] "$r0");;;
     let: "bufferL" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
@@ -998,15 +998,15 @@ Definition Recover : val :=
 Definition Shutdown : val :=
   rec: "Shutdown" "db" :=
     exception_do (let: "db" := (ref_ty Database "db") in
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
     let: "t" := (ref_ty Table (zero_val Table)) in
     let: "$r0" := (![Table] (![ptrT] (struct.field_ref Database "table" "db"))) in
     do:  ("t" <-[Table] "$r0");;;
     do:  (let: "$a0" := (![Table] "t") in
-    (func_call #pkg_name' #"CloseTable"%go) "$a0");;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
-    do:  ((method_call #sync.pkg_name' #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #())).
+    (func_call #simpledb.simpledb #"CloseTable"%go) "$a0");;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "compactionL" "db"))) #());;;
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Database "bufferL" "db"))) #())).
 
 (* Close closes an open database cleanly, flushing any in-memory writes.
 
@@ -1017,9 +1017,9 @@ Definition Close : val :=
   rec: "Close" "db" :=
     exception_do (let: "db" := (ref_ty Database "db") in
     do:  (let: "$a0" := (![Database] "db") in
-    (func_call #pkg_name' #"Compact"%go) "$a0");;;
+    (func_call #simpledb.simpledb #"Compact"%go) "$a0");;;
     do:  (let: "$a0" := (![Database] "db") in
-    (func_call #pkg_name' #"Shutdown"%go) "$a0")).
+    (func_call #simpledb.simpledb #"Shutdown"%go) "$a0")).
 
 Definition vars' : list (go_string * go_type) := [].
 
@@ -1027,17 +1027,17 @@ Definition functions' : list (go_string * val) := [("UseMarshal"%go, UseMarshal)
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Table"%go, []); ("Table'ptr"%go, []); ("Entry"%go, []); ("Entry'ptr"%go, []); ("lazyFileBuf"%go, []); ("lazyFileBuf'ptr"%go, []); ("bufFile"%go, []); ("bufFile'ptr"%go, []); ("tableWriter"%go, []); ("tableWriter'ptr"%go, []); ("Database"%go, []); ("Database'ptr"%go, [])].
 
-#[global] Instance info' : PkgInfo pkg_name' :=
+#[global] Instance info' : PkgInfo simpledb.simpledb :=
   {|
     pkg_vars := vars';
     pkg_functions := functions';
     pkg_msets := msets';
-    pkg_imported_pkgs := [sync.pkg_name'; primitive.pkg_name'; filesys.pkg_name'; marshal.pkg_name'];
+    pkg_imported_pkgs := [sync; primitive; filesys; marshal];
   |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
+    globals.package_init simpledb.simpledb (λ: <>,
       exception_do (do:  marshal.initialize';;;
       do:  filesys.initialize';;;
       do:  primitive.initialize';;;

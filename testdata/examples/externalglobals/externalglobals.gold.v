@@ -2,18 +2,18 @@
 From New.golang Require Import defn.
 Require Export New.code.github_com.goose_lang.goose.testdata.examples.unittest.
 
+Definition externalglobals : go_string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
+
 From New Require Import disk_prelude.
 Module externalglobals.
 Section code.
 
 
-Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/externalglobals".
-
 (* go: g.go:7:6 *)
 Definition f : val :=
   rec: "f" <> :=
     exception_do (let: "$r0" := #(W64 11) in
-    do:  ((globals.get #unittest.pkg_name' #"GlobalX"%go) <-[uint64T] "$r0")).
+    do:  ((globals.get #unittest #"GlobalX"%go) <-[uint64T] "$r0")).
 
 Definition vars' : list (go_string * go_type) := [].
 
@@ -21,17 +21,17 @@ Definition functions' : list (go_string * val) := [("f"%go, f)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [].
 
-#[global] Instance info' : PkgInfo pkg_name' :=
+#[global] Instance info' : PkgInfo externalglobals.externalglobals :=
   {|
     pkg_vars := vars';
     pkg_functions := functions';
     pkg_msets := msets';
-    pkg_imported_pkgs := [unittest.pkg_name'];
+    pkg_imported_pkgs := [unittest];
   |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
+    globals.package_init externalglobals.externalglobals (λ: <>,
       exception_do (do:  unittest.initialize')
       ).
 

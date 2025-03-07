@@ -2,6 +2,8 @@
 From New.golang Require Import defn.
 Require Export New.code.github_com.goose_lang.primitive.async_disk.
 
+Definition async : go_string := "github.com/goose-lang/goose/testdata/examples/async".
+
 From New Require Import async_disk_prelude.
 Module async.
 Section code.
@@ -25,25 +27,23 @@ Definition UseDisk : val :=
     (interface.get "Write" (![disk.Disk] "d")) "$a0" "$a1");;;
     do:  ((interface.get "Barrier" (![disk.Disk] "d")) #())).
 
-Definition pkg_name' : go_string := "github.com/goose-lang/goose/testdata/examples/async".
-
 Definition vars' : list (go_string * go_type) := [].
 
 Definition functions' : list (go_string * val) := [("TakesDisk"%go, TakesDisk); ("UseDisk"%go, UseDisk)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [].
 
-#[global] Instance info' : PkgInfo pkg_name' :=
+#[global] Instance info' : PkgInfo async.async :=
   {|
     pkg_vars := vars';
     pkg_functions := functions';
     pkg_msets := msets';
-    pkg_imported_pkgs := [async_disk.pkg_name'];
+    pkg_imported_pkgs := [async_disk];
   |}.
 
 Definition initialize' : val :=
   rec: "initialize'" <> :=
-    globals.package_init pkg_name' (λ: <>,
+    globals.package_init async.async (λ: <>,
       exception_do (do:  async_disk.initialize')
       ).
 
