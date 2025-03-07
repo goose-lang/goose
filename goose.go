@@ -32,6 +32,15 @@ type Ctx struct {
 	namesToTranslate map[string]bool
 	info             *types.Info
 	pkgPath          string
+
+	// XXX: Initially tried using `pkg.Name` as the Gallina identifier holding
+	// the full package path, but that doesn't work in a `package main` with a `func main`.
+	// In that case, as soon as `func main` is defined inside `Module main.`,
+	// reference to simply `main` (which should be the go_string holding the
+	// package path) end up referring to the function. So, this uses `filename +
+	// "." + pkg.Name` to refer to the Gallina definition that holds a package's
+	// full path as a go_string (e.g. in `globals_test`, instead of `func_call #main ...`,
+	// this results in `func_call #globals_test.main ...`).
 	pkgIdent         string
 	errorReporter
 
