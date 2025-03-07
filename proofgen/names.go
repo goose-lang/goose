@@ -96,15 +96,13 @@ Class GlobalAddrs :=
 	}
 	fmt.Fprintln(w, "\n  ].")
 
-	// emit `is_defined`
-	fmt.Fprintf(w, `
-Definition is_defined := is_global_definitions %s.pkg_name' var_addrs.
-`, pkg.Name)
 	// emit `PkgIsDefined instance`
 	fmt.Fprintf(w, `
-Global Instance : PkgIsDefined %s.pkg_name' is_defined :=
-  ltac:(prove_pkg_is_defined).
-`, pkg.Name)
+Global Instance is_pkg_defined_instance : IsPkgDefined %s.pkg_name' :=
+{|
+  is_pkg_defined := is_global_definitions %s.pkg_name' var_addrs;
+|}.
+`, pkg.Name, pkg.Name)
 
 	// emit `own_allocated`
 	fmt.Fprint(w, "\nDefinition own_allocated `{!GlobalAddrs} : iProp Σ :=\n")
@@ -126,7 +124,7 @@ Global Instance : PkgIsDefined %s.pkg_name' is_defined :=
 	// emit instances for global.get
 	for _, varName := range tr.varNames {
 		fmt.Fprintf(w, "\nGlobal Instance wp_globals_get_%s : \n", varName)
-		fmt.Fprintf(w, "  WpGlobalsGet %s.pkg_name' \"%s\" %s is_defined.\n", pkg.Name, varName, varName)
+		fmt.Fprintf(w, "  WpGlobalsGet %s.pkg_name' \"%s\" %s (is_pkg_defined %s.pkg_name').\n", pkg.Name, varName, varName, pkg.Name)
 		fmt.Fprintf(w, "Proof. apply wp_globals_get'. reflexivity. Qed.\n")
 	}
 
