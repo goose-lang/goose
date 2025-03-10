@@ -4,9 +4,23 @@ import (
 	"sync"
 )
 
+type ChannelState uint64
+
+const (
+	// Only start and closed_final used for buffered channels.
+	start                ChannelState = 0
+	receiver_ready       ChannelState = 1
+	sender_ready         ChannelState = 2
+	receiver_done        ChannelState = 3
+	sender_done          ChannelState = 4
+	closed_receiver_done ChannelState = 5
+	closed_sender_done   ChannelState = 6
+	closed_final         ChannelState = 7
+)
+
 type Channel[T any] struct {
-	lock   *sync.Mutex
-	closed bool
+	lock  *sync.Mutex
+	state ChannelState
 
 	// Values only used for buffered channels. The length of buffer being 0 is how we determine a
 	// channel is unbuffered. buffer is a circular queue that represents the channel's buffer
@@ -15,11 +29,7 @@ type Channel[T any] struct {
 	count  uint64
 
 	// Values only used for unbuffered channels
-	v              T
-	receiver_ready bool
-	sender_ready   bool
-	receiver_done  bool
-	sender_done    bool
+	v T
 }
 
 // buffer_size = 0 is an unbuffered channel
@@ -29,6 +39,7 @@ func NewChannel[T any](buffer_size uint64) Channel[T] {
 		lock:   new(sync.Mutex),
 		first:  0,
 		count:  0,
+		state:  start,
 	}
 }
 
@@ -39,6 +50,7 @@ func NewChannelRef[T any](buffer_size uint64) *Channel[T] {
 		lock:   new(sync.Mutex),
 		first:  0,
 		count:  0,
+		state:  start,
 	}
 }
 
@@ -58,7 +70,7 @@ func (c *Channel[T]) Send(val T) {
 	if buffer_size != 0 {
 		for {
 			c.lock.Lock()
-			if c.closed {
+			if c.state == closed_final {
 				panic("send on closed channel")
 			}
 			// No room to buffer the value
@@ -87,15 +99,14 @@ func (c *Channel[T]) Send(val T) {
 		// waiting sender to the next receiver that arrives.
 		for {
 			c.lock.Lock()
-			if c.closed {
+			// Any of the closed states mean we should panic since we just entered Send.
+			if (c.state == closed_final) || (c.state == closed_receiver_done) || (c.state == closed_sender_done) {
 				panic("send on closed channel")
 			}
 			// Receiver waiting
-			if c.receiver_ready {
-				// Reset the receiver's waiting flag
-				c.receiver_ready = false
+			if c.state == receiver_ready {
 				// Tell the receiver we have sent a value
-				c.sender_done = true
+				c.state = sender_done
 				// Tell the receiver the value we are sending
 				c.v = val
 				c.lock.Unlock()
@@ -103,11 +114,11 @@ func (c *Channel[T]) Send(val T) {
 				break
 			}
 			// No other senders/receivers have initiated a channel exchange so we can.
-			if !c.receiver_ready && !c.sender_ready && !c.receiver_done && !c.sender_done {
+			if c.state == start {
 				// Send our value
 				c.v = val
 				// Tell receivers we have sent a value
-				c.sender_ready = true
+				c.state = sender_ready
 				c.lock.Unlock()
 				break
 			}
@@ -121,7 +132,9 @@ func (c *Channel[T]) Send(val T) {
 		if return_early {
 			for {
 				c.lock.Lock()
-				if !c.sender_done {
+				// A close may have happened in between but we still must observe that the
+				// receiver knows we are done.
+				if !(c.state == sender_done || c.state == closed_sender_done) {
 					c.lock.Unlock()
 					break
 				}
@@ -133,13 +146,21 @@ func (c *Channel[T]) Send(val T) {
 		// value.
 		for {
 			c.lock.Lock()
-			// We need to check closed again here. If we queued are value before another channel
-			// closed, we will must panic.
-			if c.closed {
+			// We need to check if we have closed without the receiver seeing our value, which
+			// means that close happened before a receiver arrived..
+			if c.state == closed_final {
 				panic("send on closed channel")
 			}
-			if c.receiver_done {
-				c.receiver_done = false
+			// If a receiver is done but we closed after, we can still complete the exchange
+			// and don't have to panic since the close happened after a successful send/
+			// receive exchange.
+			if c.state == closed_receiver_done {
+				c.state = closed_final
+				c.lock.Unlock()
+				break
+			}
+			if c.state == receiver_done {
+				c.state = start
 				c.lock.Unlock()
 				break
 			}
@@ -168,7 +189,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 	if buffer_size != 0 {
 		for {
 			c.lock.Lock()
-			if c.closed && c.count == 0 {
+			if (c.state == closed_final) && c.count == 0 {
 				c.lock.Unlock()
 				closed = true
 				break
@@ -192,17 +213,17 @@ func (c *Channel[T]) Receive() (T, bool) {
 		var return_early = false
 		for {
 			c.lock.Lock()
-			if c.closed {
+			// Any closed state means we return null and ok=false since we just entered
+			// Receive.
+			if (c.state == closed_final) || (c.state == closed_receiver_done) || (c.state == closed_sender_done) {
 				c.lock.Unlock()
 				closed = true
 				break
 			}
 			// Sender is waiting
-			if c.sender_ready {
-				// Reset sender waiting flag
-				c.sender_ready = false
+			if c.state == sender_ready {
 				// Inform the sender we have received the value
-				c.receiver_done = true
+				c.state = receiver_done
 				// Save the value
 				ret_val = c.v
 				c.lock.Unlock()
@@ -210,9 +231,9 @@ func (c *Channel[T]) Receive() (T, bool) {
 				break
 			}
 			// No channel operations are in progress so we can initiate an exchange
-			if !c.receiver_ready && !c.sender_ready && !c.receiver_done && !c.sender_done {
+			if c.state == start {
 				// Inform the next sender that we are ready to receive.
-				c.receiver_ready = true
+				c.state = receiver_ready
 				c.lock.Unlock()
 				break
 			}
@@ -226,7 +247,9 @@ func (c *Channel[T]) Receive() (T, bool) {
 		if return_early {
 			for {
 				c.lock.Lock()
-				if !c.receiver_done {
+				// Close might happen in between but we still must wait for the sender to
+				// observe that we have received their value.
+				if !(c.state == receiver_done || c.state == closed_receiver_done) {
 					c.lock.Unlock()
 					break
 				}
@@ -237,14 +260,26 @@ func (c *Channel[T]) Receive() (T, bool) {
 		// Receiver arrived first, wait for sender to arrive and queue value for us.
 		for {
 			c.lock.Lock()
-			if c.closed {
+			// Close happened before sender could queue a value
+			if c.state == closed_final {
 				c.lock.Unlock()
 				closed = true
 				break
 			}
-			if c.sender_done {
+			// If a close happened but a sender queued a value for us first, we can take the
+			// value without returning null and set the state to closed_final so it is
+			// acknowledged as closed in future exchanges.
+			if c.state == closed_sender_done {
 				// Reset sender flag
-				c.sender_done = false
+				c.state = closed_final
+				// Save value
+				ret_val = c.v
+				c.lock.Unlock()
+				break
+			}
+			if c.state == sender_done {
+				// Reset sender flag
+				c.state = start
 				// Save value
 				ret_val = c.v
 				c.lock.Unlock()
@@ -266,18 +301,24 @@ func (c *Channel[T]) Close() {
 		panic("close of nil channel")
 	}
 	c.lock.Lock()
-	if c.closed {
+	// Any of these states indicate that we are trying to close multiple times.
+	if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
 		panic("close of closed channel")
 	}
-	// For Unbuffered channels, we set these false since there may be waiting senders and receivers
-	// before Close() is called. This will ensure that the waiting senders panic and waiting
-	// receivers return the null value. For buffered channels, senders check for closed on every
-	// loop iteration while waiting for a value to become available and receivers can simply
-	// dequeue values without checking for closed since real Go buffered channels do not return the
-	// null value on a closed channel receive until there are no more buffered values.
-	c.receiver_ready = false
-	c.sender_ready = false
-	c.closed = true
+	// For buffered channels, this is the only state that we need to communicate closed, since
+	// receivers can simply check if there are queued values and senders can panic.
+	c.state = closed_final
+	// If an exchange was successful but the parties are still waiting on this to be
+	// acknowledged, we use the closed_..._done stages to allow the exchange to complete
+	// before the state is set to closed_final. This is because we want a successful exchange
+	// to complete if there was a waiting sender and receiver that pair up before we close.
+	// Without these states we would lose a value.
+	if c.state == receiver_done {
+		c.state = closed_receiver_done
+	}
+	if c.state == sender_done {
+		c.state = closed_sender_done
+	}
 	c.lock.Unlock()
 }
 
@@ -366,7 +407,7 @@ func (c *Channel[T]) ReceiveDiscardOk() T {
 // a case statement with uniform probability among all "selectable" statements, meaning those that
 // have a waiting sender/receiver on the other end and receives on closed channels. Since threading
 // behavior means that it already can't be assumed with certainty which blocks are selected, the if/
-// else block translation should be equivalent from a correctness perspective. There are at least 2
+// else block translation should be equivalent from a correctness perspective. There is at least 1
 // notable unsound property with this approach:
 // 1. Once a channel is closed, a receive case statement on said channel will always be selectable.
 // This means that after the channel is closed, this case statement will always be selected above
@@ -374,40 +415,21 @@ func (c *Channel[T]) ReceiveDiscardOk() T {
 // recommended that if a select case permits a closed channel receive, the channel is set to nil so
 // that the statement will no longer be selectable. We can prevent this with the specfication by
 // forcing the receiver to renounce receive ownership after receiving on a closed channel.
-// 2. When there are multiple blocking select statements(no default case) with 2 cases: a send and
-// a receive statement on the same unbuffered channel running concurrently, this model's
-// implementation will livelock since neither goroutine will communicate to the other that it is
-// waiting with a matching send/receive statement, so TrySend/TryReceive will fail repeatedly. See
-// TestSelfSelect in https://go.dev/src/runtime/chan_test.go for the unit test that brought
-// attention to this issue.
 //
-// We will eventually be able to make this model sound for 1. once we have support for random
-// permutations using a similar approach to dynamic select statements in the reflect package but for
-// now our specification will prevent code that isn't equivalent from being verified which should
-// be good enough.
+// One approach for making 1. sound would be to do the following for select statements:
+// 1. Create a mutex guarded "winner_index" int
+// 2. Launch a goroutine for each channel in the select with an index for the select cases
+// (For selects with multiple cases for a single channel, we still have just 1 goroutine)
+// 3. Lock the associated channel in each goroutine
+// 4. If there is a case for a channel that is "immediately selectable" i.e the channel is closed
+// or in the receiver/sender_ready state for the sender/receiver respectively, lock the
+// winner_index mutex and if not already set, set the winner_index to the goroutine's index
+// 5. If winner_index was set, complete the exchange and run the case's body
+// 6. Join the above goroutines and if no winner is selected, go through the if/else TryReceive/
+// TrySend sequence that we currently use.
 //
-// For 2, I believe that if we have support for random numbers we can implement blocking select
-// statements with unbuffered channels by randomly selecting a case with an unbuffered channel
-// using the following algorithm:
-// 1. Attempt each case's channel operation with TrySend/TryReceive. If one of them succeeds,
-// select this case and execute its block
-// 2. For each case statement with an unbuffered channel, lock the associated channel
-// 3. Randomly select an unbuffered channel and set the sender_ready or receiver_ready flag for a
-// Send/Receive operation respectively.
-// 4. Unlock all of the unbuffered channels
-// 5. Lock the channel that was chosen in step 3 and if the ready flag has been set to false,
-// continue the send/receive using the same procedure as Send()/Receive(), unlock the channel and
-// execute the associated case block
-// 6. Otherwise, unlock the channel and go back to step 1.
-// This is not particularly graceful and relies on the sending thread being preempted in between
-// steps 4 and 5 and the goroutine with the goroutine executing the matching select statement
-// acquiring the lock in between but it should eventually be able to make progress eventually. This
-// is indeed a tough edge case for real channels as well as it breaks an otherwise powerful
-// invariant as described in the comment on line 10 in the runtime
-// implementation(https://go.dev/src/runtime/chan.go), so I don't think there will be a
-// particularly graceful solution here. I also don't know of any useful patterns that would require
-// a select statement of this sort so it may be worth it to fix this problem lazily i.e. if/when a
-// use case happens to call for it in the future.
+// This would make it so the race to setting winner_index simulates the randomness of
+// Go select statements where any selectable case has uniform probablity of being selected
 //
 // Note: The above code technically makes it so the top block's expression variables
 // are in scope in all of the other blocks. This would error in the Go code before it is translated
@@ -425,7 +447,7 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 		c.lock.Lock()
 		// No values available to dequeue, don't select unless channel is closed.
 		if c.count == 0 {
-			if c.closed {
+			if c.state == closed_final {
 				closed = true
 				selected = true
 			}
@@ -443,32 +465,59 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 		// doesn't occur unless a sender is ready and doesn't end until the sender knows the
 		// receiver has received the value.
 	} else {
+		var offer bool = false
 		c.lock.Lock()
-		if c.closed {
+		// Any of these states mean we closed before we attempt to receive, which means this
+		// is selectable and we should return null and ok=false
+		if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
 			closed = true
 			selected = true
 		} else {
 			// Sender is waiting, get the value.
-			if c.sender_ready {
-				// Reset the sender's waiting flag
-				c.sender_ready = false
+			if c.state == sender_ready {
 				// Inform the sender that we have the value
-				c.receiver_done = true
+				c.state = receiver_done
 				// Save the value
 				ret_val = c.v
 				selected = true
 			}
+			// If we are in the start state, we still need to communicate that we are trying
+			// to receive. To do this we will make an "offer" by setting the receiver_ready
+			// flag and then we will check it immediately to see if a sender happened to
+			// arrive. This does not have great performance characteristics since we rely on
+			// the thread to be immediately preempted and a sender to arrive and see
+			// receiver_ready in between but for liveness purposes it needs to at least be
+			// possible for an exchange to happen between 2 threads doing blocking selects
+			// with Send/Receive on the same channel.
+			if c.state == start {
+				c.state = receiver_ready
+				offer = true
+			}
 		}
 		c.lock.Unlock()
+		if offer {
+			c.lock.Lock()
+			// Offer was accepted
+			if c.state == sender_done {
+				ret_val = c.v
+				c.state = start
+				selected = true
+			}
+			// Revoke our offer if it still stands(Close can revoke it for us)
+			if c.state == receiver_ready {
+				c.state = start
+			}
+			c.lock.Unlock()
+		}
 		if closed {
 			return selected, ret_val, !closed
 		}
 		// If we received a value, wait until the sender knows that we received the value to
 		// complete the exchange.
-		if selected {
+		if selected && !offer {
 			for {
 				c.lock.Lock()
-				if !c.receiver_done {
+				if !(c.state == receiver_done || c.state == closed_receiver_done) {
 					c.lock.Unlock()
 					break
 				}
@@ -491,7 +540,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 	// Buffered channel
 	if buffer_size != 0 {
 		c.lock.Lock()
-		if c.closed {
+		if c.state == closed_final {
 			panic("send on closed channel")
 		}
 		// If we have room, buffer our value
@@ -505,27 +554,48 @@ func (c *Channel[T]) TrySend(val T) bool {
 		return selected
 		// Unbuffered channel
 	} else {
+		var offer bool = false
 		c.lock.Lock()
-		if c.closed {
+		if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
 			panic("send on closed channel")
 		}
 
 		// If we're not closed and a receiver is waiting, we can send them the value
-		if c.receiver_ready {
-			c.receiver_ready = false
-			c.sender_done = true
+		if c.state == receiver_ready {
+			c.state = sender_done
 			c.v = val
 			selected = true
 		}
+		// If we are in the start state, make an offer for a possible receiver. We will only
+		// leave this offer open until we almost immediately lock again and check the result
+		// but this is necessary to ensure liveness when there are multiple goroutines running
+		// blocking select statements that would match.
+		if c.state == start {
+			c.state = sender_ready
+			c.v = val
+			offer = true
+		}
 		c.lock.Unlock()
+		if offer {
+			c.lock.Lock()
+			if c.state == receiver_done || c.state == closed_receiver_done {
+				c.state = start
+				selected = true
+			}
+			if c.state == sender_ready {
+				c.state = start
+			}
+			c.lock.Unlock()
+		}
 		// This is necessary to make sure that the receiver has consumed our sent value. If we
 		// don't do this, a sender can unblock and potentially close the channel before the
 		// receiver has had a chance to consume it which would not be the same behavior as Go
 		// channels.
-		if selected {
+		if selected && !offer {
 			for {
 				c.lock.Lock()
-				if !c.sender_done {
+				if !(c.state == sender_done || c.state == closed_sender_done) {
+					c.lock.Unlock()
 					break
 				}
 				c.lock.Unlock()

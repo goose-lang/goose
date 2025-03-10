@@ -451,14 +451,9 @@ func TestNonblockSelectRace2(t *testing.T) {
 	}
 }
 
-// This tests a case where real Go channels currently have different behavior from the model,
-// so the test does not pass for the model. The case is where there are 2 separate Goroutines
-// executing select statements with a send and receive case, all on the same unbuffered
-// channel. These statements should "match" and eventually this code should make progress but
-// this will likely be a challenge to handle in a way that is semantically equivalent to Go
-// channels.
-// FIXME: Uncomment once we have support for this
-/*func TestSelfSelect(t *testing.T) {
+// Make sure that we can handle blocking select statements with matching send/receive
+// operations.
+func TestSelfSelect(t *testing.T) {
 	// Ensure that send/recv on the same chan in select
 	// does not crash nor deadlock.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
@@ -509,4 +504,4 @@ func TestNonblockSelectRace2(t *testing.T) {
 		}
 		wg.Wait()
 	}
-} */
+}
