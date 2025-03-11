@@ -794,7 +794,7 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 			expr = glang.DerefExpr{X: expr, Ty: ctx.glangType(l, curType.(*types.Pointer).Elem())}
 		}
 		return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
-			glang.GallinaString(info.interfaceType.Method(fnIndex).Name()), expr,
+			glang.StringVal{Value: glang.StringLiteral{Value: info.interfaceType.Method(fnIndex).Name()}}, expr,
 		)
 	}
 
@@ -918,7 +918,7 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 				ctx.nope(e, "cannot call method because receiver is pointer to interface, not interface")
 			}
 			return glang.NewCallExpr(glang.GallinaIdent("interface.get"),
-				glang.GallinaString(e.Sel.Name), expr,
+				glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}}, expr,
 			)
 		}
 
