@@ -18,6 +18,10 @@ const (
 	closed_final         ChannelState = 7
 )
 
+func (s ChannelState) any_closed_state() bool {
+	return s == closed_receiver_done || s == closed_sender_done || s == closed_final
+}
+
 type Channel[T any] struct {
 	lock  *sync.Mutex
 	state ChannelState
@@ -100,7 +104,7 @@ func (c *Channel[T]) Send(val T) {
 		for {
 			c.lock.Lock()
 			// Any of the closed states mean we should panic since we just entered Send.
-			if (c.state == closed_final) || (c.state == closed_receiver_done) || (c.state == closed_sender_done) {
+			if c.state.any_closed_state() {
 				panic("send on closed channel")
 			}
 			// Receiver waiting
@@ -215,7 +219,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 			c.lock.Lock()
 			// Any closed state means we return null and ok=false since we just entered
 			// Receive.
-			if (c.state == closed_final) || (c.state == closed_receiver_done) || (c.state == closed_sender_done) {
+			if c.state.any_closed_state() {
 				c.lock.Unlock()
 				closed = true
 				break
@@ -302,7 +306,7 @@ func (c *Channel[T]) Close() {
 	}
 	c.lock.Lock()
 	// Any of these states indicate that we are trying to close multiple times.
-	if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
+	if c.state.any_closed_state() {
 		panic("close of closed channel")
 	}
 	// For buffered channels, this is the only state that we need to communicate closed, since
@@ -469,7 +473,7 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 		c.lock.Lock()
 		// Any of these states mean we closed before we attempt to receive, which means this
 		// is selectable and we should return null and ok=false
-		if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
+		if c.state.any_closed_state() {
 			closed = true
 			selected = true
 		} else {
@@ -556,7 +560,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 	} else {
 		var offer bool = false
 		c.lock.Lock()
-		if c.state == closed_final || c.state == closed_receiver_done || c.state == closed_sender_done {
+		if c.state.any_closed_state() {
 			panic("send on closed channel")
 		}
 
