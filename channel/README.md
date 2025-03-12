@@ -19,13 +19,13 @@ stateDiagram-v2
     receiver_ready-->sender_done: Sender completes exchange
     receiver_done-->Start: Sender observes completed exchange
     sender_done-->Start: Receiver observes completed exchange
-    Start-->closed
-    receiver_done-->closed_and_receiver_done: Close before exchange acknowledged
-    sender_done-->closed_and_sender_done: Close before exchange acknowledged
-    receiver_ready-->closed
-    sender_ready-->closed
-    closed_and_receiver_done --> closed: Sender observes completed exchange
-    closed_and_sender_done --> closed: Receiver observes completed exchange
-    closed-->[*]
+    Start-->closed_final
+    receiver_done-->closed_receiver_done: Close before exchange acknowledged
+    sender_done-->closed_sender_done: Close before exchange acknowledged
+    receiver_ready-->closed_final
+    sender_ready-->closed_final
+    closed_receiver_done --> closed_final: Sender observes completed exchange
+    closed_sender_done --> closed_final: Receiver observes completed exchange
+    closed_final-->[*]
 ```
 
