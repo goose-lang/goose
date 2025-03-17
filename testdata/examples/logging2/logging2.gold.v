@@ -352,8 +352,8 @@ Definition Txn__Commit : val :=
     let: "blks" := (ref_ty ptrT (zero_val ptrT)) in
     let: "$r0" := (ref_ty sliceT (zero_val sliceT)) in
     do:  ("blks" <-[ptrT] "$r0");;;
-    (let: "v" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$range" := (![mapT uint64T sliceT] (struct.field_ref Txn "blks" "txn")) in
+    (let: "v" := (ref_ty uint64T (zero_val uint64T)) in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[sliceT] "$value");;;
       do:  "$key";;;

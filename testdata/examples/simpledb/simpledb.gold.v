@@ -682,9 +682,9 @@ Definition tablePutBuffer : val :=
   rec: "tablePutBuffer" "w" "buf" :=
     exception_do (let: "buf" := (ref_ty (mapT uint64T sliceT) "buf") in
     let: "w" := (ref_ty tableWriter "w") in
+    let: "$range" := (![mapT uint64T sliceT] "buf") in
     (let: "v" := (ref_ty uint64T (zero_val uint64T)) in
     let: "k" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$range" := (![mapT uint64T sliceT] "buf") in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[sliceT] "$value");;;
       do:  ("k" <-[uint64T] "$key");;;
