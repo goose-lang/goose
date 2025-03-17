@@ -96,7 +96,9 @@ Definition arrayLiteralKeyed : val :=
 Definition chanBasic : val :=
   rec: "chanBasic" <> :=
     exception_do (let: "x" := (ref_ty (chanT stringT) (zero_val (chanT stringT))) in
-    let: "$r0" := (chan.make stringT #()) in
+    let: "$r0" := (chan.make stringT #(W64 10)) in
+    do:  ("x" <-[chanT stringT] "$r0");;;
+    let: "$r0" := (chan.make stringT #(W64 0)) in
     do:  ("x" <-[chanT stringT] "$r0");;;
     let: "$go" := (λ: <>,
       exception_do (do:  (let: "$chan" := (![chanT stringT] "x") in
@@ -122,14 +124,14 @@ Definition chanBasic : val :=
       do:  ("y" <-[stringT] "$r0")
     else do:  #())).
 
-(* go: chan.go:19:6 *)
+(* go: chan.go:20:6 *)
 Definition f : val :=
   rec: "f" <> :=
     exception_do (return: (#(W64 0))).
 
 (* modified version of example from https://go.dev/ref/spec#Select_statements
 
-   go: chan.go:24:6 *)
+   go: chan.go:25:6 *)
 Definition chanSelect : val :=
   rec: "chanSelect" <> :=
     exception_do (let: "a" := (ref_ty sliceT (zero_val sliceT)) in
@@ -197,7 +199,7 @@ Definition chanSelect : val :=
           ))] [] (InjLV #())));;;
     do:  (chan.select [] [] (InjLV #()))).
 
-(* go: chan.go:58:6 *)
+(* go: chan.go:59:6 *)
 Definition chanDirectional : val :=
   rec: "chanDirectional" <> :=
     exception_do (let: "x" := (ref_ty (chanT uint64T) (zero_val (chanT uint64T))) in
@@ -207,7 +209,7 @@ Definition chanDirectional : val :=
     let: "$v" := #""%go in
     chan.send "$chan" "$v")).
 
-(* go: chan.go:65:6 *)
+(* go: chan.go:66:6 *)
 Definition chanRange : val :=
   rec: "chanRange" <> :=
     exception_do (let: "x" := (ref_ty (chanT uint64T) (zero_val (chanT uint64T))) in
