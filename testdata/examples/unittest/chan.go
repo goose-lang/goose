@@ -65,6 +65,15 @@ func chanDirectional() {
 
 func chanRange() {
 	var x chan uint64
+
+	for y := range x {
+		fmt.Print(y)
+	}
+
+	for x := range x {
+		fmt.Print(x)
+	}
+
 	for range x {
 	}
 }

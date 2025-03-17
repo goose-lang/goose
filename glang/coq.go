@@ -758,7 +758,7 @@ type ForRangeChanExpr struct {
 
 func (e ForRangeChanExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("chan.for_range %s (λ: \"$key\" \"$value\",",
+	pp.Add("chan.for_range %s (λ: \"$key\",",
 		e.Chan.Coq(true),
 	)
 	pp.Indent(2)

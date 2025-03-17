@@ -1793,31 +1793,16 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 			Map:  glang.IdentExpr("$range"),
 			Body: body,
 		}
-		e = glang.LetExpr{
-			Names:   []string{"$range"},
-			ValExpr: ctx.expr(s.X),
-			Cont:    e,
-		}
 	case *types.Slice:
 		e = glang.ForRangeSliceExpr{
 			Slice: glang.IdentExpr("$range"),
 			Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
 			Body:  body,
 		}
-		e = glang.LetExpr{
-			Names:   []string{"$range"},
-			ValExpr: ctx.expr(s.X),
-			Cont:    e,
-		}
 	case *types.Chan:
 		e = glang.ForRangeChanExpr{
 			Chan: glang.IdentExpr("$range"),
 			Body: body,
-		}
-		e = glang.LetExpr{
-			Names:   []string{"$range"},
-			ValExpr: ctx.expr(s.X),
-			Cont:    e,
 		}
 	default:
 		ctx.unsupported(s,
@@ -1860,6 +1845,33 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 
 		e = glang.ParenExpr{Inner: e}
 	}
+
+	switch ctx.typeOf(s.X).Underlying().(type) {
+	case *types.Map:
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
+	case *types.Slice:
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
+	case *types.Chan:
+		e = glang.LetExpr{
+			Names:   []string{"$range"},
+			ValExpr: ctx.expr(s.X),
+			Cont:    e,
+		}
+	default:
+		ctx.unsupported(s,
+			"range over %v (only maps and slices are supported)",
+			ctx.typeOf(s.X).Underlying())
+		return nil
+	}
+
 	return e
 }
 
