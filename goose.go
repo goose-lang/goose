@@ -600,9 +600,19 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 				ctx.glangType(s.Args[0], ty.Elem()),
 				glang.UnitLiteral{}), true
 		case *types.Chan:
-			return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
-				ctx.glangType(s.Args[0], ty.Elem()),
-				glang.UnitLiteral{}), true
+			switch sig.Params().Len() {
+			case 1:
+				return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
+					ctx.glangType(s.Args[0], ty.Elem()),
+					glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}), true
+			case 2:
+				return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
+					ctx.glangType(s.Args[0], ty.Elem()),
+					ctx.expr(s.Args[1]),
+				), true
+			default:
+				ctx.nope(s, "make chan expects 1 or 2 arguments")
+			}
 		default:
 			ctx.unsupported(s, "make should be slice or map, got %v", ty)
 		}

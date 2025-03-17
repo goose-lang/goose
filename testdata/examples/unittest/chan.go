@@ -4,6 +4,7 @@ import "fmt"
 
 func chanBasic() {
 	var x chan string
+	x = make(chan string, 10)
 	x = make(chan string)
 	go func() {
 		x <- "Foo"
