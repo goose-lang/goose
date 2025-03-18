@@ -2370,7 +2370,7 @@ func (ctx *Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 	ctx.usesDefer = true
 	args := make([]glang.Expr, 0, len(s.Call.Args))
 	for i := range len(s.Call.Args) {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$a%d", i)))
 	}
 
 	expr = glang.LetExpr{
