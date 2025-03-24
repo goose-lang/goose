@@ -504,18 +504,17 @@ func (ctx *Ctx) callExprPrelude(call *ast.CallExpr, cont glang.Expr) (expr glang
 //
 // s is only used for error reporting
 func (ctx *Ctx) integerConversion(s ast.Node, x ast.Expr, width int) glang.Expr {
-	if info, ok := getIntegerType(ctx.typeOf(x)); ok {
-		if info.isUntyped {
-			ctx.todo(s, "integer conversion from untyped int to uint64")
+	if basicTy, ok := ctx.typeOf(x).Underlying().(*types.Basic); ok {
+		switch basicTy.Kind() {
+		case types.Uint, types.Uint64, types.Uint32, types.Uint16, types.Uint8:
+			return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("u_to_w%d", width)),
+				ctx.expr(x))
+		case types.Int, types.Int64, types.Int32, types.Int16, types.Int8:
+			return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("s_to_w%d", width)),
+				ctx.expr(x))
 		}
-		if info.width == width {
-			return ctx.expr(x)
-		}
-		return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("to_u%d", width)),
-			ctx.expr(x))
 	}
-	ctx.unsupported(s, "casts from unsupported type %v to uint%d",
-		ctx.typeOf(x), width)
+	ctx.unsupported(s, "casts from unsupported type %v to uint%d", ctx.typeOf(x), width)
 	return nil
 }
 
