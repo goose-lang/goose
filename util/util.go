@@ -23,9 +23,10 @@ func newPackageConfig(modDir string) *packages.Config {
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
 	mode |= packages.NeedDeps
 	return &packages.Config{
-		Dir:  modDir,
-		Mode: mode,
-		Fset: token.NewFileSet(),
+		Dir:        modDir,
+		Mode:       mode,
+		BuildFlags: []string{"-tags", "goose"},
+		Fset:       token.NewFileSet(),
 	}
 }
 
