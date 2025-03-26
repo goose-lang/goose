@@ -7,20 +7,14 @@ import (
 type ChannelState uint64
 
 const (
-	// Only start and closed_final used for buffered channels.
-	start                ChannelState = 0
-	receiver_ready       ChannelState = 1
-	sender_ready         ChannelState = 2
-	receiver_done        ChannelState = 3
-	sender_done          ChannelState = 4
-	closed_receiver_done ChannelState = 5
-	closed_sender_done   ChannelState = 6
-	closed_final         ChannelState = 7
+	// Only start and closed used for buffered channels.
+	start          ChannelState = 0
+	receiver_ready ChannelState = 1
+	sender_ready   ChannelState = 2
+	receiver_done  ChannelState = 3
+	sender_done    ChannelState = 4
+	closed         ChannelState = 5
 )
-
-func (s ChannelState) any_closed_state() bool {
-	return s == closed_receiver_done || s == closed_sender_done || s == closed_final
-}
 
 type Channel[T any] struct {
 	lock  *sync.Mutex
@@ -74,7 +68,7 @@ func (c *Channel[T]) Send(val T) {
 	if buffer_size != 0 {
 		for {
 			c.lock.Lock()
-			if c.state == closed_final {
+			if c.state == closed {
 				panic("send on closed channel")
 			}
 			// No room to buffer the value
@@ -104,7 +98,7 @@ func (c *Channel[T]) Send(val T) {
 		for {
 			c.lock.Lock()
 			// Any of the closed states mean we should panic since we just entered Send.
-			if c.state.any_closed_state() {
+			if c.state == closed {
 				panic("send on closed channel")
 			}
 			// Receiver waiting
@@ -138,7 +132,7 @@ func (c *Channel[T]) Send(val T) {
 				c.lock.Lock()
 				// A close may have happened in between but we still must observe that the
 				// receiver knows we are done.
-				if !(c.state == sender_done || c.state == closed_sender_done) {
+				if !(c.state == sender_done) {
 					c.lock.Unlock()
 					break
 				}
@@ -152,16 +146,8 @@ func (c *Channel[T]) Send(val T) {
 			c.lock.Lock()
 			// We need to check if we have closed without the receiver seeing our value, which
 			// means that close happened before a receiver arrived..
-			if c.state == closed_final {
+			if c.state == closed {
 				panic("send on closed channel")
-			}
-			// If a receiver is done but we closed after, we can still complete the exchange
-			// and don't have to panic since the close happened after a successful send/
-			// receive exchange.
-			if c.state == closed_receiver_done {
-				c.state = closed_final
-				c.lock.Unlock()
-				break
 			}
 			if c.state == receiver_done {
 				c.state = start
@@ -186,16 +172,16 @@ func (c *Channel[T]) Receive() (T, bool) {
 	}
 	var ret_val T
 	var buffer_size uint64 = uint64(len(c.buffer))
-	var closed = false
+	var closed_local = false
 
 	// Buffered channel, we can simply block until a value is in the buffer then dequeue it from
 	// the buffer.
 	if buffer_size != 0 {
 		for {
 			c.lock.Lock()
-			if (c.state == closed_final) && c.count == 0 {
+			if (c.state == closed) && c.count == 0 {
 				c.lock.Unlock()
-				closed = true
+				closed_local = true
 				break
 			}
 			if c.count == 0 {
@@ -208,7 +194,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 			c.lock.Unlock()
 			break
 		}
-		return ret_val, !closed
+		return ret_val, !closed_local
 		// Unbuffered channel. This logic is more complex since we need to make sure the exchange
 		// doesn't begin until a sender is ready and doesn't end until the sender knows the
 		// receiver has received the value.
@@ -219,9 +205,9 @@ func (c *Channel[T]) Receive() (T, bool) {
 			c.lock.Lock()
 			// Any closed state means we return null and ok=false since we just entered
 			// Receive.
-			if c.state.any_closed_state() {
+			if c.state == closed {
 				c.lock.Unlock()
-				closed = true
+				closed_local = true
 				break
 			}
 			// Sender is waiting
@@ -243,8 +229,8 @@ func (c *Channel[T]) Receive() (T, bool) {
 			}
 			c.lock.Unlock()
 		}
-		if closed {
-			return ret_val, !closed
+		if closed_local {
+			return ret_val, !closed_local
 		}
 		// If the sender arrived first, we still must wait for them to acknowledge that the .
 		// exchange is complete.
@@ -253,32 +239,21 @@ func (c *Channel[T]) Receive() (T, bool) {
 				c.lock.Lock()
 				// Close might happen in between but we still must wait for the sender to
 				// observe that we have received their value.
-				if !(c.state == receiver_done || c.state == closed_receiver_done) {
+				if !(c.state == receiver_done) {
 					c.lock.Unlock()
 					break
 				}
 				c.lock.Unlock()
 			}
-			return ret_val, !closed
+			return ret_val, !closed_local
 		}
 		// Receiver arrived first, wait for sender to arrive and queue value for us.
 		for {
 			c.lock.Lock()
 			// Close happened before sender could queue a value
-			if c.state == closed_final {
+			if c.state == closed {
 				c.lock.Unlock()
-				closed = true
-				break
-			}
-			// If a close happened but a sender queued a value for us first, we can take the
-			// value without returning null and set the state to closed_final so it is
-			// acknowledged as closed in future exchanges.
-			if c.state == closed_sender_done {
-				// Reset sender flag
-				c.state = closed_final
-				// Save value
-				ret_val = c.v
-				c.lock.Unlock()
+				closed_local = true
 				break
 			}
 			if c.state == sender_done {
@@ -291,7 +266,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 			}
 			c.lock.Unlock()
 		}
-		return ret_val, !closed
+		return ret_val, !closed_local
 	}
 }
 
@@ -304,26 +279,21 @@ func (c *Channel[T]) Close() {
 	if c == nil {
 		panic("close of nil channel")
 	}
-	c.lock.Lock()
-	// Any of these states indicate that we are trying to close multiple times.
-	if c.state.any_closed_state() {
-		panic("close of closed channel")
+	for {
+		c.lock.Lock()
+		if c.state == closed {
+			panic("close of closed channel")
+		}
+		// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
+		// In the real channel code the lock is held while this happens.
+		if c.state == receiver_done || c.state == sender_done {
+			c.lock.Unlock()
+			continue
+		}
+		c.state = closed
+		c.lock.Unlock()
+		break
 	}
-	// For buffered channels, this is the only state that we need to communicate closed, since
-	// receivers can simply check if there are queued values and senders can panic.
-	c.state = closed_final
-	// If an exchange was successful but the parties are still waiting on this to be
-	// acknowledged, we use the closed_..._done stages to allow the exchange to complete
-	// before the state is set to closed_final. This is because we want a successful exchange
-	// to complete if there was a waiting sender and receiver that pair up before we close.
-	// Without these states we would lose a value.
-	if c.state == receiver_done {
-		c.state = closed_receiver_done
-	}
-	if c.state == sender_done {
-		c.state = closed_sender_done
-	}
-	c.lock.Unlock()
 }
 
 // v := c.ReceiveDiscardOk
@@ -444,15 +414,15 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 		return false, ret_val, false
 	}
 	var buffer_size uint64 = uint64(len(c.buffer))
-	var closed = false
+	var closed_local = false
 	var selected = false
 	// Buffered channel
 	if buffer_size != 0 {
 		c.lock.Lock()
 		// No values available to dequeue, don't select unless channel is closed.
 		if c.count == 0 {
-			if c.state == closed_final {
-				closed = true
+			if c.state == closed {
+				closed_local = true
 				selected = true
 			}
 			c.lock.Unlock()
@@ -464,7 +434,7 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 			selected = true
 			c.lock.Unlock()
 		}
-		return selected, ret_val, !closed
+		return selected, ret_val, !closed_local
 		// Unbuffered channel. This logic is more complex since we need to make sure the exchange
 		// doesn't occur unless a sender is ready and doesn't end until the sender knows the
 		// receiver has received the value.
@@ -473,8 +443,8 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 		c.lock.Lock()
 		// Any of these states mean we closed before we attempt to receive, which means this
 		// is selectable and we should return null and ok=false
-		if c.state.any_closed_state() {
-			closed = true
+		if c.state == closed {
+			closed_local = true
 			selected = true
 		} else {
 			// Sender is waiting, get the value.
@@ -513,22 +483,22 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 			}
 			c.lock.Unlock()
 		}
-		if closed {
-			return selected, ret_val, !closed
+		if closed_local {
+			return selected, ret_val, !closed_local
 		}
 		// If we received a value, wait until the sender knows that we received the value to
 		// complete the exchange.
 		if selected && !offer {
 			for {
 				c.lock.Lock()
-				if !(c.state == receiver_done || c.state == closed_receiver_done) {
+				if !(c.state == receiver_done) {
 					c.lock.Unlock()
 					break
 				}
 				c.lock.Unlock()
 			}
 		}
-		return selected, ret_val, !closed
+		return selected, ret_val, !closed_local
 	}
 }
 
@@ -544,7 +514,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 	// Buffered channel
 	if buffer_size != 0 {
 		c.lock.Lock()
-		if c.state == closed_final {
+		if c.state == closed {
 			panic("send on closed channel")
 		}
 		// If we have room, buffer our value
@@ -560,7 +530,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 	} else {
 		var offer bool = false
 		c.lock.Lock()
-		if c.state.any_closed_state() {
+		if c.state == closed {
 			panic("send on closed channel")
 		}
 
@@ -582,7 +552,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 		c.lock.Unlock()
 		if offer {
 			c.lock.Lock()
-			if c.state == receiver_done || c.state == closed_receiver_done {
+			if c.state == receiver_done {
 				c.state = start
 				selected = true
 			}
@@ -598,7 +568,7 @@ func (c *Channel[T]) TrySend(val T) bool {
 		if selected && !offer {
 			for {
 				c.lock.Lock()
-				if !(c.state == sender_done || c.state == closed_sender_done) {
+				if !(c.state == sender_done) {
 					c.lock.Unlock()
 					break
 				}
