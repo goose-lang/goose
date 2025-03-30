@@ -498,6 +498,12 @@ func (suite *GoTestSuite) TestSliceLiteral() {
 	suite.Equal(true, testSliceLiteral())
 }
 
+func (suite *GoTestSuite) TestSliceAppend() {
+	d := disk.NewMemDisk(30)
+	disk.Init(d)
+	suite.Equal(true, testSliceAppend())
+}
+
 func (suite *GoTestSuite) TestFooBarMutation() {
 	d := disk.NewMemDisk(30)
 	disk.Init(d)

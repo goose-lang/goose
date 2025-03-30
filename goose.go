@@ -1365,10 +1365,13 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		return glang.False
 	case "append":
 		sig := ctx.typeOf(e).(*types.Signature)
-		t := sig.Params().At(1).Type()
-		return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
-			ctx.glangType(e, t),
-		)
+		t := sig.Params().At(0).Type()
+		if t, ok := t.Underlying().(*types.Slice); ok {
+			return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
+				ctx.glangType(e, t.Elem()),
+			)
+		}
+		ctx.unsupported(e, "append to %v with unknown element type", t)
 	case "new":
 		sig := ctx.typeOf(e).(*types.Signature)
 		ctx.todo(e, "new might be better as its own function")

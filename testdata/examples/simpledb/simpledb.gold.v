@@ -199,7 +199,7 @@ Definition readTableIndex : val :=
           let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
           let: "$r0" := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
           let: "$a1" := (![sliceT] "p") in
-          (slice.append sliceT) "$a0" "$a1") in
+          (slice.append byteT) "$a0" "$a1") in
           do:  ("newBuf" <-[sliceT] "$r0");;;
           let: "$r0" := (let: "$offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
           let: "$next" := (![sliceT] "newBuf") in
@@ -277,7 +277,7 @@ Definition readValue : val :=
       let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
       let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
       let: "$a1" := (![sliceT] "buf2") in
-      (slice.append sliceT) "$a0" "$a1") in
+      (slice.append byteT) "$a0" "$a1") in
       do:  ("newBuf" <-[sliceT] "$r0");;;
       return: (![sliceT] "newBuf")
     else do:  #());;;
@@ -353,7 +353,7 @@ Definition bufAppend : val :=
     let: "buf2" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
     let: "$a1" := (![sliceT] "p") in
-    (slice.append sliceT) "$a0" "$a1") in
+    (slice.append byteT) "$a0" "$a1") in
     do:  ("buf2" <-[sliceT] "$r0");;;
     let: "$r0" := (![sliceT] "buf2") in
     do:  ((![ptrT] (struct.field_ref bufFile "buf" "f")) <-[sliceT] "$r0")).
@@ -456,7 +456,7 @@ Definition EncodeUInt64 : val :=
     let: "p2" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "p") in
     let: "$a1" := (![sliceT] "tmp") in
-    (slice.append sliceT) "$a0" "$a1") in
+    (slice.append byteT) "$a0" "$a1") in
     do:  ("p2" <-[sliceT] "$r0");;;
     return: (![sliceT] "p2")).
 
@@ -476,7 +476,7 @@ Definition EncodeSlice : val :=
     let: "p3" := (ref_ty sliceT (zero_val sliceT)) in
     let: "$r0" := (let: "$a0" := (![sliceT] "p2") in
     let: "$a1" := (![sliceT] "data") in
-    (slice.append sliceT) "$a0" "$a1") in
+    (slice.append byteT) "$a0" "$a1") in
     do:  ("p3" <-[sliceT] "$r0");;;
     return: (![sliceT] "p3")).
 
@@ -758,7 +758,7 @@ Definition tablePutOldTable : val :=
           let: "newBuf" := (ref_ty sliceT (zero_val sliceT)) in
           let: "$r0" := (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
           let: "$a1" := (![sliceT] "p") in
-          (slice.append sliceT) "$a0" "$a1") in
+          (slice.append byteT) "$a0" "$a1") in
           do:  ("newBuf" <-[sliceT] "$r0");;;
           let: "$r0" := (let: "$offset" := (![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) in
           let: "$next" := (![sliceT] "newBuf") in

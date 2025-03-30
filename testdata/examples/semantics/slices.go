@@ -85,3 +85,14 @@ func testSliceLiteral() bool {
 	ok = ok && ints[1] == uint64(2)
 	return ok
 }
+
+func testSliceAppend() bool {
+	var ok = true
+	var bytes = make([]byte, 0)
+	bytes = append(bytes, 1)
+	newBytes := []byte{2, 3}
+	bytes = append(bytes, newBytes...)
+	ok = ok && uint64(len(bytes)) == uint64(3)
+	ok = ok && bytes[2] == byte(3)
+	return ok
+}
