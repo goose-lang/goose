@@ -121,8 +121,8 @@ Definition DecodeEntry : val :=
          "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
-    (if: (let: "$a0" := (![sliceT] "data") in
-    slice.len "$a0") < (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))
+    (if: (s_to_w64 (let: "$a0" := (![sliceT] "data") in
+    slice.len "$a0")) < (((![uint64T] "l1") + (![uint64T] "l2")) + (![uint64T] "valueLen"))
     then
       return: (let: "$Key" := #(W64 0) in
        let: "$Value" := #slice.nil in
@@ -187,8 +187,8 @@ Definition readTableIndex : val :=
       else
         let: "p" := (ref_ty sliceT (zero_val sliceT)) in
         let: "$r0" := (let: "$a0" := (![fileT] "f") in
-        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
-        slice.len "$a0")) in
+        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (s_to_w64 (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        slice.len "$a0"))) in
         let: "$a2" := #(W64 4096) in
         (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[sliceT] "$r0");;;
@@ -263,8 +263,8 @@ Definition readValue : val :=
     slice.slice byteT "$s" #(W64 8) (slice.len "$s")) in
     do:  ("buf" <-[sliceT] "$r0");;;
     let: "haveBytes" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "buf") in
-    slice.len "$a0") in
+    let: "$r0" := (s_to_w64 (let: "$a0" := (![sliceT] "buf") in
+    slice.len "$a0")) in
     do:  ("haveBytes" <-[uint64T] "$r0");;;
     (if: (![uint64T] "haveBytes") < (![uint64T] "totalBytes")
     then
@@ -418,8 +418,8 @@ Definition tableWriterAppend : val :=
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
     do:  ("off" <-[uint64T] "$r0");;;
-    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT] "p") in
-    slice.len "$a0")) in
+    let: "$r0" := ((![uint64T] "off") + (s_to_w64 (let: "$a0" := (![sliceT] "p") in
+    slice.len "$a0"))) in
     do:  ((![ptrT] (struct.field_ref tableWriter "offset" "w")) <-[uint64T] "$r0")).
 
 (* go: simpledb.go:205:6 *)
@@ -468,8 +468,8 @@ Definition EncodeSlice : val :=
     exception_do (let: "p" := (ref_ty sliceT "p") in
     let: "data" := (ref_ty sliceT "data") in
     let: "p2" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := (let: "$a0" := (![sliceT] "data") in
-    slice.len "$a0") in
+    let: "$r0" := (let: "$a0" := (s_to_w64 (let: "$a0" := (![sliceT] "data") in
+    slice.len "$a0")) in
     let: "$a1" := (![sliceT] "p") in
     (func_call #simpledb.simpledb #"EncodeUInt64"%go) "$a0" "$a1") in
     do:  ("p2" <-[sliceT] "$r0");;;
@@ -502,8 +502,8 @@ Definition tablePut : val :=
     let: "off" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref tableWriter "offset" "w"))) in
     do:  ("off" <-[uint64T] "$r0");;;
-    let: "$r0" := ((![uint64T] "off") + (let: "$a0" := (![sliceT] "tmp2") in
-    slice.len "$a0")) in
+    let: "$r0" := ((![uint64T] "off") + (s_to_w64 (let: "$a0" := (![sliceT] "tmp2") in
+    slice.len "$a0"))) in
     do:  (map.insert (![mapT uint64T uint64T] (struct.field_ref tableWriter "index" "w")) (![uint64T] "k") "$r0");;;
     do:  (let: "$a0" := (![tableWriter] "w") in
     let: "$a1" := (![sliceT] "tmp3") in
@@ -746,8 +746,8 @@ Definition tablePutOldTable : val :=
       else
         let: "p" := (ref_ty sliceT (zero_val sliceT)) in
         let: "$r0" := (let: "$a0" := (![fileT] (struct.field_ref Table "File" "t")) in
-        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
-        slice.len "$a0")) in
+        let: "$a1" := ((![uint64T] (struct.field_ref lazyFileBuf "offset" "buf")) + (s_to_w64 (let: "$a0" := (![sliceT] (struct.field_ref lazyFileBuf "next" "buf")) in
+        slice.len "$a0"))) in
         let: "$a2" := #(W64 4096) in
         (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[sliceT] "$r0");;;
@@ -913,8 +913,8 @@ Definition deleteOtherFiles : val :=
     (func_call #filesys #"List"%go) "$a0") in
     do:  ("files" <-[sliceT] "$r0");;;
     let: "nfiles" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "files") in
-    slice.len "$a0") in
+    let: "$r0" := (s_to_w64 (let: "$a0" := (![sliceT] "files") in
+    slice.len "$a0")) in
     do:  ("nfiles" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 0) in

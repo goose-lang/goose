@@ -128,8 +128,8 @@ Definition Log__memWrite : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     let: "l" := (ref_ty sliceT "l") in
     let: "n" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "l") in
-    slice.len "$a0") in
+    let: "$r0" := (s_to_w64 (let: "$a0" := (![sliceT] "l") in
+    slice.len "$a0")) in
     do:  ("n" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 0) in
@@ -147,8 +147,8 @@ Definition Log__memAppend : val :=
     exception_do (let: "log" := (ref_ty Log "log") in
     let: "l" := (ref_ty sliceT "l") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
-    (if: ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (let: "$a0" := (![sliceT] "l") in
-    slice.len "$a0")) ≥ (![uint64T] (struct.field_ref Log "logSz" "log"))
+    (if: ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (s_to_w64 (let: "$a0" := (![sliceT] "l") in
+    slice.len "$a0"))) ≥ (![uint64T] (struct.field_ref Log "logSz" "log"))
     then
       do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "memLock" "log"))) #());;;
       return: (#false, #(W64 0))
@@ -157,8 +157,8 @@ Definition Log__memAppend : val :=
     let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "memTxnNxt" "log"))) in
     do:  ("txn" <-[uint64T] "$r0");;;
     let: "n" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (let: "$a0" := (![sliceT] "l") in
-    slice.len "$a0")) in
+    let: "$r0" := ((![uint64T] (![ptrT] (struct.field_ref Log "memLen" "log"))) + (s_to_w64 (let: "$a0" := (![sliceT] "l") in
+    slice.len "$a0"))) in
     do:  ("n" <-[uint64T] "$r0");;;
     let: "$r0" := (![uint64T] "n") in
     do:  ((![ptrT] (struct.field_ref Log "memLen" "log")) <-[uint64T] "$r0");;;
@@ -221,8 +221,8 @@ Definition Log__writeBlocks : val :=
     let: "pos" := (ref_ty uint64T "pos") in
     let: "l" := (ref_ty sliceT "l") in
     let: "n" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "l") in
-    slice.len "$a0") in
+    let: "$r0" := (s_to_w64 (let: "$a0" := (![sliceT] "l") in
+    slice.len "$a0")) in
     do:  ("n" <-[uint64T] "$r0");;;
     (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
     let: "$r0" := #(W64 0) in
