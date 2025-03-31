@@ -166,30 +166,6 @@ func isString(t types.Type) bool {
 	return false
 }
 
-type intTypeInfo struct {
-	width     int
-	isUntyped bool
-}
-
-func getIntegerType(t types.Type) (intTypeInfo, bool) {
-	basicTy, ok := t.Underlying().(*types.Basic)
-	if !ok {
-		return intTypeInfo{}, false
-	}
-	switch basicTy.Kind() {
-	case types.Uint, types.Int, types.Uint64, types.Int64:
-		return intTypeInfo{width: 64}, true
-	case types.UntypedInt:
-		return intTypeInfo{isUntyped: true}, true
-	case types.Uint32, types.Int32:
-		return intTypeInfo{width: 32}, true
-	case types.Uint8, types.Int8:
-		return intTypeInfo{width: 8}, true
-	default:
-		return intTypeInfo{}, false
-	}
-}
-
 func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Expr) {
 	glangTypeArgs = make([]glang.Expr, typeList.Len())
 	for i := range glangTypeArgs {
