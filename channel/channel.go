@@ -308,106 +308,10 @@ func (c *Channel[T]) ReceiveDiscardOk() T {
 	return return_val
 }
 
-// This:
-//
-//	for {
-//		selected, val, ok := ch.TryReceive()
-//		if !ok {
-//			break
-//		}
-//		if selected {
-//			<body>
-//		}
-//	}
-//
-// is equivalent to:
-//
-//	for v := <-ch {
-//			<body>
-//	}
-//
-// This:
-//
-//	selected, val, ok := c.TryReceive()
-//	if selected {
-//		<first case body>
-//	} else {
-//		selected = c.TrySend(0)
-//		if selected {
-//			<second case body>
-//		} else {
-//			<default block body>
-//		}
-//	}
-//
-// is equivalent to:
-//
-//	select {
-//		case <-c:
-//			<first case body>
-//		case c <- 0:
-//			<second case body>
-//		default:
-//			<default body>
-//		}
-//
-// This:
-//
-//	for {
-//		selected, val, ok := c.TryReceive()
-//		if selected {
-//			<first case body>
-//			break
-//		} else {
-//			selected = c.TrySend(0)
-//			if selected {
-//				<second case body>
-//				break
-//			}
-//		}
-//	}
-//
-// is equivalent to:
-//
-//	select {
-//		case <-c:
-//			<first case body>
-//		case c <- 0:
-//			<second case body>
-//		}
-//
-// Note: Technically speaking, Go only compiles select statements to if/else blocks when there is 1
-// case statement with a default block. When there are multiple statements, the Go code will choose
-// a case statement with uniform probability among all "selectable" statements, meaning those that
-// have a waiting sender/receiver on the other end and receives on closed channels. Since threading
-// behavior means that it already can't be assumed with certainty which blocks are selected, the if/
-// else block translation should be equivalent from a correctness perspective. There is at least 1
-// notable unsound property with this approach:
-// 1. Once a channel is closed, a receive case statement on said channel will always be selectable.
-// This means that after the channel is closed, this case statement will always be selected above
-// other statements below. This is considered an antipattern in the Go community and it is
-// recommended that if a select case permits a closed channel receive, the channel is set to nil so
-// that the statement will no longer be selectable. We can prevent this with the specfication by
-// forcing the receiver to renounce receive ownership after receiving on a closed channel.
-//
-// One approach for making 1. sound would be to do the following for select statements:
-// 1. Create a mutex guarded "winner_index" int
-// 2. Launch a goroutine for each channel in the select with an index for the select cases
-// (For selects with multiple cases for a single channel, we still have just 1 goroutine)
-// 3. Lock the associated channel in each goroutine
-// 4. If there is a case for a channel that is "immediately selectable" i.e the channel is closed
-// or in the receiver/sender_ready state for the sender/receiver respectively, lock the
-// winner_index mutex and if not already set, set the winner_index to the goroutine's index
-// 5. If winner_index was set, complete the exchange and run the case's body
-// 6. Join the above goroutines and if no winner is selected, go through the if/else TryReceive/
-// TrySend sequence that we currently use.
-//
-// This would make it so the race to setting winner_index simulates the randomness of
-// Go select statements where any selectable case has uniform probablity of being selected
-//
-// Note: The above code technically makes it so the top block's expression variables
-// are in scope in all of the other blocks. This would error in the Go code before it is translated
-// so this shouldn't matter for practical purposes.
+// A non-blocking receive operation. If there is not a sender available in an unbuffered channel,
+// we "offer" for a single program step by setting receiver_ready to true, unlocking, then
+// immediately locking, which is necessary when a potential matching party is using TrySend.
+// See the various <n>CaseSelect functions for a description of how this is used to model selects.
 func (c *Channel[T]) TryReceive() (bool, T, bool) {
 	var ret_val T
 	if c == nil {
@@ -502,7 +406,10 @@ func (c *Channel[T]) TryReceive() (bool, T, bool) {
 	}
 }
 
-// See comment in TryReceive for how this is used to translate selects.
+// A non-blocking send operation. If there is not a receiver available in an unbuffered channel,
+// we "offer" for a single program step by setting sender_ready to true, unlocking, then
+// immediately locking, which is necessary when a potential matching party is using TryReceive.
+// See the various <n>CaseSelect functions for a description of how this is used to model selects.
 func (c *Channel[T]) TrySend(val T) bool {
 	// Nil is not selectable
 	if c == nil {
@@ -606,4 +513,196 @@ func (c *Channel[T]) Cap() uint64 {
 		return 0
 	}
 	return uint64(len(c.buffer))
+}
+
+type SelectDir uint64
+
+const (
+	SelectSend    SelectDir = 0 // case Chan <- Send
+	SelectRecv    SelectDir = 1 // case <-Chan:
+	SelectDefault SelectDir = 2 // default
+)
+
+// value is used for the value the sender will send and also used to return the received value by
+// reference.
+type SelectCase[T any] struct {
+	channel *Channel[T]
+	dir     SelectDir
+	value   *T
+	ok      *bool
+}
+
+// Models a 2 case select statement. Returns 0 if case 1 selected, 1 if case 2 selected.
+// Requires that case 1 not have dir = SelectDefault. If case_2 is a default, this will never block.
+// This is similar to the reflect package dynamic select statements and should give us a true to
+// runtime Go model with a fairly intuitive spec/translation.
+//
+//		This:
+//		select {
+//			case c1 <- 0:
+//				<case 1 body>
+//			case v, ok := <-c2:
+//				<case 2 body>
+//		}
+//
+//		Will be translated to:
+//
+//		var send_v uint64 = 0
+//		case_1 := channel.NewSendCase(c1, &send_v)
+//		var ok bool
+//		var v uint64
+//		case_2 := channel.NewRecvCase(c2, &v, &ok)
+//	 	var uint64 selected_case = TwoCaseSelect(case_1, case_2)
+//		if selected_case == 0 {
+//			<case 1 body>
+//		}
+//		if selected_case == 1 {
+//			<case 2 body>
+//		}
+func TwoCaseSelect[T1 any, T2 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2]) uint64 {
+	var selected_case uint64 = 0
+	var selected bool = false
+	// A "random" shuffle for correctness purposes, but probably mostly will be the same.
+	var order []uint64 = RaceShuffle(2)
+	for {
+		for _, i := range order {
+			// Perennial doesn't support breaks inside of nested for loops, so just don't do this
+			// if we have selected something already
+			if i == 0 && !selected {
+				selected = TrySelect(case_1)
+				if selected {
+					selected_case = 0
+				}
+			}
+			// Make sure we don't select default preferentially
+			if i == 1 && !selected && case_2.dir != SelectDefault {
+				selected = TrySelect(case_2)
+				if selected {
+					selected_case = 1
+				}
+			}
+		}
+		if !selected && case_2.dir == SelectDefault {
+			break
+		}
+		// If case_2 is a default, this will always be true on the first iteration, so this
+		// doesn't block in that case.
+		if selected {
+			break
+		}
+	}
+	return selected_case
+}
+
+func ThreeCaseSelect[T1 any, T2 any, T3 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2], case_3 *SelectCase[T3]) uint64 {
+	var selected_case uint64 = 0
+	var selected bool = false
+	var order []uint64 = RaceShuffle(3)
+	for {
+		for _, i := range order {
+			if i == 0 && !selected {
+				selected = TrySelect(case_1)
+				if selected {
+					selected_case = 0
+				}
+			}
+			if i == 1 && !selected {
+				selected = TrySelect(case_2)
+				if selected {
+					selected_case = 1
+				}
+			}
+			if i == 2 && !selected && case_3.dir != SelectDefault {
+				selected = TrySelect(case_3)
+				if selected {
+					selected_case = 2
+				}
+			}
+		}
+		if !selected && case_3.dir == SelectDefault {
+			break
+		}
+		if selected {
+			break
+		}
+	}
+	return selected_case
+}
+
+// Uses the applicable Try<Operation> function on the select case's channel. Default is always
+// selectable so simply returns true.
+func TrySelect[T any](select_case *SelectCase[T]) bool {
+	var channel *Channel[T] = select_case.channel
+	if select_case.dir == SelectSend {
+		return channel.TrySend(*select_case.value)
+	}
+	if select_case.dir == SelectRecv {
+		var item T
+		var ok bool
+		var selected bool
+		selected, item, ok = channel.TryReceive()
+		// We can use these values for return by reference and they will be implicitly kept alive
+		// by the garbage collector so we can use value here for both the send and receive
+		// variants. What a miracle it is to not be using C++.
+		*select_case.value = item
+		*select_case.ok = ok
+		return selected
+
+	}
+	if select_case.dir == SelectDefault {
+		return true
+	}
+	return false
+}
+
+func Race(i uint64, order *[]uint64, lock *sync.Mutex, wg *sync.WaitGroup) {
+	lock.Lock()
+	*order = append(*order, i)
+	wg.Done()
+	lock.Unlock()
+}
+
+// Generates a "Schedule driven random" shuffle by having n goroutines race to append their index.
+// This exists solely to return a permutation that can be any permutation of 0-n in a fair scheduler
+// and should not be seen as having any sort of useful distribution.
+func RaceShuffle(n uint64) []uint64 {
+	var lock sync.Mutex
+	var order []uint64
+	var i uint64 = 0
+	var wg *sync.WaitGroup = new(sync.WaitGroup)
+	for ; i < n; i++ {
+		wg.Add(1)
+		// Perennial doesn't support parameters in goroutine functions so we have to make sure this
+		// is not the same i for each goroutine.
+		local_i := i
+		go func() {
+			Race(local_i, &order, &lock, wg)
+		}()
+	}
+	wg.Wait()
+	return order
+}
+
+func NewSendCase[T any](channel *Channel[T], value T) SelectCase[T] {
+	return SelectCase[T]{
+		channel: channel,
+		dir:     SelectSend,
+		value:   &value,
+	}
+}
+
+func NewRecvCase[T any](channel *Channel[T], value *T, ok *bool) SelectCase[T] {
+	return SelectCase[T]{
+		channel: channel,
+		dir:     SelectRecv,
+		value:   value,
+		ok:      ok,
+	}
+}
+
+// The type does not matter here, picking a simple primitive.
+func NewDefaultCase() SelectCase[uint64] {
+	return SelectCase[uint64]{
+		dir: SelectDefault,
+	}
 }
