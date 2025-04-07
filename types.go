@@ -232,6 +232,18 @@ func isLockRef(t types.Type) bool {
 	return false
 }
 
+func isRWLockRef(t types.Type) bool {
+	t = types.Unalias(t)
+	if t, ok := t.(*types.Pointer); ok {
+		if t, ok := t.Elem().(*types.Named); ok {
+			name := t.Obj()
+			return name.Pkg().Name() == "sync" &&
+				name.Name() == "RWMutex"
+		}
+	}
+	return false
+}
+
 func isCFMutexRef(t types.Type) bool {
 	t = types.Unalias(t)
 	if t, ok := t.(*types.Pointer); ok {
