@@ -399,6 +399,27 @@ func (ctx Ctx) lockMethod(f *ast.SelectorExpr) coq.CallExpr {
 	}
 }
 
+func (ctx Ctx) rwLockMethod(f *ast.SelectorExpr) coq.CallExpr {
+	l := ctx.expr(f.X)
+	switch f.Sel.Name {
+	case "Lock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__Lock"), l)
+	case "RLock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__RLock"), l)
+	case "RUnlock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__RUnlock"), l)
+	case "TryLock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__TryLock"), l)
+	case "TryRLock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__TryRLock"), l)
+	case "Unlock":
+		return coq.NewCallExpr(coq.GallinaIdent("RWMutex__Unlock"), l)
+	default:
+		ctx.nope(f, "method %s of sync.RWMutex", ctx.printGo(f))
+		return coq.CallExpr{}
+	}
+}
+
 func (ctx Ctx) condVarMethod(f *ast.SelectorExpr) coq.CallExpr {
 	l := ctx.expr(f.X)
 	switch f.Sel.Name {
@@ -544,6 +565,9 @@ func (ctx Ctx) selectorMethod(f *ast.SelectorExpr, call *ast.CallExpr) coq.Expr 
 	}
 	if isLockRef(selectorType) {
 		return ctx.lockMethod(f)
+	}
+	if isRWLockRef(selectorType) {
+		return ctx.rwLockMethod(f)
 	}
 	if isCFMutexRef(selectorType) {
 		return ctx.lockMethod(f)
@@ -775,6 +799,9 @@ func (ctx Ctx) newExpr(ty ast.Expr) coq.CallExpr {
 	if sel, ok := ty.(*ast.SelectorExpr); ok {
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "Mutex") {
 			return coq.NewCallExpr(coq.GallinaIdent("newMutex"))
+		}
+		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "RWMutex") {
+			return coq.NewCallExpr(coq.GallinaIdent("newRWMutex"))
 		}
 		if isIdent(sel.X, "sync") && isIdent(sel.Sel, "WaitGroup") {
 			return coq.NewCallExpr(coq.GallinaIdent("waitgroup.New"))
