@@ -304,9 +304,7 @@ func doRequest(useSelect bool) (*response, error) {
 	if useSelect {
 		go func() {
 			case_1 := channel.NewSendCase(ch, &async{resp: nil, err: myError{}})
-			var ok bool
-			var landing struct{}
-			case_2 := channel.NewRecvCase(done, &landing, &ok)
+			case_2 := channel.NewRecvCase(done)
 			selected_case := channel.TwoCaseSelect(&case_1, &case_2)
 			// These cases don't actually do anything but wanted to stick with the intended
 			// translation throughout this file.
@@ -394,12 +392,8 @@ func TestNonblockSelectRace(t *testing.T) {
 		c2 := channel.NewChannelRef[int](1)
 		c1.Send(1)
 		go func() {
-			var v1 int
-			var ok1 bool
-			case_1 := channel.NewRecvCase(c1, &v1, &ok1)
-			var v2 int
-			var ok2 bool
-			case_2 := channel.NewRecvCase(c2, &v2, &ok2)
+			case_1 := channel.NewRecvCase(c1)
+			case_2 := channel.NewRecvCase(c2)
 			case_3 := channel.NewDefaultCase()
 			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
 			if selected_case == 0 {
@@ -434,12 +428,8 @@ func TestNonblockSelectRace2(t *testing.T) {
 		c2 := channel.NewChannelRef[int](1)
 		c1.Send(1)
 		go func() {
-			var v1 int
-			var ok1 bool
-			case_1 := channel.NewRecvCase(c1, &v1, &ok1)
-			var v2 int
-			var ok2 bool
-			case_2 := channel.NewRecvCase(c2, &v2, &ok2)
+			case_1 := channel.NewRecvCase(c1)
+			case_2 := channel.NewRecvCase(c2)
 			case_3 := channel.NewDefaultCase()
 			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
 			if selected_case == 0 {
@@ -479,27 +469,23 @@ func TestSelfSelect(t *testing.T) {
 				for i := uint64(0); i < 1000; i++ {
 					if p == 0 || i%2 == 0 {
 						case_1 := channel.NewSendCase(c, p)
-						var ok bool
-						var v uint64
-						case_2 := channel.NewRecvCase(c, &v, &ok)
+						case_2 := channel.NewRecvCase(c)
 						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
 						if selected_case == 0 {
 							break
 						} else if selected_case == 1 {
-							if chanCap == 0 && v == p {
+							if chanCap == 0 && case_2.Value == p {
 								t.Errorf("self receive")
 								return
 							}
 							break
 						}
 					} else {
-						var ok bool
-						var v uint64
-						case_1 := channel.NewRecvCase(c, &v, &ok)
+						case_1 := channel.NewRecvCase(c)
 						case_2 := channel.NewSendCase(c, p)
 						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
 						if selected_case == 0 {
-							if chanCap == 0 && v == p {
+							if chanCap == 0 && case_1.Value == p {
 								t.Errorf("self receive")
 								return
 							}
@@ -523,12 +509,8 @@ func TestSelectLivenessOrder1(t *testing.T) {
 	c1.Close()
 	c2.Send(0)
 
-	var ok1 bool
-	var landing1 uint64
-	case_1 := channel.NewRecvCase(c1, &landing1, &ok1)
-	var ok2 bool
-	var landing2 uint64
-	case_2 := channel.NewRecvCase(c2, &landing2, &ok2)
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
 
 	c1_selected := false
 	c2_selected := false
@@ -553,12 +535,8 @@ func TestSelectLivenessOrder1(t *testing.T) {
 func TestSelectLivenessOrder2(t *testing.T) {
 	c1 := channel.NewChannelRef[uint64](uint64(0))
 	c2 := channel.NewChannelRef[uint64](uint64(1))
-	var ok1 bool
-	var landing1 uint64
-	case_1 := channel.NewRecvCase(c1, &landing1, &ok1)
-	var ok2 bool
-	var landing2 uint64
-	case_2 := channel.NewRecvCase(c2, &landing2, &ok2)
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
 
 	c1.Close()
 	c2.Send(0)
@@ -585,12 +563,8 @@ func TestSelectLivenessOrder2(t *testing.T) {
 func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
 	c1 := channel.NewChannelRef[uint64](uint64(0))
 	c2 := channel.NewChannelRef[uint64](uint64(0))
-	var ok1 bool
-	var landing1 uint64
-	case_1 := channel.NewRecvCase(c1, &landing1, &ok1)
-	var ok2 bool
-	var landing2 uint64
-	case_2 := channel.NewRecvCase(c2, &landing2, &ok2)
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
 
 	c1.Close()
 	c1_selected := false

@@ -2,6 +2,8 @@ package channel
 
 import (
 	"sync"
+
+	"github.com/goose-lang/primitive"
 )
 
 type ChannelState uint64
@@ -528,8 +530,8 @@ const (
 type SelectCase[T any] struct {
 	channel *Channel[T]
 	dir     SelectDir
-	value   *T
-	ok      *bool
+	Value   T
+	Ok      bool
 }
 
 // Models a 2 case select statement. Returns 0 if case 1 selected, 1 if case 2 selected.
@@ -537,33 +539,33 @@ type SelectCase[T any] struct {
 // This is similar to the reflect package dynamic select statements and should give us a true to
 // runtime Go model with a fairly intuitive spec/translation.
 //
-//		This:
-//		select {
-//			case c1 <- 0:
-//				<case 1 body>
-//			case v, ok := <-c2:
-//				<case 2 body>
-//		}
-//
-//		Will be translated to:
-//
-//		var send_v uint64 = 0
-//		case_1 := channel.NewSendCase(c1, &send_v)
-//		var ok bool
-//		var v uint64
-//		case_2 := channel.NewRecvCase(c2, &v, &ok)
-//	 	var uint64 selected_case = TwoCaseSelect(case_1, case_2)
-//		if selected_case == 0 {
+//	This:
+//	select {
+//		case c1 <- 0:
 //			<case 1 body>
-//		}
-//		if selected_case == 1 {
+//		case v, ok := <-c2:
+//			<case 2 body>
+//	}
+//
+//	Will be translated to:
+//
+// case_1 := channel.NewSendCase(c1, 0)
+// case_2 := channel.NewRecvCase(c2)
+// var uint64 selected_case = TwoCaseSelect(case_1, case_2)
+//
+//	if selected_case == 0 {
+//		<case 1 body>
+//	}
+//	if selected_case == 1 {
+//			var ok bool = case_2.ok
+//			var v uint64 = case_2.value
 //			<case 2 body>
 //		}
 func TwoCaseSelect[T1 any, T2 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2]) uint64 {
 	var selected_case uint64 = 0
 	var selected bool = false
 	// A "random" shuffle for correctness purposes, but probably mostly will be the same.
-	var order []uint64 = RaceShuffle(2)
+	var order []uint64 = Shuffle(2)
 	for {
 		for _, i := range order {
 			// Perennial doesn't support breaks inside of nested for loops, so just don't do this
@@ -597,7 +599,7 @@ func TwoCaseSelect[T1 any, T2 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2
 func ThreeCaseSelect[T1 any, T2 any, T3 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2], case_3 *SelectCase[T3]) uint64 {
 	var selected_case uint64 = 0
 	var selected bool = false
-	var order []uint64 = RaceShuffle(3)
+	var order []uint64 = Shuffle(3)
 	for {
 		for _, i := range order {
 			if i == 0 && !selected {
@@ -634,7 +636,7 @@ func ThreeCaseSelect[T1 any, T2 any, T3 any](case_1 *SelectCase[T1], case_2 *Sel
 func TrySelect[T any](select_case *SelectCase[T]) bool {
 	var channel *Channel[T] = select_case.channel
 	if select_case.dir == SelectSend {
-		return channel.TrySend(*select_case.value)
+		return channel.TrySend(select_case.Value)
 	}
 	if select_case.dir == SelectRecv {
 		var item T
@@ -644,8 +646,8 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 		// We can use these values for return by reference and they will be implicitly kept alive
 		// by the garbage collector so we can use value here for both the send and receive
 		// variants. What a miracle it is to not be using C++.
-		*select_case.value = item
-		*select_case.ok = ok
+		select_case.Value = item
+		select_case.Ok = ok
 		return selected
 
 	}
@@ -655,31 +657,18 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 	return false
 }
 
-func Race(i uint64, order *[]uint64, lock *sync.Mutex, wg *sync.WaitGroup) {
-	lock.Lock()
-	*order = append(*order, i)
-	wg.Done()
-	lock.Unlock()
-}
-
-// Generates a "Schedule driven random" shuffle by having n goroutines race to append their index.
-// This exists solely to return a permutation that can be any permutation of 0-n in a fair scheduler
-// and should not be seen as having any sort of useful distribution.
-func RaceShuffle(n uint64) []uint64 {
-	var lock sync.Mutex
-	var order []uint64
-	var i uint64 = 0
-	var wg *sync.WaitGroup = new(sync.WaitGroup)
-	for ; i < n; i++ {
-		wg.Add(1)
-		// Perennial doesn't support parameters in goroutine functions so we have to make sure this
-		// is not the same i for each goroutine.
-		local_i := i
-		go func() {
-			Race(local_i, &order, &lock, wg)
-		}()
+// Simple knuth shuffle.
+func Shuffle(n uint64) []uint64 {
+	var order = make([]uint64, n)
+	for i := uint64(0); i < n; i++ {
+		order[i] = uint64(i)
 	}
-	wg.Wait()
+	for i := uint64(len(order) - 1); i > 0; i-- {
+		var j uint64 = primitive.RandomUint64() % uint64(i+1)
+		var temp uint64 = order[i]
+		order[i] = order[j]
+		order[j] = temp
+	}
 	return order
 }
 
@@ -687,16 +676,14 @@ func NewSendCase[T any](channel *Channel[T], value T) SelectCase[T] {
 	return SelectCase[T]{
 		channel: channel,
 		dir:     SelectSend,
-		value:   &value,
+		Value:   value,
 	}
 }
 
-func NewRecvCase[T any](channel *Channel[T], value *T, ok *bool) SelectCase[T] {
+func NewRecvCase[T any](channel *Channel[T]) SelectCase[T] {
 	return SelectCase[T]{
 		channel: channel,
 		dir:     SelectRecv,
-		value:   value,
-		ok:      ok,
 	}
 }
 
