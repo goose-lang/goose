@@ -158,6 +158,14 @@ func (d TypeDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
+type ToValExpr struct {
+	Expr Expr
+}
+
+func (e ToValExpr) Coq(needs_paren bool) string {
+	return fmt.Sprintf("#%s", e.Expr.Coq(true))
+}
+
 // Type represents some Coq type.
 //
 // Structurally identical to Expr but serves as a nice annotation in the type
@@ -165,6 +173,19 @@ func (d TypeDecl) DefName() (bool, string) {
 type Type interface {
 	// If needs_paren is true, this should be generated with parentheses.
 	Coq(needs_paren bool) string
+}
+
+// Construct a Golang expression for a type.
+//
+// This handles the difference between a Gallina `go_type` (which has to be
+// converted to an expression with #) and type identifiers (which are already expressions).
+func GolangTypeExpr(t Type) Expr {
+	// NOTE: this conversion might not always be correct, we are adapting from code
+	// that always assumed types were in Gallina
+	if _, ok := t.(IdentExpr); ok {
+		return t
+	}
+	return ToValExpr{Expr: t}
 }
 
 // TypeIdent is an identifier referencing a type.
@@ -468,6 +489,7 @@ func (b BoolVal) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#%s", b.Value.Coq(true))
 }
 
+// GooseLang unit value
 type UnitLiteral struct{}
 
 var Tt UnitLiteral = struct{}{}
@@ -639,6 +661,7 @@ func (te TupleExpr) Coq(needs_paren bool) string {
 		indent(1, strings.Join(comps, ", ")))
 }
 
+// ListExpr is a Gallina list.
 type ListExpr []Expr
 
 func (le ListExpr) Coq(needs_paren bool) string {
@@ -662,7 +685,7 @@ type DerefExpr struct {
 }
 
 func (e DerefExpr) Coq(needs_paren bool) string {
-	expr := fmt.Sprintf("![%s] %s", e.Ty.Coq(false), e.X.Coq(true))
+	expr := fmt.Sprintf("![%s] %s", GolangTypeExpr(e.Ty).Coq(false), e.X.Coq(true))
 	return addParens(needs_paren, expr)
 }
 
@@ -672,7 +695,7 @@ type RefExpr struct {
 }
 
 func (e RefExpr) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("ref_ty"), e.Ty, e.X).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("alloc"), e.X).Coq(needs_paren)
 }
 
 type StoreStmt struct {
@@ -682,7 +705,7 @@ type StoreStmt struct {
 }
 
 func (e StoreStmt) Coq(needs_paren bool) string {
-	expr := fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(true), e.Ty.Coq(false), e.X.Coq(true))
+	expr := fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(true), GolangTypeExpr(e.Ty).Coq(false), e.X.Coq(true))
 	return addParens(needs_paren, expr)
 }
 
