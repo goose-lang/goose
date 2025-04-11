@@ -8,6 +8,7 @@ import (
 )
 
 func toCoqType(t types.Type, pkg *packages.Package) string {
+	// TODO: reduce duplication with toCoqTypeWithDeps
 	switch t := t.(type) {
 	case *types.Basic:
 		switch t.Name() {
@@ -35,7 +36,7 @@ func toCoqType(t types.Type, pkg *packages.Package) string {
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
-		return fmt.Sprintf("(vec %s %d)", toCoqType(t.Elem(), pkg), t.Len())
+		return fmt.Sprintf("(vec %s (uint.nat (W64 %d)))", toCoqType(t.Elem(), pkg), t.Len())
 	case *types.Pointer:
 		return "loc"
 	case *types.Signature:
