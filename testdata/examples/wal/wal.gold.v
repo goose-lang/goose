@@ -28,7 +28,7 @@ Definition intToBlock : val :=
   rec: "intToBlock" "a" :=
     exception_do (let: "a" := (alloc "a") in
     let: "b" := (alloc (zero_val sliceT)) in
-    let: "$r0" := (slice.make2 byteT disk.BlockSize) in
+    let: "$r0" := (slice.make2 #byteT disk.BlockSize) in
     do:  ("b" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := (![#sliceT] "b") in
     let: "$a1" := (![#uint64T] "a") in

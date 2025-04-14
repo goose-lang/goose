@@ -20,7 +20,7 @@ Definition UseDisk : val :=
   rec: "UseDisk" "d" :=
     exception_do (let: "d" := (alloc "d") in
     let: "v" := (alloc (zero_val sliceT)) in
-    let: "$r0" := (slice.make2 byteT #(W64 4096)) in
+    let: "$r0" := (slice.make2 #byteT #(W64 4096)) in
     do:  ("v" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![#sliceT] "v") in

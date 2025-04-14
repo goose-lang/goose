@@ -312,7 +312,7 @@ func (ctx *Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glan
 			sliceLitArgs = append(sliceLitArgs, glang.IdentExpr(fmt.Sprintf("$sl%d", i)))
 		}
 		expr = glang.NewCallExpr(glang.GallinaIdent("slice.literal"),
-			ctx.glangType(es[0].n, expectedType),
+			glang.GolangTypeExpr(ctx.glangType(es[0].n, expectedType)),
 			glang.ListExpr(sliceLitArgs))
 
 		for i := len(es); i > 0; i-- {
@@ -584,10 +584,10 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			elt := ctx.glangType(s.Fun, ty.Elem())
 			switch sig.Params().Len() {
 			case 2:
-				return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), elt,
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make2"), glang.GolangTypeExpr(elt),
 					ctx.expr(s.Args[1])), true
 			case 3:
-				return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), elt,
+				return glang.NewCallExpr(glang.GallinaIdent("slice.make3"), glang.GolangTypeExpr(elt),
 					ctx.expr(s.Args[1]), ctx.expr(s.Args[2])), true
 			default:
 				ctx.nope(s, "Too many or too few arguments in slice construction")
@@ -1224,7 +1224,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$s"},
 				ValExpr: x,
 				Cont: glang.NewCallExpr(glang.GallinaIdent("slice.full_slice"),
-					ctx.glangType(e, t.Elem()),
+					glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
 					glang.IdentExpr("$s"), lowExpr, highExpr, ctx.expr(e.Max)),
 			}
 		} else {
@@ -1232,7 +1232,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$s"},
 				ValExpr: x,
 				Cont: glang.NewCallExpr(glang.GallinaIdent("slice.slice"),
-					ctx.glangType(e, t.Elem()),
+					glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
 					glang.IdentExpr("$s"), lowExpr, highExpr),
 			}
 		}
@@ -1288,7 +1288,7 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 			// e is &a[b] where x is a.b
 			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
 				return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
-					ctx.glangType(e, xTy.Elem()),
+					glang.GolangTypeExpr(ctx.glangType(e, xTy.Elem())),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
@@ -1368,7 +1368,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		t := sig.Params().At(0).Type()
 		if t, ok := t.Underlying().(*types.Slice); ok {
 			return glang.NewCallExpr(glang.GallinaIdent("slice.append"),
-				ctx.glangType(e, t.Elem()),
+				glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
 			)
 		}
 		ctx.unsupported(e, "append to %v with unknown element type", t)
@@ -1376,6 +1376,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		sig := ctx.typeOf(e).(*types.Signature)
 		ctx.todo(e, "new might be better as its own function")
 		t := ctx.glangType(e, sig.Params().At(0).Type())
+		// TODO: use type.zero_val and make the type a glang.GolangTypeExpr(...)
 		return glang.RefExpr{
 			X:  glang.NewCallExpr(glang.GallinaIdent("zero_val"), t),
 			Ty: t,
@@ -1414,7 +1415,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 			if types.Identical(ty, fromTy) {
 				return glang.NewCallExpr(
 					glang.GallinaIdent("slice.copy"),
-					ctx.glangType(e, ty.Elem()),
+					glang.GolangTypeExpr(ctx.glangType(e, ty.Elem())),
 				)
 			}
 			ctx.unsupported(e, "copy to %v from %v", ty, fromTy)
@@ -1798,7 +1799,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	case *types.Slice:
 		e = glang.ForRangeSliceExpr{
 			Slice: glang.IdentExpr("$range"),
-			Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
+			Ty:    glang.GolangTypeExpr(ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X)))),
 			Body:  body,
 		}
 	case *types.Chan:
@@ -1965,7 +1966,7 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		switch targetTy := targetTy.Underlying().(type) {
 		case *types.Slice:
 			return glang.NewCallExpr(glang.GallinaIdent("slice.elem_ref"),
-				ctx.glangType(e, targetTy.Elem()),
+				glang.GolangTypeExpr(ctx.glangType(e, targetTy.Elem())),
 				ctx.expr(e.X),
 				ctx.expr(e.Index))
 		case *types.Map:
