@@ -19,7 +19,7 @@ Definition c : go_type := structT [
 Definition c__Foo : val :=
   rec: "c__Foo" "c" <> :=
     exception_do (let: "c" := (alloc "c") in
-    let: "y" := (alloc (zero_val B)) in
+    let: "y" := (alloc (type.zero_val #B)) in
     let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
     do:  ("y" <-[#B] "$r0");;;
     do:  ((interface.get #"Bar"%go (![#B] "y")) #())).
@@ -28,7 +28,7 @@ Definition c__Foo : val :=
 Definition c__Bar : val :=
   rec: "c__Bar" "c" <> :=
     exception_do (let: "c" := (alloc "c") in
-    let: "y" := (alloc (zero_val A)) in
+    let: "y" := (alloc (type.zero_val #A)) in
     let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
     do:  ("y" <-[#A] "$r0");;;
     do:  ((interface.get #"Foo"%go (![#A] "y")) #())).

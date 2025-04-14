@@ -690,8 +690,7 @@ func (e DerefExpr) Coq(needs_paren bool) string {
 }
 
 type RefExpr struct {
-	X  Expr
-	Ty Expr
+	X Expr
 }
 
 func (e RefExpr) Coq(needs_paren bool) string {
