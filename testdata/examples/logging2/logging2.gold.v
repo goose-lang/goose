@@ -287,7 +287,7 @@ Definition Begin : val :=
     exception_do (let: "log" := (alloc "log") in
     let: "txn" := (alloc (type.zero_val #Txn)) in
     let: "$r0" := (let: "$log" := (![#ptrT] "log") in
-    let: "$blks" := (map.make #sliceT) in
+    let: "$blks" := (map.make #uint64T #sliceT) in
     struct.make #Txn [{
       "log" ::= "$log";
       "blks" ::= "$blks"

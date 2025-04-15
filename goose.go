@@ -405,6 +405,7 @@ func (ctx *Ctx) mapLiteral(e *ast.CompositeLit, keyType, valueType types.Type) g
 		)
 	}
 	var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("map.literal"),
+		glang.GolangTypeExpr(ctx.glangType(e.Type, keyType)),
 		glang.GolangTypeExpr(ctx.glangType(e.Type, valueType)),
 		glang.ListExpr(mapLitArgs))
 
@@ -595,7 +596,7 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			}
 		case *types.Map:
 			return glang.NewCallExpr(glang.GallinaIdent("map.make"),
-				// glang.GolangTypeExpr(ctx.glangType(s.Args[0], ty.Key())),
+				glang.GolangTypeExpr(ctx.glangType(s.Args[0], ty.Key())),
 				glang.GolangTypeExpr(ctx.glangType(s.Args[0], ty.Elem()))), true
 		case *types.Chan:
 			switch sig.Params().Len() {

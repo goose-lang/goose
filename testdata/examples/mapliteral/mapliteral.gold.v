@@ -13,7 +13,7 @@ Definition mapliteral : val :=
   rec: "mapliteral" <> :=
     exception_do (return: ((let: "$v0" := #(W64 2) in
      let: "$k0" := #(W64 1) in
-     map.literal #uint64T [("$k0", "$v0")]))).
+     map.literal #uint64T #uint64T [("$k0", "$v0")]))).
 
 Definition vars' : list (go_string * go_type) := [].
 

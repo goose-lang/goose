@@ -30,7 +30,7 @@ Definition CreateTable : val :=
   rec: "CreateTable" "p" :=
     exception_do (let: "p" := (alloc "p") in
     let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
-    let: "$r0" := (map.make #uint64T) in
+    let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
     let: "f" := (alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
@@ -217,7 +217,7 @@ Definition RecoverTable : val :=
   rec: "RecoverTable" "p" :=
     exception_do (let: "p" := (alloc "p") in
     let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
-    let: "$r0" := (map.make #uint64T) in
+    let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
     let: "f" := (alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
@@ -379,7 +379,7 @@ Definition newTableWriter : val :=
   rec: "newTableWriter" "p" :=
     exception_do (let: "p" := (alloc "p") in
     let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
-    let: "$r0" := (map.make #uint64T) in
+    let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
     let: "f" := (alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
@@ -523,7 +523,7 @@ Definition Database : go_type := structT [
 Definition makeValueBuffer : val :=
   rec: "makeValueBuffer" <> :=
     exception_do (let: "buf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
-    let: "$r0" := (map.make #sliceT) in
+    let: "$r0" := (map.make #uint64T #sliceT) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "bufPtr" := (alloc (type.zero_val #ptrT)) in
     let: "$r0" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
@@ -823,7 +823,7 @@ Definition Compact : val :=
     let: "$r0" := (![#(mapT uint64T sliceT)] (![#ptrT] (struct.field_ref #Database #"wbuffer"%go "db"))) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "emptyWbuffer" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
-    let: "$r0" := (map.make #sliceT) in
+    let: "$r0" := (map.make #uint64T #sliceT) in
     do:  ("emptyWbuffer" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "$r0" := (![#(mapT uint64T sliceT)] "emptyWbuffer") in
     do:  ((![#ptrT] (struct.field_ref #Database #"wbuffer"%go "db")) <-[#(mapT uint64T sliceT)] "$r0");;;
