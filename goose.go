@@ -625,8 +625,9 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			return nil, false
 		}
 		name := s.Fun.(*ast.Ident).Name
+		// array.len and array.cap take the array type (not the element type)
 		return glang.NewCallExpr(glang.GallinaIdent(fmt.Sprintf("array.%s", name)),
-			ctx.glangType(s, ctx.typeOf(s.Args[0]))), true
+			glang.GolangTypeExpr(ctx.glangType(s, ctx.typeOf(s.Args[0])))), true
 	}
 
 	return nil, false
@@ -1234,9 +1235,10 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 					glang.IdentExpr("$s"), lowExpr, highExpr),
 			}
 		}
-	} else if _, ok := ctx.typeOf(e.X).Underlying().(*types.Array); ok {
+	} else if at, ok := ctx.typeOf(e.X).Underlying().(*types.Array); ok {
 		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
-		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.len"), ctx.glangType(e.X, ctx.typeOf(e.X)))
+		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.len"),
+			glang.GolangTypeExpr(ctx.glangType(e.X, at.Elem())))
 		if e.Low != nil {
 			lowExpr = ctx.expr(e.Low)
 		}
@@ -1250,6 +1252,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$a"},
 				ValExpr: ctx.exprAddr(e.X),
 				Cont: glang.NewCallExpr(glang.GallinaIdent("array.slice"),
+					glang.GolangTypeExpr(ctx.glangType(e, at.Elem())),
 					glang.IdentExpr("$a"), lowExpr, highExpr),
 			}
 		}
@@ -1489,7 +1492,7 @@ func (ctx *Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 
 func (ctx *Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 	xTy := ctx.typeOf(e.X).Underlying()
-	switch xTy.(type) {
+	switch xTy := xTy.(type) {
 	case *types.Map:
 		e := glang.NewCallExpr(glang.GallinaIdent("map.get"),
 			ctx.expr(e.X),
@@ -1513,7 +1516,7 @@ func (ctx *Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 			}
 		} else {
 			return glang.NewCallExpr(glang.GallinaIdent("array.elem_get"),
-				ctx.glangType(e, ctx.typeOf(e)),
+				glang.GolangTypeExpr(ctx.glangType(e, xTy.Elem())),
 				ctx.expr(e.X), ctx.expr(e.Index))
 		}
 	case *types.Signature:
@@ -1967,7 +1970,8 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 			ctx.nope(e, "map index expressions are not addressable")
 		case *types.Array:
 			return glang.NewCallExpr(glang.GallinaIdent("array.elem_ref"),
-				ctx.glangType(e, targetTy.Elem()), ctx.expr(e.X), ctx.expr(e.Index))
+				glang.GolangTypeExpr(ctx.glangType(e, targetTy.Elem())),
+				ctx.expr(e.X), ctx.expr(e.Index))
 		default:
 			ctx.unsupported(e, "index addr to unexpected target of type %v", targetTy)
 		}
