@@ -436,9 +436,6 @@ type fieldVal struct {
 }
 
 // A StructLiteral represents a record literal construction using name fields.
-//
-// Relies on Coq record syntax to correctly order fields for the record's
-// constructor.
 type StructLiteral struct {
 	StructType Expr
 	Elts       []fieldVal
@@ -452,7 +449,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s [{", method, sl.StructType.Coq(true))
+	pp.Add("%s %s [{", method, GolangTypeExpr(sl.StructType).Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.Elts {
 		terminator := ";"

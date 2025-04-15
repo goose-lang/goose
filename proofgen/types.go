@@ -235,7 +235,9 @@ Context `+"`"+`{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 	for i := 0; i < s.NumFields(); i++ {
 		fmt.Fprintf(w, " %s", toCoqName(getFieldName(i)))
 	}
-	fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s.%s (alist_val [", tr.pkg.Name, name)
+	// NOTE: this constructs a GolangTypeExpr
+	typeExpr := fmt.Sprintf("#%s.%s", tr.pkg.Name, name)
+	fmt.Fprintf(w, ":\n  PureWp True\n    (struct.make %s (alist_val [", typeExpr)
 	sep := ""
 	for i := 0; i < s.NumFields(); i++ {
 		fmt.Fprintf(w, "%s\n      \"%s\" ::= #%s", sep, getFieldName(i), toCoqName(getFieldName(i)))

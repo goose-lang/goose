@@ -742,7 +742,7 @@ func (ctx *Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, e
 		}
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_get"),
-			ctx.structInfoToGlangType(info), glang.GallinaString(v.Name()), *expr)
+			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 	return
@@ -766,7 +766,7 @@ func (ctx *Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type
 		v := info.structType.Field(i)
 
 		*expr = glang.NewCallExpr(glang.GallinaIdent("struct.field_ref"),
-			ctx.structInfoToGlangType(info), glang.GallinaString(v.Name()), *expr)
+			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.StringVal{Value: glang.StringLiteral{Value: v.Name()}}, *expr)
 		*curType = v.Type()
 	}
 	return
