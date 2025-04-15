@@ -62,7 +62,7 @@ Definition New : val :=
       Panic "$a0")
     else do:  #());;;
     let: "cache" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
-    let: "$r0" := (map.make uint64T sliceT #()) in
+    let: "$r0" := (map.make #sliceT) in
     do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "header" := (alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
@@ -323,7 +323,7 @@ Definition Open : val :=
     do:  (let: "$a0" := (![#disk.Disk] "d") in
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "cache" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
-    let: "$r0" := (map.make uint64T sliceT #()) in
+    let: "$r0" := (map.make #sliceT) in
     do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "lengthPtr" := (alloc (type.zero_val #ptrT)) in
     let: "$r0" := (alloc (type.zero_val #uint64T)) in
