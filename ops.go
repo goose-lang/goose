@@ -1,13 +1,19 @@
 package goose
 
 import (
-	"github.com/goose-lang/goose/glang"
 	"go/token"
+
+	"github.com/goose-lang/goose/glang"
 )
 
 var generalOps = map[token.Token]glang.BinOp{
 	token.EQL: glang.OpEquals,
 	token.NEQ: glang.OpNotEquals,
+}
+
+var shiftOps = map[token.Token]struct{}{
+	token.SHL: {},
+	token.SHR: {},
 }
 
 var untypedIntOps = map[token.Token]glang.BinOp{

@@ -1091,7 +1091,7 @@ func (ctx *Ctx) typeJoin(n ast.Node, t1, t2 types.Type) types.Type {
 	} else if types.AssignableTo(t2, t1) {
 		return t1
 	} else {
-		ctx.nope(n, "comparison between non-assignable types")
+		ctx.unsupported(n, "comparison between non-assignable types")
 		return nil
 	}
 }
@@ -1103,7 +1103,15 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	//
 	// XXX: this also handles converting untyped constants to a typed constant
 	xT, yT := ctx.typeOf(e.X), ctx.typeOf(e.Y)
-	compType := ctx.typeJoin(e, xT, yT).Underlying()
+	var compType types.Type
+	if _, ok := shiftOps[e.Op]; ok {
+		// Shifts should be converted to the type of the base; the shift amount and
+		// the base do not need to have a type join (e.g., x << y where x is a uint8
+		// and y is a uint32)
+		compType = xT
+	} else {
+		compType = ctx.typeJoin(e, xT, yT).Underlying()
+	}
 	var op glang.BinOp = -1
 	if t, ok := compType.(*types.Basic); ok {
 		switch t.Kind() {
@@ -2011,6 +2019,18 @@ func (ctx *Ctx) assignFromTo(lhs ast.Expr, rhs glang.Expr, cont glang.Expr) glan
 	}, cont)
 }
 
+func isUnsignedIntegerKind(t types.BasicKind) bool {
+	return t == types.Uint || t == types.Uint8 || t == types.Uint16 || t == types.Uint32 || t == types.Uint64
+}
+
+func isSignedIntegerKind(t types.BasicKind) bool {
+	return t == types.Int || t == types.Int8 || t == types.Int16 || t == types.Int32 || t == types.Int64
+}
+
+func isIntegerKind(t types.BasicKind) bool {
+	return isUnsignedIntegerKind(t) || isSignedIntegerKind(t)
+}
+
 // This handles conversions arising from the notion of "assignability" in the Go spec.
 func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e glang.Expr) glang.Expr {
 	if to == nil {
@@ -2129,6 +2149,35 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 			case types.Float32:
 				// XXX: treat a `float64` as a `w64`
 				return glang.Int32Val{Value: e}
+			}
+		}
+	}
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && isIntegerKind(fromBasic.Kind()) {
+		if isUnsignedIntegerKind(fromBasic.Kind()) {
+			if toBasic, ok := toUnder.(*types.Basic); ok {
+				switch toBasic.Kind() {
+				case types.Uint64:
+					return glang.NewCallExpr(glang.GallinaIdent("u_to_w64"), e)
+				case types.Uint32:
+					return glang.NewCallExpr(glang.GallinaIdent("u_to_w32"), e)
+				case types.Uint16:
+					return glang.NewCallExpr(glang.GallinaIdent("u_to_w16"), e)
+				case types.Uint8:
+					return glang.NewCallExpr(glang.GallinaIdent("u_to_w8"), e)
+				}
+			}
+		} else { // from signed integer
+			if toBasic, ok := toUnder.(*types.Basic); ok {
+				switch toBasic.Kind() {
+				case types.Int64:
+					return glang.NewCallExpr(glang.GallinaIdent("s_to_w64"), e)
+				case types.Int32:
+					return glang.NewCallExpr(glang.GallinaIdent("s_to_w32"), e)
+				case types.Int16:
+					return glang.NewCallExpr(glang.GallinaIdent("s_to_w16"), e)
+				case types.Int8:
+					return glang.NewCallExpr(glang.GallinaIdent("s_to_w8"), e)
+				}
 			}
 		}
 	}
@@ -2586,7 +2635,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		case declfilter.Trust:
 			return nil
 		case declfilter.Axiomatize:
-			ctx.functions = append(ctx.functions, d.Name.Name)
+			ctx.functions = append(ctx.functions, glang.TypeMethod(typeName, d.Name.Name))
 			return []glang.Decl{glang.AxiomDecl{DeclName: fd.Name, Type: glang.GallinaIdent("val")}}
 		}
 
