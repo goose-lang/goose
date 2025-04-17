@@ -303,16 +303,15 @@ func doRequest(useSelect bool) (*response, error) {
 
 	if useSelect {
 		go func() {
-			for {
-				selected := ch.TrySend(&async{resp: nil, err: myError{}})
-				if selected {
-					break
-				} else {
-					selected, _, _ := done.TryReceive()
-					if selected {
-						break
-					}
-				}
+			case_1 := channel.NewSendCase(ch, &async{resp: nil, err: myError{}})
+			case_2 := channel.NewRecvCase(done)
+			selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+			// These cases don't actually do anything but wanted to stick with the intended
+			// translation throughout this file.
+			if selected_case == 0 {
+
+			} else if selected_case == 1 {
+
 			}
 		}()
 	} else {
@@ -393,17 +392,18 @@ func TestNonblockSelectRace(t *testing.T) {
 		c2 := channel.NewChannelRef[int](1)
 		c1.Send(1)
 		go func() {
-			selected, _, _ := c1.TryReceive()
-			if selected {
+			case_1 := channel.NewRecvCase(c1)
+			case_2 := channel.NewRecvCase(c2)
+			case_3 := channel.NewDefaultCase()
+			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
+			if selected_case == 0 {
+			}
+			if selected_case == 1 {
 
-			} else {
-				selected, _, _ = c2.TryReceive()
-				if selected {
-
-				} else {
-					done.Send(false)
-					return
-				}
+			}
+			if selected_case == 2 {
+				done.Send(false)
+				return
 			}
 			done.Send(true)
 		}()
@@ -428,17 +428,18 @@ func TestNonblockSelectRace2(t *testing.T) {
 		c2 := channel.NewChannelRef[int](1)
 		c1.Send(1)
 		go func() {
-			selected, _, _ := c1.TryReceive()
-			if selected {
+			case_1 := channel.NewRecvCase(c1)
+			case_2 := channel.NewRecvCase(c2)
+			case_3 := channel.NewDefaultCase()
+			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
+			if selected_case == 0 {
+			}
+			if selected_case == 1 {
 
-			} else {
-				selected, _, _ = c2.TryReceive()
-				if selected {
-
-				} else {
-					done.Send(false)
-					return
-				}
+			}
+			if selected_case == 2 {
+				done.Send(false)
+				return
 			}
 			done.Send(true)
 		}()
@@ -467,36 +468,30 @@ func TestSelfSelect(t *testing.T) {
 				defer wg.Done()
 				for i := uint64(0); i < 1000; i++ {
 					if p == 0 || i%2 == 0 {
-						for {
-							selected := c.TrySend(p)
-							if selected {
-								break
-							} else {
-								selected, v, _ := c.TryReceive()
-								if selected {
-									if chanCap == 0 && v == p {
-										t.Errorf("self receive")
-										return
-									}
-									break
-								}
+						case_1 := channel.NewSendCase(c, p)
+						case_2 := channel.NewRecvCase(c)
+						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+						if selected_case == 0 {
+							break
+						} else if selected_case == 1 {
+							if chanCap == 0 && case_2.Value == p {
+								t.Errorf("self receive")
+								return
 							}
+							break
 						}
 					} else {
-						for {
-							selected, v, _ := c.TryReceive()
-							if selected {
-								if chanCap == 0 && v == p {
-									t.Errorf("self receive")
-									return
-								}
-								break
-							} else {
-								selected := c.TrySend(p)
-								if selected {
-									break
-								}
+						case_1 := channel.NewRecvCase(c)
+						case_2 := channel.NewSendCase(c, p)
+						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+						if selected_case == 0 {
+							if chanCap == 0 && case_1.Value == p {
+								t.Errorf("self receive")
+								return
 							}
+							break
+						} else if selected_case == 1 {
+							break
 						}
 					}
 				}
@@ -504,4 +499,91 @@ func TestSelfSelect(t *testing.T) {
 		}
 		wg.Wait()
 	}
+}
+
+// Make sure that a "perpetually selectable" closed receive case appearing first does not mean
+// it will be selected every time.
+func TestSelectLivenessOrder1(t *testing.T) {
+	c1 := channel.NewChannelRef[uint64](uint64(0))
+	c2 := channel.NewChannelRef[uint64](uint64(2))
+	c1.Close()
+	c2.Send(0)
+
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
+
+	c1_selected := false
+	c2_selected := false
+	for {
+		selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+		// Make sure we eventually hit the second case
+		if selected_case == 0 {
+			c1_selected = true
+		} else if selected_case == 1 {
+			c2_selected = true
+		}
+		if c1_selected && c2_selected {
+			break
+		}
+
+	}
+
+}
+
+// Same as above but swap the case order to make sure it works symmetrically i.e. the
+// implementation doesn't have the same problem in the opposite order.
+func TestSelectLivenessOrder2(t *testing.T) {
+	c1 := channel.NewChannelRef[uint64](uint64(0))
+	c2 := channel.NewChannelRef[uint64](uint64(1))
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
+
+	c1.Close()
+	c2.Send(0)
+	c1_selected := false
+	c2_selected := false
+	for {
+		selected_case := channel.TwoCaseSelect(&case_2, &case_1)
+		// Make sure we eventually hit the second case
+		if selected_case == 0 {
+			c1_selected = true
+		} else if selected_case == 1 {
+			c2_selected = true
+		}
+		if c1_selected && c2_selected {
+			break
+		}
+
+	}
+
+}
+
+// Make sure if we keep selecting and 1 case is immediately selectable we still can choose a case
+// that eventually becomes selectable.
+func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
+	c1 := channel.NewChannelRef[uint64](uint64(0))
+	c2 := channel.NewChannelRef[uint64](uint64(0))
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewRecvCase(c2)
+
+	c1.Close()
+	c1_selected := false
+	c2_selected := false
+	go func() {
+		for {
+			selected_case := channel.TwoCaseSelect(&case_2, &case_1)
+			// Make sure we eventually hit the second case
+			if selected_case == 0 {
+				c1_selected = true
+			} else if selected_case == 1 {
+				c2_selected = true
+			}
+			if c1_selected && c2_selected {
+				break
+			}
+		}
+	}()
+	time.Sleep(time.Millisecond * 10)
+	c2.Send(0)
+
 }
