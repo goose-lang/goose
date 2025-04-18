@@ -26,64 +26,64 @@ Definition Log : go_type := structT [
 (* go: log.go:25:6 *)
 Definition intToBlock : val :=
   rec: "intToBlock" "a" :=
-    exception_do (let: "a" := (ref_ty uint64T "a") in
-    let: "b" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (slice.make2 byteT disk.BlockSize) in
-    do:  ("b" <-[sliceT] "$r0");;;
-    do:  (let: "$a0" := (![sliceT] "b") in
-    let: "$a1" := (![uint64T] "a") in
+    exception_do (let: "a" := (alloc "a") in
+    let: "b" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (slice.make2 #byteT disk.BlockSize) in
+    do:  ("b" <-[#sliceT] "$r0");;;
+    do:  (let: "$a0" := (![#sliceT] "b") in
+    let: "$a1" := (![#uint64T] "a") in
     (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
-    return: (![sliceT] "b")).
+    return: (![#sliceT] "b")).
 
 (* go: log.go:31:6 *)
 Definition blockToInt : val :=
   rec: "blockToInt" "v" :=
-    exception_do (let: "v" := (ref_ty sliceT "v") in
-    let: "a" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "v") in
+    exception_do (let: "v" := (alloc "v") in
+    let: "a" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (let: "$a0" := (![#sliceT] "v") in
     (func_call #primitive #"UInt64Get"%go) "$a0") in
-    do:  ("a" <-[uint64T] "$r0");;;
-    return: (![uint64T] "a")).
+    do:  ("a" <-[#uint64T] "$r0");;;
+    return: (![#uint64T] "a")).
 
 (* New initializes a fresh log
 
    go: log.go:37:6 *)
 Definition New : val :=
   rec: "New" <> :=
-    exception_do (let: "d" := (ref_ty disk.Disk (zero_val disk.Disk)) in
+    exception_do (let: "d" := (alloc (type.zero_val #disk.Disk)) in
     let: "$r0" := ((func_call #disk #"Get"%go) #()) in
-    do:  ("d" <-[disk.Disk] "$r0");;;
-    let: "diskSize" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((interface.get #"Size"%go (![disk.Disk] "d")) #()) in
-    do:  ("diskSize" <-[uint64T] "$r0");;;
-    (if: (![uint64T] "diskSize") ≤ logLength
+    do:  ("d" <-[#disk.Disk] "$r0");;;
+    let: "diskSize" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := ((interface.get #"Size"%go (![#disk.Disk] "d")) #()) in
+    do:  ("diskSize" <-[#uint64T] "$r0");;;
+    (if: (![#uint64T] "diskSize") ≤ logLength
     then
       do:  (let: "$a0" := (interface.make #""%go #"string"%go #"disk is too small to host log"%go) in
       Panic "$a0")
     else do:  #());;;
-    let: "cache" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
-    let: "$r0" := (map.make uint64T sliceT #()) in
-    do:  ("cache" <-[mapT uint64T sliceT] "$r0");;;
-    let: "header" := (ref_ty sliceT (zero_val sliceT)) in
+    let: "cache" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "$r0" := (map.make #uint64T #sliceT) in
+    do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
+    let: "header" := (alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
-    do:  ("header" <-[sliceT] "$r0");;;
+    do:  ("header" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    let: "$a1" := (![sliceT] "header") in
-    (interface.get #"Write"%go (![disk.Disk] "d")) "$a0" "$a1");;;
-    let: "lengthPtr" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
-    do:  ("lengthPtr" <-[ptrT] "$r0");;;
+    let: "$a1" := (![#sliceT] "header") in
+    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1");;;
+    let: "lengthPtr" := (alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (alloc (type.zero_val #uint64T)) in
+    do:  ("lengthPtr" <-[#ptrT] "$r0");;;
     let: "$r0" := #(W64 0) in
-    do:  ((![ptrT] "lengthPtr") <-[uint64T] "$r0");;;
-    let: "l" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
-    do:  ("l" <-[ptrT] "$r0");;;
-    return: (let: "$d" := (![disk.Disk] "d") in
-     let: "$cache" := (![mapT uint64T sliceT] "cache") in
-     let: "$length" := (![ptrT] "lengthPtr") in
-     let: "$l" := (![ptrT] "l") in
-     struct.make Log [{
+    do:  ((![#ptrT] "lengthPtr") <-[#uint64T] "$r0");;;
+    let: "l" := (alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    do:  ("l" <-[#ptrT] "$r0");;;
+    return: (let: "$d" := (![#disk.Disk] "d") in
+     let: "$cache" := (![#(mapT uint64T sliceT)] "cache") in
+     let: "$length" := (![#ptrT] "lengthPtr") in
+     let: "$l" := (![#ptrT] "l") in
+     struct.make #Log [{
        "d" ::= "$d";
        "l" ::= "$l";
        "cache" ::= "$cache";
@@ -93,14 +93,14 @@ Definition New : val :=
 (* go: log.go:52:14 *)
 Definition Log__lock : val :=
   rec: "Log__lock" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
+    exception_do (let: "l" := (alloc "l") in
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #())).
 
 (* go: log.go:56:14 *)
 Definition Log__unlock : val :=
   rec: "Log__unlock" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![ptrT] (struct.field_ref Log "l" "l"))) #())).
+    exception_do (let: "l" := (alloc "l") in
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #())).
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -109,17 +109,17 @@ Definition Log__unlock : val :=
    go: log.go:63:14 *)
 Definition Log__BeginTxn : val :=
   rec: "Log__BeginTxn" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
-    let: "length" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
-    do:  ("length" <-[uint64T] "$r0");;;
-    (if: (![uint64T] "length") = #(W64 0)
+    exception_do (let: "l" := (alloc "l") in
+    do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
+    let: "length" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #Log #"length"%go "l"))) in
+    do:  ("length" <-[#uint64T] "$r0");;;
+    (if: (![#uint64T] "length") = #(W64 0)
     then
-      do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
+      do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
       return: (#true)
     else do:  #());;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
     return: (#false)).
 
 (* Read from the logical disk.
@@ -129,141 +129,141 @@ Definition Log__BeginTxn : val :=
    go: log.go:77:14 *)
 Definition Log__Read : val :=
   rec: "Log__Read" "l" "a" :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
-    let: "ok" := (ref_ty boolT (zero_val boolT)) in
-    let: "v" := (ref_ty sliceT (zero_val sliceT)) in
-    let: ("$ret0", "$ret1") := (map.get (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a")) in
+    exception_do (let: "l" := (alloc "l") in
+    let: "a" := (alloc "a") in
+    do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
+    let: "ok" := (alloc (type.zero_val #boolT)) in
+    let: "v" := (alloc (type.zero_val #sliceT)) in
+    let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
-    do:  ("v" <-[sliceT] "$r0");;;
-    do:  ("ok" <-[boolT] "$r1");;;
-    (if: ![boolT] "ok"
+    do:  ("v" <-[#sliceT] "$r0");;;
+    do:  ("ok" <-[#boolT] "$r1");;;
+    (if: ![#boolT] "ok"
     then
-      do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
-      return: (![sliceT] "v")
+      do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
+      return: (![#sliceT] "v")
     else do:  #());;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
-    let: "dv" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := (logLength + (![uint64T] "a")) in
-    (interface.get #"Read"%go (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0") in
-    do:  ("dv" <-[sliceT] "$r0");;;
-    return: (![sliceT] "dv")).
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
+    let: "dv" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (let: "$a0" := (logLength + (![#uint64T] "a")) in
+    (interface.get #"Read"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0") in
+    do:  ("dv" <-[#sliceT] "$r0");;;
+    return: (![#sliceT] "dv")).
 
 (* go: log.go:90:14 *)
 Definition Log__Size : val :=
   rec: "Log__Size" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    let: "sz" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := ((interface.get #"Size"%go (![disk.Disk] (struct.field_ref Log "d" "l"))) #()) in
-    do:  ("sz" <-[uint64T] "$r0");;;
-    return: ((![uint64T] "sz") - logLength)).
+    exception_do (let: "l" := (alloc "l") in
+    let: "sz" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := ((interface.get #"Size"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) #()) in
+    do:  ("sz" <-[#uint64T] "$r0");;;
+    return: ((![#uint64T] "sz") - logLength)).
 
 (* Write to the disk through the log.
 
    go: log.go:97:14 *)
 Definition Log__Write : val :=
   rec: "Log__Write" "l" "a" "v" :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    let: "v" := (ref_ty sliceT "v") in
-    let: "a" := (ref_ty uint64T "a") in
-    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
-    let: "length" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
-    do:  ("length" <-[uint64T] "$r0");;;
-    (if: (![uint64T] "length") ≥ MaxTxnWrites
+    exception_do (let: "l" := (alloc "l") in
+    let: "v" := (alloc "v") in
+    let: "a" := (alloc "a") in
+    do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
+    let: "length" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #Log #"length"%go "l"))) in
+    do:  ("length" <-[#uint64T] "$r0");;;
+    (if: (![#uint64T] "length") ≥ MaxTxnWrites
     then
       do:  (let: "$a0" := (interface.make #""%go #"string"%go #"transaction is at capacity"%go) in
       Panic "$a0")
     else do:  #());;;
-    let: "aBlock" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := (![uint64T] "a") in
+    let: "aBlock" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (let: "$a0" := (![#uint64T] "a") in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
-    do:  ("aBlock" <-[sliceT] "$r0");;;
-    let: "nextAddr" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (#(W64 1) + (#(W64 2) * (![uint64T] "length"))) in
-    do:  ("nextAddr" <-[uint64T] "$r0");;;
-    do:  (let: "$a0" := (![uint64T] "nextAddr") in
-    let: "$a1" := (![sliceT] "aBlock") in
-    (interface.get #"Write"%go (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
-    do:  (let: "$a0" := ((![uint64T] "nextAddr") + #(W64 1)) in
-    let: "$a1" := (![sliceT] "v") in
-    (interface.get #"Write"%go (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1");;;
-    let: "$r0" := (![sliceT] "v") in
-    do:  (map.insert (![mapT uint64T sliceT] (struct.field_ref Log "cache" "l")) (![uint64T] "a") "$r0");;;
-    let: "$r0" := ((![uint64T] "length") + #(W64 1)) in
-    do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ("aBlock" <-[#sliceT] "$r0");;;
+    let: "nextAddr" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (#(W64 1) + (#(W64 2) * (![#uint64T] "length"))) in
+    do:  ("nextAddr" <-[#uint64T] "$r0");;;
+    do:  (let: "$a0" := (![#uint64T] "nextAddr") in
+    let: "$a1" := (![#sliceT] "aBlock") in
+    (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1");;;
+    do:  (let: "$a0" := ((![#uint64T] "nextAddr") + #(W64 1)) in
+    let: "$a1" := (![#sliceT] "v") in
+    (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1");;;
+    let: "$r0" := (![#sliceT] "v") in
+    do:  (map.insert (![#(mapT uint64T sliceT)] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a") "$r0");;;
+    let: "$r0" := ((![#uint64T] "length") + #(W64 1)) in
+    do:  ((![#ptrT] (struct.field_ref #Log #"length"%go "l")) <-[#uint64T] "$r0");;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #())).
 
 (* Commit the current transaction.
 
    go: log.go:113:14 *)
 Definition Log__Commit : val :=
   rec: "Log__Commit" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
-    let: "length" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
-    do:  ("length" <-[uint64T] "$r0");;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #());;;
-    let: "header" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := (![uint64T] "length") in
+    exception_do (let: "l" := (alloc "l") in
+    do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
+    let: "length" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #Log #"length"%go "l"))) in
+    do:  ("length" <-[#uint64T] "$r0");;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
+    let: "header" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (let: "$a0" := (![#uint64T] "length") in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
-    do:  ("header" <-[sliceT] "$r0");;;
+    do:  ("header" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    let: "$a1" := (![sliceT] "header") in
-    (interface.get #"Write"%go (![disk.Disk] (struct.field_ref Log "d" "l"))) "$a0" "$a1")).
+    let: "$a1" := (![#sliceT] "header") in
+    (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1")).
 
 (* go: log.go:122:6 *)
 Definition getLogEntry : val :=
   rec: "getLogEntry" "d" "logOffset" :=
-    exception_do (let: "logOffset" := (ref_ty uint64T "logOffset") in
-    let: "d" := (ref_ty disk.Disk "d") in
-    let: "diskAddr" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (#(W64 1) + (#(W64 2) * (![uint64T] "logOffset"))) in
-    do:  ("diskAddr" <-[uint64T] "$r0");;;
-    let: "aBlock" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := (![uint64T] "diskAddr") in
-    (interface.get #"Read"%go (![disk.Disk] "d")) "$a0") in
-    do:  ("aBlock" <-[sliceT] "$r0");;;
-    let: "a" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "aBlock") in
+    exception_do (let: "logOffset" := (alloc "logOffset") in
+    let: "d" := (alloc "d") in
+    let: "diskAddr" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (#(W64 1) + (#(W64 2) * (![#uint64T] "logOffset"))) in
+    do:  ("diskAddr" <-[#uint64T] "$r0");;;
+    let: "aBlock" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (let: "$a0" := (![#uint64T] "diskAddr") in
+    (interface.get #"Read"%go (![#disk.Disk] "d")) "$a0") in
+    do:  ("aBlock" <-[#sliceT] "$r0");;;
+    let: "a" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (let: "$a0" := (![#sliceT] "aBlock") in
     (func_call #wal.awol #"blockToInt"%go) "$a0") in
-    do:  ("a" <-[uint64T] "$r0");;;
-    let: "v" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (let: "$a0" := ((![uint64T] "diskAddr") + #(W64 1)) in
-    (interface.get #"Read"%go (![disk.Disk] "d")) "$a0") in
-    do:  ("v" <-[sliceT] "$r0");;;
-    return: (![uint64T] "a", ![sliceT] "v")).
+    do:  ("a" <-[#uint64T] "$r0");;;
+    let: "v" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (let: "$a0" := ((![#uint64T] "diskAddr") + #(W64 1)) in
+    (interface.get #"Read"%go (![#disk.Disk] "d")) "$a0") in
+    do:  ("v" <-[#sliceT] "$r0");;;
+    return: (![#uint64T] "a", ![#sliceT] "v")).
 
 (* applyLog assumes we are running sequentially
 
    go: log.go:131:6 *)
 Definition applyLog : val :=
   rec: "applyLog" "d" "length" :=
-    exception_do (let: "length" := (ref_ty uint64T "length") in
-    let: "d" := (ref_ty disk.Disk "d") in
-    (let: "i" := (ref_ty uint64T (zero_val uint64T)) in
+    exception_do (let: "length" := (alloc "length") in
+    let: "d" := (alloc "d") in
+    (let: "i" := (alloc (type.zero_val #uint64T)) in
     let: "$r0" := #(W64 0) in
-    do:  ("i" <-[uint64T] "$r0");;;
+    do:  ("i" <-[#uint64T] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      (if: (![uint64T] "i") < (![uint64T] "length")
+      (if: (![#uint64T] "i") < (![#uint64T] "length")
       then
-        let: "v" := (ref_ty sliceT (zero_val sliceT)) in
-        let: "a" := (ref_ty uint64T (zero_val uint64T)) in
-        let: ("$ret0", "$ret1") := (let: "$a0" := (![disk.Disk] "d") in
-        let: "$a1" := (![uint64T] "i") in
+        let: "v" := (alloc (type.zero_val #sliceT)) in
+        let: "a" := (alloc (type.zero_val #uint64T)) in
+        let: ("$ret0", "$ret1") := (let: "$a0" := (![#disk.Disk] "d") in
+        let: "$a1" := (![#uint64T] "i") in
         (func_call #wal.awol #"getLogEntry"%go) "$a0" "$a1") in
         let: "$r0" := "$ret0" in
         let: "$r1" := "$ret1" in
-        do:  ("a" <-[uint64T] "$r0");;;
-        do:  ("v" <-[sliceT] "$r1");;;
-        do:  (let: "$a0" := (logLength + (![uint64T] "a")) in
-        let: "$a1" := (![sliceT] "v") in
-        (interface.get #"Write"%go (![disk.Disk] "d")) "$a0" "$a1");;;
-        let: "$r0" := ((![uint64T] "i") + #(W64 1)) in
-        do:  ("i" <-[uint64T] "$r0");;;
+        do:  ("a" <-[#uint64T] "$r0");;;
+        do:  ("v" <-[#sliceT] "$r1");;;
+        do:  (let: "$a0" := (logLength + (![#uint64T] "a")) in
+        let: "$a1" := (![#sliceT] "v") in
+        (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1");;;
+        let: "$r0" := ((![#uint64T] "i") + #(W64 1)) in
+        do:  ("i" <-[#uint64T] "$r0");;;
         continue: #()
       else do:  #());;;
       break: #()))).
@@ -271,14 +271,14 @@ Definition applyLog : val :=
 (* go: log.go:142:6 *)
 Definition clearLog : val :=
   rec: "clearLog" "d" :=
-    exception_do (let: "d" := (ref_ty disk.Disk "d") in
-    let: "header" := (ref_ty sliceT (zero_val sliceT)) in
+    exception_do (let: "d" := (alloc "d") in
+    let: "header" := (alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
-    do:  ("header" <-[sliceT] "$r0");;;
+    do:  ("header" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    let: "$a1" := (![sliceT] "header") in
-    (interface.get #"Write"%go (![disk.Disk] "d")) "$a0" "$a1")).
+    let: "$a1" := (![#sliceT] "header") in
+    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1")).
 
 (* Apply all the committed transactions.
 
@@ -287,57 +287,57 @@ Definition clearLog : val :=
    go: log.go:150:14 *)
 Definition Log__Apply : val :=
   rec: "Log__Apply" "l" <> :=
-    exception_do (let: "l" := (ref_ty Log "l") in
-    do:  ((method_call #wal.awol #"Log" #"lock" (![Log] "l")) #());;;
-    let: "length" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (![uint64T] (![ptrT] (struct.field_ref Log "length" "l"))) in
-    do:  ("length" <-[uint64T] "$r0");;;
-    do:  (let: "$a0" := (![disk.Disk] (struct.field_ref Log "d" "l")) in
-    let: "$a1" := (![uint64T] "length") in
+    exception_do (let: "l" := (alloc "l") in
+    do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
+    let: "length" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #Log #"length"%go "l"))) in
+    do:  ("length" <-[#uint64T] "$r0");;;
+    do:  (let: "$a0" := (![#disk.Disk] (struct.field_ref #Log #"d"%go "l")) in
+    let: "$a1" := (![#uint64T] "length") in
     (func_call #wal.awol #"applyLog"%go) "$a0" "$a1");;;
-    do:  (let: "$a0" := (![disk.Disk] (struct.field_ref Log "d" "l")) in
+    do:  (let: "$a0" := (![#disk.Disk] (struct.field_ref #Log #"d"%go "l")) in
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "$r0" := #(W64 0) in
-    do:  ((![ptrT] (struct.field_ref Log "length" "l")) <-[uint64T] "$r0");;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![Log] "l")) #())).
+    do:  ((![#ptrT] (struct.field_ref #Log #"length"%go "l")) <-[#uint64T] "$r0");;;
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #())).
 
 (* Open recovers the log following a crash or shutdown
 
    go: log.go:163:6 *)
 Definition Open : val :=
   rec: "Open" <> :=
-    exception_do (let: "d" := (ref_ty disk.Disk (zero_val disk.Disk)) in
+    exception_do (let: "d" := (alloc (type.zero_val #disk.Disk)) in
     let: "$r0" := ((func_call #disk #"Get"%go) #()) in
-    do:  ("d" <-[disk.Disk] "$r0");;;
-    let: "header" := (ref_ty sliceT (zero_val sliceT)) in
+    do:  ("d" <-[#disk.Disk] "$r0");;;
+    let: "header" := (alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
-    (interface.get #"Read"%go (![disk.Disk] "d")) "$a0") in
-    do:  ("header" <-[sliceT] "$r0");;;
-    let: "length" := (ref_ty uint64T (zero_val uint64T)) in
-    let: "$r0" := (let: "$a0" := (![sliceT] "header") in
+    (interface.get #"Read"%go (![#disk.Disk] "d")) "$a0") in
+    do:  ("header" <-[#sliceT] "$r0");;;
+    let: "length" := (alloc (type.zero_val #uint64T)) in
+    let: "$r0" := (let: "$a0" := (![#sliceT] "header") in
     (func_call #wal.awol #"blockToInt"%go) "$a0") in
-    do:  ("length" <-[uint64T] "$r0");;;
-    do:  (let: "$a0" := (![disk.Disk] "d") in
-    let: "$a1" := (![uint64T] "length") in
+    do:  ("length" <-[#uint64T] "$r0");;;
+    do:  (let: "$a0" := (![#disk.Disk] "d") in
+    let: "$a1" := (![#uint64T] "length") in
     (func_call #wal.awol #"applyLog"%go) "$a0" "$a1");;;
-    do:  (let: "$a0" := (![disk.Disk] "d") in
+    do:  (let: "$a0" := (![#disk.Disk] "d") in
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
-    let: "cache" := (ref_ty (mapT uint64T sliceT) (zero_val (mapT uint64T sliceT))) in
-    let: "$r0" := (map.make uint64T sliceT #()) in
-    do:  ("cache" <-[mapT uint64T sliceT] "$r0");;;
-    let: "lengthPtr" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty uint64T (zero_val uint64T)) in
-    do:  ("lengthPtr" <-[ptrT] "$r0");;;
+    let: "cache" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "$r0" := (map.make #uint64T #sliceT) in
+    do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
+    let: "lengthPtr" := (alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (alloc (type.zero_val #uint64T)) in
+    do:  ("lengthPtr" <-[#ptrT] "$r0");;;
     let: "$r0" := #(W64 0) in
-    do:  ((![ptrT] "lengthPtr") <-[uint64T] "$r0");;;
-    let: "l" := (ref_ty ptrT (zero_val ptrT)) in
-    let: "$r0" := (ref_ty sync.Mutex (zero_val sync.Mutex)) in
-    do:  ("l" <-[ptrT] "$r0");;;
-    return: (let: "$d" := (![disk.Disk] "d") in
-     let: "$cache" := (![mapT uint64T sliceT] "cache") in
-     let: "$length" := (![ptrT] "lengthPtr") in
-     let: "$l" := (![ptrT] "l") in
-     struct.make Log [{
+    do:  ((![#ptrT] "lengthPtr") <-[#uint64T] "$r0");;;
+    let: "l" := (alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    do:  ("l" <-[#ptrT] "$r0");;;
+    return: (let: "$d" := (![#disk.Disk] "d") in
+     let: "$cache" := (![#(mapT uint64T sliceT)] "cache") in
+     let: "$length" := (![#ptrT] "lengthPtr") in
+     let: "$l" := (![#ptrT] "l") in
+     struct.make #Log [{
        "d" ::= "$d";
        "l" ::= "$l";
        "cache" ::= "$cache";
@@ -349,21 +349,21 @@ Definition vars' : list (go_string * go_type) := [].
 Definition functions' : list (go_string * val) := [("intToBlock"%go, intToBlock); ("blockToInt"%go, blockToInt); ("New"%go, New); ("getLogEntry"%go, getLogEntry); ("applyLog"%go, applyLog); ("clearLog"%go, clearLog); ("Open"%go, Open)].
 
 Definition msets' : list (go_string * (list (go_string * val))) := [("Log"%go, [("Apply"%go, Log__Apply); ("BeginTxn"%go, Log__BeginTxn); ("Commit"%go, Log__Commit); ("Read"%go, Log__Read); ("Size"%go, Log__Size); ("Write"%go, Log__Write); ("lock"%go, Log__lock); ("unlock"%go, Log__unlock)]); ("Log'ptr"%go, [("Apply"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"Apply" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Apply" (![#Log] "$recvAddr")
                  )%V); ("BeginTxn"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"BeginTxn" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"BeginTxn" (![#Log] "$recvAddr")
                  )%V); ("Commit"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"Commit" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Commit" (![#Log] "$recvAddr")
                  )%V); ("Read"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"Read" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Read" (![#Log] "$recvAddr")
                  )%V); ("Size"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"Size" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Size" (![#Log] "$recvAddr")
                  )%V); ("Write"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"Write" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"Write" (![#Log] "$recvAddr")
                  )%V); ("lock"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"lock" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"lock" (![#Log] "$recvAddr")
                  )%V); ("unlock"%go, (λ: "$recvAddr",
-                 method_call #wal.awol #"Log" #"unlock" (![Log] "$recvAddr")
+                 method_call #wal.awol #"Log" #"unlock" (![#Log] "$recvAddr")
                  )%V)])].
 
 #[global] Instance info' : PkgInfo wal.awol :=

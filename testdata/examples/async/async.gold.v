@@ -12,20 +12,20 @@ Section code.
 (* go: async.go:6:6 *)
 Definition TakesDisk : val :=
   rec: "TakesDisk" "d" :=
-    exception_do (let: "d" := (ref_ty disk.Disk "d") in
+    exception_do (let: "d" := (alloc "d") in
     do:  #()).
 
 (* go: async.go:8:6 *)
 Definition UseDisk : val :=
   rec: "UseDisk" "d" :=
-    exception_do (let: "d" := (ref_ty disk.Disk "d") in
-    let: "v" := (ref_ty sliceT (zero_val sliceT)) in
-    let: "$r0" := (slice.make2 byteT #(W64 4096)) in
-    do:  ("v" <-[sliceT] "$r0");;;
+    exception_do (let: "d" := (alloc "d") in
+    let: "v" := (alloc (type.zero_val #sliceT)) in
+    let: "$r0" := (slice.make2 #byteT #(W64 4096)) in
+    do:  ("v" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    let: "$a1" := (![sliceT] "v") in
-    (interface.get #"Write"%go (![disk.Disk] "d")) "$a0" "$a1");;;
-    do:  ((interface.get #"Barrier"%go (![disk.Disk] "d")) #())).
+    let: "$a1" := (![#sliceT] "v") in
+    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1");;;
+    do:  ((interface.get #"Barrier"%go (![#disk.Disk] "d")) #())).
 
 Definition vars' : list (go_string * go_type) := [].
 
