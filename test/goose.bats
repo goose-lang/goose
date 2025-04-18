@@ -52,7 +52,7 @@ assert_file_not_exist() {
 @test "goose current directory" {
     goose -out Goose
     run cat "$OUT"/m.v
-    assert_output --partial "Require Export New.code.github_com.tchajed.marshal."
+    assert_output --partial "Require Import New.code.github_com.tchajed.marshal."
     assert_output --partial "Section code."
 }
 

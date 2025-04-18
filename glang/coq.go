@@ -1018,7 +1018,7 @@ func ImportToPath(pkgPath string) string {
 
 func (decl ImportDecl) CoqDecl() string {
 	coqImportQualid := strings.ReplaceAll(ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(decl.Path), "/", ".")
-	return fmt.Sprintf("Require Export New.code.%s.", coqImportQualid)
+	return fmt.Sprintf("Require Import New.code.%s.", coqImportQualid)
 }
 
 func (decl ImportDecl) DefName() (bool, string) {
