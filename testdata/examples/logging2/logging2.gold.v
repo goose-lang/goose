@@ -39,10 +39,10 @@ Definition Log__writeHdr : val :=
     do:  ("hdr" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := (![#sliceT] "hdr") in
     let: "$a1" := (![#uint64T] "len") in
-    (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
+    (func_call #primitive.primitive #"UInt64Put"%go) "$a0" "$a1");;;
     do:  (let: "$a0" := LOGCOMMIT in
     let: "$a1" := (![#sliceT] "hdr") in
-    (func_call #disk #"Write"%go) "$a0" "$a1")).
+    (func_call #disk.disk #"Write"%go) "$a0" "$a1")).
 
 (* go: logging2.go:31:6 *)
 Definition Init : val :=
@@ -76,11 +76,11 @@ Definition Log__readHdr : val :=
     exception_do (let: "log" := (mem.alloc "log") in
     let: "hdr" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := LOGCOMMIT in
-    (func_call #disk #"Read"%go) "$a0") in
+    (func_call #disk.disk #"Read"%go) "$a0") in
     do:  ("hdr" <-[#sliceT] "$r0");;;
     let: "disklen" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "hdr") in
-    (func_call #primitive #"UInt64Get"%go) "$a0") in
+    (func_call #primitive.primitive #"UInt64Get"%go) "$a0") in
     do:  ("disklen" <-[#uint64T] "$r0");;;
     return: (![#uint64T] "disklen")).
 
@@ -98,7 +98,7 @@ Definition Log__readBlocks : val :=
     (for: (λ: <>, (![#uint64T] "i") < (![#uint64T] "len")); (λ: <>, do:  ("i" <-[#uint64T] ((![#uint64T] "i") + #(W64 1)))) := λ: <>,
       let: "blk" := (mem.alloc (type.zero_val #sliceT)) in
       let: "$r0" := (let: "$a0" := (LOGSTART + (![#uint64T] "i")) in
-      (func_call #disk #"Read"%go) "$a0") in
+      (func_call #disk.disk #"Read"%go) "$a0") in
       do:  ("blk" <-[#sliceT] "$r0");;;
       let: "$r0" := (let: "$a0" := (![#sliceT] "blks") in
       let: "$a1" := ((let: "$sl0" := (![#sliceT] "blk") in
@@ -233,7 +233,7 @@ Definition Log__writeBlocks : val :=
       do:  ("bk" <-[#sliceT] "$r0");;;
       do:  (let: "$a0" := ((![#uint64T] "pos") + (![#uint64T] "i")) in
       let: "$a1" := (![#sliceT] "bk") in
-      (func_call #disk #"Write"%go) "$a0" "$a1")))).
+      (func_call #disk.disk #"Write"%go) "$a0" "$a1")))).
 
 (* go: logging2.go:123:16 *)
 Definition Log__diskAppend : val :=
@@ -343,7 +343,7 @@ Definition Txn__Read : val :=
     then return: (![#sliceT] "v")
     else
       return: (let: "$a0" := ((![#uint64T] "addr") + LOGEND) in
-       (func_call #disk #"Read"%go) "$a0"))).
+       (func_call #disk.disk #"Read"%go) "$a0"))).
 
 (* go: txn.go:47:16 *)
 Definition Txn__Commit : val :=

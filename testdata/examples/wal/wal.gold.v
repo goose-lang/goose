@@ -32,7 +32,7 @@ Definition intToBlock : val :=
     do:  ("b" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := (![#sliceT] "b") in
     let: "$a1" := (![#uint64T] "a") in
-    (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
+    (func_call #primitive.primitive #"UInt64Put"%go) "$a0" "$a1");;;
     return: (![#sliceT] "b")).
 
 (* go: log.go:31:6 *)
@@ -41,7 +41,7 @@ Definition blockToInt : val :=
     exception_do (let: "v" := (mem.alloc "v") in
     let: "a" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "v") in
-    (func_call #primitive #"UInt64Get"%go) "$a0") in
+    (func_call #primitive.primitive #"UInt64Get"%go) "$a0") in
     do:  ("a" <-[#uint64T] "$r0");;;
     return: (![#uint64T] "a")).
 
@@ -51,7 +51,7 @@ Definition blockToInt : val :=
 Definition New : val :=
   rec: "New" <> :=
     exception_do (let: "d" := (mem.alloc (type.zero_val #disk.Disk)) in
-    let: "$r0" := ((func_call #disk #"Get"%go) #()) in
+    let: "$r0" := ((func_call #disk.disk #"Get"%go) #()) in
     do:  ("d" <-[#disk.Disk] "$r0");;;
     let: "diskSize" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := ((interface.get #"Size"%go (![#disk.Disk] "d")) #()) in
@@ -307,7 +307,7 @@ Definition Log__Apply : val :=
 Definition Open : val :=
   rec: "Open" <> :=
     exception_do (let: "d" := (mem.alloc (type.zero_val #disk.Disk)) in
-    let: "$r0" := ((func_call #disk #"Get"%go) #()) in
+    let: "$r0" := ((func_call #disk.disk #"Get"%go) #()) in
     do:  ("d" <-[#disk.Disk] "$r0");;;
     let: "header" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
