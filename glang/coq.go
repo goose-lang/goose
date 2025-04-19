@@ -700,7 +700,7 @@ type RefExpr struct {
 }
 
 func (e RefExpr) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("alloc"), e.X).Coq(needs_paren)
+	return NewCallExpr(GallinaIdent("mem.alloc"), e.X).Coq(needs_paren)
 }
 
 type StoreStmt struct {

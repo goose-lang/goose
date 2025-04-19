@@ -28,11 +28,11 @@ Definition Table : go_type := structT [
    go: simpledb.go:32:6 *)
 Definition CreateTable : val :=
   rec: "CreateTable" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "index" := (mem.alloc (type.zero_val #(mapT uint64T uint64T))) in
     let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
-    let: "f" := (alloc (type.zero_val #fileT)) in
+    let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
     (func_call #filesys #"Create"%go) "$a0" "$a1") in
@@ -42,7 +42,7 @@ Definition CreateTable : val :=
     do:  "$r1";;;
     do:  (let: "$a0" := (![#fileT] "f") in
     (func_call #filesys #"Close"%go) "$a0");;;
-    let: "f2" := (alloc (type.zero_val #fileT)) in
+    let: "f2" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
     (func_call #filesys #"Open"%go) "$a0" "$a1") in
@@ -69,12 +69,12 @@ Definition Entry : go_type := structT [
    go: simpledb.go:52:6 *)
 Definition DecodeUInt64 : val :=
   rec: "DecodeUInt64" "p" :=
-    exception_do (let: "p" := (alloc "p") in
+    exception_do (let: "p" := (mem.alloc "p") in
     (if: int_lt (let: "$a0" := (![#sliceT] "p") in
     slice.len "$a0") #(W64 8)
     then return: (#(W64 0), #(W64 0))
     else do:  #());;;
-    let: "n" := (alloc (type.zero_val #uint64T)) in
+    let: "n" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "p") in
     (func_call #primitive #"UInt64Get"%go) "$a0") in
     do:  ("n" <-[#uint64T] "$r0");;;
@@ -85,9 +85,9 @@ Definition DecodeUInt64 : val :=
    go: simpledb.go:61:6 *)
 Definition DecodeEntry : val :=
   rec: "DecodeEntry" "data" :=
-    exception_do (let: "data" := (alloc "data") in
-    let: "l1" := (alloc (type.zero_val #uint64T)) in
-    let: "key" := (alloc (type.zero_val #uint64T)) in
+    exception_do (let: "data" := (mem.alloc "data") in
+    let: "l1" := (mem.alloc (type.zero_val #uint64T)) in
+    let: "key" := (mem.alloc (type.zero_val #uint64T)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![#sliceT] "data") in
     (func_call #simpledb.simpledb #"DecodeUInt64"%go) "$a0") in
     let: "$r0" := "$ret0" in
@@ -103,8 +103,8 @@ Definition DecodeEntry : val :=
          "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
-    let: "l2" := (alloc (type.zero_val #uint64T)) in
-    let: "valueLen" := (alloc (type.zero_val #uint64T)) in
+    let: "l2" := (mem.alloc (type.zero_val #uint64T)) in
+    let: "valueLen" := (mem.alloc (type.zero_val #uint64T)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (let: "$s" := (![#sliceT] "data") in
     slice.slice #byteT "$s" (![#uint64T] "l1") (slice.len "$s")) in
     (func_call #simpledb.simpledb #"DecodeUInt64"%go) "$a0") in
@@ -131,7 +131,7 @@ Definition DecodeEntry : val :=
          "Value" ::= "$Value"
        }], #(W64 0))
     else do:  #());;;
-    let: "value" := (alloc (type.zero_val #sliceT)) in
+    let: "value" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$s" := (![#sliceT] "data") in
     slice.slice #byteT "$s" ((![#uint64T] "l1") + (![#uint64T] "l2")) (((![#uint64T] "l1") + (![#uint64T] "l2")) + (![#uint64T] "valueLen"))) in
     do:  ("value" <-[#sliceT] "$r0");;;
@@ -152,9 +152,9 @@ Definition lazyFileBuf : go_type := structT [
    go: simpledb.go:86:6 *)
 Definition readTableIndex : val :=
   rec: "readTableIndex" "f" "index" :=
-    exception_do (let: "index" := (alloc "index") in
-    let: "f" := (alloc "f") in
-    (let: "buf" := (alloc (type.zero_val #lazyFileBuf)) in
+    exception_do (let: "index" := (mem.alloc "index") in
+    let: "f" := (mem.alloc "f") in
+    (let: "buf" := (mem.alloc (type.zero_val #lazyFileBuf)) in
     let: "$r0" := (let: "$offset" := #(W64 0) in
     let: "$next" := #slice.nil in
     struct.make #lazyFileBuf [{
@@ -163,8 +163,8 @@ Definition readTableIndex : val :=
     }]) in
     do:  ("buf" <-[#lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      let: "l" := (alloc (type.zero_val #uint64T)) in
-      let: "e" := (alloc (type.zero_val #Entry)) in
+      let: "l" := (mem.alloc (type.zero_val #uint64T)) in
+      let: "e" := (mem.alloc (type.zero_val #Entry)) in
       let: ("$ret0", "$ret1") := (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
       (func_call #simpledb.simpledb #"DecodeEntry"%go) "$a0") in
       let: "$r0" := "$ret0" in
@@ -185,7 +185,7 @@ Definition readTableIndex : val :=
         do:  ("buf" <-[#lazyFileBuf] "$r0");;;
         continue: #()
       else
-        let: "p" := (alloc (type.zero_val #sliceT)) in
+        let: "p" := (mem.alloc (type.zero_val #sliceT)) in
         let: "$r0" := (let: "$a0" := (![#fileT] "f") in
         let: "$a1" := ((![#uint64T] (struct.field_ref #lazyFileBuf #"offset"%go "buf")) + (s_to_w64 (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
         slice.len "$a0"))) in
@@ -196,7 +196,7 @@ Definition readTableIndex : val :=
         slice.len "$a0") = #(W64 0)
         then break: #()
         else
-          let: "newBuf" := (alloc (type.zero_val #sliceT)) in
+          let: "newBuf" := (mem.alloc (type.zero_val #sliceT)) in
           let: "$r0" := (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
           let: "$a1" := (![#sliceT] "p") in
           (slice.append #byteT) "$a0" "$a1") in
@@ -215,11 +215,11 @@ Definition readTableIndex : val :=
    go: simpledb.go:111:6 *)
 Definition RecoverTable : val :=
   rec: "RecoverTable" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "index" := (mem.alloc (type.zero_val #(mapT uint64T uint64T))) in
     let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
-    let: "f" := (alloc (type.zero_val #fileT)) in
+    let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
     (func_call #filesys #"Open"%go) "$a0" "$a1") in
@@ -239,42 +239,42 @@ Definition RecoverTable : val :=
    go: simpledb.go:119:6 *)
 Definition CloseTable : val :=
   rec: "CloseTable" "t" :=
-    exception_do (let: "t" := (alloc "t") in
+    exception_do (let: "t" := (mem.alloc "t") in
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #Table #"File"%go "t")) in
     (func_call #filesys #"Close"%go) "$a0")).
 
 (* go: simpledb.go:123:6 *)
 Definition readValue : val :=
   rec: "readValue" "f" "off" :=
-    exception_do (let: "off" := (alloc "off") in
-    let: "f" := (alloc "f") in
-    let: "startBuf" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "off" := (mem.alloc "off") in
+    let: "f" := (mem.alloc "f") in
+    let: "startBuf" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#fileT] "f") in
     let: "$a1" := (![#uint64T] "off") in
     let: "$a2" := #(W64 512) in
     (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("startBuf" <-[#sliceT] "$r0");;;
-    let: "totalBytes" := (alloc (type.zero_val #uint64T)) in
+    let: "totalBytes" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "startBuf") in
     (func_call #primitive #"UInt64Get"%go) "$a0") in
     do:  ("totalBytes" <-[#uint64T] "$r0");;;
-    let: "buf" := (alloc (type.zero_val #sliceT)) in
+    let: "buf" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$s" := (![#sliceT] "startBuf") in
     slice.slice #byteT "$s" #(W64 8) (slice.len "$s")) in
     do:  ("buf" <-[#sliceT] "$r0");;;
-    let: "haveBytes" := (alloc (type.zero_val #uint64T)) in
+    let: "haveBytes" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (s_to_w64 (let: "$a0" := (![#sliceT] "buf") in
     slice.len "$a0")) in
     do:  ("haveBytes" <-[#uint64T] "$r0");;;
     (if: (![#uint64T] "haveBytes") < (![#uint64T] "totalBytes")
     then
-      let: "buf2" := (alloc (type.zero_val #sliceT)) in
+      let: "buf2" := (mem.alloc (type.zero_val #sliceT)) in
       let: "$r0" := (let: "$a0" := (![#fileT] "f") in
       let: "$a1" := ((![#uint64T] "off") + #(W64 512)) in
       let: "$a2" := ((![#uint64T] "totalBytes") - (![#uint64T] "haveBytes")) in
       (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
       do:  ("buf2" <-[#sliceT] "$r0");;;
-      let: "newBuf" := (alloc (type.zero_val #sliceT)) in
+      let: "newBuf" := (mem.alloc (type.zero_val #sliceT)) in
       let: "$r0" := (let: "$a0" := (![#sliceT] "buf") in
       let: "$a1" := (![#sliceT] "buf2") in
       (slice.append #byteT) "$a0" "$a1") in
@@ -287,10 +287,10 @@ Definition readValue : val :=
 (* go: simpledb.go:137:6 *)
 Definition tableRead : val :=
   rec: "tableRead" "t" "k" :=
-    exception_do (let: "k" := (alloc "k") in
-    let: "t" := (alloc "t") in
-    let: "ok" := (alloc (type.zero_val #boolT)) in
-    let: "off" := (alloc (type.zero_val #uint64T)) in
+    exception_do (let: "k" := (mem.alloc "k") in
+    let: "t" := (mem.alloc "t") in
+    let: "ok" := (mem.alloc (type.zero_val #boolT)) in
+    let: "off" := (mem.alloc (type.zero_val #uint64T)) in
     let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T uint64T)] (struct.field_ref #Table #"Index"%go "t")) (![#uint64T] "k")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
@@ -299,7 +299,7 @@ Definition tableRead : val :=
     (if: (~ (![#boolT] "ok"))
     then return: (#slice.nil, #false)
     else do:  #());;;
-    let: "p" := (alloc (type.zero_val #sliceT)) in
+    let: "p" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#fileT] (struct.field_ref #Table #"File"%go "t")) in
     let: "$a1" := (![#uint64T] "off") in
     (func_call #simpledb.simpledb #"readValue"%go) "$a0" "$a1") in
@@ -314,9 +314,9 @@ Definition bufFile : go_type := structT [
 (* go: simpledb.go:151:6 *)
 Definition newBuf : val :=
   rec: "newBuf" "f" :=
-    exception_do (let: "f" := (alloc "f") in
-    let: "buf" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "f" := (mem.alloc "f") in
+    let: "buf" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sliceT)) in
     do:  ("buf" <-[#ptrT] "$r0");;;
     return: (let: "$file" := (![#fileT] "f") in
      let: "$buf" := (![#ptrT] "buf") in
@@ -328,8 +328,8 @@ Definition newBuf : val :=
 (* go: simpledb.go:159:6 *)
 Definition bufFlush : val :=
   rec: "bufFlush" "f" :=
-    exception_do (let: "f" := (alloc "f") in
-    let: "buf" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "f" := (mem.alloc "f") in
+    let: "buf" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (![#sliceT] (![#ptrT] (struct.field_ref #bufFile #"buf"%go "f"))) in
     do:  ("buf" <-[#sliceT] "$r0");;;
     (if: (let: "$a0" := (![#sliceT] "buf") in
@@ -345,12 +345,12 @@ Definition bufFlush : val :=
 (* go: simpledb.go:168:6 *)
 Definition bufAppend : val :=
   rec: "bufAppend" "f" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "f" := (alloc "f") in
-    let: "buf" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "f" := (mem.alloc "f") in
+    let: "buf" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (![#sliceT] (![#ptrT] (struct.field_ref #bufFile #"buf"%go "f"))) in
     do:  ("buf" <-[#sliceT] "$r0");;;
-    let: "buf2" := (alloc (type.zero_val #sliceT)) in
+    let: "buf2" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "buf") in
     let: "$a1" := (![#sliceT] "p") in
     (slice.append #byteT) "$a0" "$a1") in
@@ -361,7 +361,7 @@ Definition bufAppend : val :=
 (* go: simpledb.go:174:6 *)
 Definition bufClose : val :=
   rec: "bufClose" "f" :=
-    exception_do (let: "f" := (alloc "f") in
+    exception_do (let: "f" := (mem.alloc "f") in
     do:  (let: "$a0" := (![#bufFile] "f") in
     (func_call #simpledb.simpledb #"bufFlush"%go) "$a0");;;
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #bufFile #"file"%go "f")) in
@@ -377,11 +377,11 @@ Definition tableWriter : go_type := structT [
 (* go: simpledb.go:186:6 *)
 Definition newTableWriter : val :=
   rec: "newTableWriter" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "index" := (alloc (type.zero_val #(mapT uint64T uint64T))) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "index" := (mem.alloc (type.zero_val #(mapT uint64T uint64T))) in
     let: "$r0" := (map.make #uint64T #uint64T) in
     do:  ("index" <-[#(mapT uint64T uint64T)] "$r0");;;
-    let: "f" := (alloc (type.zero_val #fileT)) in
+    let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
     (func_call #filesys #"Create"%go) "$a0" "$a1") in
@@ -389,12 +389,12 @@ Definition newTableWriter : val :=
     let: "$r1" := "$ret1" in
     do:  ("f" <-[#fileT] "$r0");;;
     do:  "$r1";;;
-    let: "buf" := (alloc (type.zero_val #bufFile)) in
+    let: "buf" := (mem.alloc (type.zero_val #bufFile)) in
     let: "$r0" := (let: "$a0" := (![#fileT] "f") in
     (func_call #simpledb.simpledb #"newBuf"%go) "$a0") in
     do:  ("buf" <-[#bufFile] "$r0");;;
-    let: "off" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #uint64T)) in
+    let: "off" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #uint64T)) in
     do:  ("off" <-[#ptrT] "$r0");;;
     return: (let: "$index" := (![#(mapT uint64T uint64T)] "index") in
      let: "$name" := (![#stringT] "p") in
@@ -410,12 +410,12 @@ Definition newTableWriter : val :=
 (* go: simpledb.go:199:6 *)
 Definition tableWriterAppend : val :=
   rec: "tableWriterAppend" "w" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "w" := (alloc "w") in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "w" := (mem.alloc "w") in
     do:  (let: "$a0" := (![#bufFile] (struct.field_ref #tableWriter #"file"%go "w")) in
     let: "$a1" := (![#sliceT] "p") in
     (func_call #simpledb.simpledb #"bufAppend"%go) "$a0" "$a1");;;
-    let: "off" := (alloc (type.zero_val #uint64T)) in
+    let: "off" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #tableWriter #"offset"%go "w"))) in
     do:  ("off" <-[#uint64T] "$r0");;;
     let: "$r0" := ((![#uint64T] "off") + (s_to_w64 (let: "$a0" := (![#sliceT] "p") in
@@ -425,10 +425,10 @@ Definition tableWriterAppend : val :=
 (* go: simpledb.go:205:6 *)
 Definition tableWriterClose : val :=
   rec: "tableWriterClose" "w" :=
-    exception_do (let: "w" := (alloc "w") in
+    exception_do (let: "w" := (mem.alloc "w") in
     do:  (let: "$a0" := (![#bufFile] (struct.field_ref #tableWriter #"file"%go "w")) in
     (func_call #simpledb.simpledb #"bufClose"%go) "$a0");;;
-    let: "f" := (alloc (type.zero_val #fileT)) in
+    let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] (struct.field_ref #tableWriter #"name"%go "w")) in
     (func_call #filesys #"Open"%go) "$a0" "$a1") in
@@ -445,15 +445,15 @@ Definition tableWriterClose : val :=
    go: simpledb.go:215:6 *)
 Definition EncodeUInt64 : val :=
   rec: "EncodeUInt64" "x" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "x" := (alloc "x") in
-    let: "tmp" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "x" := (mem.alloc "x") in
+    let: "tmp" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (slice.make2 #byteT #(W64 8)) in
     do:  ("tmp" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := (![#sliceT] "tmp") in
     let: "$a1" := (![#uint64T] "x") in
     (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
-    let: "p2" := (alloc (type.zero_val #sliceT)) in
+    let: "p2" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "p") in
     let: "$a1" := (![#sliceT] "tmp") in
     (slice.append #byteT) "$a0" "$a1") in
@@ -465,15 +465,15 @@ Definition EncodeUInt64 : val :=
    go: simpledb.go:223:6 *)
 Definition EncodeSlice : val :=
   rec: "EncodeSlice" "data" "p" :=
-    exception_do (let: "p" := (alloc "p") in
-    let: "data" := (alloc "data") in
-    let: "p2" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "p" := (mem.alloc "p") in
+    let: "data" := (mem.alloc "data") in
+    let: "p2" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (s_to_w64 (let: "$a0" := (![#sliceT] "data") in
     slice.len "$a0")) in
     let: "$a1" := (![#sliceT] "p") in
     (func_call #simpledb.simpledb #"EncodeUInt64"%go) "$a0" "$a1") in
     do:  ("p2" <-[#sliceT] "$r0");;;
-    let: "p3" := (alloc (type.zero_val #sliceT)) in
+    let: "p3" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "p2") in
     let: "$a1" := (![#sliceT] "data") in
     (slice.append #byteT) "$a0" "$a1") in
@@ -483,23 +483,23 @@ Definition EncodeSlice : val :=
 (* go: simpledb.go:229:6 *)
 Definition tablePut : val :=
   rec: "tablePut" "w" "k" "v" :=
-    exception_do (let: "v" := (alloc "v") in
-    let: "k" := (alloc "k") in
-    let: "w" := (alloc "w") in
-    let: "tmp" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "v" := (mem.alloc "v") in
+    let: "k" := (mem.alloc "k") in
+    let: "w" := (mem.alloc "w") in
+    let: "tmp" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (slice.make2 #byteT #(W64 0)) in
     do:  ("tmp" <-[#sliceT] "$r0");;;
-    let: "tmp2" := (alloc (type.zero_val #sliceT)) in
+    let: "tmp2" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#uint64T] "k") in
     let: "$a1" := (![#sliceT] "tmp") in
     (func_call #simpledb.simpledb #"EncodeUInt64"%go) "$a0" "$a1") in
     do:  ("tmp2" <-[#sliceT] "$r0");;;
-    let: "tmp3" := (alloc (type.zero_val #sliceT)) in
+    let: "tmp3" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "v") in
     let: "$a1" := (![#sliceT] "tmp2") in
     (func_call #simpledb.simpledb #"EncodeSlice"%go) "$a0" "$a1") in
     do:  ("tmp3" <-[#sliceT] "$r0");;;
-    let: "off" := (alloc (type.zero_val #uint64T)) in
+    let: "off" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (![#uint64T] (![#ptrT] (struct.field_ref #tableWriter #"offset"%go "w"))) in
     do:  ("off" <-[#uint64T] "$r0");;;
     let: "$r0" := ((![#uint64T] "off") + (s_to_w64 (let: "$a0" := (![#sliceT] "tmp2") in
@@ -522,11 +522,11 @@ Definition Database : go_type := structT [
 (* go: simpledb.go:256:6 *)
 Definition makeValueBuffer : val :=
   rec: "makeValueBuffer" <> :=
-    exception_do (let: "buf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    exception_do (let: "buf" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (map.make #uint64T #sliceT) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
-    let: "bufPtr" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "bufPtr" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     do:  ("bufPtr" <-[#ptrT] "$r0");;;
     let: "$r0" := (![#(mapT uint64T sliceT)] "buf") in
     do:  ((![#ptrT] "bufPtr") <-[#(mapT uint64T sliceT)] "$r0");;;
@@ -537,37 +537,37 @@ Definition makeValueBuffer : val :=
    go: simpledb.go:264:6 *)
 Definition NewDb : val :=
   rec: "NewDb" <> :=
-    exception_do (let: "wbuf" := (alloc (type.zero_val #ptrT)) in
+    exception_do (let: "wbuf" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("wbuf" <-[#ptrT] "$r0");;;
-    let: "rbuf" := (alloc (type.zero_val #ptrT)) in
+    let: "rbuf" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("rbuf" <-[#ptrT] "$r0");;;
-    let: "bufferL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "bufferL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("bufferL" <-[#ptrT] "$r0");;;
-    let: "tableName" := (alloc (type.zero_val #stringT)) in
+    let: "tableName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := #"table.0"%go in
     do:  ("tableName" <-[#stringT] "$r0");;;
-    let: "tableNameRef" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #stringT)) in
+    let: "tableNameRef" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #stringT)) in
     do:  ("tableNameRef" <-[#ptrT] "$r0");;;
     let: "$r0" := (![#stringT] "tableName") in
     do:  ((![#ptrT] "tableNameRef") <-[#stringT] "$r0");;;
-    let: "table" := (alloc (type.zero_val #Table)) in
+    let: "table" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (let: "$a0" := (![#stringT] "tableName") in
     (func_call #simpledb.simpledb #"CreateTable"%go) "$a0") in
     do:  ("table" <-[#Table] "$r0");;;
-    let: "tableRef" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #Table)) in
+    let: "tableRef" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #Table)) in
     do:  ("tableRef" <-[#ptrT] "$r0");;;
     let: "$r0" := (![#Table] "table") in
     do:  ((![#ptrT] "tableRef") <-[#Table] "$r0");;;
-    let: "tableL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "tableL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("tableL" <-[#ptrT] "$r0");;;
-    let: "compactionL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "compactionL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("compactionL" <-[#ptrT] "$r0");;;
     return: (let: "$wbuffer" := (![#ptrT] "wbuf") in
      let: "$rbuffer" := (![#ptrT] "rbuf") in
@@ -596,14 +596,14 @@ Definition NewDb : val :=
    go: simpledb.go:293:6 *)
 Definition Read : val :=
   rec: "Read" "db" "k" :=
-    exception_do (let: "k" := (alloc "k") in
-    let: "db" := (alloc "db") in
+    exception_do (let: "k" := (mem.alloc "k") in
+    let: "db" := (mem.alloc "db") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
-    let: "buf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "buf" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (![#(mapT uint64T sliceT)] (![#ptrT] (struct.field_ref #Database #"wbuffer"%go "db"))) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
-    let: "ok" := (alloc (type.zero_val #boolT)) in
-    let: "v" := (alloc (type.zero_val #sliceT)) in
+    let: "ok" := (mem.alloc (type.zero_val #boolT)) in
+    let: "v" := (mem.alloc (type.zero_val #sliceT)) in
     let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] "buf") (![#uint64T] "k")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
@@ -614,10 +614,10 @@ Definition Read : val :=
       do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
       return: (![#sliceT] "v", #true)
     else do:  #());;;
-    let: "rbuf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "rbuf" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (![#(mapT uint64T sliceT)] (![#ptrT] (struct.field_ref #Database #"rbuffer"%go "db"))) in
     do:  ("rbuf" <-[#(mapT uint64T sliceT)] "$r0");;;
-    let: "v2" := (alloc (type.zero_val #sliceT)) in
+    let: "v2" := (mem.alloc (type.zero_val #sliceT)) in
     let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] "rbuf") (![#uint64T] "k")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
@@ -629,10 +629,10 @@ Definition Read : val :=
       return: (![#sliceT] "v2", #true)
     else do:  #());;;
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"tableL"%go "db"))) #());;;
-    let: "tbl" := (alloc (type.zero_val #Table)) in
+    let: "tbl" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (![#Table] (![#ptrT] (struct.field_ref #Database #"table"%go "db"))) in
     do:  ("tbl" <-[#Table] "$r0");;;
-    let: "v3" := (alloc (type.zero_val #sliceT)) in
+    let: "v3" := (mem.alloc (type.zero_val #sliceT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![#Table] "tbl") in
     let: "$a1" := (![#uint64T] "k") in
     (func_call #simpledb.simpledb #"tableRead"%go) "$a0" "$a1") in
@@ -654,11 +654,11 @@ Definition Read : val :=
    go: simpledb.go:326:6 *)
 Definition Write : val :=
   rec: "Write" "db" "k" "v" :=
-    exception_do (let: "v" := (alloc "v") in
-    let: "k" := (alloc "k") in
-    let: "db" := (alloc "db") in
+    exception_do (let: "v" := (mem.alloc "v") in
+    let: "k" := (mem.alloc "k") in
+    let: "db" := (mem.alloc "db") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
-    let: "buf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "buf" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (![#(mapT uint64T sliceT)] (![#ptrT] (struct.field_ref #Database #"wbuffer"%go "db"))) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "$r0" := (![#sliceT] "v") in
@@ -668,7 +668,7 @@ Definition Write : val :=
 (* go: simpledb.go:333:6 *)
 Definition freshTable : val :=
   rec: "freshTable" "p" :=
-    exception_do (let: "p" := (alloc "p") in
+    exception_do (let: "p" := (mem.alloc "p") in
     (if: (![#stringT] "p") = #"table.0"%go
     then return: (#"table.1"%go)
     else do:  #());;;
@@ -680,11 +680,11 @@ Definition freshTable : val :=
 (* go: simpledb.go:345:6 *)
 Definition tablePutBuffer : val :=
   rec: "tablePutBuffer" "w" "buf" :=
-    exception_do (let: "buf" := (alloc "buf") in
-    let: "w" := (alloc "w") in
+    exception_do (let: "buf" := (mem.alloc "buf") in
+    let: "w" := (mem.alloc "w") in
     let: "$range" := (![#(mapT uint64T sliceT)] "buf") in
-    (let: "v" := (alloc (type.zero_val #uint64T)) in
-    let: "k" := (alloc (type.zero_val #uint64T)) in
+    (let: "v" := (mem.alloc (type.zero_val #uint64T)) in
+    let: "k" := (mem.alloc (type.zero_val #uint64T)) in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[#sliceT] "$value");;;
       do:  ("k" <-[#uint64T] "$key");;;
@@ -699,10 +699,10 @@ Definition tablePutBuffer : val :=
    go: simpledb.go:353:6 *)
 Definition tablePutOldTable : val :=
   rec: "tablePutOldTable" "w" "t" "b" :=
-    exception_do (let: "b" := (alloc "b") in
-    let: "t" := (alloc "t") in
-    let: "w" := (alloc "w") in
-    (let: "buf" := (alloc (type.zero_val #lazyFileBuf)) in
+    exception_do (let: "b" := (mem.alloc "b") in
+    let: "t" := (mem.alloc "t") in
+    let: "w" := (mem.alloc "w") in
+    (let: "buf" := (mem.alloc (type.zero_val #lazyFileBuf)) in
     let: "$r0" := (let: "$offset" := #(W64 0) in
     let: "$next" := #slice.nil in
     struct.make #lazyFileBuf [{
@@ -711,8 +711,8 @@ Definition tablePutOldTable : val :=
     }]) in
     do:  ("buf" <-[#lazyFileBuf] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      let: "l" := (alloc (type.zero_val #uint64T)) in
-      let: "e" := (alloc (type.zero_val #Entry)) in
+      let: "l" := (mem.alloc (type.zero_val #uint64T)) in
+      let: "e" := (mem.alloc (type.zero_val #Entry)) in
       let: ("$ret0", "$ret1") := (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
       (func_call #simpledb.simpledb #"DecodeEntry"%go) "$a0") in
       let: "$r0" := "$ret0" in
@@ -721,7 +721,7 @@ Definition tablePutOldTable : val :=
       do:  ("l" <-[#uint64T] "$r1");;;
       (if: (![#uint64T] "l") > #(W64 0)
       then
-        let: "ok" := (alloc (type.zero_val #boolT)) in
+        let: "ok" := (mem.alloc (type.zero_val #boolT)) in
         let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] "b") (![#uint64T] (struct.field_ref #Entry #"Key"%go "e"))) in
         let: "$r0" := "$ret0" in
         let: "$r1" := "$ret1" in
@@ -744,7 +744,7 @@ Definition tablePutOldTable : val :=
         do:  ("buf" <-[#lazyFileBuf] "$r0");;;
         continue: #()
       else
-        let: "p" := (alloc (type.zero_val #sliceT)) in
+        let: "p" := (mem.alloc (type.zero_val #sliceT)) in
         let: "$r0" := (let: "$a0" := (![#fileT] (struct.field_ref #Table #"File"%go "t")) in
         let: "$a1" := ((![#uint64T] (struct.field_ref #lazyFileBuf #"offset"%go "buf")) + (s_to_w64 (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
         slice.len "$a0"))) in
@@ -755,7 +755,7 @@ Definition tablePutOldTable : val :=
         slice.len "$a0") = #(W64 0)
         then break: #()
         else
-          let: "newBuf" := (alloc (type.zero_val #sliceT)) in
+          let: "newBuf" := (mem.alloc (type.zero_val #sliceT)) in
           let: "$r0" := (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
           let: "$a1" := (![#sliceT] "p") in
           (slice.append #byteT) "$a0" "$a1") in
@@ -779,20 +779,20 @@ Definition tablePutOldTable : val :=
    go: simpledb.go:388:6 *)
 Definition constructNewTable : val :=
   rec: "constructNewTable" "db" "wbuf" :=
-    exception_do (let: "wbuf" := (alloc "wbuf") in
-    let: "db" := (alloc "db") in
-    let: "oldName" := (alloc (type.zero_val #stringT)) in
+    exception_do (let: "wbuf" := (mem.alloc "wbuf") in
+    let: "db" := (mem.alloc "db") in
+    let: "oldName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (![#stringT] (![#ptrT] (struct.field_ref #Database #"tableName"%go "db"))) in
     do:  ("oldName" <-[#stringT] "$r0");;;
-    let: "name" := (alloc (type.zero_val #stringT)) in
+    let: "name" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (let: "$a0" := (![#stringT] "oldName") in
     (func_call #simpledb.simpledb #"freshTable"%go) "$a0") in
     do:  ("name" <-[#stringT] "$r0");;;
-    let: "w" := (alloc (type.zero_val #tableWriter)) in
+    let: "w" := (mem.alloc (type.zero_val #tableWriter)) in
     let: "$r0" := (let: "$a0" := (![#stringT] "name") in
     (func_call #simpledb.simpledb #"newTableWriter"%go) "$a0") in
     do:  ("w" <-[#tableWriter] "$r0");;;
-    let: "oldTable" := (alloc (type.zero_val #Table)) in
+    let: "oldTable" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (![#Table] (![#ptrT] (struct.field_ref #Database #"table"%go "db"))) in
     do:  ("oldTable" <-[#Table] "$r0");;;
     do:  (let: "$a0" := (![#tableWriter] "w") in
@@ -802,7 +802,7 @@ Definition constructNewTable : val :=
     do:  (let: "$a0" := (![#tableWriter] "w") in
     let: "$a1" := (![#(mapT uint64T sliceT)] "wbuf") in
     (func_call #simpledb.simpledb #"tablePutBuffer"%go) "$a0" "$a1");;;
-    let: "newTable" := (alloc (type.zero_val #Table)) in
+    let: "newTable" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (let: "$a0" := (![#tableWriter] "w") in
     (func_call #simpledb.simpledb #"tableWriterClose"%go) "$a0") in
     do:  ("newTable" <-[#Table] "$r0");;;
@@ -816,13 +816,13 @@ Definition constructNewTable : val :=
    go: simpledb.go:405:6 *)
 Definition Compact : val :=
   rec: "Compact" "db" :=
-    exception_do (let: "db" := (alloc "db") in
+    exception_do (let: "db" := (mem.alloc "db") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #());;;
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
-    let: "buf" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "buf" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (![#(mapT uint64T sliceT)] (![#ptrT] (struct.field_ref #Database #"wbuffer"%go "db"))) in
     do:  ("buf" <-[#(mapT uint64T sliceT)] "$r0");;;
-    let: "emptyWbuffer" := (alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "emptyWbuffer" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
     let: "$r0" := (map.make #uint64T #sliceT) in
     do:  ("emptyWbuffer" <-[#(mapT uint64T sliceT)] "$r0");;;
     let: "$r0" := (![#(mapT uint64T sliceT)] "emptyWbuffer") in
@@ -831,11 +831,11 @@ Definition Compact : val :=
     do:  ((![#ptrT] (struct.field_ref #Database #"rbuffer"%go "db")) <-[#(mapT uint64T sliceT)] "$r0");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"tableL"%go "db"))) #());;;
-    let: "oldTableName" := (alloc (type.zero_val #stringT)) in
+    let: "oldTableName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (![#stringT] (![#ptrT] (struct.field_ref #Database #"tableName"%go "db"))) in
     do:  ("oldTableName" <-[#stringT] "$r0");;;
-    let: "t" := (alloc (type.zero_val #Table)) in
-    let: "oldTable" := (alloc (type.zero_val #Table)) in
+    let: "t" := (mem.alloc (type.zero_val #Table)) in
+    let: "oldTable" := (mem.alloc (type.zero_val #Table)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![#Database] "db") in
     let: "$a1" := (![#(mapT uint64T sliceT)] "buf") in
     (func_call #simpledb.simpledb #"constructNewTable"%go) "$a0" "$a1") in
@@ -843,7 +843,7 @@ Definition Compact : val :=
     let: "$r1" := "$ret1" in
     do:  ("oldTable" <-[#Table] "$r0");;;
     do:  ("t" <-[#Table] "$r1");;;
-    let: "newTable" := (alloc (type.zero_val #stringT)) in
+    let: "newTable" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (let: "$a0" := (![#stringT] "oldTableName") in
     (func_call #simpledb.simpledb #"freshTable"%go) "$a0") in
     do:  ("newTable" <-[#stringT] "$r0");;;
@@ -851,7 +851,7 @@ Definition Compact : val :=
     do:  ((![#ptrT] (struct.field_ref #Database #"table"%go "db")) <-[#Table] "$r0");;;
     let: "$r0" := (![#stringT] "newTable") in
     do:  ((![#ptrT] (struct.field_ref #Database #"tableName"%go "db")) <-[#stringT] "$r0");;;
-    let: "manifestData" := (alloc (type.zero_val #sliceT)) in
+    let: "manifestData" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (string.to_bytes (![#stringT] "newTable")) in
     do:  ("manifestData" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #"db"%go in
@@ -869,18 +869,18 @@ Definition Compact : val :=
 (* go: simpledb.go:450:6 *)
 Definition recoverManifest : val :=
   rec: "recoverManifest" <> :=
-    exception_do (let: "f" := (alloc (type.zero_val #fileT)) in
+    exception_do (let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := #"manifest"%go in
     (func_call #filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[#fileT] "$r0");;;
-    let: "manifestData" := (alloc (type.zero_val #sliceT)) in
+    let: "manifestData" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#fileT] "f") in
     let: "$a1" := #(W64 0) in
     let: "$a2" := #(W64 4096) in
     (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("manifestData" <-[#sliceT] "$r0");;;
-    let: "tableName" := (alloc (type.zero_val #stringT)) in
+    let: "tableName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (string.from_bytes (![#sliceT] "manifestData")) in
     do:  ("tableName" <-[#stringT] "$r0");;;
     do:  (let: "$a0" := (![#fileT] "f") in
@@ -892,8 +892,8 @@ Definition recoverManifest : val :=
    go: simpledb.go:464:6 *)
 Definition deleteOtherFile : val :=
   rec: "deleteOtherFile" "name" "tableName" :=
-    exception_do (let: "tableName" := (alloc "tableName") in
-    let: "name" := (alloc "name") in
+    exception_do (let: "tableName" := (mem.alloc "tableName") in
+    let: "name" := (mem.alloc "name") in
     (if: (![#stringT] "name") = (![#stringT] "tableName")
     then return: (#())
     else do:  #());;;
@@ -907,23 +907,23 @@ Definition deleteOtherFile : val :=
 (* go: simpledb.go:474:6 *)
 Definition deleteOtherFiles : val :=
   rec: "deleteOtherFiles" "tableName" :=
-    exception_do (let: "tableName" := (alloc "tableName") in
-    let: "files" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "tableName" := (mem.alloc "tableName") in
+    let: "files" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     (func_call #filesys #"List"%go) "$a0") in
     do:  ("files" <-[#sliceT] "$r0");;;
-    let: "nfiles" := (alloc (type.zero_val #uint64T)) in
+    let: "nfiles" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (s_to_w64 (let: "$a0" := (![#sliceT] "files") in
     slice.len "$a0")) in
     do:  ("nfiles" <-[#uint64T] "$r0");;;
-    (let: "i" := (alloc (type.zero_val #uint64T)) in
+    (let: "i" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := #(W64 0) in
     do:  ("i" <-[#uint64T] "$r0");;;
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
       (if: (![#uint64T] "i") = (![#uint64T] "nfiles")
       then break: #()
       else do:  #());;;
-      let: "name" := (alloc (type.zero_val #stringT)) in
+      let: "name" := (mem.alloc (type.zero_val #stringT)) in
       let: "$r0" := (![#stringT] (slice.elem_ref #stringT (![#sliceT] "files") (![#uint64T] "i"))) in
       do:  ("name" <-[#stringT] "$r0");;;
       do:  (let: "$a0" := (![#stringT] "name") in
@@ -938,39 +938,39 @@ Definition deleteOtherFiles : val :=
    go: simpledb.go:489:6 *)
 Definition Recover : val :=
   rec: "Recover" <> :=
-    exception_do (let: "tableName" := (alloc (type.zero_val #stringT)) in
+    exception_do (let: "tableName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := ((func_call #simpledb.simpledb #"recoverManifest"%go) #()) in
     do:  ("tableName" <-[#stringT] "$r0");;;
-    let: "table" := (alloc (type.zero_val #Table)) in
+    let: "table" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (let: "$a0" := (![#stringT] "tableName") in
     (func_call #simpledb.simpledb #"RecoverTable"%go) "$a0") in
     do:  ("table" <-[#Table] "$r0");;;
-    let: "tableRef" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #Table)) in
+    let: "tableRef" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #Table)) in
     do:  ("tableRef" <-[#ptrT] "$r0");;;
     let: "$r0" := (![#Table] "table") in
     do:  ((![#ptrT] "tableRef") <-[#Table] "$r0");;;
-    let: "tableNameRef" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #stringT)) in
+    let: "tableNameRef" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #stringT)) in
     do:  ("tableNameRef" <-[#ptrT] "$r0");;;
     let: "$r0" := (![#stringT] "tableName") in
     do:  ((![#ptrT] "tableNameRef") <-[#stringT] "$r0");;;
     do:  (let: "$a0" := (![#stringT] "tableName") in
     (func_call #simpledb.simpledb #"deleteOtherFiles"%go) "$a0");;;
-    let: "wbuffer" := (alloc (type.zero_val #ptrT)) in
+    let: "wbuffer" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("wbuffer" <-[#ptrT] "$r0");;;
-    let: "rbuffer" := (alloc (type.zero_val #ptrT)) in
+    let: "rbuffer" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := ((func_call #simpledb.simpledb #"makeValueBuffer"%go) #()) in
     do:  ("rbuffer" <-[#ptrT] "$r0");;;
-    let: "bufferL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "bufferL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("bufferL" <-[#ptrT] "$r0");;;
-    let: "tableL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "tableL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("tableL" <-[#ptrT] "$r0");;;
-    let: "compactionL" := (alloc (type.zero_val #ptrT)) in
-    let: "$r0" := (alloc (type.zero_val #sync.Mutex)) in
+    let: "compactionL" := (mem.alloc (type.zero_val #ptrT)) in
+    let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("compactionL" <-[#ptrT] "$r0");;;
     return: (let: "$wbuffer" := (![#ptrT] "wbuffer") in
      let: "$rbuffer" := (![#ptrT] "rbuffer") in
@@ -997,10 +997,10 @@ Definition Recover : val :=
    go: simpledb.go:520:6 *)
 Definition Shutdown : val :=
   rec: "Shutdown" "db" :=
-    exception_do (let: "db" := (alloc "db") in
+    exception_do (let: "db" := (mem.alloc "db") in
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
     do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #());;;
-    let: "t" := (alloc (type.zero_val #Table)) in
+    let: "t" := (mem.alloc (type.zero_val #Table)) in
     let: "$r0" := (![#Table] (![#ptrT] (struct.field_ref #Database #"table"%go "db"))) in
     do:  ("t" <-[#Table] "$r0");;;
     do:  (let: "$a0" := (![#Table] "t") in
@@ -1015,7 +1015,7 @@ Definition Shutdown : val :=
    go: simpledb.go:534:6 *)
 Definition Close : val :=
   rec: "Close" "db" :=
-    exception_do (let: "db" := (alloc "db") in
+    exception_do (let: "db" := (mem.alloc "db") in
     do:  (let: "$a0" := (![#Database] "db") in
     (func_call #simpledb.simpledb #"Compact"%go) "$a0");;;
     do:  (let: "$a0" := (![#Database] "db") in
