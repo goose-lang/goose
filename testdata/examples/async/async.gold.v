@@ -12,14 +12,14 @@ Section code.
 (* go: async.go:6:6 *)
 Definition TakesDisk : val :=
   rec: "TakesDisk" "d" :=
-    exception_do (let: "d" := (alloc "d") in
+    exception_do (let: "d" := (mem.alloc "d") in
     do:  #()).
 
 (* go: async.go:8:6 *)
 Definition UseDisk : val :=
   rec: "UseDisk" "d" :=
-    exception_do (let: "d" := (alloc "d") in
-    let: "v" := (alloc (type.zero_val #sliceT)) in
+    exception_do (let: "d" := (mem.alloc "d") in
+    let: "v" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (slice.make2 #byteT #(W64 4096)) in
     do:  ("v" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
