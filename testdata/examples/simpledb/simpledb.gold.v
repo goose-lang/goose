@@ -16,7 +16,7 @@ Context `{ffi_syntax}.
 Definition UseMarshal : val :=
   rec: "UseMarshal" <> :=
     exception_do (do:  (let: "$a0" := #(W64 0) in
-    (func_call #marshal #"NewEnc"%go) "$a0")).
+    (func_call #marshal.marshal #"NewEnc"%go) "$a0")).
 
 Definition Table : go_type := structT [
   "Index" :: mapT uint64T uint64T;
@@ -35,17 +35,17 @@ Definition CreateTable : val :=
     let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
-    (func_call #filesys #"Create"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Create"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("f" <-[#fileT] "$r0");;;
     do:  "$r1";;;
     do:  (let: "$a0" := (![#fileT] "f") in
-    (func_call #filesys #"Close"%go) "$a0");;;
+    (func_call #filesys.filesys #"Close"%go) "$a0");;;
     let: "f2" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
-    (func_call #filesys #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f2" <-[#fileT] "$r0");;;
     return: (let: "$Index" := (![#(mapT uint64T uint64T)] "index") in
      let: "$File" := (![#fileT] "f2") in
@@ -76,7 +76,7 @@ Definition DecodeUInt64 : val :=
     else do:  #());;;
     let: "n" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "p") in
-    (func_call #primitive #"UInt64Get"%go) "$a0") in
+    (func_call #primitive.primitive #"UInt64Get"%go) "$a0") in
     do:  ("n" <-[#uint64T] "$r0");;;
     return: (![#uint64T] "n", #(W64 8))).
 
@@ -190,7 +190,7 @@ Definition readTableIndex : val :=
         let: "$a1" := ((![#uint64T] (struct.field_ref #lazyFileBuf #"offset"%go "buf")) + (s_to_w64 (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
         slice.len "$a0"))) in
         let: "$a2" := #(W64 4096) in
-        (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
+        (func_call #filesys.filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[#sliceT] "$r0");;;
         (if: (let: "$a0" := (![#sliceT] "p") in
         slice.len "$a0") = #(W64 0)
@@ -222,7 +222,7 @@ Definition RecoverTable : val :=
     let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
-    (func_call #filesys #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[#fileT] "$r0");;;
     do:  (let: "$a0" := (![#fileT] "f") in
     let: "$a1" := (![#(mapT uint64T uint64T)] "index") in
@@ -241,7 +241,7 @@ Definition CloseTable : val :=
   rec: "CloseTable" "t" :=
     exception_do (let: "t" := (mem.alloc "t") in
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #Table #"File"%go "t")) in
-    (func_call #filesys #"Close"%go) "$a0")).
+    (func_call #filesys.filesys #"Close"%go) "$a0")).
 
 (* go: simpledb.go:123:6 *)
 Definition readValue : val :=
@@ -252,11 +252,11 @@ Definition readValue : val :=
     let: "$r0" := (let: "$a0" := (![#fileT] "f") in
     let: "$a1" := (![#uint64T] "off") in
     let: "$a2" := #(W64 512) in
-    (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
+    (func_call #filesys.filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("startBuf" <-[#sliceT] "$r0");;;
     let: "totalBytes" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "startBuf") in
-    (func_call #primitive #"UInt64Get"%go) "$a0") in
+    (func_call #primitive.primitive #"UInt64Get"%go) "$a0") in
     do:  ("totalBytes" <-[#uint64T] "$r0");;;
     let: "buf" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$s" := (![#sliceT] "startBuf") in
@@ -272,7 +272,7 @@ Definition readValue : val :=
       let: "$r0" := (let: "$a0" := (![#fileT] "f") in
       let: "$a1" := ((![#uint64T] "off") + #(W64 512)) in
       let: "$a2" := ((![#uint64T] "totalBytes") - (![#uint64T] "haveBytes")) in
-      (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
+      (func_call #filesys.filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
       do:  ("buf2" <-[#sliceT] "$r0");;;
       let: "newBuf" := (mem.alloc (type.zero_val #sliceT)) in
       let: "$r0" := (let: "$a0" := (![#sliceT] "buf") in
@@ -338,7 +338,7 @@ Definition bufFlush : val :=
     else do:  #());;;
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #bufFile #"file"%go "f")) in
     let: "$a1" := (![#sliceT] "buf") in
-    (func_call #filesys #"Append"%go) "$a0" "$a1");;;
+    (func_call #filesys.filesys #"Append"%go) "$a0" "$a1");;;
     let: "$r0" := #slice.nil in
     do:  ((![#ptrT] (struct.field_ref #bufFile #"buf"%go "f")) <-[#sliceT] "$r0")).
 
@@ -365,7 +365,7 @@ Definition bufClose : val :=
     do:  (let: "$a0" := (![#bufFile] "f") in
     (func_call #simpledb.simpledb #"bufFlush"%go) "$a0");;;
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #bufFile #"file"%go "f")) in
-    (func_call #filesys #"Close"%go) "$a0")).
+    (func_call #filesys.filesys #"Close"%go) "$a0")).
 
 Definition tableWriter : go_type := structT [
   "index" :: mapT uint64T uint64T;
@@ -384,7 +384,7 @@ Definition newTableWriter : val :=
     let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "p") in
-    (func_call #filesys #"Create"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Create"%go) "$a0" "$a1") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("f" <-[#fileT] "$r0");;;
@@ -431,7 +431,7 @@ Definition tableWriterClose : val :=
     let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] (struct.field_ref #tableWriter #"name"%go "w")) in
-    (func_call #filesys #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[#fileT] "$r0");;;
     return: (let: "$Index" := (![#(mapT uint64T uint64T)] (struct.field_ref #tableWriter #"index"%go "w")) in
      let: "$File" := (![#fileT] "f") in
@@ -452,7 +452,7 @@ Definition EncodeUInt64 : val :=
     do:  ("tmp" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := (![#sliceT] "tmp") in
     let: "$a1" := (![#uint64T] "x") in
-    (func_call #primitive #"UInt64Put"%go) "$a0" "$a1");;;
+    (func_call #primitive.primitive #"UInt64Put"%go) "$a0" "$a1");;;
     let: "p2" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] "p") in
     let: "$a1" := (![#sliceT] "tmp") in
@@ -749,7 +749,7 @@ Definition tablePutOldTable : val :=
         let: "$a1" := ((![#uint64T] (struct.field_ref #lazyFileBuf #"offset"%go "buf")) + (s_to_w64 (let: "$a0" := (![#sliceT] (struct.field_ref #lazyFileBuf #"next"%go "buf")) in
         slice.len "$a0"))) in
         let: "$a2" := #(W64 4096) in
-        (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
+        (func_call #filesys.filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
         do:  ("p" <-[#sliceT] "$r0");;;
         (if: (let: "$a0" := (![#sliceT] "p") in
         slice.len "$a0") = #(W64 0)
@@ -857,12 +857,12 @@ Definition Compact : val :=
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := #"manifest"%go in
     let: "$a2" := (![#sliceT] "manifestData") in
-    (func_call #filesys #"AtomicCreate"%go) "$a0" "$a1" "$a2");;;
+    (func_call #filesys.filesys #"AtomicCreate"%go) "$a0" "$a1" "$a2");;;
     do:  (let: "$a0" := (![#Table] "oldTable") in
     (func_call #simpledb.simpledb #"CloseTable"%go) "$a0");;;
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "oldTableName") in
-    (func_call #filesys #"Delete"%go) "$a0" "$a1");;;
+    (func_call #filesys.filesys #"Delete"%go) "$a0" "$a1");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"tableL"%go "db"))) #());;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #())).
 
@@ -872,19 +872,19 @@ Definition recoverManifest : val :=
     exception_do (let: "f" := (mem.alloc (type.zero_val #fileT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
     let: "$a1" := #"manifest"%go in
-    (func_call #filesys #"Open"%go) "$a0" "$a1") in
+    (func_call #filesys.filesys #"Open"%go) "$a0" "$a1") in
     do:  ("f" <-[#fileT] "$r0");;;
     let: "manifestData" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#fileT] "f") in
     let: "$a1" := #(W64 0) in
     let: "$a2" := #(W64 4096) in
-    (func_call #filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
+    (func_call #filesys.filesys #"ReadAt"%go) "$a0" "$a1" "$a2") in
     do:  ("manifestData" <-[#sliceT] "$r0");;;
     let: "tableName" := (mem.alloc (type.zero_val #stringT)) in
     let: "$r0" := (string.from_bytes (![#sliceT] "manifestData")) in
     do:  ("tableName" <-[#stringT] "$r0");;;
     do:  (let: "$a0" := (![#fileT] "f") in
-    (func_call #filesys #"Close"%go) "$a0");;;
+    (func_call #filesys.filesys #"Close"%go) "$a0");;;
     return: (![#stringT] "tableName")).
 
 (* delete 'name' if it isn't tableName or "manifest"
@@ -902,7 +902,7 @@ Definition deleteOtherFile : val :=
     else do:  #());;;
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "name") in
-    (func_call #filesys #"Delete"%go) "$a0" "$a1")).
+    (func_call #filesys.filesys #"Delete"%go) "$a0" "$a1")).
 
 (* go: simpledb.go:474:6 *)
 Definition deleteOtherFiles : val :=
@@ -910,7 +910,7 @@ Definition deleteOtherFiles : val :=
     exception_do (let: "tableName" := (mem.alloc "tableName") in
     let: "files" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #"db"%go in
-    (func_call #filesys #"List"%go) "$a0") in
+    (func_call #filesys.filesys #"List"%go) "$a0") in
     do:  ("files" <-[#sliceT] "$r0");;;
     let: "nfiles" := (mem.alloc (type.zero_val #uint64T)) in
     let: "$r0" := (s_to_w64 (let: "$a0" := (![#sliceT] "files") in

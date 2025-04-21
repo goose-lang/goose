@@ -877,12 +877,14 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			ctx.nope(e, "global variable from external package should be handled by exprAddr")
 			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
 		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
+			pkgName := f.Pkg().Name()
+			pkgIdent := fmt.Sprintf("%s.%s", pkgName, pkgName)
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
 				ctx.info.TypeOf(e),
 				glang.NewCallExpr(
 					glang.GallinaIdent("func_call"),
-					glang.StringVal{Value: glang.GallinaIdent(f.Pkg().Name())},
+					glang.StringVal{Value: glang.GallinaIdent(pkgIdent)},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
 				),
 			)
