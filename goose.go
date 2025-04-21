@@ -878,7 +878,7 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
 		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
 			pkgName := f.Pkg().Name()
-			pkgIdent := fmt.Sprintf("%s.%s", pkgName, pkgName)
+			pkgIdent := fmt.Sprintf("%s.%s", filepath.Base(f.Pkg().Path()), pkgName)
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
 				ctx.info.TypeOf(e),
