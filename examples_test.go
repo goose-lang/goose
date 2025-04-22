@@ -221,10 +221,10 @@ func getFirstConversionError(err error) *goose.ConversionError {
 	if errors.As(err, &merr) {
 		if errors.As(merr[0], &cerr) {
 		} else {
-			panic("Cannot convert to ConversionError")
+			panic(fmt.Sprintf("Cannot convert to ConversionError: %v", err))
 		}
 	} else {
-		panic("Cannot convert")
+		panic(fmt.Sprintf("Cannot convert to goose.MultipleErrors: %v", err))
 	}
 	return cerr
 }
