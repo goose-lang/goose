@@ -19,6 +19,16 @@ func mkBox[T any](v T) Box[T] {
 	return Box[T]{Value: v}
 }
 
+// Get binds a type parameter using a method receiver
+func (b Box[T]) Get() T {
+	return b.Value
+}
+
+func useGet() {
+	b := mkBox[int](1)
+	b.Get()
+}
+
 type Container[T any] struct {
 	// various uses of T inside a type
 	X T
