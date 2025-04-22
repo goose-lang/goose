@@ -60,8 +60,8 @@ type Ctx struct {
 	functions  []string
 	namedTypes []*types.Named
 
-	importNames        map[string]struct{}
-	importNamesOrdered []string
+	importNames        map[string]*types.PkgName
+	importNamesOrdered []*types.PkgName
 
 	inits []glang.Expr
 
@@ -105,7 +105,7 @@ func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
 		pkgIdent:      pkgIdent + "." + pkg.Name,
 		errorReporter: newErrorReporter(pkg.Fset),
 		dep:           newDepTracker(),
-		importNames:   make(map[string]struct{}),
+		importNames:   make(map[string]*types.PkgName),
 		filter:        filter,
 	}
 }
@@ -877,8 +877,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			ctx.nope(e, "global variable from external package should be handled by exprAddr")
 			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
 		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
-			pkgName := f.Pkg().Name()
-			pkgIdent := fmt.Sprintf("%s.%s", filepath.Base(f.Pkg().Path()), pkgName)
+			pkg := f.Pkg()
+			pkgIdent := fmt.Sprintf("%s.%s", filepath.Base(pkg.Path()), pkg.Name())
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
 				ctx.info.TypeOf(e),
@@ -2879,9 +2879,9 @@ func (ctx *Ctx) imports(d []ast.Spec) []glang.Decl {
 		}
 
 		decls = append(decls, glang.ImportDecl{Path: importPath})
-		n := ctx.info.PkgNameOf(s).Imported().Name()
-		if _, ok := ctx.importNames[n]; !ok {
-			ctx.importNames[n] = struct{}{}
+		n := ctx.info.PkgNameOf(s)
+		if _, ok := ctx.importNames[n.Name()]; !ok {
+			ctx.importNames[n.Name()] = n
 			ctx.importNamesOrdered = append(ctx.importNamesOrdered, n)
 		}
 	}
@@ -2974,7 +2974,8 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 
 	var imports glang.ListExpr
 	for _, impName := range ctx.importNamesOrdered {
-		imports = append(imports, glang.GallinaIdent(fmt.Sprintf("%s", impName)))
+		pkg := impName.Imported()
+		imports = append(imports, glang.GallinaIdent(fmt.Sprintf("%s.%s", filepath.Base(pkg.Path()), pkg.Name())))
 	}
 	infoRecord := glang.RecordLiteral{
 		Fields: []glang.RecordField{
@@ -3096,7 +3097,7 @@ InitLoop:
 	}
 
 	for _, importName := range ctx.importNamesOrdered {
-		e = glang.NewDoSeq(glang.GallinaIdent(importName+"."+"initialize'"), e)
+		e = glang.NewDoSeq(glang.GallinaIdent(importName.Imported().Name()+"."+"initialize'"), e)
 	}
 
 	if e == nil {

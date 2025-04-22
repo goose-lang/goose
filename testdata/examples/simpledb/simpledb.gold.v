@@ -1032,7 +1032,7 @@ Definition msets' : list (go_string * (list (go_string * val))) := [("Table"%go,
     pkg_vars := vars';
     pkg_functions := functions';
     pkg_msets := msets';
-    pkg_imported_pkgs := [sync; primitive; filesys; marshal];
+    pkg_imported_pkgs := [sync.sync; primitive.primitive; filesys.filesys; marshal.marshal];
   |}.
 
 Definition initialize' : val :=
