@@ -171,12 +171,6 @@ type errorExpectation struct {
 	Error string
 }
 
-type errorTestResult struct {
-	Err        *goose.ConversionError
-	ActualLine int
-	Expected   errorExpectation
-}
-
 func getExpectedError(pkgDir string) *errorExpectation {
 	errRegex := regexp.MustCompile(`ERROR ?(.*)`)
 	f, err := os.Open(pkgDir)

@@ -726,7 +726,6 @@ func (ctx *Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, e
 			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
-	return
 }
 
 // Requires `old(expr) : ptr<old(curType)>`.
@@ -750,7 +749,6 @@ func (ctx *Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type
 			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.StringVal{Value: glang.StringLiteral{Value: v.Name()}}, *expr)
 		*curType = v.Type()
 	}
-	return
 }
 
 // requires `!addressable -> (expr : selection.Recv())`
@@ -980,19 +978,19 @@ func (ctx *Ctx) compositeLiteral(e *ast.CompositeLit) glang.Expr {
 	return nil
 }
 
-func (ctx *Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
-	lit := glang.StructLiteral{StructType: ctx.glangType(e.Type, t)}
-	isUnkeyedStruct := false
-
+func isUnkeyedStruct(e *ast.CompositeLit) bool {
 	for _, el := range e.Elts {
-		switch el.(type) {
-		case *ast.KeyValueExpr:
-		default:
-			isUnkeyedStruct = true
-			break
+		if _, ok := el.(*ast.KeyValueExpr); ok {
+		} else {
+			return true
 		}
 	}
-	if isUnkeyedStruct {
+	return false
+}
+
+func (ctx *Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.CompositeLit) glang.Expr {
+	lit := glang.StructLiteral{StructType: ctx.glangType(e.Type, t)}
+	if isUnkeyedStruct(e) {
 		if len(e.Elts) != structType.NumFields() {
 			ctx.nope(e, "expected as many elements are there are struct fields in unkeyed literal")
 		}

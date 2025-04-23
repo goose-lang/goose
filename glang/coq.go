@@ -314,15 +314,13 @@ func (s CallExpr) Coq(needs_paren bool) string {
 	return addParens(needs_paren, strings.Join(comps, " "))
 }
 
-type ContinueExpr struct {
-}
+type ContinueExpr struct{}
 
 func (e ContinueExpr) Coq(needs_paren bool) string {
 	return fmt.Sprintf("continue: #()")
 }
 
-type BreakExpr struct {
-}
+type BreakExpr struct{}
 
 func (e BreakExpr) Coq(needs_paren bool) string {
 	return fmt.Sprintf("break: #()")
