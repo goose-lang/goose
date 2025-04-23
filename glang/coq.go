@@ -90,12 +90,14 @@ func quote(s string) string {
 	return `"` + s + `"`
 }
 
-// FIXME: why is this needed?
-func binder(s string) string {
-	if s == "_" {
+// binder converts a Go name to a GooseLang binder
+func binder(name string) string {
+	// the Go ast uses "_" for ignored variables; convert this to GooseLang's "<>"
+	// anonymous binder
+	if name == "_" {
 		return "<>"
 	}
-	return quote(s)
+	return quote(name)
 }
 
 // FieldDecl is a name:type declaration (for a struct or function binders)
@@ -104,15 +106,10 @@ type FieldDecl struct {
 	Type Type
 }
 
-func (d FieldDecl) CoqBinder() string {
-	return binder(d.Name)
-}
-
 func (d FieldDecl) Coq(needs_paren bool) string {
 	return binder(d.Name)
 }
 
-// StructDecl is a Coq record for a Go struct
 type StructType struct {
 	Fields []FieldDecl
 }
@@ -242,6 +239,16 @@ func (t ArrayType) Coq(needs_paren bool) string {
 type Expr interface {
 	// If needs_paren is true, this should be generated with parentheses.
 	Coq(needs_paren bool) string
+}
+
+// A function argument binding
+type Binding struct {
+	Name string
+	Type Type
+}
+
+func (d Binding) Coq(needs_paren bool) string {
+	return binder(d.Name)
 }
 
 // GallinaIdent is a identifier in Gallina (and not a variable)
@@ -824,9 +831,17 @@ func (e SpawnExpr) Coq(needs_paren bool) string {
 	return addParens(needs_paren, pp.Build())
 }
 
+type Binder struct {
+	Name string
+}
+
+func (b Binder) Coq(needs_paren bool) string {
+	return binder(b.Name)
+}
+
 // FuncLit is an unnamed function literal, consisting of its parameters and body.
 type FuncLit struct {
-	Args []FieldDecl
+	Args []Binder
 	Body Expr
 }
 
@@ -835,10 +850,10 @@ func (e FuncLit) Coq(needs_paren bool) string {
 
 	var args []string
 	for _, a := range e.Args {
-		args = append(args, a.CoqBinder())
+		args = append(args, a.Coq(false))
 	}
 	if len(args) == 0 {
-		args = []string{"<>"}
+		args = []string{binder("_")}
 	}
 	sig := strings.Join(args, " ")
 
@@ -861,9 +876,10 @@ func (e ValueScoped) Coq(needs_paren bool) string {
 
 // FuncDecl declares a function, including its parameters and body.
 type FuncDecl struct {
-	Name    string
-	RecvArg *FieldDecl
-	Args    []FieldDecl
+	Name string
+	// Method receiver name (nil if not a method)
+	RecvArg *Binder
+	Args    []Binder
 	Body    Expr
 	Comment string
 }
@@ -872,13 +888,15 @@ type FuncDecl struct {
 func (d FuncDecl) Signature() string {
 	var args []string
 	if d.RecvArg != nil {
-		args = append(args, d.RecvArg.CoqBinder())
+		args = append(args, d.RecvArg.Coq(false))
 	}
 	for _, a := range d.Args {
-		args = append(args, a.CoqBinder())
+		args = append(args, a.Coq(false))
 	}
+	// note we systematically take a unit argument, even for methods that have a
+	// receiver
 	if len(d.Args) == 0 {
-		args = append(args, "<>")
+		args = append(args, binder("_"))
 	}
 	return strings.Join(args, " ")
 }
