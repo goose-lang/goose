@@ -110,37 +110,17 @@ func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
 	}
 }
 
-func (ctx *Ctx) field(f *ast.Field) glang.FieldDecl {
-	if len(f.Names) > 1 {
-		ctx.futureWork(f, "multiple fields for same type (split them up)")
-		return glang.FieldDecl{}
-	}
-	if len(f.Names) == 0 {
-		return glang.FieldDecl{
-			Name: "_",
-			Type: ctx.glangTypeFromExpr(f.Type),
-		}
-	}
-	return glang.FieldDecl{
-		Name: f.Names[0].Name,
-		Type: ctx.glangTypeFromExpr(f.Type),
-	}
-}
-
-func (ctx *Ctx) paramList(fs *ast.FieldList) []glang.FieldDecl {
-	var decls []glang.FieldDecl
+func (ctx *Ctx) paramList(fs *ast.FieldList) []glang.Binder {
+	var decls []glang.Binder
 	for _, f := range fs.List {
-		ty := ctx.glangTypeFromExpr(f.Type)
 		for _, name := range f.Names {
-			decls = append(decls, glang.FieldDecl{
+			decls = append(decls, glang.Binder{
 				Name: name.Name,
-				Type: ty,
 			})
 		}
 		if len(f.Names) == 0 { // Unnamed parameter
-			decls = append(decls, glang.FieldDecl{
-				Name: "",
-				Type: ty,
+			decls = append(decls, glang.Binder{
+				Name: "_",
 			})
 		}
 	}
@@ -218,7 +198,7 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 			expr = glang.IdentExpr("$recv")
 			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
 			expr = glang.ValueScoped{
-				Value: glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recv"}}, Body: expr},
+				Value: glang.FuncLit{Args: []glang.Binder{{Name: "$recv"}}, Body: expr},
 			}
 		} else {
 			n := glang.TypeMethod(typeName, t.Method(selection.Index()[0]).Name())
@@ -253,7 +233,7 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 			expr = glang.IdentExpr("$recvAddr")
 			expr = ctx.selectionMethod(false, expr, selection, t.Obj())
 			expr = glang.ValueScoped{
-				Value: glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvAddr"}}, Body: expr},
+				Value: glang.FuncLit{Args: []glang.Binder{{Name: "$recvAddr"}}, Body: expr},
 			}
 		}
 
@@ -1602,11 +1582,15 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	fl.Args = ctx.paramList(e.Type.Params)
 	fl.Body = ctx.blockStmt(e.Body, nil)
 
+	// Create heap-allocated variables for all of the function parameters
 	for _, arg := range fl.Args {
-		fl.Body = glang.LetExpr{
-			Names:   []string{arg.Name},
-			ValExpr: glang.RefExpr{X: glang.IdentExpr(arg.Name)},
-			Cont:    fl.Body,
+		// skip anonymous parameters (which can't be used)
+		if arg.Name != "_" && arg.Name != "" {
+			fl.Body = glang.LetExpr{
+				Names:   []string{arg.Name},
+				ValExpr: glang.RefExpr{X: glang.IdentExpr(arg.Name)},
+				Cont:    fl.Body,
+			}
 		}
 	}
 	if e.Type.Results != nil {
@@ -2521,7 +2505,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 
 			recvs = append(recvs, glang.TupleExpr{
 				glang.IdentExpr(fmt.Sprintf("$recvChan%d", recvIndex)),
-				glang.FuncLit{Args: []glang.FieldDecl{{Name: "$recvVal"}}, Body: body},
+				glang.FuncLit{Args: []glang.Binder{{Name: "$recvVal"}}, Body: body},
 			})
 		}
 	}
@@ -2642,8 +2626,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		}
 
 		ctx.dep.setCurrentName(fd.Name)
-		f := ctx.field(receiver)
-		fd.RecvArg = &f
+		fd.RecvArg = &glang.Binder{Name: receiver.Names[0].Name}
 	} else {
 		switch ctx.filter.GetAction(funcName) {
 		case declfilter.Skip:
@@ -2719,17 +2702,21 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 	fd.Args = append(fd.Args, ctx.paramList(d.Type.Params)...)
 
 	for _, arg := range fd.Args {
-		fd.Body = glang.LetExpr{
-			Names:   []string{arg.Name},
-			ValExpr: glang.RefExpr{X: glang.IdentExpr(arg.Name)},
-			Cont:    fd.Body,
+		if arg.Name != "_" && arg.Name != "" {
+			fd.Body = glang.LetExpr{
+				Names:   []string{arg.Name},
+				ValExpr: glang.RefExpr{X: glang.IdentExpr(arg.Name)},
+				Cont:    fd.Body,
+			}
 		}
 	}
 	if fd.RecvArg != nil {
-		fd.Body = glang.LetExpr{
-			Names:   []string{fd.RecvArg.Name},
-			ValExpr: glang.RefExpr{X: glang.IdentExpr(fd.RecvArg.Name)},
-			Cont:    fd.Body,
+		if fd.RecvArg.Name != "_" && fd.RecvArg.Name != "" {
+			fd.Body = glang.LetExpr{
+				Names:   []string{fd.RecvArg.Name},
+				ValExpr: glang.RefExpr{X: glang.IdentExpr(fd.RecvArg.Name)},
+				Cont:    fd.Body,
+			}
 		}
 	}
 	if d.Type.Results != nil {
