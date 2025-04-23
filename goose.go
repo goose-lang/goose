@@ -110,23 +110,6 @@ func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
 	}
 }
 
-func (ctx *Ctx) field(f *ast.Field) glang.FieldDecl {
-	if len(f.Names) > 1 {
-		ctx.futureWork(f, "multiple fields for same type (split them up)")
-		return glang.FieldDecl{}
-	}
-	if len(f.Names) == 0 {
-		return glang.FieldDecl{
-			Name: "_",
-			Type: ctx.glangTypeFromExpr(f.Type),
-		}
-	}
-	return glang.FieldDecl{
-		Name: f.Names[0].Name,
-		Type: ctx.glangTypeFromExpr(f.Type),
-	}
-}
-
 func (ctx *Ctx) paramList(fs *ast.FieldList) []glang.Binder {
 	var decls []glang.Binder
 	for _, f := range fs.List {

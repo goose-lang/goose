@@ -241,16 +241,6 @@ type Expr interface {
 	Coq(needs_paren bool) string
 }
 
-// A function argument binding
-type Binding struct {
-	Name string
-	Type Type
-}
-
-func (d Binding) Coq(needs_paren bool) string {
-	return binder(d.Name)
-}
-
 // GallinaIdent is a identifier in Gallina (and not a variable)
 //
 // A GallinaIdent is translated literally to Coq.
