@@ -244,38 +244,6 @@ func (ctx *Ctx) methodSet(t *types.Named) (glang.Expr, glang.Expr) {
 	return mset, msetPtr
 }
 
-func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
-	switch ctx.filter.GetAction(spec.Name.Name) {
-	case declfilter.Axiomatize:
-		return []glang.Decl{glang.AxiomDecl{
-			DeclName: spec.Name.Name,
-			Type:     glang.GallinaIdent("go_type"),
-		}}
-	case declfilter.Trust:
-		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-			if _, ok := t.Underlying().(*types.Interface); !ok {
-				ctx.namedTypes = append(ctx.namedTypes, t)
-			}
-		}
-		return nil
-	case declfilter.Translate:
-		ctx.dep.setCurrentName(spec.Name.Name)
-		defer ctx.dep.unsetCurrentName()
-		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-			if _, ok := t.Underlying().(*types.Interface); !ok {
-				ctx.namedTypes = append(ctx.namedTypes, t)
-			}
-		}
-		return []glang.Decl{glang.TypeDecl{
-			Name:       spec.Name.Name,
-			Body:       ctx.glangTypeFromExpr(spec.Type),
-			TypeParams: ctx.typeParamList(spec.TypeParams),
-		}}
-	default:
-		return nil
-	}
-}
-
 // TODO: make this the input to handleImplicitConversion?
 type exprWithInfo struct {
 	e glang.Expr
@@ -583,7 +551,7 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			case 1:
 				return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
 					ctx.glangType(s.Args[0], ty.Elem()),
-					glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}), true
+					glang.Int64Val{Value: glang.IntToZ(0)}), true
 			case 2:
 				return glang.NewCallExpr(glang.GallinaIdent("chan.make"),
 					ctx.glangType(s.Args[0], ty.Elem()),
@@ -1196,7 +1164,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 
 func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 	if t, ok := ctx.typeOf(e.X).Underlying().(*types.Slice); ok {
-		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
+		var lowExpr glang.Expr = glang.Int64Val{Value: glang.IntToZ(0)}
 		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("slice.len"), glang.IdentExpr("$s"))
 		x := ctx.expr(e.X)
 
@@ -1225,7 +1193,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 			}
 		}
 	} else if at, ok := ctx.typeOf(e.X).Underlying().(*types.Array); ok {
-		var lowExpr glang.Expr = glang.Int64Val{Value: glang.ZLiteral{Value: big.NewInt(0)}}
+		var lowExpr glang.Expr = glang.Int64Val{Value: glang.IntToZ(0)}
 		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("array.len"),
 			glang.GolangTypeExpr(ctx.glangType(e.X, at.Elem())))
 		if e.Low != nil {
@@ -1330,7 +1298,7 @@ func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
 			glang.StringVal{Value: glang.StringLiteral{Value: s.Name}},
 		)
 	}
-	return glang.CallExpr{
+	return glang.TypeCallExpr{
 		MethodName: glang.GallinaIdent(s.Name),
 		Args:       ctx.convertTypeArgsToGlang(nil, typeArgs),
 	}
@@ -2920,7 +2888,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		globalVars = append(globalVars,
 			glang.TupleExpr{
 				glang.StringLiteral{Value: varIdent.Name},
-				t,
+				glang.GallinaType{Ty: t},
 			},
 		)
 	}

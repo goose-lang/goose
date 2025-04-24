@@ -100,61 +100,6 @@ func binder(name string) string {
 	return quote(name)
 }
 
-// FieldDecl is a name:type declaration (for a struct or function binders)
-type FieldDecl struct {
-	Name string
-	Type Type
-}
-
-func (d FieldDecl) Coq(needs_paren bool) string {
-	return binder(d.Name)
-}
-
-type StructType struct {
-	Fields []FieldDecl
-}
-
-// CoqDecl implements the Decl interface
-//
-// A struct declaration simply consists of the struct descriptor
-func (d StructType) Coq(needs_paren bool) string {
-	var pp buffer
-	pp.Add("structT [")
-	pp.Indent(2)
-	for i, fd := range d.Fields {
-		sep := ";"
-		if i == len(d.Fields)-1 {
-			sep = ""
-		}
-		pp.Add("%s :: %s%s", quote(fd.Name), fd.Type.Coq(false), sep)
-	}
-	pp.Indent(-2)
-	pp.AddLine("]")
-	return addParens(needs_paren, pp.Build())
-}
-
-type TypeDecl struct {
-	Name       string
-	Body       Type
-	TypeParams []TypeIdent
-}
-
-func (d TypeDecl) CoqDecl() string {
-	var pp buffer
-
-	typeParams := ""
-	for _, t := range d.TypeParams {
-		typeParams += fmt.Sprintf("(%s: go_type) ", t.Coq(false))
-	}
-
-	pp.Add("Definition %s %s: go_type := %s.", d.Name, typeParams, d.Body.Coq(false))
-	return pp.Build()
-}
-
-func (d TypeDecl) DefName() (bool, string) {
-	return true, d.Name
-}
-
 type ToValExpr struct {
 	Expr Expr
 }
@@ -163,81 +108,8 @@ func (e ToValExpr) Coq(needs_paren bool) string {
 	return fmt.Sprintf("#%s", e.Expr.Coq(true))
 }
 
-// Type represents some Coq type.
-//
-// Structurally identical to Expr but serves as a nice annotation in the type
-// system for where types are expected.
-type Type interface {
-	// If needs_paren is true, this should be generated with parentheses.
-	Coq(needs_paren bool) string
-}
-
-// Construct a Golang expression for a type.
-//
-// This handles the difference between a Gallina `go_type` (which has to be
-// converted to an expression with #) and type identifiers (which are already expressions).
-func GolangTypeExpr(t Type) Expr {
-	// NOTE: this conversion might not always be correct, we are adapting from code
-	// that always assumed types were in Gallina
-	if _, ok := t.(IdentExpr); ok {
-		return t
-	}
-	return ToValExpr{Expr: t}
-}
-
-// TypeIdent is an identifier referencing a type.
-//
-// Much like the Type interface this is the same as Ident but signals that a Go
-// type rather than a value is being referenced.
-type TypeIdent string
-
-func (t TypeIdent) Coq(needs_paren bool) string {
-	return string(t)
-}
-
-type MapType struct {
-	Key   Type
-	Value Type
-}
-
-func (t MapType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("mapT"), t.Key, t.Value).Coq(needs_paren)
-}
-
-type ChanType struct {
-	Elem Type
-}
-
-func (t ChanType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent("chanT"), t.Elem).Coq(needs_paren)
-}
-
-type FuncType struct {
-}
-
-func (t FuncType) Coq(needs_paren bool) string {
-	return "funcT"
-}
-
-type SliceType struct {
-	Value Type
-}
-
-func (t SliceType) Coq(needs_paren bool) string {
-	return "sliceT"
-}
-
-type ArrayType struct {
-	Len  uint64
-	Elem Type
-}
-
-func (t ArrayType) Coq(needs_paren bool) string {
-	return NewCallExpr(GallinaIdent(fmt.Sprintf("arrayT %d", t.Len)), t.Elem).Coq(needs_paren)
-}
-
 type Expr interface {
-	// If needs_paren is true, this should be generated with parentheses.
+	// Coq converts the expression to a Coq string, wrapping with parens if needs_paren is true
 	Coq(needs_paren bool) string
 }
 
@@ -441,7 +313,7 @@ type fieldVal struct {
 
 // A StructLiteral represents a record literal construction using name fields.
 type StructLiteral struct {
-	StructType Expr
+	StructType Type
 	Elts       []fieldVal
 }
 
@@ -501,6 +373,10 @@ func (tt UnitLiteral) Coq(needs_paren bool) string {
 
 type ZLiteral struct {
 	Value *big.Int
+}
+
+func IntToZ(value int64) ZLiteral {
+	return ZLiteral{Value: big.NewInt(int64(value))}
 }
 
 func (z ZLiteral) Coq(needs_paren bool) string {
@@ -682,7 +558,7 @@ func (le ListExpr) Coq(needs_paren bool) string {
 
 type DerefExpr struct {
 	X  Expr
-	Ty Expr
+	Ty Type
 }
 
 func (e DerefExpr) Coq(needs_paren bool) string {
@@ -700,7 +576,7 @@ func (e RefExpr) Coq(needs_paren bool) string {
 
 type StoreStmt struct {
 	Dst Expr
-	Ty  Expr
+	Ty  Type
 	X   Expr
 }
 
@@ -827,6 +703,25 @@ func (b Binder) Coq(needs_paren bool) string {
 	return binder(b.Name)
 }
 
+func bindings(args []string) string {
+	if len(args) == 0 {
+		return binder("_")
+	}
+	var binders []string
+	for _, a := range args {
+		binders = append(binders, binder(a))
+	}
+	return strings.Join(binders, " ")
+}
+
+func funcBinders(xs []Binder) string {
+	var args []string
+	for _, a := range xs {
+		args = append(args, a.Name)
+	}
+	return bindings(args)
+}
+
 // FuncLit is an unnamed function literal, consisting of its parameters and body.
 type FuncLit struct {
 	Args []Binder
@@ -836,16 +731,7 @@ type FuncLit struct {
 func (e FuncLit) Coq(needs_paren bool) string {
 	var pp buffer
 
-	var args []string
-	for _, a := range e.Args {
-		args = append(args, a.Coq(false))
-	}
-	if len(args) == 0 {
-		args = []string{binder("_")}
-	}
-	sig := strings.Join(args, " ")
-
-	pp.Add("(λ: %s,", sig)
+	pp.Add("(λ: %s,", funcBinders(e.Args))
 	pp.Indent(2)
 	defer pp.Indent(-2)
 	pp.AddLine(e.Body.Coq(false))
@@ -976,13 +862,6 @@ func (d AxiomDecl) DefName() (bool, string) {
 type Decl interface {
 	CoqDecl() string
 	DefName() (bool, string) // If true, then the Gallina identifier that is defined by this decl.
-}
-
-type PtrType struct {
-}
-
-func (t PtrType) Coq(needs_paren bool) string {
-	return "ptrT"
 }
 
 func TypeMethod(typeName string, methodName string) string {

@@ -24,8 +24,8 @@ Definition UseDisk : val :=
     do:  ("v" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![#sliceT] "v") in
-    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1");;;
-    do:  ((interface.get #"Barrier"%go (![#disk.Disk] "d")) #())).
+    (method_call #disk #"Disk" #"Write" (![#disk.Disk] "d")) "$a0" "$a1");;;
+    do:  ((method_call #disk #"Disk" #"Barrier" (![#disk.Disk] "d")) #())).
 
 Definition vars' : list (go_string * go_type) := [].
 

@@ -61,9 +61,9 @@ Definition New : val :=
       do:  (let: "$a0" := (interface.make #""%go #"string"%go #"disk is too small to host log"%go) in
       Panic "$a0")
     else do:  #());;;
-    let: "cache" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "cache" := (mem.alloc (type.zero_val (type.mapT #uint64T #sliceT))) in
     let: "$r0" := (map.make #uint64T #sliceT) in
-    do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
+    do:  ("cache" <-[type.mapT #uint64T #sliceT] "$r0");;;
     let: "header" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := #(W64 0) in
     (func_call #wal.awol #"intToBlock"%go) "$a0") in
@@ -80,7 +80,7 @@ Definition New : val :=
     let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("l" <-[#ptrT] "$r0");;;
     return: (let: "$d" := (![#disk.Disk] "d") in
-     let: "$cache" := (![#(mapT uint64T sliceT)] "cache") in
+     let: "$cache" := (![type.mapT #uint64T #sliceT] "cache") in
      let: "$length" := (![#ptrT] "lengthPtr") in
      let: "$l" := (![#ptrT] "l") in
      struct.make #Log [{
@@ -134,7 +134,7 @@ Definition Log__Read : val :=
     do:  ((method_call #wal.awol #"Log" #"lock" (![#Log] "l")) #());;;
     let: "ok" := (mem.alloc (type.zero_val #boolT)) in
     let: "v" := (mem.alloc (type.zero_val #sliceT)) in
-    let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a")) in
+    let: ("$ret0", "$ret1") := (map.get (![type.mapT #uint64T #sliceT] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("v" <-[#sliceT] "$r0");;;
@@ -191,7 +191,7 @@ Definition Log__Write : val :=
     let: "$a1" := (![#sliceT] "v") in
     (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1");;;
     let: "$r0" := (![#sliceT] "v") in
-    do:  (map.insert (![#(mapT uint64T sliceT)] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a") "$r0");;;
+    do:  (map.insert (![type.mapT #uint64T #sliceT] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a") "$r0");;;
     let: "$r0" := ((![#uint64T] "length") + #(W64 1)) in
     do:  ((![#ptrT] (struct.field_ref #Log #"length"%go "l")) <-[#uint64T] "$r0");;;
     do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #())).
@@ -322,9 +322,9 @@ Definition Open : val :=
     (func_call #wal.awol #"applyLog"%go) "$a0" "$a1");;;
     do:  (let: "$a0" := (![#disk.Disk] "d") in
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
-    let: "cache" := (mem.alloc (type.zero_val #(mapT uint64T sliceT))) in
+    let: "cache" := (mem.alloc (type.zero_val (type.mapT #uint64T #sliceT))) in
     let: "$r0" := (map.make #uint64T #sliceT) in
-    do:  ("cache" <-[#(mapT uint64T sliceT)] "$r0");;;
+    do:  ("cache" <-[type.mapT #uint64T #sliceT] "$r0");;;
     let: "lengthPtr" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := (mem.alloc (type.zero_val #uint64T)) in
     do:  ("lengthPtr" <-[#ptrT] "$r0");;;
@@ -334,7 +334,7 @@ Definition Open : val :=
     let: "$r0" := (mem.alloc (type.zero_val #sync.Mutex)) in
     do:  ("l" <-[#ptrT] "$r0");;;
     return: (let: "$d" := (![#disk.Disk] "d") in
-     let: "$cache" := (![#(mapT uint64T sliceT)] "cache") in
+     let: "$cache" := (![type.mapT #uint64T #sliceT] "cache") in
      let: "$length" := (![#ptrT] "lengthPtr") in
      let: "$l" := (![#ptrT] "l") in
      struct.make #Log [{

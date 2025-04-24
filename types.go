@@ -6,10 +6,82 @@ import (
 	"go/types"
 	"strconv"
 
+	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
 )
 
 // this file has the translations for types themselves
+
+// typeIsGooseLang checks if a type must be translated as GooseLang (due to
+// generics); if false, it is translated to a Gallina go_type instead.
+func (ctx *Ctx) typeIsGooseLang(t types.Type) bool {
+	// note that t.TypeParams() != nil && t.TypeParams().Len() == 0 is possible: it
+	// indicates an originally generic, instantiated type
+	switch t := t.(type) {
+	case *types.Named:
+		if t.TypeParams() != nil {
+			return true
+		}
+	case *types.Alias:
+		if t.TypeParams() != nil {
+			return true
+		}
+	default:
+	}
+	if t, ok := t.Underlying().(*types.Struct); ok {
+		if t.NumFields() == 0 {
+			return false
+		}
+		for i := 0; i < t.NumFields(); i++ {
+			fieldType := t.Field(i).Type()
+			if ctx.typeIsGooseLang(fieldType) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
+	switch ctx.filter.GetAction(spec.Name.Name) {
+	case declfilter.Axiomatize:
+		// TODO: need to remember this is axiomatized as a go_type
+		return []glang.Decl{glang.AxiomDecl{
+			DeclName: spec.Name.Name,
+			Type:     glang.GallinaIdent("go_type"),
+		}}
+	case declfilter.Trust:
+		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+			if _, ok := t.Underlying().(*types.Interface); !ok {
+				ctx.namedTypes = append(ctx.namedTypes, t)
+			}
+		}
+		return nil
+	case declfilter.Translate:
+		ctx.dep.setCurrentName(spec.Name.Name)
+		defer ctx.dep.unsetCurrentName()
+		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+			if _, ok := t.Underlying().(*types.Interface); !ok {
+				ctx.namedTypes = append(ctx.namedTypes, t)
+			}
+		}
+		ty := ctx.typeOf(spec.Type)
+		decl := glang.TypeDecl{
+			Name:       spec.Name.Name,
+			Body:       ctx.glangType(spec, ty),
+			TypeParams: ctx.typeParamList(spec.TypeParams),
+		}
+		if ctx.typeIsGooseLang(ty) {
+			return []glang.Decl{decl}
+		} else {
+			return []glang.Decl{glang.GallinaTypeDecl{
+				Decl: decl,
+			}}
+		}
+	default:
+		return nil
+	}
+}
 
 func (ctx *Ctx) typeOf(e ast.Expr) types.Type {
 	return ctx.info.TypeOf(e)
@@ -37,6 +109,7 @@ func (ctx *Ctx) structType(t *types.Struct) glang.Type {
 }
 
 func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
+	t = types.Unalias(t)
 	if isProphId(t) {
 		return glang.TypeIdent("ProphIdT")
 	}
@@ -101,7 +174,7 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 		}
 		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
 		if t.TypeArgs().Len() != 0 {
-			return glang.CallExpr{
+			return glang.TypeCallExpr{
 				MethodName: glang.TypeIdent(ctx.qualifiedName(t.Obj())),
 				Args:       ctx.convertTypeArgsToGlang(nil, t.TypeArgs()),
 			}
@@ -114,7 +187,7 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 	case *types.Signature:
 		return glang.FuncType{}
 	case *types.Interface:
-		return glang.TypeIdent("interfaceT")
+		return glang.InterfaceType{}
 	case *types.Chan:
 		return glang.ChanType{Elem: ctx.glangType(n, t.Elem())}
 	case *types.Array:
@@ -166,8 +239,8 @@ func isString(t types.Type) bool {
 	return false
 }
 
-func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Expr) {
-	glangTypeArgs = make([]glang.Expr, typeList.Len())
+func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (glangTypeArgs []glang.Type) {
+	glangTypeArgs = make([]glang.Type, typeList.Len())
 	for i := range glangTypeArgs {
 		glangTypeArgs[i] = ctx.glangType(l, typeList.At(i))
 	}
@@ -177,18 +250,17 @@ func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (g
 type structTypeInfo struct {
 	name           string
 	throughPointer bool
+	namedType      *types.Named
 	structType     *types.Struct
 	typeArgs       *types.TypeList
 }
 
-func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Expr {
+func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Type {
 	ctx.dep.addDep(info.name)
-	if info.typeArgs.Len() == 0 {
-		return glang.GallinaIdent(info.name)
-	}
-	return glang.CallExpr{
-		MethodName: glang.GallinaIdent(info.name),
-		Args:       ctx.convertTypeArgsToGlang(nil, info.typeArgs),
+	if ctx.typeIsGooseLang(info.namedType) {
+		return glang.TypeCallExpr{MethodName: glang.GallinaIdent(info.name), Args: ctx.convertTypeArgsToGlang(nil, info.typeArgs)}
+	} else {
+		return glang.TypeIdent(info.name)
 	}
 }
 
@@ -204,6 +276,7 @@ func (ctx *Ctx) getStructInfo(t types.Type) (structTypeInfo, bool) {
 			return structTypeInfo{
 				name:           name,
 				typeArgs:       t.TypeArgs(),
+				namedType:      t,
 				throughPointer: throughPointer,
 				structType:     structType,
 			}, true
