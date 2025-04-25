@@ -2513,7 +2513,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 	}
 
 	expr = glang.NewCallExpr(glang.GallinaIdent("chan.select"), ops, def)
-	expr = glang.NewDoSeq(expr, cont)
+	expr = glang.SeqExpr{Expr: expr, Cont: cont}
 	return
 }
 
