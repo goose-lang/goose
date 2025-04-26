@@ -2441,24 +2441,24 @@ func (ctx *Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 }
 
 func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
-	var sends glang.ListExpr
-	var recvs glang.ListExpr
-	var def glang.Expr = glang.NewCallExpr(glang.GallinaIdent("InjLV"), glang.Tt)
+	var ops glang.ListExpr
+	var def glang.Expr = glang.GallinaIdent("chan.select_no_default")
 
 	// build up select statement itself
 	for _, s := range s.Body.List {
 		s := s.(*ast.CommClause)
 		if s.Comm == nil {
-			def = glang.NewCallExpr(glang.GallinaIdent("InjR"), glang.FuncLit{Body: ctx.stmtList(s.Body, nil)})
-		} else if _, ok := s.Comm.(*ast.SendStmt); ok {
-			sendIndex := len(sends)
-			sends = append(sends, glang.TupleExpr{
-				glang.IdentExpr(fmt.Sprintf("$sendVal%d", sendIndex)),
-				glang.IdentExpr(fmt.Sprintf("$sendChan%d", sendIndex)),
+			def =
+				glang.NewCallExpr(glang.GallinaIdent("chan.select_default"), glang.FuncLit{Body: ctx.stmtList(s.Body, nil)})
+		} else if c, ok := s.Comm.(*ast.SendStmt); ok {
+			ops = append(ops, glang.NewCallExpr(
+				glang.GallinaIdent("chan.select_send"),
+				ctx.expr(c.Value),
+				ctx.expr(c.Chan),
 				glang.FuncLit{Body: ctx.stmtList(s.Body, nil)},
-			})
+			))
 		} else { // must be a receive stmt
-			recvIndex := len(recvs)
+			var recvChan glang.Expr
 			body := ctx.stmtList(s.Body, nil)
 
 			// want to figure out the first statment to run in the body
@@ -2468,12 +2468,13 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 				if recvExpr.Op != token.ARROW {
 					ctx.nope(comm.X, "expected recv statement")
 				}
-				// nothing to run in the body
+				recvChan = ctx.expr(recvExpr.X)
+				// nothing extra to run in the body
 			case *ast.AssignStmt:
 				// XXX: replace the RHS in the assignment statement with an
 				// ident, so we can put this straight in the the body list
 				if len(comm.Rhs) != 1 {
-					ctx.unsupported(comm, "expected a single receive operation on RHS")
+					ctx.nope(comm, "expected a single receive operation on RHS")
 				}
 				var rhs ast.Expr = comm.Rhs[0]
 				for {
@@ -2487,6 +2488,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 				if recvExpr.Op != token.ARROW {
 					ctx.nope(comm.Rhs[0], "expected recv statement")
 				}
+				recvChan = ctx.expr(recvExpr.X)
 
 				// XXX: create a new AST node and enough typing information for
 				// an assignStmt to translate.
@@ -2503,15 +2505,15 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 				ctx.unsupported(s.Comm, "unexpected statement in select clause")
 			}
 
-			recvs = append(recvs, glang.TupleExpr{
-				glang.IdentExpr(fmt.Sprintf("$recvChan%d", recvIndex)),
+			ops = append(ops, glang.NewCallExpr(glang.GallinaIdent("chan.select_receive"),
+				recvChan,
 				glang.FuncLit{Args: []glang.Binder{{Name: "$recvVal"}}, Body: body},
-			})
+			))
 		}
 	}
 
-	expr = glang.NewCallExpr(glang.GallinaIdent("chan.select"), sends, recvs, def)
-	expr = glang.NewDoSeq(expr, cont)
+	expr = glang.NewCallExpr(glang.GallinaIdent("chan.select"), ops, def)
+	expr = glang.SeqExpr{Expr: expr, Cont: cont}
 	return
 }
 
