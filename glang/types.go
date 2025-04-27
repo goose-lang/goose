@@ -130,7 +130,8 @@ func typeBinders(xs []TypeIdent) string {
 
 func (d TypeDecl) CoqDecl() string {
 	var pp buffer
-	pp.Add("Definition %s : val := ", d.Name)
+	pp.Add("Definition %s : val :=", d.Name)
+	pp.Indent(2)
 	pp.Add("λ: %s, %s.", typeBinders(d.TypeParams), d.Body.Coq(false))
 	return pp.Build()
 }

@@ -12,6 +12,24 @@ import (
 
 // this file has the translations for types themselves
 
+func (ctx *Ctx) typeSpecIsGooseLang(spec *ast.TypeSpec) bool {
+	if spec.TypeParams != nil {
+		return true
+	}
+	if t, ok := ctx.typeOf(spec.Type).Underlying().(*types.Struct); ok {
+		if t.NumFields() == 0 {
+			return false
+		}
+		for i := 0; i < t.NumFields(); i++ {
+			fieldType := t.Field(i).Type()
+			if ctx.typeIsGooseLang(fieldType) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // typeIsGooseLang checks if a type must be translated as GooseLang (due to
 // generics); if false, it is translated to a Gallina go_type instead.
 func (ctx *Ctx) typeIsGooseLang(t types.Type) bool {
@@ -26,7 +44,6 @@ func (ctx *Ctx) typeIsGooseLang(t types.Type) bool {
 		if t.TypeParams() != nil {
 			return true
 		}
-	default:
 	}
 	if t, ok := t.Underlying().(*types.Struct); ok {
 		if t.NumFields() == 0 {
@@ -71,7 +88,7 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 			Body:       ctx.glangType(spec, ty),
 			TypeParams: ctx.typeParamList(spec.TypeParams),
 		}
-		if ctx.typeIsGooseLang(ty) {
+		if ctx.typeSpecIsGooseLang(spec) {
 			return []glang.Decl{decl}
 		} else {
 			return []glang.Decl{glang.GallinaTypeDecl{
@@ -117,7 +134,7 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 	case *types.Struct:
 		return ctx.structType(t)
 	case *types.TypeParam:
-		return glang.TypeIdent(t.Obj().Name())
+		return glang.GooseLangTypeIdent(t.Obj().Name())
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64":
