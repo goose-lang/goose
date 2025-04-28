@@ -35,7 +35,7 @@ func toCoqName(n string) string {
 
 func (tr *typesTranslator) setCurrent(s string) {
 	if tr.currentName != "" {
-		panic("recordgen: setting currentName before unsetting")
+		panic("proofgen: setting currentName before unsetting")
 	}
 	tr.currentName = s
 }
@@ -49,7 +49,7 @@ func (tr *typesTranslator) addDep(s string) {
 }
 
 func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package) string {
-	switch t := t.(type) {
+	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
 		switch t.Name() {
 		case "uint64", "int64":

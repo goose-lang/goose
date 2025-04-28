@@ -40,7 +40,7 @@ func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
 		return os.WriteFile(name, data, perm)
 	}
 	// file has correct contents, return
-	if bytes.Compare(contents, data) == 0 {
+	if bytes.Equal(contents, data) {
 		return nil
 	}
 	return os.WriteFile(name, data, perm)

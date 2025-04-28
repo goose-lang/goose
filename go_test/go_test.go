@@ -178,7 +178,7 @@ func TestGoSendBlocks(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	x := <-c
 	assert.Equal(t, chanV, x)
-	assert.Greater(t, time.Now().Sub(start).Milliseconds(), int64(100))
+	assert.Greater(t, time.Since(start).Milliseconds(), int64(100))
 }
 
 func TestGoRecvBlocks(t *testing.T) {
@@ -190,7 +190,7 @@ func TestGoRecvBlocks(t *testing.T) {
 	}()
 	x := <-c
 	assert.Equal(t, chanV, x)
-	assert.Greater(t, time.Now().Sub(start).Milliseconds(), int64(100))
+	assert.Greater(t, time.Since(start).Milliseconds(), int64(100))
 }
 
 func TestGoRecvOnNil(t *testing.T) {

@@ -305,7 +305,7 @@ Definition Txn__Write : val :=
     let: "$r0" := #true in
     do:  ("ret" <-[#boolT] "$r0");;;
     let: "ok" := (mem.alloc (type.zero_val #boolT)) in
-    let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr")) in
+    let: ("$ret0", "$ret1") := (map.get (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  "$r0";;;
@@ -313,7 +313,7 @@ Definition Txn__Write : val :=
     (if: ![#boolT] "ok"
     then
       let: "$r0" := (![#sliceT] (![#ptrT] "blk")) in
-      do:  (map.insert (![#(mapT uint64T sliceT)] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr") "$r0")
+      do:  (map.insert (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr") "$r0")
     else do:  #());;;
     (if: (~ (![#boolT] "ok"))
     then
@@ -323,7 +323,7 @@ Definition Txn__Write : val :=
         do:  ("ret" <-[#boolT] "$r0")
       else
         let: "$r0" := (![#sliceT] (![#ptrT] "blk")) in
-        do:  (map.insert (![#(mapT uint64T sliceT)] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr") "$r0"))
+        do:  (map.insert (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr") "$r0"))
     else do:  #());;;
     return: (![#boolT] "ret")).
 
@@ -334,7 +334,7 @@ Definition Txn__Read : val :=
     let: "addr" := (mem.alloc "addr") in
     let: "ok" := (mem.alloc (type.zero_val #boolT)) in
     let: "v" := (mem.alloc (type.zero_val #sliceT)) in
-    let: ("$ret0", "$ret1") := (map.get (![#(mapT uint64T sliceT)] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr")) in
+    let: ("$ret0", "$ret1") := (map.get (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) (![#uint64T] "addr")) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("v" <-[#sliceT] "$r0");;;
@@ -352,7 +352,7 @@ Definition Txn__Commit : val :=
     let: "blks" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := (mem.alloc (type.zero_val #sliceT)) in
     do:  ("blks" <-[#ptrT] "$r0");;;
-    let: "$range" := (![#(mapT uint64T sliceT)] (struct.field_ref #Txn #"blks"%go "txn")) in
+    let: "$range" := (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) in
     (let: "v" := (mem.alloc (type.zero_val #uint64T)) in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[#sliceT] "$value");;;
