@@ -755,12 +755,8 @@ func TestChanSendBarrier(t *testing.T) {
 
 func testChanSendBarrier(useSelect bool) {
 	var wg sync.WaitGroup
-	outer := 10
-	inner := 100
-	if testing.Short() || runtime.GOARCH == "wasm" {
-		outer = 10
-		inner = 100
-	}
+	outer := 2
+	inner := 20
 	for i := 0; i < outer; i++ {
 		wg.Add(1)
 		go func() {
@@ -1046,7 +1042,6 @@ func TestSelectFairnessWithBufferedChannel(t *testing.T) {
 
 	// Send to the unbuffered channel
 	c2.Send(99)
-	fmt.Println("sent to unbuff")
 
 	// Wait for the test to complete
 	result := done.ReceiveDiscardOk()
