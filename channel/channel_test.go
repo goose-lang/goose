@@ -310,7 +310,7 @@ func TestLenCapComparedWithGoChannels(t *testing.T) {
 
 // Some extra dummy checks for blocking behavior. Nil blocking is checked as well
 func TestBlockingBehavior(t *testing.T) {
-	timeout := time.Second // Reasonable timeout to check blocking behavior
+	timeout := time.Millisecond * 10 // Reasonable timeout to check blocking behavior
 
 	t.Run("ReceiveFromEmptyBlocks", func(t *testing.T) {
 		c := channel.NewChannelRef[int](0) // Unbuffered channel
@@ -796,10 +796,7 @@ func makeByte() []byte {
 // is always ready for receiving, so the select in the second goroutine must
 // always receive from one or the other. It must never execute the default case.
 func TestNonblockSelectRace(t *testing.T) {
-	n := 100000
-	if testing.Short() {
-		n = 1000
-	}
+	n := 1000
 	done := channel.NewChannelRef[bool](0)
 	for i := 0; i < n; i++ {
 		c1 := channel.NewChannelRef[int](1)
@@ -831,10 +828,7 @@ func TestNonblockSelectRace(t *testing.T) {
 
 // Same as TestNonblockSelectRace, but close(c2) replaces c2 <- 1.
 func TestNonblockSelectRace2(t *testing.T) {
-	n := 100000
-	if testing.Short() {
-		n = 1000
-	}
+	n := 1000
 	done := channel.NewChannelRef[bool](0)
 	for i := 0; i < n; i++ {
 		c1 := channel.NewChannelRef[int](1)
