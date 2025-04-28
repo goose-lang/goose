@@ -5,7 +5,9 @@ Tests to demonstrate Go's behavior on various subtle examples.
 */
 
 import (
+	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -202,6 +204,422 @@ func TestChan(t *testing.T) {
 	}
 }
 
+// This just makes sure that we have the same semantics for len and cap. I don't
+// think we plan on doing much with these, but if we do, might as well get it right
+func TestLenCapComparedWithGoChannels(t *testing.T) {
+	capacities := []uint64{0, 1, 2, 5, 10}
+
+	for _, capacity := range capacities {
+		t.Run(fmt.Sprintf("Capacity%d", capacity), func(t *testing.T) {
+			// Create both channel types
+			goChan := make(chan int, capacity)
+			ourChan := channel.NewChannelRef[int](capacity)
+
+			// Test initial state
+			goLen := len(goChan)
+			goCap := cap(goChan)
+			ourLen := int(ourChan.Len())
+			ourCap := int(ourChan.Cap())
+
+			if goLen != ourLen || goCap != ourCap {
+				t.Errorf("Initial state mismatch: Go len/cap: %d/%d, Our len/cap: %d/%d",
+					goLen, goCap, ourLen, ourCap)
+			}
+
+			// Test after adding items
+			itemsToAdd := capacity
+			if capacity == 0 {
+				itemsToAdd = 0
+			} else {
+				for i := uint64(0); i < capacity; i++ {
+					goChan <- int(i)
+					ourChan.Send(int(i))
+				}
+
+				goLen = len(goChan)
+				goCap = cap(goChan)
+				ourLen = int(ourChan.Len())
+				ourCap = int(ourChan.Cap())
+
+				if goLen != ourLen || goCap != ourCap {
+					t.Errorf("After filling mismatch: Go len/cap: %d/%d, Our len/cap: %d/%d",
+						goLen, goCap, ourLen, ourCap)
+				}
+			}
+
+			// Test after removing half the items
+			if itemsToAdd > 0 {
+				itemsToRemove := itemsToAdd / 2
+				for i := uint64(0); i < itemsToRemove; i++ {
+					<-goChan
+					ourChan.Receive()
+				}
+
+				goLen = len(goChan)
+				goCap = cap(goChan)
+				ourLen = int(ourChan.Len())
+				ourCap = int(ourChan.Cap())
+
+				if goLen != ourLen || goCap != ourCap {
+					t.Errorf("After partial removal mismatch: Go len/cap: %d/%d, Our len/cap: %d/%d",
+						goLen, goCap, ourLen, ourCap)
+				}
+			}
+
+			// Test after closing
+			// Need to drain remaining items first to compare fairly
+			if itemsToAdd > 0 {
+				remainingItems := itemsToAdd - (itemsToAdd / 2)
+				for i := uint64(0); i < remainingItems; i++ {
+					<-goChan
+					ourChan.Receive()
+				}
+			}
+
+			close(goChan)
+			ourChan.Close()
+
+			goLen = len(goChan)
+			goCap = cap(goChan)
+			ourLen = int(ourChan.Len())
+			ourCap = int(ourChan.Cap())
+
+			if goLen != ourLen || goCap != ourCap {
+				t.Errorf("After closing mismatch: Go len/cap: %d/%d, Our len/cap: %d/%d",
+					goLen, goCap, ourLen, ourCap)
+			}
+		})
+	}
+
+	// Test special case: nil channel
+	t.Run("NilChannel", func(t *testing.T) {
+		var goChan chan int
+		var ourChan *channel.Channel[int]
+
+		goLen := len(goChan)
+		goCap := cap(goChan)
+		ourLen := int(ourChan.Len()) // Should return 0 for nil channel
+		ourCap := int(ourChan.Cap()) // Should return 0 for nil channel
+
+		if goLen != ourLen || goCap != ourCap {
+			t.Errorf("Nil channel mismatch: Go len/cap: %d/%d, Our len/cap: %d/%d",
+				goLen, goCap, ourLen, ourCap)
+		}
+	})
+}
+
+// Some extra dummy checks for blocking behavior. Nil blocking is checked as well
+func TestBlockingBehavior(t *testing.T) {
+	timeout := time.Second // Reasonable timeout to check blocking behavior
+
+	t.Run("ReceiveFromEmptyBlocks", func(t *testing.T) {
+		c := channel.NewChannelRef[int](0) // Unbuffered channel
+
+		done := make(chan bool)
+		go func() {
+			_, _ = c.Receive() // This should block
+			done <- true
+		}()
+
+		select {
+		case <-done:
+			t.Error("Receive from empty channel didn't block as expected")
+		case <-time.After(timeout):
+			// If we reach here, the operation blocked as expected
+		}
+	})
+
+	t.Run("SendToFullBlocks", func(t *testing.T) {
+		c := channel.NewChannelRef[int](1) // Buffered channel with capacity 1
+		c.Send(42)                         // Fill the channel
+
+		done := make(chan bool)
+		go func() {
+			c.Send(43) // This should block
+			done <- true
+		}()
+
+		select {
+		case <-done:
+			t.Error("Send to full channel didn't block as expected")
+		case <-time.After(timeout):
+			// If we reach here, the operation blocked as expected
+		}
+
+		// Clean up
+		_, _ = c.Receive()
+		select {
+		case <-done:
+			// Expected - operation completes
+		case <-time.After(timeout):
+			t.Error("Send operation didn't complete after space became available")
+		}
+	})
+
+	// Test nil channel behavior
+	t.Run("NilChannelBlocks", func(t *testing.T) {
+		// Test nil channel send
+		t.Run("SendToNilBlocks", func(t *testing.T) {
+			// Compare with Go's behavior
+			var goChan chan int
+			var ourChan *channel.Channel[int] = nil
+
+			goBlocked := true
+			ourBlocked := true
+
+			// Test Go's behavior
+			goBlockDone := make(chan bool)
+			go func() {
+				goChan <- 42 // This should block
+				goBlockDone <- true
+			}()
+
+			// Test our implementation
+			ourBlockDone := make(chan bool)
+			go func() {
+				ourChan.Send(42) // This should block
+				ourBlockDone <- true
+			}()
+
+			// Check if both operations block
+			select {
+			case <-goBlockDone:
+				goBlocked = false
+				t.Error("Go's send to nil channel didn't block as expected")
+			case <-ourBlockDone:
+				ourBlocked = false
+				t.Error("Our send to nil channel didn't block as expected")
+			case <-time.After(timeout):
+				// Both blocked, which is expected
+			}
+
+			if !goBlocked || !ourBlocked {
+				t.Errorf("Nil channel send blocking behavior mismatch: Go blocked: %v, Our blocked: %v",
+					goBlocked, ourBlocked)
+			}
+		})
+
+		// Test nil channel receive
+		t.Run("ReceiveFromNilBlocks", func(t *testing.T) {
+			// Compare with Go's behavior
+			var goChan chan int
+			var ourChan *channel.Channel[int] = nil
+
+			goBlocked := true
+			ourBlocked := true
+
+			// Test Go's behavior
+			goBlockDone := make(chan bool)
+			go func() {
+				_ = <-goChan // This should block
+				goBlockDone <- true
+			}()
+
+			// Test our implementation
+			ourBlockDone := make(chan bool)
+			go func() {
+				_, _ = ourChan.Receive() // This should block
+				ourBlockDone <- true
+			}()
+
+			// Check if both operations block
+			select {
+			case <-goBlockDone:
+				goBlocked = false
+				t.Error("Go's receive from nil channel didn't block as expected")
+			case <-ourBlockDone:
+				ourBlocked = false
+				t.Error("Our receive from nil channel didn't block as expected")
+			case <-time.After(timeout):
+				// Both blocked, which is expected
+			}
+
+			if !goBlocked || !ourBlocked {
+				t.Errorf("Nil channel receive blocking behavior mismatch: Go blocked: %v, Our blocked: %v",
+					goBlocked, ourBlocked)
+			}
+		})
+	})
+}
+
+// Make sure the panic situations lead to panic in the model with the same message.
+func TestPanicComparedWithGoChannels(t *testing.T) {
+	// Helper function to check if an operation panics and capture the panic message
+	assertPanicsWithMessage := func(f func()) (didPanic bool, message string) {
+		defer func() {
+			if r := recover(); r != nil {
+				didPanic = true
+				message = fmt.Sprint(r)
+			}
+		}()
+		f()
+		return false, ""
+	}
+
+	// Test send on closed channel
+	t.Run("SendOnClosedChannel", func(t *testing.T) {
+		// Test with Go's native channel
+		goChan := make(chan int, 1)
+		close(goChan)
+		goDidPanic, goMessage := assertPanicsWithMessage(func() {
+			goChan <- 42
+		})
+
+		// Test with our channel implementation
+		ourChan := channel.NewChannelRef[int](1)
+		ourChan.Close()
+		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
+			ourChan.Send(42)
+		})
+
+		// Compare results
+		if goDidPanic != ourDidPanic {
+			t.Errorf("Behavior mismatch: Go channel panicked: %v, Our channel panicked: %v",
+				goDidPanic, ourDidPanic)
+		}
+
+		// Compare error messages
+		if goDidPanic && ourDidPanic {
+			if !strings.Contains(ourMessage, "send on closed channel") {
+				t.Errorf("Error message mismatch:\nGo message: %q\nOur message: %q",
+					goMessage, ourMessage)
+			}
+		}
+	})
+
+	// Test close on closed channel
+	t.Run("CloseOnClosedChannel", func(t *testing.T) {
+		// Test with Go's native channel
+		goChan := make(chan int, 1)
+		close(goChan)
+		goDidPanic, goMessage := assertPanicsWithMessage(func() {
+			close(goChan)
+		})
+
+		// Test with our channel implementation
+		ourChan := channel.NewChannelRef[int](1)
+		ourChan.Close()
+		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
+			ourChan.Close()
+		})
+
+		// Compare results
+		if goDidPanic != ourDidPanic {
+			t.Errorf("Behavior mismatch: Go channel panicked: %v, Our channel panicked: %v",
+				goDidPanic, ourDidPanic)
+		}
+
+		// Compare error messages
+		if goDidPanic && ourDidPanic {
+			if !strings.Contains(ourMessage, "close of closed channel") {
+				t.Errorf("Error message mismatch:\nGo message: %q\nOur message: %q",
+					goMessage, ourMessage)
+			}
+		}
+	})
+
+	// Test try-send on closed channel (using select with default for Go)
+	t.Run("TrySendOnClosedChannel", func(t *testing.T) {
+		// Test with Go's native channel
+		goChan := make(chan int, 1)
+		close(goChan)
+		goDidPanic, goMessage := assertPanicsWithMessage(func() {
+			select {
+			case goChan <- 42:
+				// Should panic before reaching here
+			default:
+				// Should panic before reaching here
+			}
+		})
+
+		// Test with our channel implementation
+		ourChan := channel.NewChannelRef[int](1)
+		ourChan.Close()
+		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
+			ourChan.TrySend(42)
+		})
+
+		// Compare results
+		if goDidPanic != ourDidPanic {
+			t.Errorf("Behavior mismatch: Go channel panicked: %v, Our channel panicked: %v",
+				goDidPanic, ourDidPanic)
+		}
+
+		// Compare error messages
+		if goDidPanic && ourDidPanic {
+			if !strings.Contains(ourMessage, "send on closed channel") {
+				t.Errorf("Error message mismatch:\nGo message: %q\nOur message: %q",
+					goMessage, ourMessage)
+			}
+		}
+	})
+
+	// Test buffered try-send on closed channel
+	t.Run("BufferedTrySendOnClosedChannel", func(t *testing.T) {
+		// Test with Go's native channel
+		goChan := make(chan int, 5)
+		close(goChan)
+		goDidPanic, goMessage := assertPanicsWithMessage(func() {
+			select {
+			case goChan <- 42:
+				// Should panic before reaching here
+			default:
+				// Should panic before reaching here
+			}
+		})
+
+		// Test with our channel implementation
+		ourChan := channel.NewChannelRef[int](5)
+		ourChan.Close()
+		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
+			ourChan.TrySend(42)
+		})
+
+		// Compare results
+		if goDidPanic != ourDidPanic {
+			t.Errorf("Behavior mismatch: Go channel panicked: %v, Our channel panicked: %v",
+				goDidPanic, ourDidPanic)
+		}
+
+		// Compare error messages
+		if goDidPanic && ourDidPanic {
+			if !strings.Contains(ourMessage, "send on closed channel") {
+				t.Errorf("Error message mismatch:\nGo message: %q\nOur message: %q",
+					goMessage, ourMessage)
+			}
+		}
+	})
+
+	// Test close of nil channel
+	t.Run("CloseNilChannel", func(t *testing.T) {
+		// Test with Go's native channel
+		var goChan chan int
+		goDidPanic, goMessage := assertPanicsWithMessage(func() {
+			close(goChan)
+		})
+
+		// Test with our channel implementation
+		var ourChan *channel.Channel[int]
+		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
+			ourChan.Close()
+		})
+
+		// Compare results
+		if goDidPanic != ourDidPanic {
+			t.Errorf("Behavior mismatch: Go channel panicked: %v, Our channel panicked: %v",
+				goDidPanic, ourDidPanic)
+		}
+
+		// Compare error messages
+		if goDidPanic && ourDidPanic {
+			if !strings.Contains(ourMessage, "close of nil channel") {
+				t.Errorf("Error message mismatch:\nGo message: %q\nOur message: %q",
+					goMessage, ourMessage)
+			}
+		}
+	})
+}
+
 func TestNonblockRecvRace(t *testing.T) {
 	var n uint64 = 10000
 	if testing.Short() {
@@ -305,7 +723,7 @@ func doRequest(useSelect bool) (*response, error) {
 		go func() {
 			case_1 := channel.NewSendCase(ch, &async{resp: nil, err: myError{}})
 			case_2 := channel.NewRecvCase(done)
-			selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+			selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
 			// These cases don't actually do anything but wanted to stick with the intended
 			// translation throughout this file.
 			if selected_case == 0 {
@@ -394,8 +812,7 @@ func TestNonblockSelectRace(t *testing.T) {
 		go func() {
 			case_1 := channel.NewRecvCase(c1)
 			case_2 := channel.NewRecvCase(c2)
-			case_3 := channel.NewDefaultCase()
-			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
+			selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
 			if selected_case == 0 {
 			}
 			if selected_case == 1 {
@@ -430,8 +847,7 @@ func TestNonblockSelectRace2(t *testing.T) {
 		go func() {
 			case_1 := channel.NewRecvCase(c1)
 			case_2 := channel.NewRecvCase(c2)
-			case_3 := channel.NewDefaultCase()
-			selected_case := channel.ThreeCaseSelect(&case_1, &case_2, &case_3)
+			selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
 			if selected_case == 0 {
 			}
 			if selected_case == 1 {
@@ -470,7 +886,7 @@ func TestSelfSelect(t *testing.T) {
 					if p == 0 || i%2 == 0 {
 						case_1 := channel.NewSendCase(c, p)
 						case_2 := channel.NewRecvCase(c)
-						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+						selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
 						if selected_case == 0 {
 							break
 						} else if selected_case == 1 {
@@ -483,7 +899,7 @@ func TestSelfSelect(t *testing.T) {
 					} else {
 						case_1 := channel.NewRecvCase(c)
 						case_2 := channel.NewSendCase(c, p)
-						selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+						selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
 						if selected_case == 0 {
 							if chanCap == 0 && case_1.Value == p {
 								t.Errorf("self receive")
@@ -515,7 +931,7 @@ func TestSelectLivenessOrder1(t *testing.T) {
 	c1_selected := false
 	c2_selected := false
 	for {
-		selected_case := channel.TwoCaseSelect(&case_1, &case_2)
+		selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
 		// Make sure we eventually hit the second case
 		if selected_case == 0 {
 			c1_selected = true
@@ -543,7 +959,7 @@ func TestSelectLivenessOrder2(t *testing.T) {
 	c1_selected := false
 	c2_selected := false
 	for {
-		selected_case := channel.TwoCaseSelect(&case_2, &case_1)
+		selected_case := channel.TwoCaseSelect(&case_2, &case_1, false)
 		// Make sure we eventually hit the second case
 		if selected_case == 0 {
 			c1_selected = true
@@ -571,7 +987,7 @@ func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
 	c2_selected := false
 	go func() {
 		for {
-			selected_case := channel.TwoCaseSelect(&case_2, &case_1)
+			selected_case := channel.TwoCaseSelect(&case_2, &case_1, false)
 			// Make sure we eventually hit the second case
 			if selected_case == 0 {
 				c1_selected = true
@@ -586,4 +1002,57 @@ func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 	c2.Send(0)
 
+}
+
+// Make sure a selectable buffered channel case isn't selected every time if it
+// appears first
+func TestSelectFairnessWithBufferedChannel(t *testing.T) {
+	// Create one buffered and one unbuffered channel
+	c1 := channel.NewChannelRef[int](1) // Buffered (capacity 1)
+	c2 := channel.NewChannelRef[int](0) // Unbuffered
+
+	// Create select cases - buffered channel first
+	case1 := channel.NewRecvCase(c1)
+	case2 := channel.NewRecvCase(c2)
+
+	// Put data in the buffered channel to make it immediately ready
+	c1.Send(42)
+
+	// Channel to signal test completion
+	done := channel.NewChannelRef[bool](0)
+
+	buffered_selected := false
+	unbuffered_selected := false
+
+	// Start a goroutine that selects until both channels have been chosen
+	go func() {
+		for {
+			selected_case := channel.TwoCaseSelect(&case1, &case2, true)
+
+			if selected_case == 0 {
+				buffered_selected = true
+				// Refill the buffered channel
+				c1.Send(42)
+			} else if selected_case == 1 {
+				unbuffered_selected = true
+			}
+
+			if buffered_selected && unbuffered_selected {
+				done.Send(true)
+				return
+			}
+		}
+	}()
+
+	// Send to the unbuffered channel
+	c2.Send(99)
+	fmt.Println("sent to unbuff")
+
+	// Wait for the test to complete
+	result := done.ReceiveDiscardOk()
+
+	// The done channel will only receive a value if both channels were selected
+	if !result {
+		t.Fatal("Test did not complete successfully")
+	}
 }
