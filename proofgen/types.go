@@ -37,28 +37,7 @@ func toCoqName(n string) string {
 func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
-		switch t.Name() {
-		case "uint64", "int64":
-			return "w64"
-		case "uint32", "int32":
-			return "w32"
-		case "uint16", "int16":
-			return "w16"
-		case "uint8", "int8", "byte":
-			return "w8"
-		case "uint", "int":
-			return "w64"
-		case "float64":
-			return "w64"
-		case "bool":
-			return "bool"
-		case "string", "untyped string":
-			return "go_string"
-		case "Pointer", "uintptr":
-			return "loc"
-		default:
-			panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
-		}
+		return basicTypeToCoq(t)
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
@@ -72,17 +51,9 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	case *types.Map, *types.Chan:
 		return "loc"
 	case *types.Named:
-		objPkg := t.Obj().Pkg()
-		thisName := t.Obj().Name()
-		if objPkg == nil || tr.pkg.PkgPath == objPkg.Path() {
-			n := thisName + ".t"
-			tr.deps.Add(n)
-			return n
-		} else {
-			n := fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
-			tr.deps.Add(n)
-			return n
-		}
+		n := namedTypeToCoq(t, tr.pkg)
+		tr.deps.Add(n)
+		return n
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "unit"

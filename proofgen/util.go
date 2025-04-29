@@ -7,32 +7,47 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+func basicTypeToCoq(t *types.Basic) string {
+	switch t.Name() {
+	case "uint64", "int64":
+		return "w64"
+	case "uint32", "int32":
+		return "w32"
+	case "uint16", "int16":
+		return "w16"
+	case "uint8", "int8", "byte":
+		return "w8"
+	case "uint", "int":
+		return "w64"
+	case "float64":
+		return "w64"
+	case "bool":
+		return "bool"
+	case "string", "untyped string":
+		return "go_string"
+	case "Pointer", "uintptr":
+		return "loc"
+	default:
+		panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
+	}
+}
+
+func namedTypeToCoq(t *types.Named, pkg *packages.Package) string {
+	objPkg := t.Obj().Pkg()
+	thisName := t.Obj().Name()
+	if objPkg == nil || pkg.PkgPath == objPkg.Path() {
+		n := thisName + ".t"
+		return n
+	} else {
+		n := fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
+		return n
+	}
+}
+
 func toCoqType(t types.Type, pkg *packages.Package) string {
-	// TODO: reduce duplication with toCoqTypeWithDeps
-	switch t := t.(type) {
+	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
-		switch t.Name() {
-		case "uint64", "int64":
-			return "w64"
-		case "uint32", "int32":
-			return "w32"
-		case "uint16", "int16":
-			return "w16"
-		case "uint8", "int8", "byte":
-			return "w8"
-		case "uint", "int":
-			return "w64"
-		case "float64":
-			return "w64"
-		case "bool":
-			return "bool"
-		case "string", "untyped string":
-			return "go_string"
-		case "Pointer", "uintptr":
-			return "loc"
-		default:
-			panic(fmt.Sprintf("Unknown basic type %s", t.Name()))
-		}
+		return basicTypeToCoq(t)
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
@@ -46,11 +61,7 @@ func toCoqType(t types.Type, pkg *packages.Package) string {
 	case *types.Map, *types.Chan:
 		return "loc"
 	case *types.Named:
-		if t.Obj().Pkg() == nil || pkg.PkgPath == t.Obj().Pkg().Path() {
-			return t.Obj().Name() + ".t"
-		} else {
-			return fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
-		}
+		return namedTypeToCoq(t, pkg)
 	case *types.Struct:
 		if t.NumFields() == 0 {
 			return "unit"
