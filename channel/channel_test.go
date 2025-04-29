@@ -723,7 +723,7 @@ func doRequest(useSelect bool) (*response, error) {
 		go func() {
 			case_1 := channel.NewSendCase(ch, &async{resp: nil, err: myError{}})
 			case_2 := channel.NewRecvCase(done)
-			selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
+			selected_case := channel.Select2(&case_1, &case_2, true)
 			// These cases don't actually do anything but wanted to stick with the intended
 			// translation throughout this file.
 			if selected_case == 0 {
@@ -805,7 +805,7 @@ func TestNonblockSelectRace(t *testing.T) {
 		go func() {
 			case_1 := channel.NewRecvCase(c1)
 			case_2 := channel.NewRecvCase(c2)
-			selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
+			selected_case := channel.Select2(&case_1, &case_2, false)
 			if selected_case == 0 {
 			}
 			if selected_case == 1 {
@@ -837,7 +837,7 @@ func TestNonblockSelectRace2(t *testing.T) {
 		go func() {
 			case_1 := channel.NewRecvCase(c1)
 			case_2 := channel.NewRecvCase(c2)
-			selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
+			selected_case := channel.Select2(&case_1, &case_2, false)
 			if selected_case == 0 {
 			}
 			if selected_case == 1 {
@@ -876,7 +876,7 @@ func TestSelfSelect(t *testing.T) {
 					if p == 0 || i%2 == 0 {
 						case_1 := channel.NewSendCase(c, p)
 						case_2 := channel.NewRecvCase(c)
-						selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
+						selected_case := channel.Select2(&case_1, &case_2, true)
 						if selected_case == 0 {
 							break
 						} else if selected_case == 1 {
@@ -889,7 +889,7 @@ func TestSelfSelect(t *testing.T) {
 					} else {
 						case_1 := channel.NewRecvCase(c)
 						case_2 := channel.NewSendCase(c, p)
-						selected_case := channel.TwoCaseSelect(&case_1, &case_2, true)
+						selected_case := channel.Select2(&case_1, &case_2, true)
 						if selected_case == 0 {
 							if chanCap == 0 && case_1.Value == p {
 								t.Errorf("self receive")
@@ -921,7 +921,7 @@ func TestSelectLivenessOrder1(t *testing.T) {
 	c1_selected := false
 	c2_selected := false
 	for {
-		selected_case := channel.TwoCaseSelect(&case_1, &case_2, false)
+		selected_case := channel.Select2(&case_1, &case_2, false)
 		// Make sure we eventually hit the second case
 		if selected_case == 0 {
 			c1_selected = true
@@ -949,7 +949,7 @@ func TestSelectLivenessOrder2(t *testing.T) {
 	c1_selected := false
 	c2_selected := false
 	for {
-		selected_case := channel.TwoCaseSelect(&case_2, &case_1, false)
+		selected_case := channel.Select2(&case_2, &case_1, false)
 		// Make sure we eventually hit the second case
 		if selected_case == 0 {
 			c1_selected = true
@@ -977,7 +977,7 @@ func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
 	c2_selected := false
 	go func() {
 		for {
-			selected_case := channel.TwoCaseSelect(&case_2, &case_1, false)
+			selected_case := channel.Select2(&case_2, &case_1, false)
 			// Make sure we eventually hit the second case
 			if selected_case == 0 {
 				c1_selected = true
@@ -1017,7 +1017,7 @@ func TestSelectFairnessWithBufferedChannel(t *testing.T) {
 	// Start a goroutine that selects until both channels have been chosen
 	go func() {
 		for {
-			selected_case := channel.TwoCaseSelect(&case1, &case2, true)
+			selected_case := channel.Select2(&case1, &case2, true)
 
 			if selected_case == 0 {
 				buffered_selected = true
@@ -1043,5 +1043,279 @@ func TestSelectFairnessWithBufferedChannel(t *testing.T) {
 	// The done channel will only receive a value if both channels were selected
 	if !result {
 		t.Fatal("Test did not complete successfully")
+	}
+}
+func TestSelect1(t *testing.T) {
+	// One buffered channel so we can preload it without blocking
+	c1 := channel.NewChannelRef[uint64](1) // capacity=1
+	// preload c1
+	c1.Send(66)
+
+	// build the case (generic used explicitly)
+	case1 := channel.NewRecvCase(c1)
+
+	// non-blocking: should pick the first case (index 0)
+	idx := channel.Select1(&case1 /*blocking=*/, false)
+	if idx != 0 {
+		t.Errorf("expected selected index=0, got %d", idx)
+	}
+
+	// and confirm the SelectCase struct was populated
+	if case1.Value != 66 {
+		t.Errorf("expected case1.Value=66, got %v", case1.Value)
+	}
+	if !case1.Ok {
+		t.Error("expected case1.Ok=true, got false")
+	}
+
+	// Create a new empty channel for testing non-blocking behavior
+	emptyC1 := channel.NewChannelRef[uint64](1)
+	emptyCase1 := channel.NewRecvCase(emptyC1)
+
+	// With blocking=false and no selectable statement, should return DefaultCase
+	idx = channel.Select1(&emptyCase1 /*blocking=*/, false)
+	if idx != channel.DefaultCase {
+		t.Errorf("expected selected index=channel.DefaultCase when non-blocking with no available case, got %d", idx)
+	}
+
+	// Close the channel and test receive on closed channel
+	emptyC1.Close()
+	idx = channel.Select1(&emptyCase1 /*blocking=*/, true)
+	if idx != 0 {
+		t.Errorf("expected selected index=0 for closed channel, got %d", idx)
+	}
+	if emptyCase1.Ok {
+		t.Error("expected emptyCase1.Ok=false for closed channel, got true")
+	}
+	if emptyCase1.Value != 0 {
+		t.Errorf("expected emptyCase1.Value=0 (zero value) for closed channel, got %v", emptyCase1.Value)
+	}
+}
+
+func TestSelect2(t *testing.T) {
+	// Two buffered channels so we can preload one without blocking
+	c1 := channel.NewChannelRef[uint64](1) // capacity=1
+	c2 := channel.NewChannelRef[uint64](1) // capacity=1
+	// preload c2
+	c2.Send(77)
+
+	// build the cases (generic used explicitly)
+	case1 := channel.NewRecvCase(c1)
+	case2 := channel.NewRecvCase(c2)
+
+	// non-blocking: should pick the second case (index 1)
+	idx := channel.Select2(&case1, &case2 /*blocking=*/, false)
+	if idx != 1 {
+		t.Errorf("expected selected index=1, got %d", idx)
+	}
+
+	// and confirm the SelectCase struct was populated
+	if case2.Value != 77 {
+		t.Errorf("expected case2.Value=77, got %v", case2.Value)
+	}
+	if !case2.Ok {
+		t.Error("expected case2.Ok=true, got false")
+	}
+
+	// Create new empty channels for testing non-blocking behavior
+	emptyC1 := channel.NewChannelRef[uint64](1)
+	emptyC2 := channel.NewChannelRef[uint64](1)
+	emptyCase1 := channel.NewRecvCase(emptyC1)
+	emptyCase2 := channel.NewRecvCase(emptyC2)
+
+	// With blocking=false and no selectable statement, should return DefaultCase
+	idx = channel.Select2(&emptyCase1, &emptyCase2 /*blocking=*/, false)
+	if idx != channel.DefaultCase {
+		t.Errorf("expected selected index=channel.DefaultCase when non-blocking with no available case, got %d", idx)
+	}
+
+	// Close a channel and test receive on closed channel
+	emptyC1.Close()
+	idx = channel.Select2(&emptyCase1, &emptyCase2 /*blocking=*/, true)
+	if idx != 0 {
+		t.Errorf("expected selected index=0 for closed channel, got %d", idx)
+	}
+	if emptyCase1.Ok {
+		t.Error("expected emptyCase1.Ok=false for closed channel, got true")
+	}
+	if emptyCase1.Value != 0 {
+		t.Errorf("expected emptyCase1.Value=0 (zero value) for closed channel, got %v", emptyCase1.Value)
+	}
+}
+
+func TestSelect3(t *testing.T) {
+	// Three buffered channels so we can preload one without blocking
+	c1 := channel.NewChannelRef[uint64](1) // capacity=1
+	c2 := channel.NewChannelRef[uint64](1) // capacity=1
+	c3 := channel.NewChannelRef[uint64](1) // capacity=1
+	// preload c3
+	c3.Send(88)
+
+	// build the cases (generic used explicitly)
+	case1 := channel.NewRecvCase(c1)
+	case2 := channel.NewRecvCase(c2)
+	case3 := channel.NewRecvCase(c3)
+
+	// non-blocking: should pick the third case (index 2)
+	idx := channel.Select3(&case1, &case2, &case3 /*blocking=*/, false)
+	if idx != 2 {
+		t.Errorf("expected selected index=2, got %d", idx)
+	}
+
+	// and confirm the SelectCase struct was populated
+	if case3.Value != 88 {
+		t.Errorf("expected case3.Value=88, got %v", case3.Value)
+	}
+	if !case3.Ok {
+		t.Error("expected case3.Ok=true, got false")
+	}
+
+	// Create new empty channels for testing non-blocking behavior
+	emptyC1 := channel.NewChannelRef[uint64](1)
+	emptyC2 := channel.NewChannelRef[uint64](1)
+	emptyC3 := channel.NewChannelRef[uint64](1)
+	emptyCase1 := channel.NewRecvCase(emptyC1)
+	emptyCase2 := channel.NewRecvCase(emptyC2)
+	emptyCase3 := channel.NewRecvCase(emptyC3)
+
+	// With blocking=false and no selectable statement, should return DefaultCase
+	idx = channel.Select3(&emptyCase1, &emptyCase2, &emptyCase3 /*blocking=*/, false)
+	if idx != channel.DefaultCase {
+		t.Errorf("expected selected index=channel.DefaultCase when non-blocking with no available case, got %d", idx)
+	}
+
+	// Close a channel and test receive on closed channel
+	emptyC2.Close()
+	idx = channel.Select3(&emptyCase1, &emptyCase2, &emptyCase3 /*blocking=*/, true)
+	if idx != 1 {
+		t.Errorf("expected selected index=1 for closed channel, got %d", idx)
+	}
+	if emptyCase2.Ok {
+		t.Error("expected emptyCase2.Ok=false for closed channel, got true")
+	}
+	if emptyCase2.Value != 0 {
+		t.Errorf("expected emptyCase2.Value=0 (zero value) for closed channel, got %v", emptyCase2.Value)
+	}
+}
+
+func TestSelect4(t *testing.T) {
+	// Four buffered channels so we can preload one without blocking
+	c1 := channel.NewChannelRef[uint64](1) // capacity=1
+	c2 := channel.NewChannelRef[uint64](1) // capacity=1
+	c3 := channel.NewChannelRef[uint64](1) // capacity=1
+	c4 := channel.NewChannelRef[uint64](1) // capacity=1
+	// preload c4
+	c4.Send(99)
+
+	// build the cases (generic used explicitly)
+	case1 := channel.NewRecvCase(c1)
+	case2 := channel.NewRecvCase(c2)
+	case3 := channel.NewRecvCase(c3)
+	case4 := channel.NewRecvCase(c4)
+
+	// non-blocking: should pick the fourth case (index 3)
+	idx := channel.Select4(&case1, &case2, &case3, &case4 /*blocking=*/, false)
+	if idx != 3 {
+		t.Errorf("expected selected index=3, got %d", idx)
+	}
+
+	// and confirm the SelectCase struct was populated
+	if case4.Value != 99 {
+		t.Errorf("expected case4.Value=99, got %v", case4.Value)
+	}
+	if !case4.Ok {
+		t.Error("expected case4.Ok=true, got false")
+	}
+
+	// Create new empty channels for testing non-blocking behavior
+	emptyC1 := channel.NewChannelRef[uint64](1)
+	emptyC2 := channel.NewChannelRef[uint64](1)
+	emptyC3 := channel.NewChannelRef[uint64](1)
+	emptyC4 := channel.NewChannelRef[uint64](1)
+	emptyCase1 := channel.NewRecvCase(emptyC1)
+	emptyCase2 := channel.NewRecvCase(emptyC2)
+	emptyCase3 := channel.NewRecvCase(emptyC3)
+	emptyCase4 := channel.NewRecvCase(emptyC4)
+
+	// With blocking=false and no selectable statement, should return DefaultCase
+	idx = channel.Select4(&emptyCase1, &emptyCase2, &emptyCase3, &emptyCase4 /*blocking=*/, false)
+	if idx != channel.DefaultCase {
+		t.Errorf("expected selected index=channel.DefaultCase when non-blocking with no available case, got %d", idx)
+	}
+
+	// Close a channel and test receive on closed channel
+	emptyC3.Close()
+	idx = channel.Select4(&emptyCase1, &emptyCase2, &emptyCase3, &emptyCase4 /*blocking=*/, true)
+	if idx != 2 {
+		t.Errorf("expected selected index=2 for closed channel, got %d", idx)
+	}
+	if emptyCase3.Ok {
+		t.Error("expected emptyCase3.Ok=false for closed channel, got true")
+	}
+	if emptyCase3.Value != 0 {
+		t.Errorf("expected emptyCase3.Value=0 (zero value) for closed channel, got %v", emptyCase3.Value)
+	}
+}
+
+func TestSelect5(t *testing.T) {
+	// Five buffered channels so we can preload one without blocking
+	c1 := channel.NewChannelRef[uint64](1) // capacity=1
+	c2 := channel.NewChannelRef[uint64](1) // capacity=1
+	c3 := channel.NewChannelRef[uint64](1) // capacity=1
+	c4 := channel.NewChannelRef[uint64](1) // capacity=1
+	c5 := channel.NewChannelRef[uint64](1) // capacity=1
+	// preload c5
+	c5.Send(111)
+
+	// build the cases (generic used explicitly)
+	case1 := channel.NewRecvCase(c1)
+	case2 := channel.NewRecvCase(c2)
+	case3 := channel.NewRecvCase(c3)
+	case4 := channel.NewRecvCase(c4)
+	case5 := channel.NewRecvCase(c5)
+
+	// non-blocking: should pick the fifth case (index 4)
+	idx := channel.Select5(&case1, &case2, &case3, &case4, &case5 /*blocking=*/, false)
+	if idx != 4 {
+		t.Errorf("expected selected index=4, got %d", idx)
+	}
+
+	// and confirm the SelectCase struct was populated
+	if case5.Value != 111 {
+		t.Errorf("expected case5.Value=111, got %v", case5.Value)
+	}
+	if !case5.Ok {
+		t.Error("expected case5.Ok=true, got false")
+	}
+
+	// Create new empty channels for testing non-blocking behavior
+	emptyC1 := channel.NewChannelRef[uint64](1)
+	emptyC2 := channel.NewChannelRef[uint64](1)
+	emptyC3 := channel.NewChannelRef[uint64](1)
+	emptyC4 := channel.NewChannelRef[uint64](1)
+	emptyC5 := channel.NewChannelRef[uint64](1)
+	emptyCase1 := channel.NewRecvCase(emptyC1)
+	emptyCase2 := channel.NewRecvCase(emptyC2)
+	emptyCase3 := channel.NewRecvCase(emptyC3)
+	emptyCase4 := channel.NewRecvCase(emptyC4)
+	emptyCase5 := channel.NewRecvCase(emptyC5)
+
+	// With blocking=false and no selectable statement, should return DefaultCase
+	idx = channel.Select5(&emptyCase1, &emptyCase2, &emptyCase3, &emptyCase4, &emptyCase5 /*blocking=*/, false)
+	if idx != channel.DefaultCase {
+		t.Errorf("expected selected index=channel.DefaultCase when non-blocking with no available case, got %d", idx)
+	}
+
+	// Close a channel and test receive on closed channel
+	emptyC4.Close()
+	idx = channel.Select5(&emptyCase1, &emptyCase2, &emptyCase3, &emptyCase4, &emptyCase5 /*blocking=*/, true)
+	if idx != 3 {
+		t.Errorf("expected selected index=3 for closed channel, got %d", idx)
+	}
+	if emptyCase4.Ok {
+		t.Error("expected emptyCase4.Ok=false for closed channel, got true")
+	}
+	if emptyCase4.Value != 0 {
+		t.Errorf("expected emptyCase4.Value=0 (zero value) for closed channel, got %v", emptyCase4.Value)
 	}
 }

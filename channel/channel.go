@@ -64,7 +64,7 @@ func (c *Channel[T]) Send(val T) {
 
 	// Run a blocking select with just this one case
 	// This will block until the send succeeds
-	OneCaseSelect(&send_case, true)
+	Select1(&send_case, true)
 }
 
 // Equivalent to:
@@ -84,7 +84,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 
 	// Run a blocking select with just this one case
 	// This will block until the receive succeeds
-	OneCaseSelect(&recvCase, true)
+	Select1(&recvCase, true)
 
 	return recvCase.Value, recvCase.Ok
 }
@@ -188,12 +188,16 @@ func (c *Channel[T]) ReceiverCompleteOrOffer() ReceiverState {
 type OfferResult uint64
 
 const (
-	OfferRescinded    OfferResult = 0 // Offer was rescinded (other party didn't arrive in time)
-	CompletedExchange OfferResult = 1 // Other party responded to our offer
-	InvalidOfferState OfferResult = 2 // Unexpected state, indicates model bugs.
+	OfferRescinded        OfferResult = 0 // Offer was rescinded (other party didn't arrive in time)
+	CompletedExchange     OfferResult = 1 // Other party responded to our offer
+	CloseInterruptedOffer OfferResult = 2 // Unexpected state, indicates model bugs.
 )
 
 func (c *Channel[T]) ReceiverCompleteOrRescindOffer() OfferResult {
+	// Offer cancelled by close
+	if c.state == closed {
+		return CloseInterruptedOffer
+	}
 	// Offer wasn't accepted in time, rescind it.
 	if c.state == receiver_ready {
 		c.state = start
@@ -204,8 +208,7 @@ func (c *Channel[T]) ReceiverCompleteOrRescindOffer() OfferResult {
 		c.state = start
 		return CompletedExchange
 	}
-	// If this is reached, there may be a bug in the model.
-	return InvalidOfferState
+	panic("Invalid state transition with open receive offer")
 }
 
 func (c *Channel[T]) UnbufferedTryReceive() (bool, T, bool) {
@@ -291,8 +294,7 @@ func (c *Channel[T]) SenderCheckOfferResult() OfferResult {
 		c.state = start
 		return OfferRescinded
 	}
-	// Model is incorrect if this is reached.
-	return InvalidOfferState
+	panic("Invalid state transition with open receive offer")
 }
 
 // If the buffer has free space, push our value.
@@ -427,6 +429,12 @@ func TrySelectCase[T1, T2, T3, T4, T5 any](
 	return false
 }
 
+// I want a value for representing the default case but I can't use -1 with uint64
+// and I don't want this to be confused for a bug, so doing this.
+const (
+	DefaultCase uint64 = 5 // The value representing the default case
+)
+
 // TryCasesInOrder attempts to select one of the cases in the given order
 // Returns the index of the selected case, or 5 if none was selected.
 // I would probably return a sentinel value of 1 here but we are limited to
@@ -461,7 +469,7 @@ func TryCasesInOrder[T1, T2, T3, T4, T5 any](
 // If blocking is true, keep trying to select until a select succeeds.
 // If blocking is false, return 5. 5 is the equivalent of a default case
 // in Go channels.
-func MultiSelect[T1, T2, T3, T4, T5 any](
+func multiSelect[T1, T2, T3, T4, T5 any](
 	case1 *SelectCase[T1],
 	case2 *SelectCase[T2],
 	case3 *SelectCase[T3],
@@ -469,25 +477,25 @@ func MultiSelect[T1, T2, T3, T4, T5 any](
 	case5 *SelectCase[T5],
 	blocking bool) uint64 {
 
-	var selected_case uint64 = uint64(5)
+	var selected_case uint64 = DefaultCase
 
 	// Get a random order for fairness (only once, outside the loop)
-	order := Shuffle(5)
+	order := Permutation(5)
 
 	// If nothing was selected and we're blocking, try in a loop
 	for {
 		selected_case = TryCasesInOrder(order, case1, case2, case3, case4, case5)
-		if selected_case != uint64(5) || !blocking {
+		if selected_case != DefaultCase || !blocking {
 			break
 		}
 	}
 	return selected_case
 }
 
-// OneCaseSelect performs a select operation on 1 case. This is used for Send and
+// Select1 performs a select operation on 1 case. This is used for Send and
 // Receive as well, since these channel operations in Go are equivalent to
 // a single case select statement with no default.
-func OneCaseSelect[T1 any](
+func Select1[T1 any](
 	case1 *SelectCase[T1],
 	blocking bool) uint64 {
 
@@ -497,7 +505,7 @@ func OneCaseSelect[T1 any](
 	emptyCase4 := &SelectCase[uint64]{channel: nil}
 	emptyCase5 := &SelectCase[uint64]{channel: nil}
 
-	return MultiSelect(
+	return multiSelect(
 		case1,
 		emptyCase2,
 		emptyCase3,
@@ -506,8 +514,8 @@ func OneCaseSelect[T1 any](
 		blocking)
 }
 
-// TwoCaseSelect performs a select operation on 2 cases.
-func TwoCaseSelect[T1, T2 any](
+// Select2 performs a select operation on 2 cases.
+func Select2[T1, T2 any](
 	case1 *SelectCase[T1],
 	case2 *SelectCase[T2],
 	blocking bool) uint64 {
@@ -517,7 +525,7 @@ func TwoCaseSelect[T1, T2 any](
 	emptyCase4 := &SelectCase[uint64]{}
 	emptyCase5 := &SelectCase[uint64]{}
 
-	return MultiSelect(
+	return multiSelect(
 		case1,
 		case2,
 		emptyCase3,
@@ -526,8 +534,8 @@ func TwoCaseSelect[T1, T2 any](
 		blocking)
 }
 
-// ThreeCaseSelect performs a select operation on 3 cases.
-func ThreeCaseSelect[T1, T2, T3 any](
+// Select3 performs a select operation on 3 cases.
+func Select3[T1, T2, T3 any](
 	case1 *SelectCase[T1],
 	case2 *SelectCase[T2],
 	case3 *SelectCase[T3],
@@ -537,7 +545,7 @@ func ThreeCaseSelect[T1, T2, T3 any](
 	emptyCase4 := &SelectCase[uint64]{}
 	emptyCase5 := &SelectCase[uint64]{}
 
-	return MultiSelect(
+	return multiSelect(
 		case1,
 		case2,
 		case3,
@@ -546,8 +554,8 @@ func ThreeCaseSelect[T1, T2, T3 any](
 		blocking)
 }
 
-// FourCaseSelect performs a select operation on 4 cases.
-func FourCaseSelect[T1, T2, T3, T4 any](
+// Select4 performs a select operation on 4 cases.
+func Select4[T1, T2, T3, T4 any](
 	case1 *SelectCase[T1],
 	case2 *SelectCase[T2],
 	case3 *SelectCase[T3],
@@ -557,7 +565,7 @@ func FourCaseSelect[T1, T2, T3, T4 any](
 	// Create an empty case with nil channel for the unused slot
 	emptyCase5 := &SelectCase[uint64]{}
 
-	return MultiSelect(
+	return multiSelect(
 		case1,
 		case2,
 		case3,
@@ -566,8 +574,8 @@ func FourCaseSelect[T1, T2, T3, T4 any](
 		blocking)
 }
 
-// FiveCaseSelect is just an alias to MultiSelect for consistency in the API.
-func FiveCaseSelect[T1, T2, T3, T4, T5 any](
+// Select5 is just an alias to MultiSelect for consistency in the API.
+func Select5[T1, T2, T3, T4, T5 any](
 	case1 *SelectCase[T1],
 	case2 *SelectCase[T2],
 	case3 *SelectCase[T3],
@@ -575,7 +583,7 @@ func FiveCaseSelect[T1, T2, T3, T4, T5 any](
 	case5 *SelectCase[T5],
 	blocking bool) uint64 {
 
-	return MultiSelect(
+	return multiSelect(
 		case1,
 		case2,
 		case3,
@@ -610,18 +618,27 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 	return false
 }
 
-// Simple knuth shuffle.
-func Shuffle(n uint64) []uint64 {
-	var order = make([]uint64, n)
+// Shuffle shuffles the elements of xs in place, using a Fisher-Yates shuffle.
+func Shuffle(xs []uint64) {
+	if len(xs) == 0 {
+		return
+	}
+	for i := uint64(len(xs) - 1); i > 0; i-- {
+		j := primitive.RandomUint64() % uint64(i+1)
+		temp := xs[i]
+		xs[i] = xs[j]
+		xs[j] = temp
+	}
+}
+
+// Permutation returns a random permutation of the integers 0, ..., n-1, using a
+// Fisher-Yates shuffle.
+func Permutation(n uint64) []uint64 {
+	order := make([]uint64, n)
 	for i := uint64(0); i < n; i++ {
 		order[i] = uint64(i)
 	}
-	for i := uint64(len(order) - 1); i > 0; i-- {
-		var j uint64 = primitive.RandomUint64() % uint64(i+1)
-		var temp uint64 = order[i]
-		order[i] = order[j]
-		order[j] = temp
-	}
+	Shuffle(order)
 	return order
 }
 
