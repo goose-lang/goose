@@ -58,8 +58,8 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) []glang.Decl {
 		}
 		return nil
 	case declfilter.Translate:
-		ctx.dep.setCurrentName(spec.Name.Name)
-		defer ctx.dep.unsetCurrentName()
+		ctx.dep.SetCurrentName(spec.Name.Name)
+		defer ctx.dep.UnsetCurrentName()
 		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
 			if _, ok := t.Underlying().(*types.Interface); !ok {
 				ctx.namedTypes = append(ctx.namedTypes, t)
@@ -172,7 +172,7 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 		if info, ok := ctx.getStructInfo(t); ok {
 			return ctx.structInfoToGlangType(info)
 		}
-		ctx.dep.addDep(ctx.qualifiedName(t.Obj()))
+		ctx.dep.Add(ctx.qualifiedName(t.Obj()))
 		if t.TypeArgs().Len() != 0 {
 			return glang.TypeCallExpr{
 				MethodName: glang.TypeIdent(ctx.qualifiedName(t.Obj())),
@@ -256,7 +256,7 @@ type structTypeInfo struct {
 }
 
 func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Type {
-	ctx.dep.addDep(info.name)
+	ctx.dep.Add(info.name)
 	if ctx.typeIsGooseLang(info.namedType) {
 		return glang.TypeCallExpr{MethodName: glang.GallinaIdent(info.name), Args: ctx.convertTypeArgsToGlang(nil, info.typeArgs)}
 	} else {

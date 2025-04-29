@@ -139,7 +139,7 @@ func (ctx *Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []
 			printed := make(map[string]bool)
 		OuterLoop:
 			for n := name; ; {
-				for _, d := range ctx.dep.nameToDeps[n] {
+				for d := range ctx.dep.GetDeps(n) {
 					if generating[d] {
 						if printed[n] {
 							break OuterLoop
@@ -164,7 +164,7 @@ func (ctx *Ctx) decls(fs []*ast.File) (imports glang.ImportDecls, sortedDecls []
 		}
 		generating[name] = true
 
-		for _, dep := range ctx.dep.nameToDeps[name] {
+		for dep := range ctx.dep.GetDeps(name) {
 			if _, ok := decls[dep]; ok {
 				processDecl(dep)
 			}
