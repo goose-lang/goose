@@ -1,8 +1,21 @@
+// declfilter defines the configuration (using toml) for how Go is translated to
+// GooseLang.
 package declfilter
 
 import (
 	"github.com/pelletier/go-toml/v2"
 )
+
+// FilterConfig defines the format of the toml files
+//
+// TODO: currently the only way to "wildcard" a config is to not have a toml
+// file. Should have something more flexible like glob patterns.
+type FilterConfig struct {
+	Imports      []string `toml:"imports"`
+	Trusted      []string `toml:"trusted"`
+	ToTranslate  []string `toml:"translate"`
+	ToAxiomatize []string `toml:"axiomatize"`
+}
 
 type Action int
 
@@ -13,6 +26,7 @@ const (
 	Trust
 )
 
+// DeclFilter determines how to treat each declaration in a Go package.
 type DeclFilter interface {
 	GetAction(string) Action
 	ShouldImport(string) bool
@@ -49,20 +63,13 @@ func (df *declFilter) HasTrusted() bool {
 	return len(df.toTrust) > 0
 }
 
-type filterConfig struct {
-	Imports      []string `toml:"imports"`
-	Trusted      []string `toml:"trusted"`
-	ToTranslate  []string `toml:"translate"`
-	ToAxiomatize []string `toml:"axiomatize"`
-}
-
 func Load(raw []byte) DeclFilter {
 	if raw == nil {
 		return &declFilter{
 			isTrivial: true,
 		}
 	}
-	var a filterConfig
+	var a FilterConfig
 	error := toml.Unmarshal(raw, &a)
 	if error != nil {
 		panic(error.Error())
