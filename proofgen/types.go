@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
+	"github.com/goose-lang/goose/deptracker"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -19,10 +20,10 @@ type typesTranslator struct {
 
 	filter declfilter.DeclFilter
 
-	deps        map[string][]string
-	currentName string
-	defs        map[string]string
-	defNames    []string
+	deps *deptracker.Deps
+	defs map[string]string
+	// tracks the order definitions were seen in
+	defNames []string
 }
 
 // Adding a "'" to avoid conflicting with Coq keywords and definitions that
@@ -33,22 +34,7 @@ func toCoqName(n string) string {
 	return n + "'"
 }
 
-func (tr *typesTranslator) setCurrent(s string) {
-	if tr.currentName != "" {
-		panic("proofgen: setting currentName before unsetting")
-	}
-	tr.currentName = s
-}
-
-func (tr *typesTranslator) unsetCurrent() {
-	tr.currentName = ""
-}
-
-func (tr *typesTranslator) addDep(s string) {
-	tr.deps[tr.currentName] = append(tr.deps[tr.currentName], s)
-}
-
-func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package) string {
+func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
 		switch t.Name() {
@@ -76,7 +62,7 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
-		return fmt.Sprintf("(vec %s (uint.nat (W64 %d)))", tr.toCoqTypeWithDeps(t.Elem(), pkg), t.Len())
+		return fmt.Sprintf("(vec %s (uint.nat (W64 %d)))", tr.toCoqTypeWithDeps(t.Elem()), t.Len())
 	case *types.Pointer:
 		return "loc"
 	case *types.Signature:
@@ -86,13 +72,15 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package
 	case *types.Map, *types.Chan:
 		return "loc"
 	case *types.Named:
-		if t.Obj().Pkg() == nil || pkg.PkgPath == t.Obj().Pkg().Path() {
-			n := t.Obj().Name() + ".t"
-			tr.addDep(n)
+		objPkg := t.Obj().Pkg()
+		thisName := t.Obj().Name()
+		if objPkg == nil || tr.pkg.PkgPath == objPkg.Path() {
+			n := thisName + ".t"
+			tr.deps.Add(n)
 			return n
 		} else {
-			n := fmt.Sprintf("%s.%s.t", t.Obj().Pkg().Name(), t.Obj().Name())
-			tr.addDep(n)
+			n := fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
+			tr.deps.Add(n)
 			return n
 		}
 	case *types.Struct:
@@ -100,18 +88,18 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type, pkg *packages.Package
 			return "unit"
 		} else {
 			panic(fmt.Sprintf("Anonymous structs with fields are not supported (%s): %s",
-				pkg.Fset.Position(t.Field(0).Pos()).String(),
+				tr.pkg.Fset.Position(t.Field(0).Pos()).String(),
 				t.String()))
 		}
 	}
-	panic(fmt.Sprint("Unknown type ", t))
+	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
 }
 
 func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) {
 	name := spec.Name.Name
 	defName := name + ".t"
-	tr.setCurrent(defName)
-	defer tr.unsetCurrent()
+	tr.deps.SetCurrentName(defName)
+	defer tr.deps.UnsetCurrentName()
 
 	w := new(strings.Builder)
 	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nAxiom t : Type.\nEnd def.\nEnd %s.\n",
@@ -136,12 +124,12 @@ Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s.
 func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) {
 	name := spec.Name.Name
 	defName := name + ".t"
-	tr.setCurrent(defName)
-	defer tr.unsetCurrent()
+	tr.deps.SetCurrentName(defName)
+	defer tr.deps.UnsetCurrentName()
 
 	w := new(strings.Builder)
 	fmt.Fprintf(w, "\nModule %s.\nSection def.\nContext `{ffi_syntax}.\nDefinition t := %s.\nEnd def.\nEnd %s.\n",
-		name, tr.toCoqTypeWithDeps(t, tr.pkg), name)
+		name, tr.toCoqTypeWithDeps(t), name)
 
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = w.String()
@@ -151,8 +139,8 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 	name := spec.Name.Name
 	w := new(strings.Builder)
 	defName := name + ".t"
-	tr.setCurrent(defName)
-	defer tr.unsetCurrent()
+	tr.deps.SetCurrentName(defName)
+	defer tr.deps.UnsetCurrentName()
 
 	getFieldName := func(i int) string {
 		fieldName := s.Field(i).Name()
@@ -164,7 +152,7 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 
 	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
 	for i := 0; i < s.NumFields(); i++ {
-		t := tr.toCoqTypeWithDeps(s.Field(i).Type(), tr.pkg)
+		t := tr.toCoqTypeWithDeps(s.Field(i).Type())
 		fmt.Fprintf(w, "  %s : %s;\n",
 			toCoqName(getFieldName(i)),
 			t,
@@ -309,7 +297,7 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 
 func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
 	tr := &typesTranslator{
-		deps:   make(map[string][]string),
+		deps:   deptracker.New(),
 		defs:   make(map[string]string),
 		pkg:    pkg,
 		filter: filter,
@@ -340,7 +328,7 @@ func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi strin
 			delete(printing, n)
 		}()
 
-		for _, depName := range tr.deps[n] {
+		for depName := range tr.deps.GetDeps(n) {
 			printDefAndDeps(depName)
 		}
 		fmt.Fprint(w, tr.defs[n])

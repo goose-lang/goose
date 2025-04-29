@@ -60,5 +60,5 @@ func toCoqType(t types.Type, pkg *packages.Package) string {
 				t.String()))
 		}
 	}
-	panic(fmt.Sprint("Unknown type ", t))
+	panic(fmt.Sprintf("Unknown type %s (of type %T)", t, t))
 }
