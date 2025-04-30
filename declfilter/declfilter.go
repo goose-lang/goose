@@ -9,8 +9,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// TODO: describe semantic interpretation for stringSet.
-
 type setOpType int
 
 const (
@@ -23,7 +21,8 @@ type setOp struct {
 	r *regexp.Regexp
 }
 
-// A string set described by a sequence of glob patterns.
+// A string set described by a sequence of glob patterns. The set is built up by
+// starting from the empty set and then applying each operation left to right.
 type stringSet []setOp
 
 func (ss stringSet) contains(s string) bool {
@@ -74,8 +73,8 @@ func newStringSet(s []string) stringSet {
 	return sliceMap(s, newOp)
 }
 
-// filterConfig defines the format of the toml files
-type filterConfig struct {
+// FilterConfig defines the format of the toml files
+type FilterConfig struct {
 	Imports      []string `toml:"imports"`
 	Trusted      []string `toml:"trusted"`
 	ToTranslate  []string `toml:"translate"`
@@ -126,15 +125,7 @@ func (df *declFilter) HasTrusted() bool {
 	return len(df.trusted) > 0
 }
 
-func Load(raw []byte) DeclFilter {
-	var c filterConfig
-	if raw != nil {
-		error := toml.Unmarshal(raw, &c)
-		if error != nil {
-			panic(error.Error())
-		}
-	}
-
+func NewDeclFilter(c FilterConfig) DeclFilter {
 	if len(c.ToTranslate) == 0 {
 		c.ToTranslate = []string{"*"}
 	}
@@ -148,6 +139,14 @@ func Load(raw []byte) DeclFilter {
 	df.toAxiomatize = newStringSet(c.ToAxiomatize)
 	df.toTranslate = newStringSet(c.ToTranslate)
 	df.trusted = newStringSet(c.Trusted)
-
 	return &df
+}
+
+func Load(raw []byte) DeclFilter {
+	var c FilterConfig
+	error := toml.Unmarshal(raw, &c)
+	if error != nil {
+		panic(error.Error())
+	}
+	return NewDeclFilter(c)
 }
