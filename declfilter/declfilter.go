@@ -3,18 +3,90 @@
 package declfilter
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/pelletier/go-toml/v2"
 )
 
-// FilterConfig defines the format of the toml files
-//
-// TODO: currently the only way to "wildcard" a config is to not have a toml
-// file. Should have something more flexible like glob patterns.
-type FilterConfig struct {
+// TODO: describe semantic interpretation for stringSet.
+
+type setOpType int
+
+const (
+	setUnion setOpType = iota
+	setSubtract
+)
+
+type setOp struct {
+	t setOpType
+	r *regexp.Regexp
+}
+
+// A string set described by a sequence of glob patterns.
+type stringSet []setOp
+
+func (ss stringSet) contains(s string) bool {
+	b := false
+	for _, op := range ss {
+		if op.r.MatchString(s) {
+			switch op.t {
+			case setUnion:
+				b = true
+			case setSubtract:
+				b = false
+			}
+		}
+	}
+	return b
+}
+
+func newOp(pat string) setOp {
+	var s setOp
+	pattern, negated := strings.CutPrefix(pat, "!")
+	if negated {
+		s.t = setSubtract
+	} else {
+		s.t = setUnion
+	}
+
+	patternParts := strings.Split(pattern, "*")
+	for i := range patternParts {
+		patternParts[i] = regexp.QuoteMeta(patternParts[i])
+	}
+	var err error
+	s.r, err = regexp.Compile("^" + strings.Join(patternParts, ".*") + "$")
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func sliceMap[Slice ~[]A, A any, B any](s Slice, f func(A) B) []B {
+	result := make([]B, len(s))
+	for i, v := range s {
+		result[i] = f(v)
+	}
+	return result
+}
+
+func newStringSet(s []string) stringSet {
+	return sliceMap(s, newOp)
+}
+
+// filterConfig defines the format of the toml files
+type filterConfig struct {
 	Imports      []string `toml:"imports"`
 	Trusted      []string `toml:"trusted"`
 	ToTranslate  []string `toml:"translate"`
 	ToAxiomatize []string `toml:"axiomatize"`
+}
+
+type declFilter struct {
+	imports      stringSet
+	trusted      stringSet
+	toTranslate  stringSet
+	toAxiomatize stringSet
 }
 
 type Action int
@@ -33,22 +105,13 @@ type DeclFilter interface {
 	HasTrusted() bool
 }
 
-type declFilter struct {
-	isTrivial bool // trivial filter translates everything and has no axioms.
-
-	toImport     map[string]bool
-	toTrust      map[string]bool
-	toTranslate  map[string]bool
-	toAxiomatize map[string]bool
-}
-
 func (df *declFilter) GetAction(name string) Action {
 	switch {
-	case df.isTrivial, df.toTranslate[name]:
+	case df.toTranslate.contains(name):
 		return Translate
-	case df.toAxiomatize[name]:
+	case df.toAxiomatize.contains(name):
 		return Axiomatize
-	case df.toTrust[name]:
+	case df.trusted.contains(name):
 		return Trust
 	default:
 		return Skip
@@ -56,46 +119,35 @@ func (df *declFilter) GetAction(name string) Action {
 }
 
 func (df *declFilter) ShouldImport(i string) bool {
-	return df.isTrivial || df.toImport[i]
+	return df.imports.contains(i)
 }
 
 func (df *declFilter) HasTrusted() bool {
-	return len(df.toTrust) > 0
+	return len(df.trusted) > 0
 }
 
 func Load(raw []byte) DeclFilter {
-	if raw == nil {
-		return &declFilter{
-			isTrivial: true,
+	var c filterConfig
+	if raw != nil {
+		error := toml.Unmarshal(raw, &c)
+		if error != nil {
+			panic(error.Error())
 		}
 	}
-	var a FilterConfig
-	error := toml.Unmarshal(raw, &a)
-	if error != nil {
-		panic(error.Error())
-	}
-	df := &declFilter{
-		toImport:     make(map[string]bool),
-		toTranslate:  make(map[string]bool),
-		toAxiomatize: make(map[string]bool),
-		toTrust:      make(map[string]bool),
-	}
-	df.isTrivial = false
 
-	for _, name := range a.ToTranslate {
-		df.toTranslate[name] = true
+	if len(c.ToTranslate) == 0 {
+		c.ToTranslate = []string{"*"}
 	}
 
-	for _, name := range a.Imports {
-		df.toImport[name] = true
+	if len(c.Imports) == 0 {
+		c.Imports = []string{"*"}
 	}
 
-	for _, name := range a.ToAxiomatize {
-		df.toAxiomatize[name] = true
-	}
+	var df declFilter
+	df.imports = newStringSet(c.Imports)
+	df.toAxiomatize = newStringSet(c.ToAxiomatize)
+	df.toTranslate = newStringSet(c.ToTranslate)
+	df.trusted = newStringSet(c.Trusted)
 
-	for _, name := range a.Trusted {
-		df.toTrust[name] = true
-	}
-	return df
+	return &df
 }
