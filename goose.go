@@ -1994,6 +1994,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 	if from == nil {
 		ctx.unsupported(n, "implicit conversion: don't know from type")
 	}
+	from = types.Unalias(from)
+	to = types.Unalias(to)
 	fromUnder := from.Underlying()
 	toUnder := to.Underlying()
 	if types.Identical(fromUnder, toUnder) {
