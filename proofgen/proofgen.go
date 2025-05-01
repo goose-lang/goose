@@ -25,20 +25,13 @@ func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filt
 		ImportPath: coqPath,
 	}
 
-	imp := translateImports(io.Discard, pkg, usingFfi, ffi, filter)
-	for _, i := range imp.importsList {
-		pf.Imports = append(pf.Imports, tmpl.Import{
-			Path: i,
-		})
-	}
+	pf.Imports = translateImports(pkg, usingFfi, ffi, filter)
 
 	var typesOut bytes.Buffer
 	translateTypes(&typesOut, pkg, usingFfi, ffi, filter)
 	pf.TypesCode = typesOut.String()
 
-	var namesOut bytes.Buffer
-	translateNames(&namesOut, pkg, usingFfi, ffi, filter)
-	pf.NamesCode = namesOut.String()
+	pf.Names = translateNames(pkg, filter)
 
 	if err := pf.Write(w); err != nil {
 		panic(err)

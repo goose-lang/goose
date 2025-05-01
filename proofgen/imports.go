@@ -1,15 +1,14 @@
 package proofgen
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
-	"io"
 	"strconv"
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
+	"github.com/goose-lang/goose/proofgen/tmpl"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -42,7 +41,7 @@ func (tr *importsTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) *importsTranslator {
+func translateImports(pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) []tmpl.Import {
 	tr := &importsTranslator{
 		importsSet: make(map[string]struct{}),
 		filter:     filter,
@@ -52,8 +51,11 @@ func translateImports(w io.Writer, pkg *packages.Package, usingFfi bool, ffi str
 			tr.Decl(d)
 		}
 	}
-	for _, imp := range tr.importsList {
-		fmt.Fprintf(w, "Require Export New.generatedproof.%s.\n", imp)
+	var imports []tmpl.Import
+	for _, i := range tr.importsList {
+		imports = append(imports, tmpl.Import{
+			Path: i,
+		})
 	}
-	return tr
+	return imports
 }

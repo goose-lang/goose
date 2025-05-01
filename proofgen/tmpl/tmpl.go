@@ -19,7 +19,24 @@ type PackageProof struct {
 	HasTrusted bool
 	Imports    []Import
 	TypesCode  string
-	NamesCode  string
+	Names      NamesInfo
+}
+
+type Variable struct {
+	Name    string
+	CoqType string
+}
+
+type MethodSet struct {
+	// a named type, with possible 'ptr suffix for method set of a pointer
+	TypeName string
+	Methods  []string
+}
+
+type NamesInfo struct {
+	Vars             []Variable
+	FunctionNames    []string
+	NamedTypeMethods []MethodSet
 }
 
 //go:embed *.tmpl
