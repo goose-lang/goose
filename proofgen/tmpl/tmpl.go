@@ -30,8 +30,8 @@ type TypeDecl interface {
 }
 
 type TypeAxiom struct {
-	Name    string
 	PkgName string
+	Name    string
 }
 
 func (t TypeAxiom) Kind() string {
@@ -48,8 +48,9 @@ func (t TypeSimple) Kind() string {
 }
 
 type TypeStruct struct {
-	Name   string
-	Fields []TypeField
+	PkgName string
+	Name    string
+	Fields  []TypeField
 }
 
 func (t TypeStruct) Kind() string {
@@ -84,6 +85,11 @@ func toCoqName(n string) string {
 	return n + "'"
 }
 
+// isSep returns true if index i is not the last index in a list of length l.
+func isSep(i int, l int) bool {
+	return i < l-1
+}
+
 //go:embed *.tmpl
 var tmplFS embed.FS
 
@@ -96,6 +102,7 @@ func loadTemplates() *template.Template {
 			return `"` + s + `"`
 		},
 		"coqName": toCoqName,
+		"isSep":   isSep,
 	}
 	tmpl, err := tmpl.Funcs(funcs).ParseFS(tmplFS, "*.tmpl")
 	if err != nil {

@@ -8,3 +8,28 @@ Record t := mk {
 }.
 End def.
 End <<.Name>>.
+
+Section instances.
+Context `{ffi_syntax}.
+<< if .Fields ->>
+<<"\n">>Global Instance settable_<<.Name>> `{ffi_syntax}: Settable _ :=
+  settable! <<.Name>>.mk < << $T := . ->>
+<< range $i, $f := .Fields ->>
+<<$T.Name>>.<< $f.Name | coqName >>
+<<- if isSep $i (len $T.Fields) >>; << end ->>
+<< end >> >.
+<< end ->>
+Global Instance into_val_<<.Name>> `{ffi_syntax} : IntoVal <<.Name>>.t.
+Admitted.
+
+Global Instance into_val_typed_<<.Name>> `{ffi_syntax} : IntoValTyped <<.Name>>.t <<.PkgName>>.<<.Name>> :=
+{|
+  default_val := <<.Name>>.mk
+  <<- range .Fields >> (default_val _) <<- end >>;
+  to_val_has_go_type := ltac:(destruct falso);
+  default_val_eq_zero_val := ltac:(destruct falso);
+  to_val_inj := ltac:(destruct falso);
+  to_val_eqdec := ltac:(solve_decision);
+|}.
+
+End instances.

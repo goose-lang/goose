@@ -89,8 +89,8 @@ Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s.
 	fmt.Fprintf(w, "Admitted.\n")
 
 	decl := tmpl.TypeAxiom{
-		Name:    name,
 		PkgName: tr.pkg.Name,
+		Name:    name,
 	}
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = decl
@@ -133,7 +133,8 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 	}
 
 	decl := tmpl.TypeStruct{
-		Name: name,
+		PkgName: tr.pkg.Name,
+		Name:    name,
 	}
 	for i := 0; i < s.NumFields(); i++ {
 		fieldName := getFieldName(i)
