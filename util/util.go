@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type PackageTranslator func(io.Writer, *packages.Package, bool, string, declfilter.DeclFilter)
+type PackageTranslator func(io.Writer, *packages.Package, string, declfilter.DeclFilter)
 
 func newPackageConfig(modDir string) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
@@ -52,7 +52,11 @@ var ffiMapping = map[string]string{
 	"github.com/goose-lang/primitive/async_disk": "async_disk",
 }
 
-func getFfi(pkg *packages.Package) (bool, string) {
+// getFfi returns the short string corresponding to the FFI used.
+//
+// Returns an empty string if no FFI is used, and panics if multiple FFIs are
+// found.
+func getFfi(pkg *packages.Package) string {
 	seenFfis := make(map[string]struct{})
 	packages.Visit([]*packages.Package{pkg},
 		func(pkg *packages.Package) bool {
@@ -74,9 +78,9 @@ func getFfi(pkg *packages.Package) (bool, string) {
 		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
 	}
 	for ffi := range seenFfis {
-		return true, ffi
+		return ffi
 	}
-	return false, ""
+	return ""
 }
 
 func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, configDir string) {
@@ -97,8 +101,8 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 		)
 		filter := declfilter.Load(rawConfig)
 
-		usingFfi, ffi := getFfi(pkg)
-		translatePkg(w, pkg, usingFfi, ffi, filter)
+		ffi := getFfi(pkg)
+		translatePkg(w, pkg, ffi, filter)
 
 		filePath := path.Join(outRootDir, glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath))
 		outDir := path.Dir(filePath)

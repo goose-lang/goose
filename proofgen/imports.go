@@ -41,7 +41,7 @@ func (tr *importsTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateImports(pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) []tmpl.Import {
+func translateImports(pkg *packages.Package, filter declfilter.DeclFilter) []tmpl.Import {
 	tr := &importsTranslator{
 		importsSet: make(map[string]struct{}),
 		filter:     filter,

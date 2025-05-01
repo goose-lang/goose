@@ -266,7 +266,7 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateTypes(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
+func translateTypes(w io.Writer, pkg *packages.Package, filter declfilter.DeclFilter) {
 	tr := &typesTranslator{
 		deps:   deptracker.New(),
 		defs:   make(map[string]string),

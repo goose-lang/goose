@@ -18,9 +18,6 @@ type namesTranslator struct {
 	vars       []tmpl.Variable
 	functions  []string
 	namedTypes []*types.Named
-
-	usingFfi bool
-	ffi      string
 }
 
 func (tr *namesTranslator) Decl(d ast.Decl) {

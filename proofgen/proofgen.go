@@ -11,11 +11,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filter declfilter.DeclFilter) {
-	if !usingFfi {
-		// TODO: usingFfi should be redundant, doesn't !usingFfi imply ffi == ""?
-		ffi = ""
-	}
+func Package(w io.Writer, pkg *packages.Package, ffi string, filter declfilter.DeclFilter) {
 	coqPath := strings.ReplaceAll(glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(pkg.PkgPath), "/", ".")
 
 	pf := tmpl.PackageProof{
@@ -25,10 +21,10 @@ func Package(w io.Writer, pkg *packages.Package, usingFfi bool, ffi string, filt
 		ImportPath: coqPath,
 	}
 
-	pf.Imports = translateImports(pkg, usingFfi, ffi, filter)
+	pf.Imports = translateImports(pkg, filter)
 
 	var typesOut bytes.Buffer
-	translateTypes(&typesOut, pkg, usingFfi, ffi, filter)
+	translateTypes(&typesOut, pkg, filter)
 	pf.TypesCode = typesOut.String()
 
 	pf.Names = translateNames(pkg, filter)
