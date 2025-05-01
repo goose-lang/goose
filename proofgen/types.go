@@ -5,13 +5,13 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"io"
 	"log"
 	"strconv"
 	"strings"
 
 	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/deptracker"
+	"github.com/goose-lang/goose/proofgen/tmpl"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -21,7 +21,7 @@ type typesTranslator struct {
 	filter declfilter.DeclFilter
 
 	deps *deptracker.Deps
-	defs map[string]string
+	defs map[string]tmpl.TypeDecl
 	// tracks the order definitions were seen in
 	defNames []string
 }
@@ -66,7 +66,7 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
 }
 
-func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) {
+func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) tmpl.TypeAxiom {
 	name := spec.Name.Name
 	defName := name + ".t"
 	tr.deps.SetCurrentName(defName)
@@ -88,25 +88,36 @@ Global Instance into_val_typed_%s `+"`"+`{ffi_syntax} : IntoValTyped %s.t %s.%s.
 		name, name, tr.pkg.Name, name)
 	fmt.Fprintf(w, "Admitted.\n")
 
+	decl := tmpl.TypeAxiom{
+		Name:    name,
+		PkgName: tr.pkg.Name,
+	}
 	tr.defNames = append(tr.defNames, defName)
-	tr.defs[defName] = w.String()
+	tr.defs[defName] = decl
+	return decl
 }
 
-func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) {
+func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) tmpl.TypeSimple {
 	name := spec.Name.Name
 	defName := name + ".t"
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
 
 	w := new(strings.Builder)
+	typeBody := tr.toCoqTypeWithDeps(t)
 	fmt.Fprintf(w, "\nModule %s.\nSection def.\nContext `{ffi_syntax}.\nDefinition t := %s.\nEnd def.\nEnd %s.\n",
-		name, tr.toCoqTypeWithDeps(t), name)
+		name, typeBody, name)
 
+	decl := tmpl.TypeSimple{
+		Name: name,
+		Body: typeBody,
+	}
 	tr.defNames = append(tr.defNames, defName)
-	tr.defs[defName] = w.String()
+	tr.defs[defName] = decl
+	return decl
 }
 
-func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Struct) {
+func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Struct) tmpl.TypeStruct {
 	name := spec.Name.Name
 	w := new(strings.Builder)
 	defName := name + ".t"
@@ -119,6 +130,18 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 			fieldName = "_" + strconv.Itoa(i)
 		}
 		return fieldName
+	}
+
+	decl := tmpl.TypeStruct{
+		Name: name,
+	}
+	for i := 0; i < s.NumFields(); i++ {
+		fieldName := getFieldName(i)
+		fieldType := tr.toCoqTypeWithDeps(s.Field(i).Type())
+		decl.Fields = append(decl.Fields, tmpl.TypeField{
+			Name: fieldName,
+			Type: fieldType,
+		})
 	}
 
 	fmt.Fprintf(w, "Module %s.\nSection def.\nContext `{ffi_syntax}.\nRecord t := mk {\n", name)
@@ -230,7 +253,8 @@ End instances.
 `)
 
 	tr.defNames = append(tr.defNames, defName)
-	tr.defs[defName] = w.String()
+	tr.defs[defName] = decl
+	return decl
 }
 
 func (tr *typesTranslator) translateType(spec *ast.TypeSpec) {
@@ -266,10 +290,10 @@ func (tr *typesTranslator) Decl(d ast.Decl) {
 	}
 }
 
-func translateTypes(w io.Writer, pkg *packages.Package, filter declfilter.DeclFilter) {
+func translateTypes(pkg *packages.Package, filter declfilter.DeclFilter) []tmpl.TypeDecl {
 	tr := &typesTranslator{
 		deps:   deptracker.New(),
-		defs:   make(map[string]string),
+		defs:   make(map[string]tmpl.TypeDecl),
 		pkg:    pkg,
 		filter: filter,
 	}
@@ -279,12 +303,12 @@ func translateTypes(w io.Writer, pkg *packages.Package, filter declfilter.DeclFi
 		}
 	}
 
-	fmt.Fprintf(w, "Axiom falso : False.\n") // FIXME: get rid of this
 	var printingOrdered []string
 	printing := make(map[string]bool)
 	printed := make(map[string]bool)
 	var printDefAndDeps func(string)
 
+	var decls []tmpl.TypeDecl
 	printDefAndDeps = func(n string) {
 		if printed[n] {
 			return
@@ -302,10 +326,14 @@ func translateTypes(w io.Writer, pkg *packages.Package, filter declfilter.DeclFi
 		for depName := range tr.deps.GetDeps(n) {
 			printDefAndDeps(depName)
 		}
-		fmt.Fprint(w, tr.defs[n])
+		decl, ok := tr.defs[n]
+		if ok {
+			decls = append(decls, decl)
+		}
 		printed[n] = true
 	}
 	for _, d := range tr.defNames {
 		printDefAndDeps(d)
 	}
+	return decls
 }

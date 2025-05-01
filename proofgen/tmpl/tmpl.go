@@ -8,10 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Import struct {
-	Path string
-}
-
 type PackageProof struct {
 	Ffi        string
 	Name       string
@@ -19,7 +15,54 @@ type PackageProof struct {
 	HasTrusted bool
 	Imports    []Import
 	TypesCode  string
+	Types      []TypeDecl
 	Names      NamesInfo
+}
+
+type NamesInfo struct {
+	Vars             []Variable
+	FunctionNames    []string
+	NamedTypeMethods []MethodSet
+}
+
+type TypeDecl interface {
+	Kind() string
+}
+
+type TypeAxiom struct {
+	Name    string
+	PkgName string
+}
+
+func (t TypeAxiom) Kind() string {
+	return "axiom"
+}
+
+type TypeSimple struct {
+	Name string
+	Body string
+}
+
+func (t TypeSimple) Kind() string {
+	return "simple"
+}
+
+type TypeStruct struct {
+	Name   string
+	Fields []TypeField
+}
+
+func (t TypeStruct) Kind() string {
+	return "struct"
+}
+
+type TypeField struct {
+	Name string
+	Type string
+}
+
+type Import struct {
+	Path string
 }
 
 type Variable struct {
@@ -33,10 +76,12 @@ type MethodSet struct {
 	Methods  []string
 }
 
-type NamesInfo struct {
-	Vars             []Variable
-	FunctionNames    []string
-	NamedTypeMethods []MethodSet
+// Adding a "'" to avoid conflicting with Coq keywords and definitions that
+// would already be in context (like `t`). Could do this only when there is a
+// conflict, but it's lower entropy to do it always rather than pick and
+// choosing when.
+func toCoqName(n string) string {
+	return n + "'"
 }
 
 //go:embed *.tmpl
@@ -50,6 +95,7 @@ func loadTemplates() *template.Template {
 		"quote": func(s string) string {
 			return `"` + s + `"`
 		},
+		"coqName": toCoqName,
 	}
 	tmpl, err := tmpl.Funcs(funcs).ParseFS(tmplFS, "*.tmpl")
 	if err != nil {

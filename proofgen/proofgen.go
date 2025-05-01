@@ -1,7 +1,6 @@
 package proofgen
 
 import (
-	"bytes"
 	"io"
 	"strings"
 
@@ -22,11 +21,7 @@ func Package(w io.Writer, pkg *packages.Package, ffi string, filter declfilter.D
 	}
 
 	pf.Imports = translateImports(pkg, filter)
-
-	var typesOut bytes.Buffer
-	translateTypes(&typesOut, pkg, filter)
-	pf.TypesCode = typesOut.String()
-
+	pf.Types = translateTypes(pkg, filter)
 	pf.Names = translateNames(pkg, filter)
 
 	if err := pf.Write(w); err != nil {
