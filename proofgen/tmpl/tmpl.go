@@ -100,7 +100,7 @@ var tmplFS embed.FS
 // loadTemplates is used once to parse the templates. This happens statically,
 // using the embed package to get the template files from the source code.
 func loadTemplates() *template.Template {
-	tmpl := template.New("proofgen").Delims("<<", ">>")
+	tmpl := template.New("proofgen")
 	funcs := template.FuncMap{
 		"quote": func(s string) string {
 			return `"` + s + `"`

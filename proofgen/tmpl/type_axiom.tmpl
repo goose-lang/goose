@@ -1,12 +1,12 @@
-Module <<.Name>>.
+Module {{.Name}}.
 Section def.
 Context `{ffi_syntax}.
 Axiom t : Type.
 End def.
-End <<.Name>>.
+End {{.Name}}.
 
-Global Instance into_val_<<.Name>> `{ffi_syntax} : IntoVal <<.Name>>.t.
+Global Instance into_val_{{.Name}} `{ffi_syntax} : IntoVal {{.Name}}.t.
 Admitted.
 
-Global Instance into_val_typed_<<.Name>> `{ffi_syntax} : IntoValTyped <<.Name>>.t <<.PkgName>>.<<.Name>>.
+Global Instance into_val_typed_{{.Name}} `{ffi_syntax} : IntoValTyped {{.Name}}.t {{.PkgName}}.{{.Name}}.
 Admitted.
