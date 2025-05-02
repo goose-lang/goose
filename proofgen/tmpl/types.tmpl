@@ -1,0 +1,10 @@
+Axiom falso : False. {{- /* FIXME: get rid of this */}}
+{{- range $t := .Types -}}{{ $k := $t.Kind }}
+{{ if eq $k "axiom" -}}
+{{ template "type_axiom.tmpl" $t -}}
+{{ else if eq $k "simple" -}}
+{{ template "type_simple.tmpl" $t -}}
+{{ else if eq $k "struct" -}}
+{{ template "type_struct.tmpl" $t -}}
+{{ end -}}
+{{ end -}}

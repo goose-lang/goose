@@ -1,0 +1,67 @@
+{{- $ffi := .Ffi -}}
+{{- $pkg := .Name -}}
+{{ with .Names }}
+Section names.
+
+Class GlobalAddrs :=
+{
+{{ range .Vars }}  {{ .Name }} : loc;
+{{ end -}}
+}.
+
+Context `{!GlobalAddrs}.
+{{ if $ffi -}}
+Context `{!heapGS Σ}.
+{{ else -}}
+Context `{hG: heapGS Σ, !ffi_semantics _ _}.
+{{ end -}}
+Context `{!goGlobalsGS Σ}.
+
+{{/* emit var_addrs which converts GlobalAddrs into alist */ -}}
+Definition var_addrs : list (go_string * loc) := [
+{{- range $i, $v := .Vars -}}
+{{- if $i -}} ; {{- end }}
+    ("{{ $v.Name }}"%go, {{ $v.Name }})
+{{- end }}
+  ].
+
+Global Instance is_pkg_defined_instance : IsPkgDefined {{ $pkg }} :=
+{|
+  is_pkg_defined := is_global_definitions {{ $pkg }} var_addrs;
+|}.
+
+Definition own_allocated : iProp Σ :=
+{{- range $i, $v := .Vars -}}
+  {{- if $i }} ∗ {{- end }}
+  "H{{ $v.Name }}" ∷ {{ $v.Name }} ↦ (default_val {{ $v.CoqType }})
+{{- else }}
+True {{- end }}.
+
+{{ range $v := .Vars -}}
+Global Instance wp_globals_get_{{$v.Name}} :{{" "}}
+  WpGlobalsGet {{$pkg}} "{{$v.Name}}" {{$v.Name}} (is_pkg_defined {{$pkg}}).
+Proof. apply wp_globals_get'. reflexivity. Qed.
+
+{{ end -}}
+
+{{ range $name := .FunctionNames -}}
+Global Instance wp_func_call_{{$name}} :
+  WpFuncCall {{$pkg}} "{{$name}}" _ (is_pkg_defined {{$pkg}}) :=
+  ltac:(apply wp_func_call'; reflexivity).
+{{- /* XXX: by using an ltac expression to generate the instance, we can
+leave an evar for the method val, avoiding the need to write out
+the promoted methods.  */}}
+
+{{ end -}}
+
+{{ range $mset := .NamedTypeMethods -}}
+{{ range $methodName := $mset.Methods -}}
+Global Instance wp_method_call_{{$mset.TypeName}}_{{$methodName}} :
+  WpMethodCall {{$pkg}} "{{$mset.TypeName}}" "{{$methodName}}" _ (is_pkg_defined {{$pkg}}) :=
+  ltac:(apply wp_method_call'; reflexivity).
+
+{{ end -}}
+{{ end -}}
+
+End names.
+{{ end -}}
