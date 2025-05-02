@@ -62,6 +62,10 @@ type TypeField struct {
 	Type string
 }
 
+func (f TypeField) CoqName() string {
+	return toCoqName(f.Name)
+}
+
 type Import struct {
 	Path string
 }
