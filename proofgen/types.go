@@ -120,7 +120,6 @@ func (tr *typesTranslator) translateType(spec *ast.TypeSpec) {
 		tr.translateStructType(spec, s)
 	default:
 		tr.translateSimpleType(spec, s)
-		// panic(fmt.Sprintf("Unsupported type %s", s.String()))
 	}
 }
 

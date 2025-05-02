@@ -79,7 +79,7 @@ func translateNames(pkg *packages.Package, filter declfilter.DeclFilter) tmpl.Na
 	// emit instances for unfolding method_call
 	for _, namedType := range tr.namedTypes {
 		baseTypeName := namedType.Obj().Name()
-		typeName := namedType.Obj().Name()
+		typeName := baseTypeName
 		mset := tmpl.MethodSet{
 			TypeName: typeName,
 		}
@@ -93,7 +93,7 @@ func translateNames(pkg *packages.Package, filter declfilter.DeclFilter) tmpl.Na
 		}
 		info.NamedTypeMethods = append(info.NamedTypeMethods, mset)
 
-		typeName = namedType.Obj().Name() + "'ptr"
+		typeName = baseTypeName + "'ptr"
 		ptrMset := tmpl.MethodSet{
 			TypeName: typeName,
 		}
