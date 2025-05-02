@@ -13,17 +13,17 @@ End {{$name}}.
 Section instances.
 Context `{ffi_syntax}.
 {{ if .Fields }}
-Global Instance settable_{{$name}} `{ffi_syntax}: Settable _ :=
+Global Instance settable_{{$name}} : Settable _ :=
   settable! {{$name}}.mk < {{- " " -}}
 {{ range $i, $f := .Fields -}}
 {{$name}}.{{ $f.CoqName }}
 {{- if isSep $i (len $T.Fields) }}; {{ end -}}
 {{ end }} >.
 {{ end -}}
-Global Instance into_val_{{$name}} `{ffi_syntax} : IntoVal {{$name}}.t.
+Global Instance into_val_{{$name}} : IntoVal {{$name}}.t.
 Admitted.
 
-Global Instance into_val_typed_{{$name}} `{ffi_syntax} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
+Global Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
 {|
   default_val := {{$name}}.mk
   {{- range .Fields }} (default_val _) {{- end }};
@@ -33,14 +33,14 @@ Global Instance into_val_typed_{{$name}} `{ffi_syntax} : IntoValTyped {{$name}}.
   to_val_eqdec := ltac:(solve_decision);
 |}.
 {{ range $f := .Fields -}}
-Global Instance into_val_struct_field_{{$name}}_{{$f.Name}} `{ffi_syntax} : {{/* type on next line */ -}}
+Global Instance into_val_struct_field_{{$name}}_{{$f.Name}} : {{/* type on next line */ -}}
   IntoValStructField "{{$f.Name}}" {{/* params on next line */ -}}
   {{$T.PkgName}}.{{$name}} {{$name}}.{{$f.CoqName}}.
 Admitted.
 
 {{ end }}
 Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
-Global Instance wp_struct_make_{{$name}} `{ffi_semantics} `{!ffi_interp ffi} `{!heapGS Σ}
+Global Instance wp_struct_make_{{$name}}
 {{- range $T.Fields }} {{.CoqName}}{{ end -}} :
   PureWp True
     (struct.make #{{$T.PkgName}}.{{$name}} (alist_val [
