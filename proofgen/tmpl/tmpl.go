@@ -3,18 +3,21 @@ package tmpl
 import (
 	"embed"
 	"io"
+	"iter"
+	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
 )
 
+// PackageProof is the data that is passed to the top-level package_proof.v.tmpl
+// template.
 type PackageProof struct {
-	Ffi        string
 	Name       string
+	Ffi        string
 	ImportPath string // import path (corresponding to Go PkgPath)
 	HasTrusted bool
 	Imports    []Import
-	TypesCode  string
 	Types      []TypeDecl
 	Names      NamesInfo
 }
@@ -94,6 +97,32 @@ func isSep(i int, l int) bool {
 	return i < l-1
 }
 
+type SepItem[T any] struct {
+	X   T
+	Sep string
+}
+
+// Iterate over a list and wrap each item with a SepItem struct that provides a
+// .Sep field when in between elements (that is, for all but the last item of
+// the list).
+func IterSep[T any](sep string, l []T) iter.Seq[SepItem[T]] {
+	return func(yield func(SepItem[T]) bool) {
+		for i, x := range l {
+			item := SepItem[T]{X: x, Sep: ""}
+			if i < len(l)-1 {
+				item.Sep = sep
+			}
+			if !yield(item) {
+				return
+			}
+		}
+	}
+}
+
+func indent(n int) string {
+	return strings.Repeat(" ", n)
+}
+
 //go:embed *.tmpl
 var tmplFS embed.FS
 
@@ -102,11 +131,10 @@ var tmplFS embed.FS
 func loadTemplates() *template.Template {
 	tmpl := template.New("proofgen")
 	funcs := template.FuncMap{
-		"quote": func(s string) string {
-			return `"` + s + `"`
-		},
-		"coqName": toCoqName,
-		"isSep":   isSep,
+		"indent":        indent,
+		"coqName":       toCoqName,
+		"isSep":         isSep,
+		"iterSepFields": IterSep[TypeField],
 	}
 	tmpl, err := tmpl.Funcs(funcs).ParseFS(tmplFS, "*.tmpl")
 	if err != nil {

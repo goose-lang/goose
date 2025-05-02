@@ -15,18 +15,16 @@ Context `{ffi_syntax}.
 {{ if .Fields }}
 Global Instance settable_{{$name}} : Settable _ :=
   settable! {{$name}}.mk < {{- " " -}}
-{{ range $i, $f := .Fields -}}
-{{$name}}.{{ $f.CoqName }}
-{{- if isSep $i (len $T.Fields) }}; {{ end -}}
-{{ end }} >.
+{{ range .Fields | iterSepFields "; " -}}
+{{$name}}.{{ .X.CoqName }}{{.Sep}}
+{{- end }} >.
 {{ end -}}
 Global Instance into_val_{{$name}} : IntoVal {{$name}}.t.
 Admitted.
 
 Global Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
 {|
-  default_val := {{$name}}.mk
-  {{- range .Fields }} (default_val _) {{- end }};
+  default_val := {{$name}}.mk {{- range .Fields }} (default_val _){{ end }};
   to_val_has_go_type := ltac:(destruct falso);
   default_val_eq_zero_val := ltac:(destruct falso);
   to_val_inj := ltac:(destruct falso);
@@ -44,22 +42,20 @@ Global Instance wp_struct_make_{{$name}}
 {{- range $T.Fields }} {{.CoqName}}{{ end -}} :
   PureWp True
     (struct.make #{{$T.PkgName}}.{{$name}} (alist_val [
-{{- range $i, $f := .Fields -}}
-{{ if $i }};{{ end }}
-      "{{$f.Name}}" ::= #{{$f.CoqName}}
-{{- end }}
-    ]))%struct
+{{ range .Fields | iterSepFields ";" -}}{{ $f := .X -}}
+{{indent 6}}"{{$f.Name}}" ::= #{{$f.CoqName}}{{.Sep}}
+{{ end -}}
+{{indent 4}}]))%struct
     #({{$name}}.mk {{- range $T.Fields }} {{.CoqName}}{{ end -}}
 ).
 Admitted.
 
 {{ if $T.Fields }}
 Global Instance {{$name}}_struct_fields_split dq l (v : {{$name}}.t) :
-  StructFieldsSplit dq l v ( {{- /* continued */ -}}
-  {{- range $i, $f := .Fields -}}
-{{ if $i }} ∗{{ end }}
-    "H{{$f.Name}}" ∷ l ↦s[{{$T.PkgName}}.{{$name}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}})
-  {{- end }}
+  StructFieldsSplit dq l v ( {{- /* continued */}}
+{{ range .Fields | iterSepFields " ∗\n" -}}{{ $f := .X -}}
+{{indent 4}}"H{{$f.Name}}" ∷ l ↦s[{{$T.PkgName}}.{{$name}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}}){{.Sep}}
+{{- end }}
   ).
 Admitted.
 
