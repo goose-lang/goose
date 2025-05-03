@@ -19,17 +19,24 @@ Global Instance settable_{{$name}} : Settable _ :=
 {{$name}}.{{ .X.CoqName }}{{.Sep}}
 {{- end }} >.
 {{ end -}}
-Global Instance into_val_{{$name}} : IntoVal {{$name}}.t.
-Admitted.
+Global Instance into_val_{{$name}} : IntoVal {{$name}}.t :=
+  {| to_val_def v :=
+    struct.val_aux {{.PkgName}}.{{$name}} [
+    {{ range .Fields | iterSepFields ";" -}} {{ $f := .X -}}
+        "{{$f.Name}}" ::= #({{$name}}.{{$f.CoqName}} v){{.Sep}}
+    {{ end -}}
+    ]%struct
+  |}.
 
-Global Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
+Global Program Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
 {|
   default_val := {{$name}}.mk {{- range .Fields }} (default_val _){{ end }};
-  to_val_has_go_type := ltac:(destruct falso);
-  default_val_eq_zero_val := ltac:(destruct falso);
-  to_val_inj := ltac:(destruct falso);
-  to_val_eqdec := ltac:(solve_decision);
 |}.
+Next Obligation. rewrite to_val_unseal /=; solve_has_go_type; destruct falso. Qed.
+Next Obligation. solve_zero_val. Qed.
+Next Obligation. solve_to_val_inj. Qed.
+Final Obligation. solve_decision. Qed.
+
 {{ range $f := .Fields -}}
 Global Instance into_val_struct_field_{{$name}}_{{$f.Name}} : {{/* type on next line */ -}}
   IntoValStructField "{{$f.Name}}" {{/* params on next line */ -}}
