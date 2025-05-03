@@ -60,6 +60,17 @@ func (t TypeStruct) Kind() string {
 	return "struct"
 }
 
+func (t TypeStruct) GoTypeName() string {
+	return t.PkgName + "." + t.Name
+}
+
+func (t TypeStruct) FieldsExceptLast() []TypeField {
+	if len(t.Fields) == 0 {
+		return nil
+	}
+	return t.Fields[:len(t.Fields)-1]
+}
+
 type TypeField struct {
 	Name string
 	Type string

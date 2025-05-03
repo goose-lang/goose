@@ -21,18 +21,18 @@ Global Instance settable_{{$name}} : Settable _ :=
 {{ end -}}
 Global Instance into_val_{{$name}} : IntoVal {{$name}}.t :=
   {| to_val_def v :=
-    struct.val_aux {{.PkgName}}.{{$name}} [
+    struct.val_aux {{$T.GoTypeName}} [
     {{ range .Fields | iterSepFields ";" -}} {{ $f := .X -}}
         "{{$f.Name}}" ::= #({{$name}}.{{$f.CoqName}} v){{.Sep}}
     {{ end -}}
     ]%struct
   |}.
 
-Global Program Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{.PkgName}}.{{$name}} :=
+Global Program Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{$T.GoTypeName}} :=
 {|
   default_val := {{$name}}.mk {{- range .Fields }} (default_val _){{ end }};
 |}.
-Next Obligation. rewrite to_val_unseal /=; solve_has_go_type; destruct falso. Qed.
+Next Obligation. solve_to_val_type. Qed.
 Next Obligation. solve_zero_val. Qed.
 Next Obligation. solve_to_val_inj. Qed.
 Final Obligation. solve_decision. Qed.
@@ -40,7 +40,7 @@ Final Obligation. solve_decision. Qed.
 {{ range $f := .Fields -}}
 Global Instance into_val_struct_field_{{$name}}_{{$f.Name}} : {{/* type on next line */ -}}
   IntoValStructField "{{$f.Name}}" {{/* params on next line */ -}}
-  {{$T.PkgName}}.{{$name}} {{$name}}.{{$f.CoqName}}.
+  {{$T.GoTypeName}} {{$name}}.{{$f.CoqName}}.
 Proof. solve_into_val_struct_field. Qed.
 
 {{ end }}
@@ -48,22 +48,32 @@ Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 Global Instance wp_struct_make_{{$name}}
 {{- range $T.Fields }} {{.CoqName}}{{ end -}} :
   PureWp True
-    (struct.make #{{$T.PkgName}}.{{$name}} (alist_val [
+    (struct.make #{{$T.GoTypeName}} (alist_val [
 {{ range .Fields | iterSepFields ";" -}}{{ $f := .X -}}
 {{indent 6}}"{{$f.Name}}" ::= #{{$f.CoqName}}{{.Sep}}
 {{ end -}}
 {{indent 4}}]))%struct
     #({{$name}}.mk {{- range $T.Fields }} {{.CoqName}}{{ end -}}
 ).
-Admitted.
+Proof. solve_struct_make_pure_wp. Qed.
 
 {{ if $T.Fields }}
 Global Instance {{$name}}_struct_fields_split dq l (v : {{$name}}.t) :
   StructFieldsSplit dq l v ( {{- /* continued */}}
 {{ range .Fields | iterSepFields " ∗\n" -}}{{ $f := .X -}}
-{{indent 4}}"H{{$f.Name}}" ∷ l ↦s[{{$T.PkgName}}.{{$name}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}}){{.Sep}}
+{{indent 4}}"H{{$f.Name}}" ∷ l ↦s[{{$T.GoTypeName}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}}){{.Sep}}
 {{- end }}
   ).
+Proof.
+  rewrite /named.
+  apply struct_fields_split_intro.
+  unfold_typed_pointsto; split_pointsto_app.
+
+  rewrite -!/(typed_pointsto_def _ _ _) -!typed_pointsto_unseal.
+{{ range $f := .FieldsExceptLast -}}
+  {{indent 2}}rewrite (@has_go_type_len _ (# ({{$name}}.{{$f.CoqName}} v)) (struct.field_offset_f {{$T.GoTypeName}} "{{$f.Name}}"%go).2); [ | by solve_has_go_type' ].
+{{ end }}
+  simpl_field_ref_f.
 Admitted.
 
 {{ end -}}
