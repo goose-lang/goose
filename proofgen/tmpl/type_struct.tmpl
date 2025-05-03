@@ -41,7 +41,7 @@ Final Obligation. solve_decision. Qed.
 Global Instance into_val_struct_field_{{$name}}_{{$f.Name}} : {{/* type on next line */ -}}
   IntoValStructField "{{$f.Name}}" {{/* params on next line */ -}}
   {{$T.PkgName}}.{{$name}} {{$name}}.{{$f.CoqName}}.
-Admitted.
+Proof. solve_into_val_struct_field. Qed.
 
 {{ end }}
 Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
