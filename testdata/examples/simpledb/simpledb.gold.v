@@ -683,7 +683,7 @@ Definition tablePutBuffer : val :=
     exception_do (let: "buf" := (mem.alloc "buf") in
     let: "w" := (mem.alloc "w") in
     let: "$range" := (![type.mapT #uint64T #sliceT] "buf") in
-    (let: "v" := (mem.alloc (type.zero_val #uint64T)) in
+    (let: "v" := (mem.alloc (type.zero_val #sliceT)) in
     let: "k" := (mem.alloc (type.zero_val #uint64T)) in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[#sliceT] "$value");;;

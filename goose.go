@@ -1798,7 +1798,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 				ctx.nope(s.Value, "expected left side of of `:=` in for range to be an ident")
 			}
 			if value.Name != "_" {
-				t := ctx.glangType(s.Key, ctx.typeOf(s.Key))
+				t := ctx.glangType(s.Value, ctx.typeOf(s.Value))
 				e = glang.LetExpr{
 					Names:   []string{value.Name},
 					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaIdent("type.zero_val"), glang.GolangTypeExpr(t))},

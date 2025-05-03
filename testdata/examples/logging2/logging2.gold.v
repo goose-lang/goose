@@ -353,7 +353,7 @@ Definition Txn__Commit : val :=
     let: "$r0" := (mem.alloc (type.zero_val #sliceT)) in
     do:  ("blks" <-[#ptrT] "$r0");;;
     let: "$range" := (![type.mapT #uint64T #sliceT] (struct.field_ref #Txn #"blks"%go "txn")) in
-    (let: "v" := (mem.alloc (type.zero_val #uint64T)) in
+    (let: "v" := (mem.alloc (type.zero_val #sliceT)) in
     map.for_range "$range" (λ: "$key" "value",
       do:  ("v" <-[#sliceT] "$value");;;
       do:  "$key";;;
