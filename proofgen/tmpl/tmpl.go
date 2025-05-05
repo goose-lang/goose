@@ -41,6 +41,10 @@ func (t TypeAxiom) Kind() string {
 	return "axiom"
 }
 
+func (t TypeAxiom) GoTypeName() string {
+	return t.PkgName + "." + t.Name
+}
+
 type TypeSimple struct {
 	Name string
 	Body string
@@ -58,6 +62,17 @@ type TypeStruct struct {
 
 func (t TypeStruct) Kind() string {
 	return "struct"
+}
+
+func (t TypeStruct) GoTypeName() string {
+	return t.PkgName + "." + t.Name
+}
+
+func (t TypeStruct) FieldsExceptLast() []TypeField {
+	if len(t.Fields) == 0 {
+		return nil
+	}
+	return t.Fields[:len(t.Fields)-1]
 }
 
 type TypeField struct {

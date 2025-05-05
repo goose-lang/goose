@@ -1,4 +1,3 @@
-Axiom falso : False. {{- /* FIXME: get rid of this */}}
 {{- range $t := .Types -}}{{ $k := $t.Kind }}
 {{ if eq $k "axiom" -}}
 {{ template "type_axiom.tmpl" $t -}}

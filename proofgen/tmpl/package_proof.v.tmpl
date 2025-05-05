@@ -10,6 +10,9 @@ Require Export New.generatedproof.{{ .Path }}.
 Require Export New.golang.theory.
 
 Require Export New.code.{{ .ImportPath }}.
+
+Set Default Proof Using "Type".
+
 Module {{ .Name }}.
 {{ template "types.tmpl" . -}}
 {{ template "names.tmpl" . -}}

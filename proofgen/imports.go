@@ -13,8 +13,7 @@ import (
 )
 
 func translateImports(pkg *packages.Package, filter declfilter.DeclFilter) (imports []tmpl.Import) {
-	importsSeen := make(map[string]struct{})
-
+	importsSeen := make(map[string]bool)
 	for _, f := range pkg.Syntax {
 		for _, d := range f.Decls {
 			switch d := d.(type) {
@@ -24,15 +23,17 @@ func translateImports(pkg *packages.Package, filter declfilter.DeclFilter) (impo
 					for _, spec := range d.Specs {
 						spec := spec.(*ast.ImportSpec)
 						importPath, _ := strconv.Unquote(spec.Path.Value)
-						if filter.ShouldImport(importPath) {
-							coqImport := strings.ReplaceAll(
-								glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(
-									importPath), "/", ".")
-							if _, ok := importsSeen[coqImport]; !ok {
-								imports = append(imports, tmpl.Import{Path: coqImport})
-								importsSeen[coqImport] = struct{}{}
-							}
+						if !filter.ShouldImport(importPath) {
+							continue
 						}
+						coqImport := strings.ReplaceAll(
+							glang.ThisIsBadAndShouldBeDeprecatedGoPathToCoqPath(
+								importPath), "/", ".")
+						if importsSeen[coqImport] {
+							continue
+						}
+						imports = append(imports, tmpl.Import{Path: coqImport})
+						importsSeen[coqImport] = true
 					}
 				}
 			}
