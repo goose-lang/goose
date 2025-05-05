@@ -71,8 +71,7 @@ Proof.
 
   rewrite -!/(typed_pointsto_def _ _ _) -!typed_pointsto_unseal.
 {{ range $f := .FieldsExceptLast -}}
-  {{indent 2}}rewrite (@has_go_type_len _ (# ({{$name}}.{{$f.CoqName}} v)) (struct.field_offset_f {{$T.GoTypeName}} "{{$f.Name}}"%go).2); [ | by solve_has_go_type' ].
-  f_equiv; [ by simpl_field_ref_f | ].
+  {{indent 2}}simpl_one_flatten_struct (# ({{$name}}.{{$f.CoqName}} v)) {{$T.GoTypeName}} "{{$f.Name}}"%go.
 {{ end }}
   simpl_field_ref_f.
 Admitted.
