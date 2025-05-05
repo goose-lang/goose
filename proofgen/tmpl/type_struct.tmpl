@@ -73,7 +73,7 @@ Proof.
 {{ range $f := .FieldsExceptLast -}}
   {{indent 2}}simpl_one_flatten_struct (# ({{$name}}.{{$f.CoqName}} v)) {{$T.GoTypeName}} "{{$f.Name}}"%go.
 {{ end }}
-  simpl_field_ref_f.
+  solve_field_ref_f.
 Admitted.
 
 {{ end -}}
