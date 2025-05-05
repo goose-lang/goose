@@ -41,6 +41,10 @@ func (t TypeAxiom) Kind() string {
 	return "axiom"
 }
 
+func (t TypeAxiom) GoTypeName() string {
+	return t.PkgName + "." + t.Name
+}
+
 type TypeSimple struct {
 	Name string
 	Body string
