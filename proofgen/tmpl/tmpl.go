@@ -28,31 +28,28 @@ type NamesInfo struct {
 	NamedTypeMethods []MethodSet
 }
 
-type TypeDecl interface {
+type TypeDecl struct {
+	PkgName string
+	Name    string
+	TypeInfo
+}
+
+func (t TypeDecl) GoTypeName() string {
+	return t.PkgName + "." + t.Name
+}
+
+type TypeInfo interface {
 	Kind() string
 }
 
-type TypeAxiom struct {
-	PkgName string
-	Name    string
-}
+type TypeAxiom struct{}
 
 func (t TypeAxiom) Kind() string {
 	return "axiom"
 }
 
-func (t TypeAxiom) GoTypeName() string {
-	return t.PkgName + "." + t.Name
-}
-
 type TypeSimple struct {
-	PkgName string
-	Name    string
-	Body    string
-}
-
-func (t TypeSimple) GoTypeName() string {
-	return t.PkgName + "." + t.Name
+	Body string
 }
 
 func (t TypeSimple) Kind() string {
@@ -60,17 +57,11 @@ func (t TypeSimple) Kind() string {
 }
 
 type TypeStruct struct {
-	PkgName string
-	Name    string
-	Fields  []TypeField
+	Fields []TypeField
 }
 
 func (t TypeStruct) Kind() string {
 	return "struct"
-}
-
-func (t TypeStruct) GoTypeName() string {
-	return t.PkgName + "." + t.Name
 }
 
 func (t TypeStruct) FieldsExceptLast() []TypeField {
