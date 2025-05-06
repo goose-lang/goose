@@ -1,9 +1,10 @@
-package unittest
+package generics
 
 // Box is the simplest generic struct
 type Box[T any] struct {
 	Value T
 }
+
 type Container[T any] struct {
 	// various uses of T inside a type
 	X T
