@@ -25,6 +25,10 @@ type typesTranslator struct {
 	defNames []string
 }
 
+func (tr typesTranslator) ReadablePos(p token.Pos) string {
+	return tr.pkg.Fset.Position(p).String()
+}
+
 func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
@@ -50,68 +54,69 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 			return "unit"
 		} else {
 			panic(fmt.Sprintf("Anonymous structs with fields are not supported (%s): %s",
-				tr.pkg.Fset.Position(t.Field(0).Pos()).String(),
+				tr.ReadablePos(t.Field(0).Pos()),
 				t.String()))
 		}
+	case *types.TypeParam:
+		return t.Obj().Name()
 	}
 	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
 }
 
-func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) tmpl.TypeAxiom {
+func (tr *typesTranslator) newDecl(spec *ast.TypeSpec, info tmpl.TypeInfo) tmpl.TypeDecl {
+	return tmpl.TypeDecl{
+		PkgName:  tr.pkg.Name,
+		Name:     spec.Name.Name,
+		TypeInfo: info,
+	}
+}
+
+func (tr *typesTranslator) axiomatizeType(spec *ast.TypeSpec) {
 	name := spec.Name.Name
 	defName := name + ".t"
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
-	decl := tmpl.TypeAxiom{
-		PkgName: tr.pkg.Name,
-		Name:    name,
-	}
+
+	decl := tr.newDecl(spec, tmpl.TypeAxiom{})
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = decl
-	return decl
 }
 
-func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) tmpl.TypeSimple {
+func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type) {
 	name := spec.Name.Name
 	defName := name + ".t"
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
 
 	typeBody := tr.toCoqTypeWithDeps(t)
-
-	decl := tmpl.TypeSimple{
-		Name: name,
+	decl := tr.newDecl(spec, tmpl.TypeSimple{
 		Body: typeBody,
-	}
+	})
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = decl
-	return decl
 }
 
-func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Struct) tmpl.TypeStruct {
+func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Struct) {
 	name := spec.Name.Name
 	defName := name + ".t"
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
 
-	decl := tmpl.TypeStruct{
-		PkgName: tr.pkg.Name,
-		Name:    name,
-	}
+	info := tmpl.TypeStruct{}
 	for i := 0; i < s.NumFields(); i++ {
 		fieldName := s.Field(i).Name()
 		if fieldName == "_" {
 			fieldName = "_" + strconv.Itoa(i)
 		}
 		fieldType := tr.toCoqTypeWithDeps(s.Field(i).Type())
-		decl.Fields = append(decl.Fields, tmpl.TypeField{
+		info.Fields = append(info.Fields, tmpl.TypeField{
 			Name: fieldName,
 			Type: fieldType,
 		})
 	}
+	decl := tr.newDecl(spec, info)
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = decl
-	return decl
 }
 
 func (tr *typesTranslator) translateType(spec *ast.TypeSpec) {
