@@ -28,19 +28,8 @@ type Channel[T any] struct {
 	first  uint64
 	count  uint64
 
-	// Values only used for unbuffered channels
+	// Value only used for unbuffered channels
 	v T
-}
-
-// buffer_size = 0 is an unbuffered channel
-func NewChannel[T any](buffer_size uint64) Channel[T] {
-	return Channel[T]{
-		buffer: make([]T, buffer_size),
-		lock:   new(sync.Mutex),
-		first:  0,
-		count:  0,
-		state:  start,
-	}
 }
 
 // buffer_size = 0 is an unbuffered channel
@@ -65,100 +54,17 @@ func (c *Channel[T]) Send(val T) {
 		for {
 		}
 	}
-	var buffer_size uint64 = uint64(len(c.buffer))
-	// Buffered channel. In this case we can simply wait for space in the queue and queue our value.
-	if buffer_size != 0 {
-		for {
-			c.lock.Lock()
-			if c.state == closed {
-				panic("send on closed channel")
-			}
-			// No room to buffer the value
-			if c.count >= buffer_size {
-				c.lock.Unlock()
-				continue
-			}
-			// emplace the value in the circular queue
-			var last uint64 = (c.first + c.count) % buffer_size
-			c.buffer[last] = val
-			c.count += 1
-			c.lock.Unlock()
-			break
-		}
-		// Unbuffered channel. This is more complex since the sender must wait for a receiver to be
-		//  waiting and also wait for the receiver to acknowledge that it has received the value
-		// before moving on.
-	} else {
 
-		// Set to true if the receiver arrives before the sender
-		var return_early = false
-
-		// Wait for either
-		// 1. A receiver waiting for a value to be sent
-		// 2. No channel operations are in progress, meaning we can communicate that we are a
-		// waiting sender to the next receiver that arrives.
-		for {
-			c.lock.Lock()
-			// Any of the closed states mean we should panic since we just entered Send.
-			if c.state == closed {
-				panic("send on closed channel")
-			}
-			// Receiver waiting
-			if c.state == receiver_ready {
-				// Tell the receiver we have sent a value
-				c.state = sender_done
-				// Tell the receiver the value we are sending
-				c.v = val
-				c.lock.Unlock()
-				return_early = true
-				break
-			}
-			// No other senders/receivers have initiated a channel exchange so we can.
-			if c.state == start {
-				// Send our value
-				c.v = val
-				// Tell receivers we have sent a value
-				c.state = sender_ready
-				c.lock.Unlock()
-				break
-			}
-			c.lock.Unlock()
-		}
-
-		// If we arrived second, we still have to wait for the receiver to acknowledge that they
-		// have received our value so that the sender cannot continue and potentially close the
-		// channel before the receiver has completed the exchange, which would differ from the
-		// behavior of Go channels.
-		if return_early {
-			for {
-				c.lock.Lock()
-				// A close may have happened in between but we still must observe that the
-				// receiver knows we are done.
-				if !(c.state == sender_done) {
-					c.lock.Unlock()
-					break
-				}
-				c.lock.Unlock()
-			}
-			return
-		}
-		// We have arrived first, wait for the receiver to acknowledge that they have received our
-		// value.
-		for {
-			c.lock.Lock()
-			// We need to check if we have closed without the receiver seeing our value, which
-			// means that close happened before a receiver arrived..
-			if c.state == closed {
-				panic("send on closed channel")
-			}
-			if c.state == receiver_done {
-				c.state = start
-				c.lock.Unlock()
-				break
-			}
-			c.lock.Unlock()
-		}
+	// Create a send case for this channel
+	var send_case SelectCase[T] = SelectCase[T]{
+		channel: c,
+		dir:     SelectSend,
+		Value:   val,
 	}
+
+	// Run a blocking select with just this one case
+	// This will block until the send succeeds
+	Select1(&send_case, true)
 }
 
 // Equivalent to:
@@ -172,104 +78,31 @@ func (c *Channel[T]) Receive() (T, bool) {
 		for {
 		}
 	}
-	var ret_val T
-	var buffer_size uint64 = uint64(len(c.buffer))
-	var closed_local = false
 
-	// Buffered channel, we can simply block until a value is in the buffer then dequeue it from
-	// the buffer.
-	if buffer_size != 0 {
-		for {
-			c.lock.Lock()
-			if (c.state == closed) && c.count == 0 {
-				c.lock.Unlock()
-				closed_local = true
-				break
-			}
-			if c.count == 0 {
-				c.lock.Unlock()
-				continue
-			}
-			ret_val = c.buffer[c.first]
-			c.first = (c.first + 1) % buffer_size
-			c.count -= 1
-			c.lock.Unlock()
-			break
-		}
-		return ret_val, !closed_local
-		// Unbuffered channel. This logic is more complex since we need to make sure the exchange
-		// doesn't begin until a sender is ready and doesn't end until the sender knows the
-		// receiver has received the value.
-	} else {
+	// Create a receive case for this channel
+	recvCase := NewRecvCase(c)
 
-		var return_early = false
-		for {
-			c.lock.Lock()
-			// Any closed state means we return null and ok=false since we just entered
-			// Receive.
-			if c.state == closed {
-				c.lock.Unlock()
-				closed_local = true
-				break
-			}
-			// Sender is waiting
-			if c.state == sender_ready {
-				// Inform the sender we have received the value
-				c.state = receiver_done
-				// Save the value
-				ret_val = c.v
-				c.lock.Unlock()
-				return_early = true
-				break
-			}
-			// No channel operations are in progress so we can initiate an exchange
-			if c.state == start {
-				// Inform the next sender that we are ready to receive.
-				c.state = receiver_ready
-				c.lock.Unlock()
-				break
-			}
-			c.lock.Unlock()
-		}
-		if closed_local {
-			return ret_val, !closed_local
-		}
-		// If the sender arrived first, we still must wait for them to acknowledge that the .
-		// exchange is complete.
-		if return_early {
-			for {
-				c.lock.Lock()
-				// Close might happen in between but we still must wait for the sender to
-				// observe that we have received their value.
-				if !(c.state == receiver_done) {
-					c.lock.Unlock()
-					break
-				}
-				c.lock.Unlock()
-			}
-			return ret_val, !closed_local
-		}
-		// Receiver arrived first, wait for sender to arrive and queue value for us.
-		for {
-			c.lock.Lock()
-			// Close happened before sender could queue a value
-			if c.state == closed {
-				c.lock.Unlock()
-				closed_local = true
-				break
-			}
-			if c.state == sender_done {
-				// Reset sender flag
-				c.state = start
-				// Save value
-				ret_val = c.v
-				c.lock.Unlock()
-				break
-			}
-			c.lock.Unlock()
-		}
-		return ret_val, !closed_local
+	// Run a blocking select with just this one case
+	// This will block until the receive succeeds
+	Select1(&recvCase, true)
+
+	return recvCase.Value, recvCase.Ok
+}
+
+// This is a non-blocking attempt at closing. The only reason close blocks ever is because there
+// may be successful exchanges that need to complete, which is equivalent to the go runtime where
+// the closer must still obtain the channel's lock
+func (c *Channel[T]) TryClose() bool {
+	if c.state == closed {
+		panic("close of closed channel")
 	}
+	// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
+	// In the real channel code the lock is held while this happens.
+	if c.state != receiver_done && c.state != sender_done {
+		c.state = closed
+		return true
+	}
+	return false
 }
 
 // c.Close()
@@ -281,20 +114,11 @@ func (c *Channel[T]) Close() {
 	if c == nil {
 		panic("close of nil channel")
 	}
-	for {
+	var done bool = false
+	for !done {
 		c.lock.Lock()
-		if c.state == closed {
-			panic("close of closed channel")
-		}
-		// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
-		// In the real channel code the lock is held while this happens.
-		if c.state == receiver_done || c.state == sender_done {
-			c.lock.Unlock()
-			continue
-		}
-		c.state = closed
+		done = c.TryClose()
 		c.lock.Unlock()
-		break
 	}
 }
 
@@ -310,182 +134,214 @@ func (c *Channel[T]) ReceiveDiscardOk() T {
 	return return_val
 }
 
-// A non-blocking receive operation. If there is not a sender available in an unbuffered channel,
-// we "offer" for a single program step by setting receiver_ready to true, unlocking, then
-// immediately locking, which is necessary when a potential matching party is using TrySend.
-// See the various <n>CaseSelect functions for a description of how this is used to model selects.
-func (c *Channel[T]) TryReceive() (bool, T, bool) {
-	var ret_val T
-	if c == nil {
-		return false, ret_val, false
+// If there is a value available in the buffer, consume it, otherwise, don't select.
+func (c *Channel[T]) BufferedTryReceiveLocked() (bool, T, bool) {
+	var v T
+	if c.count > 0 {
+		v = c.buffer[c.first]
+		c.first = (c.first + 1) % uint64(len(c.buffer))
+		c.count -= 1
+		return true, v, true
 	}
-	var buffer_size uint64 = uint64(len(c.buffer))
-	var closed_local = false
-	var selected = false
-	// Buffered channel
-	if buffer_size != 0 {
+	if c.state == closed {
+		return true, v, false
+	}
+	return false, v, true
+}
+
+func (c *Channel[T]) BufferedTryReceive() (bool, T, bool) {
+	c.lock.Lock()
+	selected, return_val, ok := c.BufferedTryReceiveLocked()
+	c.lock.Unlock()
+	return selected, return_val, ok
+}
+
+type ReceiverState uint64
+
+const (
+	ReceiverCompletedWithSender ReceiverState = 0 // Receiver found a waiting sender
+	ReceiverMadeOffer           ReceiverState = 1 // Receiver made an offer (no sender waiting)
+	ReceiverObservedClosed      ReceiverState = 2 // Receiver saw that the channel was closed
+	ReceiverCannotProceed       ReceiverState = 3 // Invalid state for receiving
+)
+
+func (c *Channel[T]) ReceiverCompleteOrOffer() ReceiverState {
+	// A receiver is waiting, complete exchange
+	if c.state == sender_ready {
+		c.state = receiver_done
+		return ReceiverCompletedWithSender
+	}
+	// No exchange in progress, make an offer, which will "lock" the channel from other
+	// receivers since they will do nothing in this function if receiver_ready is observed.
+	if c.state == start {
+		c.state = receiver_ready
+		return ReceiverMadeOffer
+	}
+	// Closed, we will return ok=false.
+	if c.state == closed {
+		return ReceiverObservedClosed
+	}
+	// An exchange is in progress, don't select.
+	return ReceiverCannotProceed
+}
+
+type OfferResult uint64
+
+const (
+	OfferRescinded        OfferResult = 0 // Offer was rescinded (other party didn't arrive in time)
+	CompletedExchange     OfferResult = 1 // Other party responded to our offer
+	CloseInterruptedOffer OfferResult = 2 // Unexpected state, indicates model bugs.
+)
+
+func (c *Channel[T]) ReceiverCompleteOrRescindOffer() OfferResult {
+	// Offer cancelled by close
+	if c.state == closed {
+		return CloseInterruptedOffer
+	}
+	// Offer wasn't accepted in time, rescind it.
+	if c.state == receiver_ready {
+		c.state = start
+		return OfferRescinded
+	}
+	// Offer was accepted, complete the exchange.
+	if c.state == sender_done {
+		c.state = start
+		return CompletedExchange
+	}
+	panic("Invalid state transition with open receive offer")
+}
+
+func (c *Channel[T]) UnbufferedTryReceive() (bool, T, bool) {
+	var local_val T
+	// First critical section: determine state and get value if sender is ready
+	c.lock.Lock()
+	try_select := c.ReceiverCompleteOrOffer()
+	// Are we closed?
+	var ok bool = !(try_select == ReceiverObservedClosed)
+	// Closed and other party ready are selectable
+	var selected bool = (try_select == ReceiverCompletedWithSender || !ok)
+	if selected {
+		// Save the value
+		local_val = c.v
+	}
+	c.lock.Unlock()
+
+	// If we offered, see if it was accepted
+	if try_select == ReceiverMadeOffer {
 		c.lock.Lock()
-		// No values available to dequeue, don't select unless channel is closed.
-		if c.count == 0 {
-			if c.state == closed {
-				closed_local = true
-				selected = true
-			}
-			c.lock.Unlock()
-		} else {
-			// Value is available, select and dequeue value
-			ret_val = c.buffer[c.first]
-			c.first = (c.first + 1) % buffer_size
-			c.count -= 1
+		offer_result := c.ReceiverCompleteOrRescindOffer()
+		if offer_result == CompletedExchange {
+			// Save and select if we managed to bait a sender.
+			local_val = c.v
 			selected = true
-			c.lock.Unlock()
-		}
-		return selected, ret_val, !closed_local
-		// Unbuffered channel. This logic is more complex since we need to make sure the exchange
-		// doesn't occur unless a sender is ready and doesn't end until the sender knows the
-		// receiver has received the value.
-	} else {
-		var offer bool = false
-		c.lock.Lock()
-		// Any of these states mean we closed before we attempt to receive, which means this
-		// is selectable and we should return null and ok=false
-		if c.state == closed {
-			closed_local = true
-			selected = true
-		} else {
-			// Sender is waiting, get the value.
-			if c.state == sender_ready {
-				// Inform the sender that we have the value
-				c.state = receiver_done
-				// Save the value
-				ret_val = c.v
-				selected = true
-			}
-			// If we are in the start state, we still need to communicate that we are trying
-			// to receive. To do this we will make an "offer" by setting the receiver_ready
-			// flag and then we will check it immediately to see if a sender happened to
-			// arrive. This does not have great performance characteristics since we rely on
-			// the thread to be immediately preempted and a sender to arrive and see
-			// receiver_ready in between but for liveness purposes it needs to at least be
-			// possible for an exchange to happen between 2 threads doing blocking selects
-			// with Send/Receive on the same channel.
-			if c.state == start {
-				c.state = receiver_ready
-				offer = true
-			}
 		}
 		c.lock.Unlock()
-		if offer {
-			c.lock.Lock()
-			// Offer was accepted
-			if c.state == sender_done {
-				ret_val = c.v
-				c.state = start
-				selected = true
-			}
-			// Revoke our offer if it still stands(Close can revoke it for us)
-			if c.state == receiver_ready {
-				c.state = start
-			}
-			c.lock.Unlock()
-		}
-		if closed_local {
-			return selected, ret_val, !closed_local
-		}
-		// If we received a value, wait until the sender knows that we received the value to
-		// complete the exchange.
-		if selected && !offer {
-			for {
-				c.lock.Lock()
-				if !(c.state == receiver_done) {
-					c.lock.Unlock()
-					break
-				}
-				c.lock.Unlock()
-			}
-		}
-		return selected, ret_val, !closed_local
+	}
+
+	return selected, local_val, ok
+}
+
+// Non-blocking receive function used for select statements. Blocking receive is modeled as
+// a single blocking select statement which amounts to a for loop until selected.
+func (c *Channel[T]) TryReceive() (bool, T, bool) {
+	if uint64(len(c.buffer)) > 0 {
+		return c.BufferedTryReceive()
+	} else {
+		return c.UnbufferedTryReceive()
 	}
 }
 
-// A non-blocking send operation. If there is not a receiver available in an unbuffered channel,
-// we "offer" for a single program step by setting sender_ready to true, unlocking, then
-// immediately locking, which is necessary when a potential matching party is using TryReceive.
-// See the various <n>CaseSelect functions for a description of how this is used to model selects.
-func (c *Channel[T]) TrySend(val T) bool {
-	// Nil is not selectable
-	if c == nil {
-		return false
+type SenderState uint64
+
+const (
+	SenderCompletedWithReceiver SenderState = 0 // Sender found a waiting receiver
+	SenderMadeOffer             SenderState = 1 // Sender made an offer (no receiver waiting)
+	SenderCannotProceed         SenderState = 2 // Exchange in progress, don't select
+)
+
+func (c *Channel[T]) SenderCompleteOrOffer(val T) SenderState {
+	if c.state == closed {
+		panic("send on closed channel")
 	}
-	var selected = false
+	// Receiver waiting, complete exchange.
+	if c.state == receiver_ready {
+		c.state = sender_done
+		c.v = val
+		return SenderCompletedWithReceiver
+	}
+	// No exchange in progress, make an offer.
+	if c.state == start {
+		c.state = sender_ready
+		// Save the value in case the receiver completes the exchange.
+		c.v = val
+		return SenderMadeOffer
+	}
+	// Exchange in progress, don't select.
+	return SenderCannotProceed
+}
+
+func (c *Channel[T]) SenderCheckOfferResult() OfferResult {
+	if c.state == closed {
+		panic("send on closed channel")
+	}
+	// Receiver accepted offer, complete exchange.
+	if c.state == receiver_done {
+		c.state = start
+		return CompletedExchange
+	}
+	// Offer still stands, rescind it.
+	if c.state == sender_ready {
+		c.state = start
+		return OfferRescinded
+	}
+	panic("Invalid state transition with open receive offer")
+}
+
+// If the buffer has free space, push our value.
+func (c *Channel[T]) BufferedTrySend(val T) bool {
+	if c.state == closed {
+		panic("send on closed channel")
+	}
+
+	// If we have room, buffer our value
+	if c.count < uint64(len(c.buffer)) {
+		var last uint64 = (c.first + c.count) % uint64(len(c.buffer))
+		c.buffer[last] = val
+		c.count += 1
+		return true
+	}
+	return false
+}
+
+// Non-Blocking send operation for select statements. Blocking send and blocking select
+// statements simply call this in a for loop until it returns true.
+func (c *Channel[T]) TrySend(val T) bool {
 	var buffer_size uint64 = uint64(len(c.buffer))
 
-	// Buffered channel
+	// Buffered channel:
 	if buffer_size != 0 {
 		c.lock.Lock()
-		if c.state == closed {
-			panic("send on closed channel")
-		}
-		// If we have room, buffer our value
-		if !(c.count >= buffer_size) {
-			var last uint64 = (c.first + c.count) % buffer_size
-			c.buffer[last] = val
-			c.count += 1
-			selected = true
-		}
+		sendResult := c.BufferedTrySend(val)
 		c.lock.Unlock()
-		return selected
-		// Unbuffered channel
-	} else {
-		var offer bool = false
-		c.lock.Lock()
-		if c.state == closed {
-			panic("send on closed channel")
-		}
-
-		// If we're not closed and a receiver is waiting, we can send them the value
-		if c.state == receiver_ready {
-			c.state = sender_done
-			c.v = val
-			selected = true
-		}
-		// If we are in the start state, make an offer for a possible receiver. We will only
-		// leave this offer open until we almost immediately lock again and check the result
-		// but this is necessary to ensure liveness when there are multiple goroutines running
-		// blocking select statements that would match.
-		if c.state == start {
-			c.state = sender_ready
-			c.v = val
-			offer = true
-		}
-		c.lock.Unlock()
-		if offer {
-			c.lock.Lock()
-			if c.state == receiver_done {
-				c.state = start
-				selected = true
-			}
-			if c.state == sender_ready {
-				c.state = start
-			}
-			c.lock.Unlock()
-		}
-		// This is necessary to make sure that the receiver has consumed our sent value. If we
-		// don't do this, a sender can unblock and potentially close the channel before the
-		// receiver has had a chance to consume it which would not be the same behavior as Go
-		// channels.
-		if selected && !offer {
-			for {
-				c.lock.Lock()
-				if !(c.state == sender_done) {
-					c.lock.Unlock()
-					break
-				}
-				c.lock.Unlock()
-			}
-		}
-		return selected
+		return sendResult
 	}
+
+	// Unbuffered channel:
+	// First critical section: Try to complete send or make offer
+	c.lock.Lock()
+	senderState := c.SenderCompleteOrOffer(val)
+	c.lock.Unlock()
+
+	// Second critical section: Handle offer case if needed
+	if senderState == SenderMadeOffer {
+		c.lock.Lock()
+		offerResult := c.SenderCheckOfferResult()
+		c.lock.Unlock()
+		return offerResult == CompletedExchange
+	}
+
+	// If we didn't make an offer, we either selected or an exchange is in progress so we bail.
+	return senderState == SenderCompletedWithReceiver
 }
 
 // c.Len()
@@ -517,12 +373,14 @@ func (c *Channel[T]) Cap() uint64 {
 	return uint64(len(c.buffer))
 }
 
+// The code below models select statements in a similar way to the reflect package's
+// dynamic select statements. See unit tests in channel_test.go for examples of
+// the intended translation.
 type SelectDir uint64
 
 const (
-	SelectSend    SelectDir = 0 // case Chan <- Send
-	SelectRecv    SelectDir = 1 // case <-Chan:
-	SelectDefault SelectDir = 2 // default
+	SelectSend SelectDir = 0 // case Chan <- Send
+	SelectRecv SelectDir = 1 // case <-Chan:
 )
 
 // value is used for the value the sender will send and also used to return the received value by
@@ -534,107 +392,213 @@ type SelectCase[T any] struct {
 	Ok      bool
 }
 
-// Models a 2 case select statement. Returns 0 if case 1 selected, 1 if case 2 selected.
-// Requires that case 1 not have dir = SelectDefault. If case_2 is a default, this will never block.
-// This is similar to the reflect package dynamic select statements and should give us a true to
-// runtime Go model with a fairly intuitive spec/translation.
+// TrySelectAt attempts to select a specific case
+func TrySelectAt[T any](selectCase *SelectCase[T]) bool {
+	// nil is not selectable
+	if selectCase.channel != nil {
+		return TrySelect(selectCase)
+	}
+	return false
+}
+
+// TrySelectCase attempts to select a specific case at a given index
+// Returns true if the case was selected, false otherwise
+func TrySelectCase[T1, T2, T3, T4, T5 any](
+	index uint64,
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	case4 *SelectCase[T4],
+	case5 *SelectCase[T5]) bool {
+
+	if index == 0 {
+		return TrySelectAt(case1)
+	}
+	if index == 1 {
+		return TrySelectAt(case2)
+	}
+	if index == 2 {
+		return TrySelectAt(case3)
+	}
+	if index == 3 {
+		return TrySelectAt(case4)
+	}
+	if index == 4 {
+		return TrySelectAt(case5)
+	}
+	return false
+}
+
+// I want a value for representing the default case but I can't use -1 with uint64
+// and I don't want this to be confused for a bug, so doing this.
+const (
+	DefaultCase uint64 = 5 // The value representing the default case
+)
+
+// TryCasesInOrder attempts to select one of the cases in the given order
+// Returns the index of the selected case, or 5 if none was selected.
+// I would probably return a sentinel value of 1 here but we are limited to
+// uint64 and the index after the last makes sense since that would be where the
+// default block is.
+func TryCasesInOrder[T1, T2, T3, T4, T5 any](
+	order []uint64,
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	case4 *SelectCase[T4],
+	case5 *SelectCase[T5]) uint64 {
+	var select_case uint64 = uint64(len(order))
+	for _, i := range order {
+		if select_case == uint64(len(order)) && TrySelectCase(i, case1, case2, case3, case4, case5) {
+			select_case = uint64(i)
+		}
+	}
+	return select_case
+}
+
+// MultiSelect performs a select operation on up to 5 cases.
+// This is the largest number of cases the model will support, at least for now.
+// Because of the fact that nil channels are not selectable, we can simply make
+// this function never select a case with a nil channel and take advantage of
+// this behavior to model selects with fewer than 5 statements by simply passing
+// in "empty cases" that have a nil channel. This will allow verifying only the
+// 5 statement case with a thin wrapper for the smaller ones.
 //
-//	This:
-//	select {
-//		case c1 <- 0:
-//			<case 1 body>
-//		case v, ok := <-c2:
-//			<case 2 body>
-//	}
-//
-//	Will be translated to:
-//
-// case_1 := channel.NewSendCase(c1, 0)
-// case_2 := channel.NewRecvCase(c2)
-// var uint64 selected_case = TwoCaseSelect(case_1, case_2)
-//
-//	if selected_case == 0 {
-//		<case 1 body>
-//	}
-//	if selected_case == 1 {
-//			var ok bool = case_2.ok
-//			var v uint64 = case_2.value
-//			<case 2 body>
-//		}
-func TwoCaseSelect[T1 any, T2 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2]) uint64 {
-	var selected_case uint64 = 0
-	var selected bool = false
-	// A "random" shuffle for correctness purposes, but probably mostly will be the same.
-	var order []uint64 = Shuffle(2)
+// Cases with nil channels are ignored.
+// This function returns the index of the selected case.
+// If blocking is true, keep trying to select until a select succeeds.
+// If blocking is false, return 5. 5 is the equivalent of a default case
+// in Go channels.
+func multiSelect[T1, T2, T3, T4, T5 any](
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	case4 *SelectCase[T4],
+	case5 *SelectCase[T5],
+	blocking bool) uint64 {
+
+	var selected_case uint64 = DefaultCase
+
+	// Get a random order for fairness (only once, outside the loop)
+	order := Permutation(5)
+
+	// If nothing was selected and we're blocking, try in a loop
 	for {
-		for _, i := range order {
-			// Perennial doesn't support breaks inside of nested for loops, so just don't do this
-			// if we have selected something already
-			if i == 0 && !selected {
-				selected = TrySelect(case_1)
-				if selected {
-					selected_case = 0
-				}
-			}
-			// Make sure we don't select default preferentially
-			if i == 1 && !selected && case_2.dir != SelectDefault {
-				selected = TrySelect(case_2)
-				if selected {
-					selected_case = 1
-				}
-			}
-		}
-		if !selected && case_2.dir == SelectDefault {
-			break
-		}
-		// If case_2 is a default, this will always be true on the first iteration, so this
-		// doesn't block in that case.
-		if selected {
+		selected_case = TryCasesInOrder(order, case1, case2, case3, case4, case5)
+		if selected_case != DefaultCase || !blocking {
 			break
 		}
 	}
 	return selected_case
 }
 
-func ThreeCaseSelect[T1 any, T2 any, T3 any](case_1 *SelectCase[T1], case_2 *SelectCase[T2], case_3 *SelectCase[T3]) uint64 {
-	var selected_case uint64 = 0
-	var selected bool = false
-	var order []uint64 = Shuffle(3)
-	for {
-		for _, i := range order {
-			if i == 0 && !selected {
-				selected = TrySelect(case_1)
-				if selected {
-					selected_case = 0
-				}
-			}
-			if i == 1 && !selected {
-				selected = TrySelect(case_2)
-				if selected {
-					selected_case = 1
-				}
-			}
-			if i == 2 && !selected && case_3.dir != SelectDefault {
-				selected = TrySelect(case_3)
-				if selected {
-					selected_case = 2
-				}
-			}
-		}
-		if !selected && case_3.dir == SelectDefault {
-			break
-		}
-		if selected {
-			break
-		}
-	}
-	return selected_case
+// Select1 performs a select operation on 1 case. This is used for Send and
+// Receive as well, since these channel operations in Go are equivalent to
+// a single case select statement with no default.
+func Select1[T1 any](
+	case1 *SelectCase[T1],
+	blocking bool) uint64 {
+
+	// Create empty cases with nil channels for the unused slots
+	emptyCase2 := &SelectCase[uint64]{channel: nil}
+	emptyCase3 := &SelectCase[uint64]{channel: nil}
+	emptyCase4 := &SelectCase[uint64]{channel: nil}
+	emptyCase5 := &SelectCase[uint64]{channel: nil}
+
+	return multiSelect(
+		case1,
+		emptyCase2,
+		emptyCase3,
+		emptyCase4,
+		emptyCase5,
+		blocking)
+}
+
+// Select2 performs a select operation on 2 cases.
+func Select2[T1, T2 any](
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	blocking bool) uint64 {
+
+	// Create empty cases with nil channels for the unused slots
+	emptyCase3 := &SelectCase[uint64]{}
+	emptyCase4 := &SelectCase[uint64]{}
+	emptyCase5 := &SelectCase[uint64]{}
+
+	return multiSelect(
+		case1,
+		case2,
+		emptyCase3,
+		emptyCase4,
+		emptyCase5,
+		blocking)
+}
+
+// Select3 performs a select operation on 3 cases.
+func Select3[T1, T2, T3 any](
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	blocking bool) uint64 {
+
+	// Create empty cases with nil channels for the unused slots
+	emptyCase4 := &SelectCase[uint64]{}
+	emptyCase5 := &SelectCase[uint64]{}
+
+	return multiSelect(
+		case1,
+		case2,
+		case3,
+		emptyCase4,
+		emptyCase5,
+		blocking)
+}
+
+// Select4 performs a select operation on 4 cases.
+func Select4[T1, T2, T3, T4 any](
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	case4 *SelectCase[T4],
+	blocking bool) uint64 {
+
+	// Create an empty case with nil channel for the unused slot
+	emptyCase5 := &SelectCase[uint64]{}
+
+	return multiSelect(
+		case1,
+		case2,
+		case3,
+		case4,
+		emptyCase5,
+		blocking)
+}
+
+// Select5 is just an alias to MultiSelect for consistency in the API.
+func Select5[T1, T2, T3, T4, T5 any](
+	case1 *SelectCase[T1],
+	case2 *SelectCase[T2],
+	case3 *SelectCase[T3],
+	case4 *SelectCase[T4],
+	case5 *SelectCase[T5],
+	blocking bool) uint64 {
+
+	return multiSelect(
+		case1,
+		case2,
+		case3,
+		case4,
+		case5,
+		blocking)
 }
 
 // Uses the applicable Try<Operation> function on the select case's channel. Default is always
 // selectable so simply returns true.
 func TrySelect[T any](select_case *SelectCase[T]) bool {
 	var channel *Channel[T] = select_case.channel
+	if channel == nil {
+		return false
+	}
 	if select_case.dir == SelectSend {
 		return channel.TrySend(select_case.Value)
 	}
@@ -651,24 +615,30 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 		return selected
 
 	}
-	if select_case.dir == SelectDefault {
-		return true
-	}
 	return false
 }
 
-// Simple knuth shuffle.
-func Shuffle(n uint64) []uint64 {
-	var order = make([]uint64, n)
+// Shuffle shuffles the elements of xs in place, using a Fisher-Yates shuffle.
+func Shuffle(xs []uint64) {
+	if len(xs) == 0 {
+		return
+	}
+	for i := uint64(len(xs) - 1); i > 0; i-- {
+		j := primitive.RandomUint64() % uint64(i+1)
+		temp := xs[i]
+		xs[i] = xs[j]
+		xs[j] = temp
+	}
+}
+
+// Permutation returns a random permutation of the integers 0, ..., n-1, using a
+// Fisher-Yates shuffle.
+func Permutation(n uint64) []uint64 {
+	order := make([]uint64, n)
 	for i := uint64(0); i < n; i++ {
 		order[i] = uint64(i)
 	}
-	for i := uint64(len(order) - 1); i > 0; i-- {
-		var j uint64 = primitive.RandomUint64() % uint64(i+1)
-		var temp uint64 = order[i]
-		order[i] = order[j]
-		order[j] = temp
-	}
+	Shuffle(order)
 	return order
 }
 
@@ -684,12 +654,5 @@ func NewRecvCase[T any](channel *Channel[T]) SelectCase[T] {
 	return SelectCase[T]{
 		channel: channel,
 		dir:     SelectRecv,
-	}
-}
-
-// The type does not matter here, picking a simple primitive.
-func NewDefaultCase() SelectCase[uint64] {
-	return SelectCase[uint64]{
-		dir: SelectDefault,
 	}
 }

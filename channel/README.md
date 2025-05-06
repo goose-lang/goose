@@ -13,8 +13,10 @@ The unbuffered channel behavior in this model is described in the diagram below:
 ```mermaid
 stateDiagram-v2
 	[*] --> start: Create Channel
-    start-->sender_ready: Sender arrives first
-    start-->receiver_ready: Receiver arrives first
+    start-->sender_ready: Sender arrives first and makes offer
+    start-->receiver_ready: Receiver arrives first and makes offer 
+    sender_ready-->start: Sender rescinds offer after wait period
+    receiver_ready-->start: Receiver rescinds offer after wait period
     sender_ready-->receiver_done: Receiver completes exchange
     receiver_ready-->sender_done: Sender completes exchange
     receiver_done-->start: Sender observes completed exchange
