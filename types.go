@@ -22,7 +22,7 @@ func (ctx *Ctx) typeSpecIsGooseLang(spec *ast.TypeSpec) bool {
 		}
 		for i := 0; i < t.NumFields(); i++ {
 			fieldType := t.Field(i).Type()
-			if ctx.typeIsGooseLang(fieldType) {
+			if TypeIsGooseLang(fieldType) {
 				return true
 			}
 		}
@@ -30,9 +30,9 @@ func (ctx *Ctx) typeSpecIsGooseLang(spec *ast.TypeSpec) bool {
 	return false
 }
 
-// typeIsGooseLang checks if a type must be translated as GooseLang (due to
+// TypeIsGooseLang checks if a type must be translated as GooseLang (due to
 // generics); if false, it is translated to a Gallina go_type instead.
-func (ctx *Ctx) typeIsGooseLang(t types.Type) bool {
+func TypeIsGooseLang(t types.Type) bool {
 	// note that t.TypeParams() != nil && t.TypeParams().Len() == 0 is possible: it
 	// indicates an originally generic, instantiated type
 	switch t := t.(type) {
@@ -51,7 +51,7 @@ func (ctx *Ctx) typeIsGooseLang(t types.Type) bool {
 		}
 		for i := 0; i < t.NumFields(); i++ {
 			fieldType := t.Field(i).Type()
-			if ctx.typeIsGooseLang(fieldType) {
+			if TypeIsGooseLang(fieldType) {
 				return true
 			}
 		}
@@ -274,7 +274,7 @@ type structTypeInfo struct {
 
 func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Type {
 	ctx.dep.Add(info.name)
-	if ctx.typeIsGooseLang(info.namedType) {
+	if TypeIsGooseLang(info.namedType) {
 		return glang.TypeCallExpr{MethodName: glang.GallinaIdent(info.name), Args: ctx.convertTypeArgsToGlang(nil, info.typeArgs)}
 	} else {
 		return glang.TypeIdent(info.name)

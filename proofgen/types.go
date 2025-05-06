@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/goose-lang/goose"
 	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/deptracker"
 	"github.com/goose-lang/goose/proofgen/tmpl"
@@ -58,7 +59,7 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 				t.String()))
 		}
 	case *types.TypeParam:
-		return t.Obj().Name()
+		return t.Obj().Name() + "'"
 	}
 	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
 }
@@ -102,7 +103,18 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
 
-	info := tmpl.TypeStruct{}
+	info := tmpl.TypeStruct{
+		IsGooseLang: spec.TypeParams != nil || goose.TypeIsGooseLang(s),
+		TypeParams:  nil, // populated below
+		Fields:      nil, // populated below
+	}
+	if spec.TypeParams != nil {
+		for _, tp := range spec.TypeParams.List {
+			for _, name := range tp.Names {
+				info.TypeParams = append(info.TypeParams, name.Name)
+			}
+		}
+	}
 	for i := 0; i < s.NumFields(); i++ {
 		fieldName := s.Field(i).Name()
 		if fieldName == "_" {
@@ -111,7 +123,9 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 		fieldType := tr.toCoqTypeWithDeps(s.Field(i).Type())
 		info.Fields = append(info.Fields, tmpl.TypeField{
 			Name: fieldName,
-			Type: fieldType,
+			// TODO: construct this (calling something from goose)
+			GoType: fieldType,
+			Type:   fieldType,
 		})
 	}
 	decl := tr.newDecl(spec, info)

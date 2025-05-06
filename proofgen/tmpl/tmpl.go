@@ -2,6 +2,7 @@ package tmpl
 
 import (
 	"embed"
+	"fmt"
 	"io"
 	"iter"
 	"strings"
@@ -35,7 +36,30 @@ type TypeDecl struct {
 }
 
 func (t TypeDecl) GoTypeName() string {
+	switch info := t.TypeInfo.(type) {
+	case TypeStruct:
+		if info.IsGooseLang {
+			return fmt.Sprintf("(%s.ty %s)", t.Name, strings.Join(info.TypeParams, " "))
+		}
+	default:
+	}
 	return t.PkgName + "." + t.Name
+}
+
+func (t TypeDecl) GallinaType() string {
+	if info, ok := t.TypeInfo.(TypeStruct); ok {
+		if info.IsGooseLang {
+			var params []string
+			for _, tp := range info.TypeParams {
+				params = append(params, toCoqName(tp))
+			}
+			return fmt.Sprintf("(%s.t %s)", t.Name, strings.Join(params, " "))
+		} else {
+			return fmt.Sprintf("%s.t", t.Name)
+		}
+	} else {
+		panic("GallinaType not defined for non-struct types")
+	}
 }
 
 type TypeInfo interface {
@@ -57,7 +81,9 @@ func (t TypeSimple) Kind() string {
 }
 
 type TypeStruct struct {
-	Fields []TypeField
+	IsGooseLang bool
+	TypeParams  []string
+	Fields      []TypeField
 }
 
 func (t TypeStruct) Kind() string {
@@ -72,8 +98,9 @@ func (t TypeStruct) FieldsExceptLast() []TypeField {
 }
 
 type TypeField struct {
-	Name string
-	Type string
+	Name   string
+	GoType string
+	Type   string
 }
 
 func (f TypeField) CoqName() string {

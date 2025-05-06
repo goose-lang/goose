@@ -4,23 +4,54 @@
 Module {{$name}}.
 Section def.
 Context `{ffi_syntax}.
-Record t := mk {
-{{ range $Fields }}  {{.CoqName}} : {{.Type}};
+{{ if .TypeInfo.IsGooseLang }}
+Definition ty {{ if .TypeInfo.TypeParams -}}
+({{ range $T_param := .TypeInfo.TypeParams }}{{$T_param}}' {{ end -}} : go_type){{" "}}
+{{- end -}}
+: go_type := structT [
+{{ range $Fields | iterSepFields ";" -}}{{ $f := .X -}}
+  {{indent 2}}"{{$f.Name}}" :: {{$f.GoType}}{{.Sep}}
+{{ end -}}
+]%struct.
+{{ end -}}
+Record t {{ template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}
+:= mk {
+{{ range $Fields -}}
+  {{indent 2}}{{.CoqName}} : {{.Type}};
 {{ end -}}
 }.
 End def.
 End {{$name}}.
 
+{{ if $T.TypeInfo.TypeParams -}}
+Arguments {{$name}}.mk {_} {{ range $T_param := $T.TypeInfo.TypeParams -}}
+{ {{$T_param}}' } {_ {{$T_param}} _}{{" "}}
+{{- end -}}.
+Arguments {{$name}}.t {_} {{ range $T_param := $T.TypeInfo.TypeParams -}}
+{{$T_param}}' {_ {{$T_param}} _}{{" "}}
+{{- end -}}.
+
+{{ end -}}
 Section instances.
 Context `{ffi_syntax}.
+{{ if $T.TypeInfo.TypeParams -}}
+Context {{- template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}.
+
+Global Instance {{$name}}_ty_wf : struct.Wf {{$T.GoTypeName}}.
+Proof. apply _. Qed.
+{{ end -}}
 {{ if $Fields }}
-Global Instance settable_{{$name}} : Settable _ :=
-  settable! {{$name}}.mk < {{- " " -}}
+Global Instance settable_{{$name}} : Settable {{$T.GallinaType}} :=
+  settable! {{if $T.TypeInfo.TypeParams -}}
+({{$name}}.mk {{- range $T_param := $T.TypeInfo.TypeParams -}}
+{{ " " -}} ({{$T_param}}:={{$T_param}}) {{- end }})
+{{- else }}{{$name}}.mk{{ end -}}
+{{- " " -}} < {{- " " -}}
 {{ range $Fields | iterSepFields "; " -}}
 {{$name}}.{{ .X.CoqName }}{{.Sep}}
 {{- end }} >.
 {{ end -}}
-Global Instance into_val_{{$name}} : IntoVal {{$name}}.t :=
+Global Instance into_val_{{$name}} : IntoVal {{$T.GallinaType}} :=
   {| to_val_def v :=
     struct.val_aux {{$T.GoTypeName}} [
     {{ range $Fields | iterSepFields ";" -}} {{ $f := .X -}}
@@ -29,7 +60,7 @@ Global Instance into_val_{{$name}} : IntoVal {{$name}}.t :=
     ]%struct
   |}.
 
-Global Program Instance into_val_typed_{{$name}} : IntoValTyped {{$name}}.t {{$T.GoTypeName}} :=
+Global Program Instance into_val_typed_{{$name}} : IntoValTyped {{$T.GallinaType}} {{$T.GoTypeName}} :=
 {|
   default_val := {{$name}}.mk {{- range $Fields }} (default_val _){{ end }};
 |}.
@@ -59,7 +90,7 @@ Global Instance wp_struct_make_{{$name}}
 Proof. solve_struct_make_pure_wp. Qed.
 
 {{ if $Fields }}
-Global Instance {{$name}}_struct_fields_split dq l (v : {{$name}}.t) :
+Global Instance {{$name}}_struct_fields_split dq l (v : {{$T.GallinaType}}) :
   StructFieldsSplit dq l v ( {{- /* continued */}}
 {{ range $Fields | iterSepFields " ∗\n" -}}{{ $f := .X -}}
 {{indent 4}}"H{{$f.Name}}" ∷ l ↦s[{{$T.GoTypeName}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}}){{.Sep}}
