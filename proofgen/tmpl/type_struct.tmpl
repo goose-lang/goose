@@ -40,6 +40,7 @@ Context {{- template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}.
 Global Instance {{$name}}_ty_wf : struct.Wf {{$T.GoTypeName}}.
 Proof. apply _. Qed.
 {{ end -}}
+
 {{ if $Fields }}
 Global Instance settable_{{$name}} : Settable {{$T.GallinaType}} :=
   settable! {{if $T.TypeInfo.TypeParams -}}
@@ -51,6 +52,7 @@ Global Instance settable_{{$name}} : Settable {{$T.GallinaType}} :=
 {{$name}}.{{ .X.CoqName }}{{.Sep}}
 {{- end }} >.
 {{ end -}}
+
 Global Instance into_val_{{$name}} : IntoVal {{$T.GallinaType}} :=
   {| to_val_def v :=
     struct.val_aux {{$T.GoTypeName}} [
@@ -77,6 +79,16 @@ Proof. solve_into_val_struct_field. Qed.
 
 {{ end }}
 Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
+{{- if $T.TypeInfo.IsGooseLang }}
+Global Instance wp_type_{{$name}} :
+  PureWp True
+    ({{$T.PkgName}}.{{$name}}
+{{- range $T_param := $T.TypeInfo.TypeParams }} #{{$T_param}}{{ end }})
+    #{{$T.GoTypeName}}.
+Proof. solve_type_pure_wp. Qed.
+
+{{ end -}}
+
 Global Instance wp_struct_make_{{$name}}
 {{- range $Fields }} {{.CoqName}}{{ end -}} :
   PureWp True
