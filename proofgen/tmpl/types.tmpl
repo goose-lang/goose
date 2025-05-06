@@ -1,4 +1,5 @@
 {{- range $t := .Types -}}{{ $k := $t.Kind }}
+(* type {{.PkgName}}.{{.Name}} *)
 {{ if eq $k "axiom" -}}
 {{ template "type_axiom.tmpl" $t -}}
 {{ else if eq $k "simple" -}}

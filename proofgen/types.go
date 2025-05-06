@@ -25,6 +25,10 @@ type typesTranslator struct {
 	defNames []string
 }
 
+func (tr typesTranslator) ReadablePos(p token.Pos) string {
+	return tr.pkg.Fset.Position(p).String()
+}
+
 func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
@@ -50,7 +54,7 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 			return "unit"
 		} else {
 			panic(fmt.Sprintf("Anonymous structs with fields are not supported (%s): %s",
-				tr.pkg.Fset.Position(t.Field(0).Pos()).String(),
+				tr.ReadablePos(t.Field(0).Pos()),
 				t.String()))
 		}
 	}
@@ -80,8 +84,9 @@ func (tr *typesTranslator) translateSimpleType(spec *ast.TypeSpec, t types.Type)
 	typeBody := tr.toCoqTypeWithDeps(t)
 
 	decl := tmpl.TypeSimple{
-		Name: name,
-		Body: typeBody,
+		PkgName: tr.pkg.Name,
+		Name:    name,
+		Body:    typeBody,
 	}
 	tr.defNames = append(tr.defNames, defName)
 	tr.defs[defName] = decl
