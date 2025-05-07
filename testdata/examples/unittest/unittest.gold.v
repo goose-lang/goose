@@ -873,30 +873,6 @@ Definition forRangeOldVars : val :=
       slice.literal #interfaceT ["$sl0"])) in
       (func_call #fmt.fmt #"Print"%go) "$a0"))).
 
-Definition Box : val :=
-  λ: "T", type.structT [
-    (#"Value"%go, "T")
-  ].
-
-Definition Container : val :=
-  λ: "T", type.structT [
-    (#"X"%go, "T");
-    (#"Y"%go, type.mapT #intT "T");
-    (#"Z"%go, #ptrT);
-    (#"W"%go, #uint64T)
-  ].
-
-Definition UseContainer : val :=
-  λ: <>, type.structT [
-    (#"X"%go, Container #uint64T)
-  ].
-
-Definition OnlyIndirect : val :=
-  λ: "T", type.structT [
-    (#"X"%go, #sliceT);
-    (#"Y"%go, #ptrT)
-  ].
-
 (* go: globals.go:3:6 *)
 Definition foo : val :=
   rec: "foo" <> :=
@@ -2222,11 +2198,11 @@ Definition sleep : val :=
     exception_do (do:  (let: "$a0" := #(W64 1000) in
     (func_call #primitive.primitive #"Sleep"%go) "$a0")).
 
-Definition A : go_type := structT [
-].
-
 Definition B : go_type := structT [
   "a" :: sliceT
+].
+
+Definition A : go_type := structT [
 ].
 
 (* go: trailing_call.go:3:6 *)
@@ -2334,7 +2310,7 @@ Definition msets' : list (go_string * (list (go_string * val))) := [("Foo"%go, [
                  method_call #unittest.unittest #"embedB'ptr" #"Car" (![#ptrT] (struct.field_ref #embedC #"embedB"%go (struct.field_ref #embedD #"embedC"%go "$recvAddr")))
                  )%V); ("Foo"%go, (λ: "$recvAddr",
                  method_call #unittest.unittest #"embedB" #"Foo" (![#embedB] (![#ptrT] (struct.field_ref #embedC #"embedB"%go (struct.field_ref #embedD #"embedC"%go "$recvAddr"))))
-                 )%V)]); ("Enc"%go, []); ("Enc'ptr"%go, [("UInt32"%go, Enc__UInt32); ("UInt64"%go, Enc__UInt64); ("consume"%go, Enc__consume)]); ("Dec"%go, []); ("Dec'ptr"%go, [("UInt32"%go, Dec__UInt32); ("UInt64"%go, Dec__UInt64); ("consume"%go, Dec__consume)]); ("Box"%go, []); ("Box'ptr"%go, []); ("Container"%go, []); ("Container'ptr"%go, []); ("UseContainer"%go, []); ("UseContainer'ptr"%go, []); ("OnlyIndirect"%go, []); ("OnlyIndirect'ptr"%go, []); ("concreteFooer"%go, []); ("concreteFooer'ptr"%go, [("Foo"%go, concreteFooer__Foo)]); ("FooerUser"%go, []); ("FooerUser'ptr"%go, []); ("concrete1"%go, [("Foo"%go, concrete1__Foo)]); ("concrete1'ptr"%go, [("B"%go, concrete1__B); ("Foo"%go, (λ: "$recvAddr",
+                 )%V)]); ("Enc"%go, []); ("Enc'ptr"%go, [("UInt32"%go, Enc__UInt32); ("UInt64"%go, Enc__UInt64); ("consume"%go, Enc__consume)]); ("Dec"%go, []); ("Dec'ptr"%go, [("UInt32"%go, Dec__UInt32); ("UInt64"%go, Dec__UInt64); ("consume"%go, Dec__consume)]); ("concreteFooer"%go, []); ("concreteFooer'ptr"%go, [("Foo"%go, concreteFooer__Foo)]); ("FooerUser"%go, []); ("FooerUser'ptr"%go, []); ("concrete1"%go, [("Foo"%go, concrete1__Foo)]); ("concrete1'ptr"%go, [("B"%go, concrete1__B); ("Foo"%go, (λ: "$recvAddr",
                  method_call #unittest.unittest #"concrete1" #"Foo" (![#concrete1] "$recvAddr")
                  )%V)]); ("my_u32"%go, []); ("my_u32'ptr"%go, []); ("also_u32"%go, []); ("also_u32'ptr"%go, []); ("allTheLiterals"%go, []); ("allTheLiterals'ptr"%go, []); ("hasCondVar"%go, []); ("hasCondVar'ptr"%go, []); ("IntWrapper"%go, []); ("IntWrapper'ptr"%go, []); ("MapWrapper"%go, []); ("MapWrapper'ptr"%go, []); ("mapElem"%go, []); ("mapElem'ptr"%go, []); ("wrapExternalStruct"%go, [("join"%go, wrapExternalStruct__join)]); ("wrapExternalStruct'ptr"%go, [("join"%go, (λ: "$recvAddr",
                  method_call #unittest.unittest #"wrapExternalStruct" #"join" (![#wrapExternalStruct] "$recvAddr")
