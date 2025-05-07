@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/goose-lang/goose"
+	channel_spec_test "github.com/goose-lang/goose/internal/examples/channel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -313,4 +314,21 @@ func TestNegativeExamples(testingT *testing.T) {
 			}
 		})
 	}
+}
+
+// Basic tests for channel specs. Also running them as a unit test in case there is
+// an issue with the assumptions they make. If they don't panic they all passed.
+func TestAllChannelTests(t *testing.T) {
+	channel_spec_test.SendMessage()
+	channel_spec_test.JoinWithReceive()
+	channel_spec_test.JoinWithSend()
+	// TODO: Uncomment once translation is supported
+	//channel_spec_test.DoubleValues()
+	//channel_spec_test.DoubleValuesParallel()
+	channel_spec_test.BroadcastNotification()
+	channel_spec_test.CoordinatedChannelClose()
+	//channel_spec_test.SelectBetweenBufferedAndClosed()
+
+	// If we get here, none of the functions panicked
+	t.Log("All channel tests passed successfully!")
 }
