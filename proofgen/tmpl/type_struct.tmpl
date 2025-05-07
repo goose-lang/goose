@@ -88,8 +88,7 @@ Global Instance wp_type_{{$name}} :
     #{{$T.GoTypeName}}.
 Proof. solve_type_pure_wp. Qed.
 
-{{ end -}}
-
+{{ end }}
 Global Instance wp_struct_make_{{$name}}
 {{- range $Fields }} {{.CoqName}}{{ end -}} :
   PureWp True
