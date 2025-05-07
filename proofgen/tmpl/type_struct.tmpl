@@ -1,12 +1,13 @@
 {{ $T := . -}}
 {{ $name := $T.Name -}}
 {{ $Fields := $T.TypeInfo.Fields -}}
+{{ $TypeParams := $T.TypeInfo.TypeParams -}}
 Module {{$name}}.
 Section def.
 Context `{ffi_syntax}.
 {{ if .TypeInfo.IsGooseLang }}
-Definition ty {{ if .TypeInfo.TypeParams -}}
-({{ range $T_param := .TypeInfo.TypeParams }}{{$T_param}}' {{ end -}} : go_type){{" "}}
+Definition ty {{ if $TypeParams -}}
+({{ range $T_param := $TypeParams }}{{$T_param}} {{ end -}} : go_type){{" "}}
 {{- end -}}
 : go_type := structT [
 {{ range $Fields | iterSepFields ";" -}}{{ $f := .X -}}
@@ -14,7 +15,7 @@ Definition ty {{ if .TypeInfo.TypeParams -}}
 {{ end -}}
 ]%struct.
 {{ end -}}
-Record t {{ template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}
+Record t {{ template "_typeparams.tmpl" $TypeParams -}}
 := mk {
 {{ range $Fields -}}
   {{indent 2}}{{.CoqName}} : {{.Type}};
@@ -23,19 +24,19 @@ Record t {{ template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}
 End def.
 End {{$name}}.
 
-{{ if $T.TypeInfo.TypeParams -}}
-Arguments {{$name}}.mk {_} {{ range $T_param := $T.TypeInfo.TypeParams -}}
+{{ if $TypeParams -}}
+Arguments {{$name}}.mk {_} {{ range $T_param := $TypeParams -}}
 { {{$T_param}}' } {_ {{$T_param}} _}{{" "}}
 {{- end -}}.
-Arguments {{$name}}.t {_} {{ range $T_param := $T.TypeInfo.TypeParams -}}
+Arguments {{$name}}.t {_} {{ range $T_param := $TypeParams -}}
 {{$T_param}}' {_ {{$T_param}} _}{{" "}}
 {{- end -}}.
 
 {{ end -}}
 Section instances.
 Context `{ffi_syntax}.
-{{ if $T.TypeInfo.TypeParams -}}
-Context {{- template "_typeparams.tmpl" $T.TypeInfo.TypeParams -}}.
+{{ if $TypeParams -}}
+Context {{- template "_typeparams.tmpl" $TypeParams -}}.
 
 Global Instance {{$name}}_ty_wf : struct.Wf {{$T.GoTypeName}}.
 Proof. apply _. Qed.
@@ -43,8 +44,8 @@ Proof. apply _. Qed.
 
 {{ if $Fields }}
 Global Instance settable_{{$name}} : Settable {{$T.GallinaType}} :=
-  settable! {{if $T.TypeInfo.TypeParams -}}
-({{$name}}.mk {{- range $T_param := $T.TypeInfo.TypeParams -}}
+  settable! {{if $TypeParams -}}
+({{$name}}.mk {{- range $T_param := $TypeParams -}}
 {{ " " -}} ({{$T_param}}:={{$T_param}}) {{- end }})
 {{- else }}{{$name}}.mk{{ end -}}
 {{- " " -}} < {{- " " -}}
@@ -83,7 +84,7 @@ Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 Global Instance wp_type_{{$name}} :
   PureWp True
     ({{$T.PkgName}}.{{$name}}
-{{- range $T_param := $T.TypeInfo.TypeParams }} #{{$T_param}}{{ end }})
+{{- range $T_param := $TypeParams }} #{{$T_param}}{{ end }})
     #{{$T.GoTypeName}}.
 Proof. solve_type_pure_wp. Qed.
 
@@ -102,7 +103,10 @@ Global Instance wp_struct_make_{{$name}}
 Proof. solve_struct_make_pure_wp. Qed.
 
 {{ if $Fields }}
-Global Instance {{$name}}_struct_fields_split dq l (v : {{$T.GallinaType}}) :
+Global Instance {{$name}}_struct_fields_split {{range $T_param := $TypeParams -}}
+`{!BoundedTypeSize {{$T_param}}}{{ " " -}}
+{{ end -}}
+dq l (v : {{$T.GallinaType}}) :
   StructFieldsSplit dq l v ( {{- /* continued */}}
 {{ range $Fields | iterSepFields " ∗\n" -}}{{ $f := .X -}}
 {{indent 4}}"H{{$f.Name}}" ∷ l ↦s[{{$T.GoTypeName}} :: "{{$f.Name}}"]{dq} v.({{$name}}.{{$f.CoqName}}){{.Sep}}

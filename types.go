@@ -125,10 +125,75 @@ func (ctx *Ctx) structType(t *types.Struct) glang.Type {
 	return ty
 }
 
-func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
+// SimpleType translates t if it is a "simple type" (typically a simple
+// identifier, with no structs or generics), returning nil if the type is not
+// supported.
+func SimpleType(t types.Type) glang.Type {
 	t = types.Unalias(t)
 	if isProphId(t) {
 		return glang.TypeIdent("ProphIdT")
+	}
+	switch t := t.(type) {
+	case *types.Struct:
+		return nil
+	case *types.TypeParam:
+		// might need special handling
+		return nil
+	case *types.Basic:
+		switch t.Name() {
+		case "uint64", "uint32", "uint16", "uint8", "int64", "int32", "int16", "int8", "byte", "int", "uint", "bool", "string", "float64", "float32":
+			return glang.TypeIdent(fmt.Sprintf("%sT", t.Name()))
+		case "untyped string":
+			return glang.TypeIdent("stringT")
+		}
+		return nil
+	case *types.Pointer:
+		return glang.PtrType{}
+	case *types.Named:
+		if t.Obj().Pkg() == nil {
+			if t.Obj().Name() == "error" {
+				return glang.TypeIdent("error")
+			}
+			return nil // unexpected
+		}
+		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
+			return glang.TypeIdent("fileT")
+		}
+		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
+			return glang.TypeIdent("disk.Disk")
+		}
+		return nil // structs, type arguments, reference to a type
+	case *types.Slice:
+		// TODO: Value is not actually used
+		return glang.SliceType{Value: nil}
+	case *types.Map:
+		keyT := SimpleType(t.Key())
+		valueT := SimpleType(t.Elem())
+		if keyT != nil && valueT != nil {
+			return glang.MapType{Key: keyT, Value: valueT}
+		}
+	case *types.Signature:
+		return glang.FuncType{}
+	case *types.Interface:
+		return glang.InterfaceType{}
+	case *types.Chan:
+		elemT := SimpleType(t.Elem())
+		if elemT != nil {
+			return glang.ChanType{Elem: elemT}
+		}
+	case *types.Array:
+		elemT := SimpleType(t.Elem())
+		if elemT != nil {
+			return glang.ArrayType{Len: uint64(t.Len()), Elem: elemT}
+		}
+	}
+	return nil
+}
+
+func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
+	t = types.Unalias(t)
+	if tr := SimpleType(t); tr != nil {
+		return tr
 	}
 	switch t := t.(type) {
 	case *types.Struct:
@@ -136,55 +201,13 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 	case *types.TypeParam:
 		return glang.GooseLangTypeIdent(t.Obj().Name())
 	case *types.Basic:
-		switch t.Name() {
-		case "uint64":
-			return glang.TypeIdent("uint64T")
-		case "uint32":
-			return glang.TypeIdent("uint32T")
-		case "uint16":
-			return glang.TypeIdent("uint16T")
-		case "uint8":
-			return glang.TypeIdent("uint8T")
-		case "int64":
-			return glang.TypeIdent("int64T")
-		case "int32":
-			return glang.TypeIdent("int32T")
-		case "int16":
-			return glang.TypeIdent("int16T")
-		case "int8":
-			return glang.TypeIdent("int8T")
-		case "byte":
-			return glang.TypeIdent("byteT")
-		case "bool":
-			return glang.TypeIdent("boolT")
-		case "string", "untyped string":
-			return glang.TypeIdent("stringT")
-		case "int":
-			return glang.TypeIdent("intT")
-		case "uint":
-			return glang.TypeIdent("uintT")
-		case "float64":
-			return glang.TypeIdent("float64T")
-		case "float32":
-			return glang.TypeIdent("float32T")
-		default:
-			ctx.unsupported(n, "basic type %s", t.Name())
-		}
+		// if not handled by SimpleType, unsupported
+		ctx.unsupported(n, "basic type %s", t.Name())
 	case *types.Pointer:
 		return glang.PtrType{}
 	case *types.Named:
 		if t.Obj().Pkg() == nil {
-			if t.Obj().Name() == "error" {
-				return glang.TypeIdent("error")
-			} else {
-				ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
-			}
-		}
-		if t.Obj().Pkg().Name() == "filesys" && t.Obj().Name() == "File" {
-			return glang.TypeIdent("fileT")
-		}
-		if t.Obj().Pkg().Name() == "disk" && t.Obj().Name() == "Disk" {
-			return glang.TypeIdent("disk.Disk")
+			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
 		}
 		if info, ok := ctx.getStructInfo(t); ok {
 			return ctx.structInfoToGlangType(info)
@@ -197,14 +220,8 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 			}
 		}
 		return glang.TypeIdent(ctx.qualifiedName(t.Obj()))
-	case *types.Slice:
-		return glang.SliceType{Value: ctx.glangType(n, t.Elem())}
 	case *types.Map:
 		return glang.MapType{Key: ctx.glangType(n, t.Key()), Value: ctx.glangType(n, t.Elem())}
-	case *types.Signature:
-		return glang.FuncType{}
-	case *types.Interface:
-		return glang.InterfaceType{}
 	case *types.Chan:
 		return glang.ChanType{Elem: ctx.glangType(n, t.Elem())}
 	case *types.Array:
