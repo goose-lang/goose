@@ -53,7 +53,11 @@ func loadTests(dir string) []test {
 	}
 	var tests []test
 	for _, n := range names {
-		tests = append(tests, newTest(dir, n))
+		t := newTest(dir, n)
+		tests = append(tests, t)
+		if t.isDir() {
+			tests = append(tests, loadTests(path.Join(dir, n))...)
+		}
 	}
 	return tests
 }

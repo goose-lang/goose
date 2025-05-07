@@ -3,6 +3,7 @@ package proofgen
 import (
 	"fmt"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -35,13 +36,26 @@ func basicTypeToCoq(t *types.Basic) string {
 func namedTypeToCoq(t *types.Named, pkg *packages.Package) string {
 	objPkg := t.Obj().Pkg()
 	thisName := t.Obj().Name()
+	var baseName string
 	if objPkg == nil || pkg.PkgPath == objPkg.Path() {
-		n := thisName + ".t"
-		return n
+		baseName = thisName + ".t"
 	} else {
-		n := fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
-		return n
+		baseName = fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
 	}
+	// if TypeParams() is not nil, there are type parameters in the base named type
+	if t.TypeParams() != nil {
+		var params []string
+		// if there are no type arguments in this instantiation, we still need to
+		// pass a unit since the GooseLang type val is a thunk
+		if t.TypeArgs().Len() == 0 {
+			params = append(params, "#()")
+		}
+		for i := 0; i < t.TypeArgs().Len(); i++ {
+			params = append(params, toCoqType(t.TypeArgs().At(i), pkg))
+		}
+		return fmt.Sprintf("(%s %s)", baseName, strings.Join(params, " "))
+	}
+	return baseName
 }
 
 func toCoqType(t types.Type, pkg *packages.Package) string {

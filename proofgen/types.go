@@ -8,8 +8,10 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/goose-lang/goose"
 	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/deptracker"
+	"github.com/goose-lang/goose/glang"
 	"github.com/goose-lang/goose/proofgen/tmpl"
 	"golang.org/x/tools/go/packages"
 )
@@ -58,9 +60,53 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 				t.String()))
 		}
 	case *types.TypeParam:
-		return t.Obj().Name()
+		return t.Obj().Name() + "'"
 	}
 	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
+}
+
+func toGooseLangType(t types.Type) glang.Type {
+	if tr := goose.SimpleType(t); tr != nil {
+		return tr
+	}
+	switch t := types.Unalias(t).(type) {
+	case *types.TypeParam:
+		// type parameters for proofgen are bound Gallina variables
+		return glang.TypeIdent(t.Obj().Name())
+	case *types.Map:
+		keyT := toGooseLangType(t.Key())
+		valueT := toGooseLangType(t.Elem())
+		return glang.MapType{
+			Key:   keyT,
+			Value: valueT,
+		}
+	case *types.Chan:
+		elemT := toGooseLangType(t.Elem())
+		return glang.ChanType{
+			Elem: elemT,
+		}
+	case *types.Named:
+		pkg := t.Obj().Pkg().Name()
+		name := t.Obj().Name()
+		// NOTE: names are always qualified with the package name since it works and
+		// is simpler to implement
+		if t.TypeArgs().Len() != 0 {
+			return glang.TypeCallExpr{
+				MethodName: glang.GallinaIdent(fmt.Sprintf("%s.%s.ty", pkg, name)),
+				Args:       convertTypeArgsToGlang(t.TypeArgs()),
+			}
+		}
+		return glang.TypeIdent(fmt.Sprintf("%s.%s", pkg, name))
+	}
+	panic(fmt.Sprintf("toGooseLangType: unimplemented proofgen support for type %v (of type %T)", t, t))
+}
+
+func convertTypeArgsToGlang(typeList *types.TypeList) (glangTypeArgs []glang.Type) {
+	glangTypeArgs = make([]glang.Type, typeList.Len())
+	for i := range glangTypeArgs {
+		glangTypeArgs[i] = toGooseLangType(typeList.At(i))
+	}
+	return
 }
 
 func (tr *typesTranslator) newDecl(spec *ast.TypeSpec, info tmpl.TypeInfo) tmpl.TypeDecl {
@@ -102,17 +148,34 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 	tr.deps.SetCurrentName(defName)
 	defer tr.deps.UnsetCurrentName()
 
-	info := tmpl.TypeStruct{}
+	info := tmpl.TypeStruct{
+		IsGooseLang: spec.TypeParams != nil || goose.TypeIsGooseLang(s),
+		TypeParams:  nil, // populated below
+		Fields:      nil, // populated below
+	}
+	if spec.TypeParams != nil {
+		for _, tp := range spec.TypeParams.List {
+			for _, name := range tp.Names {
+				info.TypeParams = append(info.TypeParams, name.Name)
+			}
+		}
+	}
 	for i := 0; i < s.NumFields(); i++ {
 		fieldName := s.Field(i).Name()
 		if fieldName == "_" {
 			fieldName = "_" + strconv.Itoa(i)
 		}
-		fieldType := tr.toCoqTypeWithDeps(s.Field(i).Type())
-		info.Fields = append(info.Fields, tmpl.TypeField{
-			Name: fieldName,
-			Type: fieldType,
-		})
+		field := tmpl.TypeField{
+			Name:   fieldName,
+			GoType: "NOT TRANSLATED", // something obvious in case this is used without the translation below
+			Type:   tr.toCoqTypeWithDeps(s.Field(i).Type()),
+		}
+		if info.IsGooseLang {
+			// proofgen's GooseLang type translation isn't perfect and is only needed
+			// for generic structs, so don't attempt to translate unless needed
+			field.GoType = toGooseLangType(s.Field(i).Type()).Gallina(false)
+		}
+		info.Fields = append(info.Fields, field)
 	}
 	decl := tr.newDecl(spec, info)
 	tr.defNames = append(tr.defNames, defName)
