@@ -281,6 +281,17 @@ func (ctx *Ctx) convertTypeArgsToGlang(l locatable, typeList *types.TypeList) (g
 	return
 }
 
+// glang.Expr is an interface that is a subset of glang.Type, but Go has
+// requires a conversion (perhaps because there are different runtime
+// representations)
+func typesToExprs(ts []glang.Type) []glang.Expr {
+	var es []glang.Expr
+	for _, t := range ts {
+		es = append(es, t)
+	}
+	return es
+}
+
 type structTypeInfo struct {
 	name           string
 	throughPointer bool

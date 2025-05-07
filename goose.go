@@ -777,6 +777,8 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 				glang.StringVal{Value: glang.GallinaString(typeName + "'ptr")},
 				glang.StringVal{Value: glang.GallinaString(methodName)},
 				expr,
+			).Append(
+				typesToExprs(ctx.convertTypeArgsToGlang(nil, t.TypeArgs()))...,
 			)
 		} else {
 			pkgName, typeName := ctx.getPkgAndName(t.Obj())
@@ -788,6 +790,8 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 				glang.StringVal{Value: glang.GallinaString(typeName)},
 				glang.StringVal{Value: glang.GallinaString(methodName)},
 				glang.DerefExpr{X: expr, Ty: ctx.glangType(l, t)},
+			).Append(
+				typesToExprs(ctx.convertTypeArgsToGlang(nil, t.TypeArgs()))...,
 			)
 		}
 	} else if t, ok := types.Unalias(curType).(*types.Named); ok {
@@ -809,8 +813,9 @@ func (ctx *Ctx) selectionMethod(addressable bool, expr glang.Expr,
 				glang.StringVal{Value: glang.GallinaString(typeName)},
 				glang.StringVal{Value: glang.GallinaString(methodName)},
 				glang.GallinaString(methodName),
-				glang.Tt,
-				expr,
+				glang.Tt, expr,
+			).Append(
+				typesToExprs(ctx.convertTypeArgsToGlang(nil, t.TypeArgs()))...,
 			)
 		}
 	}
@@ -907,6 +912,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 					glang.StringVal{Value: glang.GallinaString(typeName + typeNameSuffix)},
 					glang.StringVal{Value: glang.GallinaString(methodName)},
 					ctx.expr(e.X),
+				).Append(
+					typesToExprs(ctx.convertTypeArgsToGlang(nil, named.TypeArgs()))...,
 				)
 			}
 		}
@@ -927,6 +934,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			glang.StringVal{Value: glang.GallinaString(typeName + "'ptr")},
 			glang.StringVal{Value: glang.GallinaString(methodName)},
 			ctx.exprAddr(e.X),
+		).Append(
+			typesToExprs(ctx.convertTypeArgsToGlang(nil, named.TypeArgs()))...,
 		)
 	}
 
@@ -1291,17 +1300,18 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 
 func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
 	typeArgs := ctx.info.Instances[s].TypeArgs
+	if ctx.info.ObjectOf(s).Pkg().Path() != ctx.pkgPath {
+		ctx.nope(s, "expected function ident to refer to local function")
+	}
+	f_expr := glang.NewCallExpr(glang.GallinaIdent("func_call"),
+		glang.StringVal{Value: glang.GallinaIdent(ctx.pkgIdent)},
+		glang.StringVal{Value: glang.StringLiteral{Value: s.Name}},
+	)
 	if typeArgs.Len() == 0 {
-		if ctx.info.ObjectOf(s).Pkg().Path() != ctx.pkgPath {
-			ctx.nope(s, "expected function ident to refer to local function")
-		}
-		return glang.NewCallExpr(glang.GallinaIdent("func_call"),
-			glang.StringVal{Value: glang.GallinaIdent(ctx.pkgIdent)},
-			glang.StringVal{Value: glang.StringLiteral{Value: s.Name}},
-		)
+		return f_expr
 	}
 	return glang.TypeCallExpr{
-		MethodName: glang.GallinaIdent(s.Name),
+		MethodName: f_expr,
 		Args:       ctx.convertTypeArgsToGlang(nil, typeArgs),
 	}
 }
@@ -2582,6 +2592,16 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		namedType, ok := recvType.(*types.Named)
 		if !ok {
 			ctx.nope(d.Recv, "expected named type as method receiver, got %T", recvType)
+		}
+		for i := range namedType.TypeArgs().Len() {
+			arg := namedType.TypeArgs().At(i)
+			if arg, ok := arg.(*types.TypeParam); ok {
+				fd.TypeArgs = append(fd.TypeArgs, glang.Binder{Name: arg.Obj().Name()})
+			} else {
+				// it doesn't seem possible to have the receiver be a specialized
+				// generic type (all args are interpreted as bound parameters)
+				ctx.nope(d, "instantiated type argument in function with non-parameter")
+			}
 		}
 		typeName := namedType.Obj().Name()
 

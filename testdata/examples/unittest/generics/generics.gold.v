@@ -28,8 +28,8 @@ Definition BoxGet2 : val :=
     return: (![#uint64T] (struct.field_ref (Box #uint64T) #"Value"%go "b"))).
 
 (* go: generics.go:17:17 *)
-Definition Box__BoxGet : val :=
-  rec: "Box__BoxGet" "b" <> :=
+Definition Box__Get : val :=
+  rec: "Box__Get" "b" "T" <> :=
     exception_do (let: "b" := (mem.alloc "b") in
     return: (!["T"] (struct.field_ref (Box "T") #"Value"%go "b"))).
 
@@ -54,13 +54,10 @@ Definition makeBox : val :=
 Definition useBoxGet : val :=
   rec: "useBoxGet" <> :=
     exception_do (let: "x" := (mem.alloc (type.zero_val (Box #uint64T))) in
-    let: "$r0" := (let: "$Value" := #(W64 42) in
-    struct.make (Box #uint64T) [{
-      "Value" ::= "$Value"
-    }]) in
+    let: "$r0" := (let: "$a0" := #(W64 42) in
+    ((func_call #generics.generics #"makeGenericBox"%go) #uint64T) "$a0") in
     do:  ("x" <-[Box #uint64T] "$r0");;;
-    return: (let: "$a0" := (![Box #uint64T] "x") in
-     (BoxGet #uint64T) "$a0")).
+    return: ((method_call #generics.generics #"Box" #"Get" (![Box #uint64T] "x") #uint64T) #())).
 
 Definition Container : val :=
   λ: "T", type.structT [
@@ -152,15 +149,15 @@ Definition useMultiParamFunc : val :=
   rec: "useMultiParamFunc" <> :=
     exception_do (do:  (let: "$a0" := #(W64 1) in
     let: "$a1" := #true in
-    (multiParamFunc #uint64T #boolT) "$a0" "$a1");;;
+    ((func_call #generics.generics #"multiParamFunc"%go) #uint64T #boolT) "$a0" "$a1");;;
     return: (#())).
 
 Definition vars' : list (go_string * go_type) := [].
 
 Definition functions' : list (go_string * val) := [("BoxGet"%go, BoxGet); ("BoxGet2"%go, BoxGet2); ("makeGenericBox"%go, makeGenericBox); ("makeBox"%go, makeBox); ("useBoxGet"%go, useBoxGet); ("useContainer"%go, useContainer); ("useMultiParam"%go, useMultiParam); ("swapMultiParam"%go, swapMultiParam); ("multiParamFunc"%go, multiParamFunc); ("useMultiParamFunc"%go, useMultiParamFunc)].
 
-Definition msets' : list (go_string * (list (go_string * val))) := [("Box"%go, [("BoxGet"%go, Box__BoxGet)]); ("Box'ptr"%go, [("BoxGet"%go, (λ: "$recvAddr",
-                 method_call #generics.generics #"Box" #"BoxGet" (![Box #()] "$recvAddr")
+Definition msets' : list (go_string * (list (go_string * val))) := [("Box"%go, [("Get"%go, Box__Get)]); ("Box'ptr"%go, [("Get"%go, (λ: "$recvAddr",
+                 method_call #generics.generics #"Box" #"Get" (![Box #()] "$recvAddr")
                  )%V)]); ("Container"%go, []); ("Container'ptr"%go, []); ("UseContainer"%go, []); ("UseContainer'ptr"%go, []); ("OnlyIndirect"%go, []); ("OnlyIndirect'ptr"%go, []); ("MultiParam"%go, []); ("MultiParam'ptr"%go, [])].
 
 #[global] Instance info' : PkgInfo generics.generics :=

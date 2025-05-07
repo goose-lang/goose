@@ -177,6 +177,17 @@ func NewCallExpr(name Expr, args ...Expr) CallExpr {
 	return CallExpr{MethodName: name, Args: args}
 }
 
+// Append creates a new CallExpr with args appended.
+//
+// Does not modify e.
+func (e CallExpr) Append(args ...Expr) CallExpr {
+	e2 := CallExpr{
+		MethodName: e.MethodName,
+		Args:       append(append([]Expr{}, e.Args...), args...),
+	}
+	return e2
+}
+
 func (s CallExpr) Coq(needs_paren bool) string {
 	comps := []string{s.MethodName.Coq(true)}
 
@@ -762,11 +773,11 @@ type FuncDecl struct {
 // Signature renders the function declaration's bindings
 func (d FuncDecl) Signature() string {
 	var args []string
-	for _, a := range d.TypeArgs {
-		args = append(args, a.Coq(false))
-	}
 	if d.RecvArg != nil {
 		args = append(args, d.RecvArg.Coq(false))
+	}
+	for _, a := range d.TypeArgs {
+		args = append(args, a.Coq(false))
 	}
 	for _, a := range d.Args {
 		args = append(args, a.Coq(false))

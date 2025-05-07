@@ -14,7 +14,7 @@ func BoxGet2(b Box[uint64]) uint64 {
 	return b.Value
 }
 
-func (b Box[T]) BoxGet() T {
+func (b Box[T]) Get() T {
 	return b.Value
 }
 
@@ -28,8 +28,8 @@ func makeBox() Box[uint64] {
 }
 
 func useBoxGet() uint64 {
-	x := Box[uint64]{Value: 42}
-	return BoxGet(x)
+	x := makeGenericBox(uint64(42))
+	return x.Get()
 }
 
 type Container[T any] struct {
