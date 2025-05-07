@@ -88,15 +88,15 @@ func toGooseLangType(t types.Type) glang.Type {
 	case *types.Named:
 		pkg := t.Obj().Pkg().Name()
 		name := t.Obj().Name()
-		baseName := fmt.Sprintf("%s.%s", pkg, name)
+		// NOTE: names are always qualified with the package name since it works and
+		// is simpler to implement
 		if t.TypeArgs().Len() != 0 {
 			return glang.TypeCallExpr{
-				// NOTE: always qualifying since it works and is simpler to implement
 				MethodName: glang.GallinaIdent(fmt.Sprintf("%s.%s.ty", pkg, name)),
 				Args:       convertTypeArgsToGlang(t.TypeArgs()),
 			}
 		}
-		return glang.TypeIdent(baseName)
+		return glang.TypeIdent(fmt.Sprintf("%s.%s", pkg, name))
 	}
 	panic(fmt.Sprintf("toGooseLangType: unimplemented proofgen support for type %v (of type %T)", t, t))
 }
@@ -165,10 +165,10 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 		if fieldName == "_" {
 			fieldName = "_" + strconv.Itoa(i)
 		}
-		fieldType := tr.toCoqTypeWithDeps(s.Field(i).Type())
 		field := tmpl.TypeField{
-			Name: fieldName,
-			Type: fieldType,
+			Name:   fieldName,
+			GoType: "NOT TRANSLATED", // something obvious in case this is used without the translation below
+			Type:   tr.toCoqTypeWithDeps(s.Field(i).Type()),
 		}
 		if info.IsGooseLang {
 			// proofgen's GooseLang type translation isn't perfect and is only needed

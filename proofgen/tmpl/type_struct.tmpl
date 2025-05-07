@@ -83,8 +83,9 @@ Context `{!ffi_model, !ffi_semantics _ _, !ffi_interp _, !heapGS Σ}.
 {{- if $T.TypeInfo.IsGooseLang }}
 Global Instance wp_type_{{$name}} :
   PureWp True
-    ({{$T.PkgName}}.{{$name}}
-{{- range $T_param := $TypeParams }} #{{$T_param}}{{ end }})
+    ({{$T.PkgName}}.{{$name}} {{- if $TypeParams -}}
+{{ range $T_param := $TypeParams }} #{{$T_param}}{{ end }}
+{{- else }} #(){{ end -}})
     #{{$T.GoTypeName}}.
 Proof. solve_type_pure_wp. Qed.
 
