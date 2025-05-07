@@ -752,15 +752,19 @@ func (e ValueScoped) Coq(needs_paren bool) string {
 type FuncDecl struct {
 	Name string
 	// Method receiver name (nil if not a method)
-	RecvArg *Binder
-	Args    []Binder
-	Body    Expr
-	Comment string
+	RecvArg  *Binder
+	TypeArgs []Binder
+	Args     []Binder
+	Body     Expr
+	Comment  string
 }
 
 // Signature renders the function declaration's bindings
 func (d FuncDecl) Signature() string {
 	var args []string
+	for _, a := range d.TypeArgs {
+		args = append(args, a.Coq(false))
+	}
 	if d.RecvArg != nil {
 		args = append(args, d.RecvArg.Coq(false))
 	}
