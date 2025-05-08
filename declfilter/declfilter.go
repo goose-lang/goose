@@ -1,5 +1,7 @@
 // declfilter defines the configuration (using toml) for how Go is translated to
 // GooseLang.
+//
+// See [FilterConfig] for the format of the toml file itself.
 package declfilter
 
 import (
@@ -8,6 +10,25 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 )
+
+// FilterConfig defines the format of the toml files.
+//
+// Fields that configure sets (e.g., translate) are lists of patterns, which are
+// interpreted left to right to build a set of matching strings, starting with the empty set. Literal
+// patterns like "foo" match themselves, "!p" removes anything matching p from
+// the set, and the wildcard "*" within a pattern matches any sequence of
+// characters.
+type FilterConfig struct {
+	// Declarations to translate. Defaults to "*" (all).
+	ToTranslate []string `toml:"translate"`
+	// Imports to keep. Defaults to "*" (all).
+	Imports []string `toml:"imports"`
+	// Declarations to axiomatize. Defaults to the empty set.
+	ToAxiomatize []string `toml:"axiomatize"`
+	// Declarations that have trusted models, which the translation will
+	// reference. Defaults to the empty set.
+	Trusted []string `toml:"trusted"`
+}
 
 type setOpType int
 
@@ -71,14 +92,6 @@ func sliceMap[Slice ~[]A, A any, B any](s Slice, f func(A) B) []B {
 
 func newStringSet(s []string) stringSet {
 	return sliceMap(s, newOp)
-}
-
-// FilterConfig defines the format of the toml files
-type FilterConfig struct {
-	Imports      []string `toml:"imports"`
-	Trusted      []string `toml:"trusted"`
-	ToTranslate  []string `toml:"translate"`
-	ToAxiomatize []string `toml:"axiomatize"`
 }
 
 type declFilter struct {
