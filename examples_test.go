@@ -322,12 +322,11 @@ func TestAllChannelTests(t *testing.T) {
 	channel_spec_test.SendMessage()
 	channel_spec_test.JoinWithReceive()
 	channel_spec_test.JoinWithSend()
-	// TODO: Uncomment once translation is supported
-	//channel_spec_test.DoubleValues()
-	//channel_spec_test.DoubleValuesParallel()
+	channel_spec_test.DoubleValues()
+	channel_spec_test.DoubleValuesParallel()
 	channel_spec_test.BroadcastNotification()
 	channel_spec_test.CoordinatedChannelClose()
-	//channel_spec_test.SelectBetweenBufferedAndClosed()
+	channel_spec_test.SelectBetweenBufferedAndClosed()
 
 	// If we get here, none of the functions panicked
 	t.Log("All channel tests passed successfully!")
