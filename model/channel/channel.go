@@ -3,7 +3,7 @@ package channel
 import (
 	"sync"
 
-	"github.com/goose-lang/primitive"
+	"github.com/goose-lang/std/std_core"
 )
 
 type ChannelState uint64
@@ -480,7 +480,7 @@ func multiSelect[T1, T2, T3, T4, T5 any](
 	var selected_case uint64 = DefaultCase
 
 	// Get a random order for fairness (only once, outside the loop)
-	order := Permutation(5)
+	order := std_core.Permutation(5)
 
 	// If nothing was selected and we're blocking, try in a loop
 	for {
@@ -616,30 +616,6 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 
 	}
 	return false
-}
-
-// Shuffle shuffles the elements of xs in place, using a Fisher-Yates shuffle.
-func Shuffle(xs []uint64) {
-	if len(xs) == 0 {
-		return
-	}
-	for i := uint64(len(xs) - 1); i > 0; i-- {
-		j := primitive.RandomUint64() % uint64(i+1)
-		temp := xs[i]
-		xs[i] = xs[j]
-		xs[j] = temp
-	}
-}
-
-// Permutation returns a random permutation of the integers 0, ..., n-1, using a
-// Fisher-Yates shuffle.
-func Permutation(n uint64) []uint64 {
-	order := make([]uint64, n)
-	for i := uint64(0); i < n; i++ {
-		order[i] = uint64(i)
-	}
-	Shuffle(order)
-	return order
 }
 
 func NewSendCase[T any](channel *Channel[T], value T) SelectCase[T] {
