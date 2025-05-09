@@ -110,7 +110,6 @@ type declFilter struct {
 	trusted      stringSet
 	toTranslate  stringSet
 	toAxiomatize stringSet
-	Bootstrap    Bootstrap
 }
 
 type Action int
