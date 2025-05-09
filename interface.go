@@ -212,12 +212,22 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
 	}
-	filter := declfilter.Load(configContents)
+	config, err := declfilter.ParseConfig(configContents)
+	if err != nil {
+		return glang.File{}, errors.Errorf(
+			"could not parse package config for %v:\n%v", pkg.PkgPath, err,
+		)
+	}
+	filter := declfilter.New(config)
 
 	ctx := NewPkgCtx(pkg, filter)
 	coqFile := glang.File{
+		Header:    glang.DefaultHeader,
 		PkgPath:   pkg.PkgPath,
 		GoPackage: pkg.Name,
+	}
+	if config.Bootstrap.Enabled {
+		coqFile.Header = glang.BootstrapHeader + "\n" + strings.Join(config.Bootstrap.Prelude, "\n")
 	}
 	coqFile.ImportHeader, coqFile.Footer = ctx.ffiHeaderFooter(pkg)
 

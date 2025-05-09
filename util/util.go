@@ -99,7 +99,11 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 			configDir,
 			glang.ImportToPath(pkg.PkgPath)+".toml"),
 		)
-		filter := declfilter.Load(rawConfig)
+		config, err := declfilter.ParseConfig(rawConfig)
+		if err != nil {
+			panic(fmt.Sprintf("could not parse config for %s:\n%v", pkg.PkgPath, err))
+		}
+		filter := declfilter.New(config)
 
 		ffi := getFfi(pkg)
 		translatePkg(w, pkg, ffi, filter)

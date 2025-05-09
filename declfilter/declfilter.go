@@ -5,6 +5,7 @@
 package declfilter
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -28,6 +29,16 @@ type FilterConfig struct {
 	// Declarations that have trusted models, which the translation will
 	// reference. Defaults to the empty set.
 	Trusted []string `toml:"trusted"`
+	// Translate for bootstrapping by importing a subset of golang.
+	Bootstrap Bootstrap `toml:"bootstrap"`
+}
+
+type Bootstrap struct {
+	// Set to true to enable bootstrapping.
+	Enabled bool `toml:"enabled"`
+	// These lines (typically imports from New.golang.defn) are joined to form
+	// the new prelude.
+	Prelude []string `toml:"prelude"`
 }
 
 type setOpType int
@@ -138,7 +149,7 @@ func (df *declFilter) HasTrusted() bool {
 	return len(df.trusted) > 0
 }
 
-func NewDeclFilter(c FilterConfig) DeclFilter {
+func New(c FilterConfig) DeclFilter {
 	if len(c.ToTranslate) == 0 {
 		c.ToTranslate = []string{"*"}
 	}
@@ -155,11 +166,15 @@ func NewDeclFilter(c FilterConfig) DeclFilter {
 	return &df
 }
 
+func ParseConfig(raw []byte) (c FilterConfig, err error) {
+	err = toml.Unmarshal(raw, &c)
+	return
+}
+
 func Load(raw []byte) DeclFilter {
-	var c FilterConfig
-	error := toml.Unmarshal(raw, &c)
-	if error != nil {
-		panic(error.Error())
+	c, err := ParseConfig(raw)
+	if err != nil {
+		panic(fmt.Sprintf("could not parse config: %s", err))
 	}
-	return NewDeclFilter(c)
+	return New(c)
 }

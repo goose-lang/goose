@@ -4,7 +4,7 @@ import "testing"
 
 func TestDeclFilterEmpty(t *testing.T) {
 	var c FilterConfig
-	df := NewDeclFilter(c)
+	df := New(c)
 	if df.GetAction("something") != Translate {
 		t.Errorf("Empty FilterConfig should translate everything")
 	}
@@ -26,7 +26,7 @@ func TestDeclFilterNegativeImport(t *testing.T) {
 		ToAxiomatize: []string{},
 	}
 
-	df := NewDeclFilter(c)
+	df := New(c)
 	if df.ShouldImport("NotThisOne") {
 		t.Errorf("FilterConfig should not contain a negated match")
 	}
