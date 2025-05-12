@@ -2761,8 +2761,12 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 	return glang.GallinaIdent("expr")
 }
 
+// constSpec handles one specification in a const block
 func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 	var cds []glang.Decl
+	// Note that a spec is one line, typically something like `C = 1` or maybe just C
+	// if using iota, and spec.Names has more than 1 item only for something like
+	// `C, D = 2, 3`.
 	for i := range spec.Names {
 		switch ctx.filter.GetAction(spec.Names[i].Name) {
 		case declfilter.Axiomatize:
@@ -2774,20 +2778,24 @@ func (ctx *Ctx) constSpec(spec *ast.ValueSpec) []glang.Decl {
 				Name: spec.Names[i].Name,
 			}
 			ctx.dep.SetCurrentName(cd.Name)
-			defer ctx.dep.UnsetCurrentName()
-
-			addSourceDoc(spec.Comment, &cd.Comment)
-			if len(spec.Values) > 0 {
-				cd.Val =
-					ctx.handleImplicitConversion(spec.Names[i],
-						ctx.typeOf(spec.Values[i]), ctx.typeOf(spec.Names[i]),
-						ctx.expr(spec.Values[i]))
-			} else {
-				fromT, v := ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
-				cd.Val = ctx.handleImplicitConversion(spec.Names[i], fromT, ctx.typeOf(spec.Names[i]), v)
+			// copy the line comment only to the first one
+			if i == 0 {
+				addSourceDoc(spec.Comment, &cd.Comment)
 			}
+			var fromT types.Type
+			var v glang.Expr
+			if len(spec.Values) > 0 {
+				fromT, v = ctx.typeOf(spec.Values[i]), ctx.expr(spec.Values[i])
+			} else {
+				fromT, v = ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
+			}
+			cd.Val =
+				ctx.handleImplicitConversion(spec.Names[i],
+					fromT, ctx.typeOf(spec.Names[i]),
+					v)
 			cd.Type = ctx.declType(ctx.typeOf(spec.Names[i]))
 			cds = append(cds, cd)
+			ctx.dep.UnsetCurrentName()
 		}
 	}
 	return cds
