@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/goose-lang/goose"
+	chan_spec_raw_examples "github.com/goose-lang/goose/testdata/examples/channel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -263,4 +264,16 @@ func TestNegativeExamples(testingT *testing.T) {
 			}
 		})
 	}
+}
+
+// Tests of hand-translated channel model code
+// TODO: Once channel translation is implemented, swap out for real channels
+func TestAllChannelTests(t *testing.T) {
+	chan_spec_raw_examples.SendMessage()
+	chan_spec_raw_examples.JoinWithReceive()
+	chan_spec_raw_examples.JoinWithSend()
+	chan_spec_raw_examples.BroadcastNotification()
+	chan_spec_raw_examples.CoordinatedChannelClose()
+	// If we get here, none of the functions panicked
+	t.Log("All channel tests passed successfully!")
 }
