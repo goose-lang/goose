@@ -150,18 +150,20 @@ func (df *declFilter) HasTrusted() bool {
 }
 
 func New(c FilterConfig) DeclFilter {
-	if len(c.ToTranslate) == 0 {
-		c.ToTranslate = []string{"*"}
+	toTranslate := c.ToTranslate
+	if len(toTranslate) == 0 {
+		toTranslate = []string{"*"}
 	}
 
-	if len(c.Imports) == 0 {
-		c.Imports = []string{"*"}
+	imports := c.Imports
+	if len(imports) == 0 {
+		imports = []string{"*"}
 	}
 
 	var df declFilter
-	df.imports = newStringSet(c.Imports)
+	df.imports = newStringSet(imports)
 	df.toAxiomatize = newStringSet(c.ToAxiomatize)
-	df.toTranslate = newStringSet(c.ToTranslate)
+	df.toTranslate = newStringSet(toTranslate)
 	df.trusted = newStringSet(c.Trusted)
 	return &df
 }

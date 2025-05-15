@@ -17,13 +17,16 @@ import (
 
 type PackageTranslator func(io.Writer, *packages.Package, string, declfilter.DeclFilter)
 
-func newPackageConfig(modDir string) *packages.Config {
+func NewPackageConfig(modDir string, needDeps bool) *packages.Config {
 	mode := packages.NeedName | packages.NeedCompiledGoFiles
 	mode |= packages.NeedImports
 	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
-	mode |= packages.NeedDeps
+	if needDeps {
+		mode |= packages.NeedDeps
+	}
 	return &packages.Config{
 		Dir:        modDir,
+		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64"),
 		Mode:       mode,
 		BuildFlags: []string{"-tags", "goose"},
 		Fset:       token.NewFileSet(),
@@ -85,7 +88,7 @@ func getFfi(pkg *packages.Package) string {
 
 func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir string, modDir string, configDir string) {
 	red := color.New(color.FgRed).SprintFunc()
-	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPatterns...)
+	pkgs, err := packages.Load(NewPackageConfig(modDir, true), pkgPatterns...)
 
 	if err != nil {
 		panic(err)
