@@ -3,9 +3,6 @@ package goose
 import (
 	"fmt"
 	"go/ast"
-	"io/fs"
-	"os"
-	"path"
 	"strings"
 	"sync"
 
@@ -200,26 +197,6 @@ func pkgErrors(errors []packages.Error) error {
 	return MultipleErrors(errs)
 }
 
-// ReadConfig reads the filter config toml file for a package
-func ReadConfig(configDir string, pkgPath string) (declfilter.FilterConfig, error) {
-	configPath := path.Join(configDir,
-		glang.ImportToPath(pkgPath)+".toml")
-	configContents, err := os.ReadFile(configPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		// if config does not exist, treat it as an empty file
-		configContents = []byte{}
-	} else if err != nil {
-		return declfilter.FilterConfig{}, errors.Errorf("config file %s could not be read", configPath)
-	}
-	config, err := declfilter.ParseConfig(configContents)
-	if err != nil {
-		return declfilter.FilterConfig{}, errors.Errorf(
-			"could not parse package config for %v:\n%v", pkgPath, err,
-		)
-	}
-	return config, nil
-}
-
 // translatePackage translates an entire package to a single Coq file.
 //
 // If the source directory has multiple source files, these are processed in
@@ -263,9 +240,9 @@ func translatePackage(pkg *packages.Package, config declfilter.FilterConfig) (gl
 }
 
 func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
-	ffi := getFfi(pkg)
+	ffi := util.GetFfi(pkg)
 	header += fmt.Sprintf("Definition %s : go_string := \"%s\".\n\n", pkg.Name, pkg.PkgPath)
-	if ffi == "none" {
+	if ffi == "" {
 		header += fmt.Sprintf("Module %s.\n", pkg.Name)
 		header += "Section code.\n" +
 			"Context `{ffi_syntax}.\n"
@@ -304,7 +281,7 @@ func TranslatePackages(configDir string, modDir string,
 	for i, pkg := range pkgs {
 		go func() {
 			defer wg.Done()
-			config, err := ReadConfig(configDir, pkg.PkgPath)
+			config, err := util.ReadConfig(configDir, pkg.PkgPath)
 			if err != nil {
 				errs[i] = err
 				return

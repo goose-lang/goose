@@ -70,33 +70,6 @@ type Ctx struct {
 	filter declfilter.DeclFilter
 }
 
-func getFfi(pkg *packages.Package) string {
-	seenFfis := make(map[string]struct{})
-	packages.Visit([]*packages.Package{pkg},
-		func(pkg *packages.Package) bool {
-			// the dependencies of an FFI are not considered as being used; this
-			// allows one FFI to be built on top of another
-			if _, ok := ffiMapping[pkg.PkgPath]; ok {
-				return false
-			}
-			return true
-		},
-		func(pkg *packages.Package) {
-			if ffi, ok := ffiMapping[pkg.PkgPath]; ok {
-				seenFfis[ffi] = struct{}{}
-			}
-		},
-	)
-
-	if len(seenFfis) > 1 {
-		panic(fmt.Sprintf("multiple ffis used %v", seenFfis))
-	}
-	for ffi := range seenFfis {
-		return ffi
-	}
-	return "none"
-}
-
 // NewPkgCtx initializes a context based on a properly loaded package
 func NewPkgCtx(pkg *packages.Package, filter declfilter.DeclFilter) Ctx {
 	ss := strings.Split(pkg.PkgPath, "/")
