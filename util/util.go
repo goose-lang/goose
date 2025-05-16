@@ -143,11 +143,7 @@ func Translate(translatePkg PackageTranslator, pkgPatterns []string, outRootDir 
 
 	for _, pkg := range pkgs {
 		w := new(strings.Builder)
-		rawConfig, _ := os.ReadFile(path.Join(
-			configDir,
-			glang.ImportToPath(pkg.PkgPath)+".toml"),
-		)
-		config, err := declfilter.ParseConfig(rawConfig)
+		config, err := ReadConfig(configDir, pkg.PkgPath)
 		if err != nil {
 			panic(fmt.Sprintf("could not parse config for %s:\n%v", pkg.PkgPath, err))
 		}
