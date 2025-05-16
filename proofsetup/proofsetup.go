@@ -85,7 +85,7 @@ func New(pkg *packages.Package) ProofSetup {
 	if ffi == "" {
 		s.ContextVars = "Context `{hG: heapGS Σ, !ffi_semantics _ _} `{!goGlobalsGS Σ}."
 	} else {
-		s.ContextVars = "Context `{hG: heapGS Σ} `{!goGlobalsGS Σ}."
+		s.ContextVars = "Context `{hG: !heapGS Σ} `{!goGlobalsGS Σ}."
 	}
 
 	s.WpLemmas = packageWps(pkg)
