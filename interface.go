@@ -3,9 +3,6 @@ package goose
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
-	"os"
-	"path"
 	"strings"
 	"sync"
 
@@ -13,6 +10,7 @@ import (
 
 	"github.com/goose-lang/goose/declfilter"
 	"github.com/goose-lang/goose/glang"
+	"github.com/goose-lang/goose/util"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -32,7 +30,6 @@ func (ctx *Ctx) declsOrError(stmt ast.Decl) (decls []glang.Decl, err error) {
 	return ctx.decl(stmt), nil
 }
 
-// catching Goose translation errors and returning them as a regular Go error
 func (ctx *Ctx) initOrError() (decls []glang.Decl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -206,17 +203,11 @@ func pkgErrors(errors []packages.Error) error {
 // alphabetical order; this must be a topological sort of the definitions or the
 // Coq code will be out-of-order. Sorting ensures the results are stable
 // and not dependent on map or directory iteration order.
-func translatePackage(pkg *packages.Package, configContents []byte) (glang.File, error) {
+func translatePackage(pkg *packages.Package, config declfilter.FilterConfig) (glang.File, error) {
 	if len(pkg.Errors) > 0 {
 		return glang.File{}, errors.Errorf(
 			"could not load package %v:\n%v", pkg.PkgPath,
 			pkgErrors(pkg.Errors))
-	}
-	config, err := declfilter.ParseConfig(configContents)
-	if err != nil {
-		return glang.File{}, errors.Errorf(
-			"could not parse package config for %v:\n%v", pkg.PkgPath, err,
-		)
 	}
 	filter := declfilter.New(config)
 
@@ -249,9 +240,9 @@ func translatePackage(pkg *packages.Package, configContents []byte) (glang.File,
 }
 
 func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer string) {
-	ffi := getFfi(pkg)
+	ffi := util.GetFfi(pkg)
 	header += fmt.Sprintf("Definition %s : go_string := \"%s\".\n\n", pkg.Name, pkg.PkgPath)
-	if ffi == "none" {
+	if ffi == "" {
 		header += fmt.Sprintf("Module %s.\n", pkg.Name)
 		header += "Section code.\n" +
 			"Context `{ffi_syntax}.\n"
@@ -266,21 +257,6 @@ func (ctx *Ctx) ffiHeaderFooter(pkg *packages.Package) (header string, footer st
 	return
 }
 
-// newPackageConfig creates a package loading configuration suitable for
-// Goose translation.
-func newPackageConfig(modDir string) *packages.Config {
-	mode := packages.NeedName | packages.NeedCompiledGoFiles
-	mode |= packages.NeedImports
-	mode |= packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo
-	return &packages.Config{
-		Dir:        modDir,
-		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64"),
-		Mode:       mode,
-		BuildFlags: []string{"-tags", "goose"},
-		Fset:       token.NewFileSet(),
-	}
-}
-
 // TranslatePackages loads packages by a list of patterns and translates them
 // all, producing one file per matched package.
 //
@@ -289,9 +265,9 @@ func newPackageConfig(modDir string) *packages.Config {
 // a syntax error.
 func TranslatePackages(configDir string, modDir string,
 	pkgPattern ...string) (files []glang.File, errs []error, patternErr error) {
-	pkgs, err := packages.Load(newPackageConfig(modDir), pkgPattern...)
-	if err != nil {
-		return nil, nil, err
+	pkgs, patternErr := packages.Load(util.NewPackageConfig(modDir, false), pkgPattern...)
+	if patternErr != nil {
+		return
 	}
 	if len(pkgs) == 0 {
 		// consider matching nothing to be an error, unlike packages.Load
@@ -303,16 +279,15 @@ func TranslatePackages(configDir string, modDir string,
 	var wg sync.WaitGroup
 	wg.Add(len(pkgs))
 	for i, pkg := range pkgs {
-		go func(i int, pkg *packages.Package) {
+		go func() {
 			defer wg.Done()
-			configContents, _ := os.ReadFile(path.Join(
-				configDir,
-				glang.ImportToPath(pkg.PkgPath)+".toml"),
-			)
-			f, err := translatePackage(pkg, configContents)
-			files[i] = f
-			errs[i] = err
-		}(i, pkg)
+			config, err := util.ReadConfig(configDir, pkg.PkgPath)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			files[i], errs[i] = translatePackage(pkg, config)
+		}()
 	}
 	wg.Wait()
 	return

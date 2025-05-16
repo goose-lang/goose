@@ -11,23 +11,8 @@ import (
 
 	"github.com/goose-lang/goose"
 	"github.com/goose-lang/goose/glang"
+	"github.com/goose-lang/goose/util"
 )
-
-// write data to file name, first checking if it already has those contents
-//
-// like os.WriteFile, creates name if it doesn't exist and doesn't set perm if
-// the file does exist
-func writeFileIfChanged(name string, data []byte, perm os.FileMode) error {
-	contents, err := os.ReadFile(name)
-	if err != nil {
-		return os.WriteFile(name, data, perm)
-	}
-	// file has correct contents, return
-	if bytes.Equal(contents, data) {
-		return nil
-	}
-	return os.WriteFile(name, data, perm)
-}
 
 func coqFileContents(f glang.File) []byte {
 	var b bytes.Buffer
@@ -61,7 +46,7 @@ func translate(pkgPatterns []string, outRootDir string, modDir string,
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, red("could not create output directory"))
 		}
-		err = writeFileIfChanged(outFile, coqFileContents(f), 0666)
+		err = util.WriteFileIfChanged(outFile, coqFileContents(f), 0666)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			fmt.Fprintln(os.Stderr, red("could not write output"))
