@@ -99,7 +99,7 @@ func (pf ProofSetup) SkeletonFile() string {
 Section proof.
 {{.ContextVars}}
 
-#[global] Program Instance : IsPkgInit {{.PackageName}} := ltac2:(build_is_pkg_init ()).
+#[global] Program Instance : IsPkgInit {{.PackageName}} := ltac2:(build_pkg_init ()).
 
 {{ range $lemma := .WpLemmas -}}
 {{$lemma}}
