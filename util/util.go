@@ -42,6 +42,7 @@ func fileHasContents(path string, data []byte) bool {
 	if err != nil {
 		return false
 	}
+	defer f.Close()
 	stat, err := f.Stat()
 	if stat.Size() != int64(len(data)) {
 		return false
