@@ -51,21 +51,22 @@ func namedTypeToCoq(t *types.Named, pkg *packages.Package) string {
 			params = append(params, "#()")
 		}
 		for i := 0; i < t.TypeArgs().Len(); i++ {
-			params = append(params, toCoqType(t.TypeArgs().At(i), pkg))
+			params = append(params, ToCoqType(t.TypeArgs().At(i), pkg))
 		}
 		return fmt.Sprintf("(%s %s)", baseName, strings.Join(params, " "))
 	}
 	return baseName
 }
 
-func toCoqType(t types.Type, pkg *packages.Package) string {
+// ToCoqType converts a type to a Gallina type modeling that type
+func ToCoqType(t types.Type, pkg *packages.Package) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
 		return basicTypeToCoq(t)
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
-		return fmt.Sprintf("(vec %s (uint.nat (W64 %d)))", toCoqType(t.Elem(), pkg), t.Len())
+		return fmt.Sprintf("(vec %s (uint.nat (W64 %d)))", ToCoqType(t.Elem(), pkg), t.Len())
 	case *types.Pointer:
 		return "loc"
 	case *types.Signature:
