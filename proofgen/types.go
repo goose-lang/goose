@@ -65,7 +65,8 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	panic(fmt.Sprintf("Unknown type %v (of type %T)", t, t))
 }
 
-func toGooseLangType(t types.Type) glang.Type {
+// toGlangType converts a Go type to a GooseLang type
+func toGlangType(t types.Type) glang.Type {
 	if tr := goose.SimpleType(t); tr != nil {
 		return tr
 	}
@@ -74,14 +75,14 @@ func toGooseLangType(t types.Type) glang.Type {
 		// type parameters for proofgen are bound Gallina variables
 		return glang.TypeIdent(t.Obj().Name())
 	case *types.Map:
-		keyT := toGooseLangType(t.Key())
-		valueT := toGooseLangType(t.Elem())
+		keyT := toGlangType(t.Key())
+		valueT := toGlangType(t.Elem())
 		return glang.MapType{
 			Key:   keyT,
 			Value: valueT,
 		}
 	case *types.Chan:
-		elemT := toGooseLangType(t.Elem())
+		elemT := toGlangType(t.Elem())
 		return glang.ChanType{
 			Elem: elemT,
 		}
@@ -98,13 +99,13 @@ func toGooseLangType(t types.Type) glang.Type {
 		}
 		return glang.TypeIdent(fmt.Sprintf("%s.%s", pkg, name))
 	}
-	panic(fmt.Sprintf("toGooseLangType: unimplemented proofgen support for type %v (of type %T)", t, t))
+	panic(fmt.Sprintf("toGolangType: unimplemented proofgen support for type %v (of type %T)", t, t))
 }
 
 func convertTypeArgsToGlang(typeList *types.TypeList) (glangTypeArgs []glang.Type) {
 	glangTypeArgs = make([]glang.Type, typeList.Len())
 	for i := range glangTypeArgs {
-		glangTypeArgs[i] = toGooseLangType(typeList.At(i))
+		glangTypeArgs[i] = toGlangType(typeList.At(i))
 	}
 	return
 }
@@ -173,7 +174,7 @@ func (tr *typesTranslator) translateStructType(spec *ast.TypeSpec, s *types.Stru
 		if info.IsGooseLang {
 			// proofgen's GooseLang type translation isn't perfect and is only needed
 			// for generic structs, so don't attempt to translate unless needed
-			field.GoType = toGooseLangType(s.Field(i).Type()).Gallina(false)
+			field.GoType = toGlangType(s.Field(i).Type()).Gallina(false)
 		}
 		info.Fields = append(info.Fields, field)
 	}

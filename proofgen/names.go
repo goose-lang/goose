@@ -32,7 +32,7 @@ func (tr *namesTranslator) Decl(d ast.Decl) {
 					if name.Name != "_" && tr.filter.GetAction(name.Name) == declfilter.Translate {
 						tr.vars = append(tr.vars, tmpl.Variable{
 							Name:    name.Name,
-							CoqType: toCoqType(info.TypeOf(name), tr.pkg),
+							CoqType: ToCoqType(info.TypeOf(name), tr.pkg),
 						})
 					}
 				}
