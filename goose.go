@@ -804,6 +804,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			// return glang.IdentExpr(fmt.Sprintf("global:%s", e.Sel.Name))
 		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
 			pkg := f.Pkg()
+			// If there are type arguments, we must pass them
+			typeArgs := ctx.info.Instances[e.Sel].TypeArgs
 			pkgIdent := fmt.Sprintf("%s.%s", filepath.Base(pkg.Path()), pkg.Name())
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
@@ -812,6 +814,8 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 					glang.GallinaIdent("func_call"),
 					glang.StringVal{Value: glang.GallinaIdent(pkgIdent)},
 					glang.StringVal{Value: glang.StringLiteral{Value: e.Sel.Name}},
+				).Append(
+					typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))...,
 				),
 			)
 		} else {

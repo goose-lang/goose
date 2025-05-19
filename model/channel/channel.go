@@ -56,15 +56,11 @@ func (c *Channel[T]) Send(val T) {
 	}
 
 	// Create a send case for this channel
-	var send_case SelectCase[T] = SelectCase[T]{
-		channel: c,
-		dir:     SelectSend,
-		Value:   val,
-	}
+	sendCase := NewSendCase(c, val)
 
 	// Run a blocking select with just this one case
 	// This will block until the send succeeds
-	Select1(&send_case, true)
+	Select1(sendCase, true)
 }
 
 // Equivalent to:
@@ -84,7 +80,7 @@ func (c *Channel[T]) Receive() (T, bool) {
 
 	// Run a blocking select with just this one case
 	// This will block until the receive succeeds
-	Select1(&recvCase, true)
+	Select1(recvCase, true)
 
 	return recvCase.Value, recvCase.Ok
 }
@@ -618,16 +614,16 @@ func TrySelect[T any](select_case *SelectCase[T]) bool {
 	return false
 }
 
-func NewSendCase[T any](channel *Channel[T], value T) SelectCase[T] {
-	return SelectCase[T]{
+func NewSendCase[T any](channel *Channel[T], value T) *SelectCase[T] {
+	return &SelectCase[T]{
 		channel: channel,
 		dir:     SelectSend,
 		Value:   value,
 	}
 }
 
-func NewRecvCase[T any](channel *Channel[T]) SelectCase[T] {
-	return SelectCase[T]{
+func NewRecvCase[T any](channel *Channel[T]) *SelectCase[T] {
+	return &SelectCase[T]{
 		channel: channel,
 		dir:     SelectRecv,
 	}
