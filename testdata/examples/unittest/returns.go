@@ -35,8 +35,8 @@ func VoidButEndsWithReturn() {
 	BasicNamedReturn()
 }
 
-func VoidImplicitReturnInBranch() {
-	if true {
+func VoidImplicitReturnInBranch(b bool) {
+	if b {
 		return
 	} else {
 		BasicNamedReturn()

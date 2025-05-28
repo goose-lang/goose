@@ -1990,8 +1990,9 @@ Definition VoidButEndsWithReturn : val :=
 
 (* go: returns.go:38:6 *)
 Definition VoidImplicitReturnInBranch : val :=
-  rec: "VoidImplicitReturnInBranch" <> :=
-    exception_do ((if: #true
+  rec: "VoidImplicitReturnInBranch" "b" :=
+    exception_do (let: "b" := (mem.alloc "b") in
+    (if: ![#boolT] "b"
     then return: (#())
     else do:  ((func_call #unittest.unittest #"BasicNamedReturn"%go) #()));;;
     return: #()).
