@@ -1537,6 +1537,7 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	fl.Args = ctx.paramList(e.Type.Params)
 	var cont glang.Expr = nil
 	if e.Type.Results == nil {
+		// explicitly return #() at end of void functions
 		cont = glang.ReturnExpr{Value: glang.Tt}
 	}
 	fl.Body = ctx.blockStmt(e.Body, cont)
@@ -2653,6 +2654,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 
 	var cont glang.Expr = nil
 	if d.Type.Results == nil {
+		// explicitly return #() at end of void functions
 		cont = glang.ReturnExpr{Value: glang.Tt}
 	}
 	body := ctx.blockStmt(d.Body, cont)
