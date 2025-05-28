@@ -16,7 +16,8 @@ Context `{ffi_syntax}.
 Definition UseMarshal : val :=
   rec: "UseMarshal" <> :=
     exception_do (do:  (let: "$a0" := #(W64 0) in
-    (func_call #marshal.marshal #"NewEnc"%go) "$a0")).
+    (func_call #marshal.marshal #"NewEnc"%go) "$a0");;;
+    return: #()).
 
 Definition Table : go_type := structT [
   "Index" :: mapT uint64T uint64T;
@@ -208,7 +209,8 @@ Definition readTableIndex : val :=
             "next" ::= "$next"
           }]) in
           do:  ("buf" <-[#lazyFileBuf] "$r0");;;
-          continue: #()))))).
+          continue: #()))));;;
+    return: #()).
 
 (* RecoverTable restores a table from disk on startup.
 
@@ -241,7 +243,8 @@ Definition CloseTable : val :=
   rec: "CloseTable" "t" :=
     exception_do (let: "t" := (mem.alloc "t") in
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #Table #"File"%go "t")) in
-    (func_call #filesys.filesys #"Close"%go) "$a0")).
+    (func_call #filesys.filesys #"Close"%go) "$a0");;;
+    return: #()).
 
 (* go: simpledb.go:123:6 *)
 Definition readValue : val :=
@@ -340,7 +343,8 @@ Definition bufFlush : val :=
     let: "$a1" := (![#sliceT] "buf") in
     (func_call #filesys.filesys #"Append"%go) "$a0" "$a1");;;
     let: "$r0" := #slice.nil in
-    do:  ((![#ptrT] (struct.field_ref #bufFile #"buf"%go "f")) <-[#sliceT] "$r0")).
+    do:  ((![#ptrT] (struct.field_ref #bufFile #"buf"%go "f")) <-[#sliceT] "$r0");;;
+    return: #()).
 
 (* go: simpledb.go:168:6 *)
 Definition bufAppend : val :=
@@ -356,7 +360,8 @@ Definition bufAppend : val :=
     (slice.append #byteT) "$a0" "$a1") in
     do:  ("buf2" <-[#sliceT] "$r0");;;
     let: "$r0" := (![#sliceT] "buf2") in
-    do:  ((![#ptrT] (struct.field_ref #bufFile #"buf"%go "f")) <-[#sliceT] "$r0")).
+    do:  ((![#ptrT] (struct.field_ref #bufFile #"buf"%go "f")) <-[#sliceT] "$r0");;;
+    return: #()).
 
 (* go: simpledb.go:174:6 *)
 Definition bufClose : val :=
@@ -365,7 +370,8 @@ Definition bufClose : val :=
     do:  (let: "$a0" := (![#bufFile] "f") in
     (func_call #simpledb.simpledb #"bufFlush"%go) "$a0");;;
     do:  (let: "$a0" := (![#fileT] (struct.field_ref #bufFile #"file"%go "f")) in
-    (func_call #filesys.filesys #"Close"%go) "$a0")).
+    (func_call #filesys.filesys #"Close"%go) "$a0");;;
+    return: #()).
 
 Definition tableWriter : go_type := structT [
   "index" :: mapT uint64T uint64T;
@@ -420,7 +426,8 @@ Definition tableWriterAppend : val :=
     do:  ("off" <-[#uint64T] "$r0");;;
     let: "$r0" := ((![#uint64T] "off") + (s_to_w64 (let: "$a0" := (![#sliceT] "p") in
     slice.len "$a0"))) in
-    do:  ((![#ptrT] (struct.field_ref #tableWriter #"offset"%go "w")) <-[#uint64T] "$r0")).
+    do:  ((![#ptrT] (struct.field_ref #tableWriter #"offset"%go "w")) <-[#uint64T] "$r0");;;
+    return: #()).
 
 (* go: simpledb.go:205:6 *)
 Definition tableWriterClose : val :=
@@ -507,7 +514,8 @@ Definition tablePut : val :=
     do:  (map.insert (![type.mapT #uint64T #uint64T] (struct.field_ref #tableWriter #"index"%go "w")) (![#uint64T] "k") "$r0");;;
     do:  (let: "$a0" := (![#tableWriter] "w") in
     let: "$a1" := (![#sliceT] "tmp3") in
-    (func_call #simpledb.simpledb #"tableWriterAppend"%go) "$a0" "$a1")).
+    (func_call #simpledb.simpledb #"tableWriterAppend"%go) "$a0" "$a1");;;
+    return: #()).
 
 Definition Database : go_type := structT [
   "wbuffer" :: ptrT;
@@ -663,7 +671,8 @@ Definition Write : val :=
     do:  ("buf" <-[type.mapT #uint64T #sliceT] "$r0");;;
     let: "$r0" := (![#sliceT] "v") in
     do:  (map.insert (![type.mapT #uint64T #sliceT] "buf") (![#uint64T] "k") "$r0");;;
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
+    return: #()).
 
 (* go: simpledb.go:333:6 *)
 Definition freshTable : val :=
@@ -691,7 +700,8 @@ Definition tablePutBuffer : val :=
       do:  (let: "$a0" := (![#tableWriter] "w") in
       let: "$a1" := (![#uint64T] "k") in
       let: "$a2" := (![#sliceT] "v") in
-      (func_call #simpledb.simpledb #"tablePut"%go) "$a0" "$a1" "$a2")))).
+      (func_call #simpledb.simpledb #"tablePut"%go) "$a0" "$a1" "$a2")));;;
+    return: #()).
 
 (* add all of table t to the table w being created; skip any keys in the (read)
    buffer b since those writes overwrite old ones
@@ -767,7 +777,8 @@ Definition tablePutOldTable : val :=
             "next" ::= "$next"
           }]) in
           do:  ("buf" <-[#lazyFileBuf] "$r0");;;
-          continue: #()))))).
+          continue: #()))));;;
+    return: #()).
 
 (* Build a new shadow table that incorporates the current table and a
    (write) buffer wbuf.
@@ -864,7 +875,8 @@ Definition Compact : val :=
     let: "$a1" := (![#stringT] "oldTableName") in
     (func_call #filesys.filesys #"Delete"%go) "$a0" "$a1");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"tableL"%go "db"))) #());;;
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #());;;
+    return: #()).
 
 (* go: simpledb.go:450:6 *)
 Definition recoverManifest : val :=
@@ -902,7 +914,8 @@ Definition deleteOtherFile : val :=
     else do:  #());;;
     do:  (let: "$a0" := #"db"%go in
     let: "$a1" := (![#stringT] "name") in
-    (func_call #filesys.filesys #"Delete"%go) "$a0" "$a1")).
+    (func_call #filesys.filesys #"Delete"%go) "$a0" "$a1");;;
+    return: #()).
 
 (* go: simpledb.go:474:6 *)
 Definition deleteOtherFiles : val :=
@@ -931,7 +944,8 @@ Definition deleteOtherFiles : val :=
       (func_call #simpledb.simpledb #"deleteOtherFile"%go) "$a0" "$a1");;;
       let: "$r0" := ((![#uint64T] "i") + #(W64 1)) in
       do:  ("i" <-[#uint64T] "$r0");;;
-      continue: #()))).
+      continue: #()));;;
+    return: #()).
 
 (* Recover restores a previously created database after a crash or shutdown.
 
@@ -1006,7 +1020,8 @@ Definition Shutdown : val :=
     do:  (let: "$a0" := (![#Table] "t") in
     (func_call #simpledb.simpledb #"CloseTable"%go) "$a0");;;
     do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"compactionL"%go "db"))) #());;;
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Database #"bufferL"%go "db"))) #());;;
+    return: #()).
 
 (* Close closes an open database cleanly, flushing any in-memory writes.
 
@@ -1019,7 +1034,8 @@ Definition Close : val :=
     do:  (let: "$a0" := (![#Database] "db") in
     (func_call #simpledb.simpledb #"Compact"%go) "$a0");;;
     do:  (let: "$a0" := (![#Database] "db") in
-    (func_call #simpledb.simpledb #"Shutdown"%go) "$a0")).
+    (func_call #simpledb.simpledb #"Shutdown"%go) "$a0");;;
+    return: #()).
 
 Definition vars' : list (go_string * go_type) := [].
 

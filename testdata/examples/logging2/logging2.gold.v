@@ -42,7 +42,8 @@ Definition Log__writeHdr : val :=
     (func_call #primitive.primitive #"UInt64Put"%go) "$a0" "$a1");;;
     do:  (let: "$a0" := LOGCOMMIT in
     let: "$a1" := (![#sliceT] "hdr") in
-    (func_call #disk.disk #"Write"%go) "$a0" "$a1")).
+    (func_call #disk.disk #"Write"%go) "$a0" "$a1");;;
+    return: #()).
 
 (* go: logging2.go:31:6 *)
 Definition Init : val :=
@@ -139,7 +140,8 @@ Definition Log__memWrite : val :=
       let: "$a1" := ((let: "$sl0" := (![#sliceT] (slice.elem_ref #sliceT (![#sliceT] "l") (![#uint64T] "i"))) in
       slice.literal #sliceT ["$sl0"])) in
       (slice.append #sliceT) "$a0" "$a1") in
-      do:  ((![#ptrT] (struct.field_ref #Log #"memLog"%go "log")) <-[#sliceT] "$r0")))).
+      do:  ((![#ptrT] (struct.field_ref #Log #"memLog"%go "log")) <-[#sliceT] "$r0")));;;
+    return: #()).
 
 (* go: logging2.go:75:16 *)
 Definition Log__memAppend : val :=
@@ -192,7 +194,8 @@ Definition Log__diskAppendWait : val :=
       (if: (![#uint64T] "txn") < (![#uint64T] "logtxn")
       then break: #()
       else do:  #());;;
-      continue: #())).
+      continue: #());;;
+    return: #()).
 
 (* go: logging2.go:107:16 *)
 Definition Log__Append : val :=
@@ -233,7 +236,8 @@ Definition Log__writeBlocks : val :=
       do:  ("bk" <-[#sliceT] "$r0");;;
       do:  (let: "$a0" := ((![#uint64T] "pos") + (![#uint64T] "i")) in
       let: "$a1" := (![#sliceT] "bk") in
-      (func_call #disk.disk #"Write"%go) "$a0" "$a1")))).
+      (func_call #disk.disk #"Write"%go) "$a0" "$a1")));;;
+    return: #()).
 
 (* go: logging2.go:123:16 *)
 Definition Log__diskAppend : val :=
@@ -265,14 +269,16 @@ Definition Log__diskAppend : val :=
     (method_call #logging2.logging2 #"Log" #"writeHdr" (![#Log] "log")) "$a0");;;
     let: "$r0" := (![#uint64T] "memnxt") in
     do:  ((![#ptrT] (struct.field_ref #Log #"logTxnNxt"%go "log")) <-[#uint64T] "$r0");;;
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #());;;
+    return: #()).
 
 (* go: logging2.go:142:16 *)
 Definition Log__Logger : val :=
   rec: "Log__Logger" "log" <> :=
     exception_do (let: "log" := (mem.alloc "log") in
     (for: (λ: <>, #true); (λ: <>, Skip) := λ: <>,
-      do:  ((method_call #logging2.logging2 #"Log" #"diskAppend" (![#Log] "log")) #()))).
+      do:  ((method_call #logging2.logging2 #"Log" #"diskAppend" (![#Log] "log")) #()));;;
+    return: #()).
 
 Definition Txn : go_type := structT [
   "log" :: ptrT;

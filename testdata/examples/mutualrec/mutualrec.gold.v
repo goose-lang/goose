@@ -11,12 +11,14 @@ Context `{ffi_syntax}.
 (* go: mutualrec.go:3:6 *)
 Definition A : val :=
   rec: "A" <> :=
-    exception_do (do:  ((func_call #mutualrec.mutualrec #"B"%go) #())).
+    exception_do (do:  ((func_call #mutualrec.mutualrec #"B"%go) #());;;
+    return: #()).
 
 (* go: mutualrec.go:7:6 *)
 Definition B : val :=
   rec: "B" <> :=
-    exception_do (do:  ((func_call #mutualrec.mutualrec #"A"%go) #())).
+    exception_do (do:  ((func_call #mutualrec.mutualrec #"A"%go) #());;;
+    return: #()).
 
 Definition vars' : list (go_string * go_type) := [].
 

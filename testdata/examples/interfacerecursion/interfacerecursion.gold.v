@@ -22,7 +22,8 @@ Definition c__Foo : val :=
     let: "y" := (mem.alloc (type.zero_val #B)) in
     let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
     do:  ("y" <-[#B] "$r0");;;
-    do:  ((interface.get #"Bar"%go (![#B] "y")) #())).
+    do:  ((interface.get #"Bar"%go (![#B] "y")) #());;;
+    return: #()).
 
 (* go: x.go:19:13 *)
 Definition c__Bar : val :=
@@ -31,7 +32,8 @@ Definition c__Bar : val :=
     let: "y" := (mem.alloc (type.zero_val #A)) in
     let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
     do:  ("y" <-[#A] "$r0");;;
-    do:  ((interface.get #"Foo"%go (![#A] "y")) #())).
+    do:  ((interface.get #"Foo"%go (![#A] "y")) #());;;
+    return: #()).
 
 Definition vars' : list (go_string * go_type) := [].
 

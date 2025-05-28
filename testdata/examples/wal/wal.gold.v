@@ -94,13 +94,15 @@ Definition New : val :=
 Definition Log__lock : val :=
   rec: "Log__lock" "l" <> :=
     exception_do (let: "l" := (mem.alloc "l") in
-    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Lock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #());;;
+    return: #()).
 
 (* go: log.go:56:14 *)
 Definition Log__unlock : val :=
   rec: "Log__unlock" "l" <> :=
     exception_do (let: "l" := (mem.alloc "l") in
-    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #())).
+    do:  ((method_call #sync #"Mutex'ptr" #"Unlock" (![#ptrT] (struct.field_ref #Log #"l"%go "l"))) #());;;
+    return: #()).
 
 (* BeginTxn allocates space for a new transaction in the log.
 
@@ -194,7 +196,8 @@ Definition Log__Write : val :=
     do:  (map.insert (![type.mapT #uint64T #sliceT] (struct.field_ref #Log #"cache"%go "l")) (![#uint64T] "a") "$r0");;;
     let: "$r0" := ((![#uint64T] "length") + #(W64 1)) in
     do:  ((![#ptrT] (struct.field_ref #Log #"length"%go "l")) <-[#uint64T] "$r0");;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #())).
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
+    return: #()).
 
 (* Commit the current transaction.
 
@@ -213,7 +216,8 @@ Definition Log__Commit : val :=
     do:  ("header" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![#sliceT] "header") in
-    (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1")).
+    (interface.get #"Write"%go (![#disk.Disk] (struct.field_ref #Log #"d"%go "l"))) "$a0" "$a1");;;
+    return: #()).
 
 (* go: log.go:122:6 *)
 Definition getLogEntry : val :=
@@ -266,7 +270,8 @@ Definition applyLog : val :=
         do:  ("i" <-[#uint64T] "$r0");;;
         continue: #()
       else do:  #());;;
-      break: #()))).
+      break: #()));;;
+    return: #()).
 
 (* go: log.go:142:6 *)
 Definition clearLog : val :=
@@ -278,7 +283,8 @@ Definition clearLog : val :=
     do:  ("header" <-[#sliceT] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
     let: "$a1" := (![#sliceT] "header") in
-    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1")).
+    (interface.get #"Write"%go (![#disk.Disk] "d")) "$a0" "$a1");;;
+    return: #()).
 
 (* Apply all the committed transactions.
 
@@ -299,7 +305,8 @@ Definition Log__Apply : val :=
     (func_call #wal.awol #"clearLog"%go) "$a0");;;
     let: "$r0" := #(W64 0) in
     do:  ((![#ptrT] (struct.field_ref #Log #"length"%go "l")) <-[#uint64T] "$r0");;;
-    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #())).
+    do:  ((method_call #wal.awol #"Log" #"unlock" (![#Log] "l")) #());;;
+    return: #()).
 
 (* Open recovers the log following a crash or shutdown
 

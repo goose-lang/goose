@@ -13,7 +13,8 @@ Section code.
 Definition f : val :=
   rec: "f" <> :=
     exception_do (let: "$r0" := #(W64 11) in
-    do:  ((globals.get #unittest #"GlobalX"%go) <-[#uint64T] "$r0")).
+    do:  ((globals.get #unittest #"GlobalX"%go) <-[#uint64T] "$r0");;;
+    return: #()).
 
 Definition vars' : list (go_string * go_type) := [].
 

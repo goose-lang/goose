@@ -28,3 +28,17 @@ func NamedReturnOverride() (x string, y string) {
 	}
 	return
 }
+
+func VoidButEndsWithReturn() {
+	// translation should not produce the value from this function call since the
+	// outer function is void
+	BasicNamedReturn()
+}
+
+func VoidImplicitReturnInBranch() {
+	if true {
+		return
+	} else {
+		BasicNamedReturn()
+	}
+}

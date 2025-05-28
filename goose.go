@@ -1535,7 +1535,11 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 
 	ctx.curFuncType = ctx.typeOf(e.Type).(*types.Signature)
 	fl.Args = ctx.paramList(e.Type.Params)
-	fl.Body = ctx.blockStmt(e.Body, nil)
+	var cont glang.Expr = nil
+	if e.Type.Results == nil {
+		cont = glang.ReturnExpr{Value: glang.Tt}
+	}
+	fl.Body = ctx.blockStmt(e.Body, cont)
 
 	// Create heap-allocated variables for all of the function parameters
 	for _, arg := range fl.Args {
@@ -2647,7 +2651,11 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) []glang.Decl {
 		Value: defaultRetExpr,
 	}
 
-	body := ctx.blockStmt(d.Body, nil)
+	var cont glang.Expr = nil
+	if d.Type.Results == nil {
+		cont = glang.ReturnExpr{Value: glang.Tt}
+	}
+	body := ctx.blockStmt(d.Body, cont)
 
 	if d.Name.Name == "init" {
 		if ctx.usesDefer {
