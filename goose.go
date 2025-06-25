@@ -1977,6 +1977,39 @@ func isIntegerKind(t types.BasicKind) bool {
 	return isUnsignedIntegerKind(t) || isSignedIntegerKind(t)
 }
 
+// typeIdentity gives the string-based representation of a type, used for
+// interface values and type assertions.
+//
+// TODO: refactor GooseLang models to take this as a single argument rather than
+// pkg+type name separately.
+func (ctx *Ctx) typeIdentity(n locatable, from types.Type) (glang.Expr, glang.Expr) {
+	maybePtrSuffix := ""
+	if fromPointer, ok := from.(*types.Pointer); ok {
+		from = fromPointer.Elem()
+		maybePtrSuffix = "'ptr"
+	}
+	if fromNamed, ok := from.(*types.Named); ok {
+		pkgName, typeName := ctx.getPkgAndName(fromNamed.Obj())
+		// TODO: is this ever needed?
+		ctx.dep.Add(typeName)
+		return glang.StringVal{Value: glang.GallinaIdent(pkgName)}, glang.StringVal{Value: glang.GallinaString(typeName + maybePtrSuffix)}
+	} else if fromBasic, ok := from.(*types.Basic); ok {
+		typeName := fromBasic.Name() + maybePtrSuffix
+		ctx.dep.Add(typeName)
+		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+	} else if _, ok := from.(*types.Slice); ok {
+		typeName := "slice'" + maybePtrSuffix
+		ctx.dep.Add(typeName)
+		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+	} else if _, ok := from.(*types.Map); ok {
+		typeName := "map'" + maybePtrSuffix
+		ctx.dep.Add(typeName)
+		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+	}
+	ctx.unsupported(n, "unsupported type for interface representation: %v", from)
+	panic("unreachable")
+}
+
 // This handles conversions arising from the notion of "assignability" in the Go spec.
 func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e glang.Expr) glang.Expr {
 	if to == nil {
@@ -2034,36 +2067,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 			// independent of the particular interface type.
 			return e
 		}
-
-		maybePtrSuffix := ""
-		if fromPointer, ok := from.(*types.Pointer); ok {
-			from = fromPointer.Elem()
-			maybePtrSuffix = "'ptr"
-		}
-		if fromNamed, ok := from.(*types.Named); ok {
-			pkgName, typeName := ctx.getPkgAndName(fromNamed.Obj())
-			ctx.dep.Add(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"),
-				glang.StringVal{Value: glang.GallinaIdent(pkgName)},
-				glang.StringVal{Value: glang.GallinaString(typeName + maybePtrSuffix)},
-				e)
-		} else if fromBasic, ok := from.(*types.Basic); ok {
-			typeName := fromBasic.Name() + maybePtrSuffix
-			ctx.dep.Add(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"),
-				glang.StringVal{Value: glang.StringLiteral{Value: ""}},
-				glang.StringVal{Value: glang.StringLiteral{Value: typeName}},
-				e,
-			)
-		} else if _, ok := from.(*types.Slice); ok {
-			typeName := "slice'" + maybePtrSuffix
-			ctx.dep.Add(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.StringVal{Value: glang.StringLiteral{Value: typeName}}, e)
-		} else if _, ok := from.(*types.Map); ok {
-			typeName := "map'" + maybePtrSuffix
-			ctx.dep.Add(typeName)
-			return glang.NewCallExpr(glang.GallinaIdent("interface.make"), glang.StringVal{Value: glang.StringLiteral{Value: typeName}}, e)
-		}
+		pkgName, typeName := ctx.typeIdentity(n, from)
+		return glang.NewCallExpr(glang.GallinaIdent("interface.make"), pkgName, typeName, e)
 	}
 
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedBool {

@@ -438,6 +438,10 @@ type StringVal struct {
 	Value Expr
 }
 
+func NewStringVal(s string) StringVal {
+	return StringVal{Value: StringLiteral{Value: s}}
+}
+
 func (l StringVal) Coq(needs_paren bool) string {
 	return fmt.Sprintf(`#%s`, l.Value.Coq(true))
 }
