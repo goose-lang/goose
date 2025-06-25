@@ -2353,14 +2353,14 @@ Definition checkedTypeAssert : val :=
   rec: "checkedTypeAssert" "x" :=
     exception_do (let: "x" := (mem.alloc "x") in
     (let: "ok" := (mem.alloc (type.zero_val #boolT)) in
-    let: "v" := (mem.alloc (type.zero_val #intT)) in
-    let: ("$ret0", "$ret1") := (interface.checked_type_assert #intT (![#interfaceT] "x") #""%go #"int"%go) in
+    let: "v" := (mem.alloc (type.zero_val #uint64T)) in
+    let: ("$ret0", "$ret1") := (interface.checked_type_assert #uint64T (![#interfaceT] "x") #""%go #"uint64"%go) in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
-    do:  ("v" <-[#intT] "$r0");;;
+    do:  ("v" <-[#uint64T] "$r0");;;
     do:  ("ok" <-[#boolT] "$r1");;;
     (if: ![#boolT] "ok"
-    then return: (![#intT] "v")
+    then return: (![#uint64T] "v")
     else do:  #()));;;
     return: (#(W64 3))).
 
