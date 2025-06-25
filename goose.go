@@ -1222,7 +1222,7 @@ func (ctx *Ctx) nilExpr(e *ast.Ident) glang.Expr {
 	}
 }
 
-func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, multipleBindings bool) glang.Expr {
 	if e.Op == token.NOT {
 		return glang.NotExpr{X: ctx.expr(e.X)}
 	}
@@ -1253,7 +1253,7 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, isSpecial bool) glang.Expr {
 	}
 	if e.Op == token.ARROW {
 		var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("chan.receive"), ctx.expr(e.X))
-		if !isSpecial {
+		if !multipleBindings {
 			expr = glang.NewCallExpr(glang.GallinaIdent("Fst"), expr)
 		}
 		return expr
@@ -1404,11 +1404,11 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 	return nil
 }
 
-func (ctx *Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
+func (ctx *Ctx) identExpr(e *ast.Ident, multipleBindings bool) glang.Expr {
 	// XXX: special case for a manually constructed Ident from select recv clause
 	if len(e.Name) > 0 && e.Name[0] == '$' {
 		var expr glang.Expr = glang.IdentExpr(e.Name)
-		if !isSpecial {
+		if !multipleBindings {
 			expr = glang.NewCallExpr(glang.GallinaIdent("Fst"), expr)
 		}
 		return expr
@@ -1436,7 +1436,7 @@ func (ctx *Ctx) identExpr(e *ast.Ident, isSpecial bool) glang.Expr {
 	panic("")
 }
 
-func (ctx *Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) indexExpr(e *ast.IndexExpr, multipleBindings bool) glang.Expr {
 	xTy := ctx.typeOf(e.X).Underlying()
 	switch xTy := xTy.(type) {
 	case *types.Map:
@@ -1445,7 +1445,7 @@ func (ctx *Ctx) indexExpr(e *ast.IndexExpr, isSpecial bool) glang.Expr {
 			ctx.expr(e.Index))
 		// FIXME: this is non-local. Should decide whether to do "Fst" based on
 		// assign statement or parent expression.
-		if !isSpecial {
+		if !multipleBindings {
 			e = glang.NewCallExpr(glang.GallinaIdent("Fst"), e)
 		}
 		return e
@@ -1575,12 +1575,24 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 	return fl
 }
 
-func (ctx *Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
+func (ctx *Ctx) typeAssertExpr(e *ast.TypeAssertExpr, multipleBindings bool) glang.Expr {
+	ty := ctx.typeOf(e.Type)
+	pkgName, typeName := ctx.typeIdentity(e, ty)
+	if multipleBindings {
+		return glang.NewCallExpr(glang.GallinaIdent("interface.checked_type_assert"),
+			ctx.glangType(e.Type, ty),
+			ctx.expr(e.X),
+			pkgName, typeName)
+	}
+	return glang.NewCallExpr(glang.GallinaIdent("interface.type_assert"), ctx.expr(e.X), pkgName, typeName)
+}
+
+func (ctx *Ctx) exprSpecial(e ast.Expr, multipleBindings bool) glang.Expr {
 	switch e := e.(type) {
 	case *ast.CallExpr:
 		return ctx.callExpr(e)
 	case *ast.Ident:
-		return ctx.identExpr(e, isSpecial)
+		return ctx.identExpr(e, multipleBindings)
 	case *ast.SelectorExpr:
 		return ctx.selectorExpr(e)
 	case *ast.CompositeLit:
@@ -1593,18 +1605,17 @@ func (ctx *Ctx) exprSpecial(e ast.Expr, isSpecial bool) glang.Expr {
 	case *ast.SliceExpr:
 		return ctx.sliceExpr(e)
 	case *ast.IndexExpr:
-		return ctx.indexExpr(e, isSpecial)
+		return ctx.indexExpr(e, multipleBindings)
 	case *ast.IndexListExpr:
 		return ctx.indexListExpr(e)
 	case *ast.UnaryExpr:
-		return ctx.unaryExpr(e, isSpecial)
+		return ctx.unaryExpr(e, multipleBindings)
 	case *ast.ParenExpr:
 		return ctx.expr(e.X)
 	case *ast.StarExpr:
 		return ctx.derefExpr(e.X)
 	case *ast.TypeAssertExpr:
-		// TODO: do something with the type
-		return ctx.expr(e.X)
+		return ctx.typeAssertExpr(e, multipleBindings)
 	case *ast.FuncLit:
 		return ctx.funcLit(e)
 	default:
