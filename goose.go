@@ -1577,14 +1577,14 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 
 func (ctx *Ctx) typeAssertExpr(e *ast.TypeAssertExpr, multipleBindings bool) glang.Expr {
 	ty := ctx.typeOf(e.Type)
-	pkgName, typeName := ctx.typeIdentity(e, ty)
+	typeIdent := ctx.typeIdentity(e, ty)
 	if multipleBindings {
 		return glang.NewCallExpr(glang.GallinaIdent("interface.checked_type_assert"),
 			ctx.glangType(e.Type, ty),
 			ctx.expr(e.X),
-			pkgName, typeName)
+			typeIdent)
 	}
-	return glang.NewCallExpr(glang.GallinaIdent("interface.type_assert"), ctx.expr(e.X), pkgName, typeName)
+	return glang.NewCallExpr(glang.GallinaIdent("interface.type_assert"), ctx.expr(e.X), typeIdent)
 }
 
 func (ctx *Ctx) exprSpecial(e ast.Expr, multipleBindings bool) glang.Expr {
@@ -1991,9 +1991,10 @@ func isIntegerKind(t types.BasicKind) bool {
 // typeIdentity gives the string-based representation of a type, used for
 // interface values and type assertions.
 //
-// TODO: refactor GooseLang models to take this as a single argument rather than
-// pkg+type name separately.
-func (ctx *Ctx) typeIdentity(n locatable, from types.Type) (glang.Expr, glang.Expr) {
+// To be fully accurate to Go's type-comparison semantics, this should mimic
+// Go's internal (*types.Type).LinkString():
+// https://github.com/golang/go/blob/b5d555991ab73e06e09741952a66dd7eeaf2a185/src/cmd/compile/internal/types/fmt.go#L220-L227.
+func (ctx *Ctx) typeIdentity(n locatable, from types.Type) glang.Expr {
 	maybePtrSuffix := ""
 	if fromPointer, ok := from.(*types.Pointer); ok {
 		from = fromPointer.Elem()
@@ -2002,20 +2003,22 @@ func (ctx *Ctx) typeIdentity(n locatable, from types.Type) (glang.Expr, glang.Ex
 	if fromNamed, ok := from.(*types.Named); ok {
 		pkgName, typeName := ctx.getPkgAndName(fromNamed.Obj())
 		// TODO: is this ever needed?
-		ctx.dep.Add(typeName)
-		return glang.StringVal{Value: glang.GallinaIdent(pkgName)}, glang.StringVal{Value: glang.GallinaString(typeName + maybePtrSuffix)}
+		if ctx.pkgIdent == pkgName {
+			ctx.dep.Add(typeName)
+		}
+		return glang.TupleExpr([]glang.Expr{
+			glang.StringVal{Value: glang.GallinaIdent(pkgName)},
+			glang.StringVal{Value: glang.GallinaString(typeName + maybePtrSuffix)},
+		})
 	} else if fromBasic, ok := from.(*types.Basic); ok {
 		typeName := fromBasic.Name() + maybePtrSuffix
-		ctx.dep.Add(typeName)
-		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+		return glang.TupleExpr([]glang.Expr{glang.NewStringVal(""), glang.NewStringVal(typeName)})
 	} else if _, ok := from.(*types.Slice); ok {
-		typeName := "slice'" + maybePtrSuffix
-		ctx.dep.Add(typeName)
-		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+		typeName := "slice" + maybePtrSuffix
+		return glang.TupleExpr([]glang.Expr{glang.NewStringVal(""), glang.NewStringVal(typeName)})
 	} else if _, ok := from.(*types.Map); ok {
-		typeName := "map'" + maybePtrSuffix
-		ctx.dep.Add(typeName)
-		return glang.NewStringVal(""), glang.NewStringVal(typeName)
+		typeName := "map" + maybePtrSuffix
+		return glang.TupleExpr([]glang.Expr{glang.NewStringVal(""), glang.NewStringVal(typeName)})
 	}
 	ctx.unsupported(n, "unsupported type for interface representation: %v", from)
 	panic("unreachable")
@@ -2078,8 +2081,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 			// independent of the particular interface type.
 			return e
 		}
-		pkgName, typeName := ctx.typeIdentity(n, from)
-		return glang.NewCallExpr(glang.GallinaIdent("interface.make"), pkgName, typeName, e)
+		typeIdent := ctx.typeIdentity(n, from)
+		return glang.NewCallExpr(glang.GallinaIdent("interface.make"), typeIdent, e)
 	}
 
 	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedBool {

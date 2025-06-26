@@ -20,7 +20,7 @@ Definition c__Foo : val :=
   rec: "c__Foo" "c" <> :=
     exception_do (let: "c" := (mem.alloc "c") in
     let: "y" := (mem.alloc (type.zero_val #B)) in
-    let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
+    let: "$r0" := (interface.make (#interfacerecursion.interfacerecursion, #"c'ptr") (![#ptrT] "c")) in
     do:  ("y" <-[#B] "$r0");;;
     do:  ((interface.get #"Bar"%go (![#B] "y")) #());;;
     return: #()).
@@ -30,7 +30,7 @@ Definition c__Bar : val :=
   rec: "c__Bar" "c" <> :=
     exception_do (let: "c" := (mem.alloc "c") in
     let: "y" := (mem.alloc (type.zero_val #A)) in
-    let: "$r0" := (interface.make #interfacerecursion.interfacerecursion #"c'ptr" (![#ptrT] "c")) in
+    let: "$r0" := (interface.make (#interfacerecursion.interfacerecursion, #"c'ptr") (![#ptrT] "c")) in
     do:  ("y" <-[#A] "$r0");;;
     do:  ((interface.get #"Foo"%go (![#A] "y")) #());;;
     return: #()).

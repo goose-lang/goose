@@ -58,7 +58,7 @@ Definition New : val :=
     do:  ("diskSize" <-[#uint64T] "$r0");;;
     (if: (![#uint64T] "diskSize") ≤ logLength
     then
-      do:  (let: "$a0" := (interface.make #""%go #"string"%go #"disk is too small to host log"%go) in
+      do:  (let: "$a0" := (interface.make (#""%go, #"string"%go) #"disk is too small to host log"%go) in
       Panic "$a0")
     else do:  #());;;
     let: "cache" := (mem.alloc (type.zero_val (type.mapT #uint64T #sliceT))) in
@@ -176,7 +176,7 @@ Definition Log__Write : val :=
     do:  ("length" <-[#uint64T] "$r0");;;
     (if: (![#uint64T] "length") ≥ MaxTxnWrites
     then
-      do:  (let: "$a0" := (interface.make #""%go #"string"%go #"transaction is at capacity"%go) in
+      do:  (let: "$a0" := (interface.make (#""%go, #"string"%go) #"transaction is at capacity"%go) in
       Panic "$a0")
     else do:  #());;;
     let: "aBlock" := (mem.alloc (type.zero_val #sliceT)) in
