@@ -2525,11 +2525,17 @@ func (ctx *Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, cont glang.Expr) (e glang.
 		ctx.nope(stmt, "type switch with unexpected Assign %T", stmt)
 	}
 	e = glang.DoExpr{Expr: glang.Tt}
+	// find default clause (if one exists)
+	for _, c := range s.Body.List {
+		if c := c.(*ast.CaseClause); c.List == nil {
+			e = ctx.stmtList(c.Body, nil)
+			break
+		}
+	}
 	for i := len(s.Body.List) - 1; i >= 0; i-- {
 		c := s.Body.List[i].(*ast.CaseClause)
 		if c.List == nil {
-			// default case
-			e = ctx.stmtList(c.Body, nil)
+			// default case already handled
 			continue
 		}
 		// the type being checked by this clause

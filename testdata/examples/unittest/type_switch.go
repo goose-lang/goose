@@ -30,11 +30,11 @@ func fancyTypeSwitch(x any) int {
 	switch z := 0; y := x.(type) {
 	case int:
 		return y
-	case string:
-		return 2
 	default:
 		z = 3
 		r = z
+	case string:
+		return 2
 	}
 	return r
 }
