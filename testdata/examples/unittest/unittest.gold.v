@@ -2297,7 +2297,7 @@ Definition testSwitchMultiple : val :=
     else
       (if: "$sw" = #(W64 0)
       then return: (#(W64 2))
-      else #()));;;
+      else do:  #()));;;
     return: (#(W64 3))).
 
 (* DoSomeLocking uses the entire lock API
