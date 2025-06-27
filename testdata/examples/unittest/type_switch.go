@@ -14,3 +14,27 @@ func checkedTypeAssert(x any) uint64 {
 	}
 	return 3
 }
+
+func basicTypeSwitch(x any) int {
+	switch x.(type) {
+	case int:
+		return 1
+	case string:
+		return 2
+	}
+	return 0
+}
+
+func fancyTypeSwitch(x any) int {
+	var r int
+	switch z := 0; y := x.(type) {
+	case int:
+		return y
+	case string:
+		return 2
+	default:
+		z = 3
+		r = z
+	}
+	return r
+}

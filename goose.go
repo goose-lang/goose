@@ -2507,6 +2507,72 @@ func (ctx *Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
 	return
 }
 
+func (ctx *Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, cont glang.Expr) (e glang.Expr) {
+	// s.Assign is either y.(type) or x := y.(type); first extract y (an
+	// expression) and x (if present)
+	var y ast.Expr
+	var x *ast.Ident = nil
+	switch stmt := s.Assign.(type) {
+	case *ast.ExprStmt:
+		y = stmt.X.(*ast.TypeAssertExpr).X
+	case *ast.AssignStmt:
+		if stmt.Tok != token.DEFINE {
+			ctx.nope(stmt, "type switch assign not defining a variable")
+		}
+		y = stmt.Rhs[0].(*ast.TypeAssertExpr).X
+		x = stmt.Lhs[0].(*ast.Ident)
+	default:
+		ctx.nope(stmt, "type switch with unexpected Assign %T", stmt)
+	}
+	e = glang.DoExpr{Expr: glang.Tt}
+	for i := len(s.Body.List) - 1; i >= 0; i-- {
+		c := s.Body.List[i].(*ast.CaseClause)
+		if c.List == nil {
+			// default case
+			e = ctx.stmtList(c.Body, nil)
+			continue
+		}
+		// the type being checked by this clause
+		ty := ctx.typeOf(c.List[0])
+		let := glang.LetExpr{
+			Names: []string{"$x_ok"},
+			ValExpr: glang.NewCallExpr(glang.GallinaIdent("interface.checked_type_assert"),
+				ctx.glangType(c.List[0], ty),
+				glang.IdentExpr("$y"),
+				ctx.typeIdentity(c.List[0], ty),
+			),
+			Cont: glang.IfExpr{
+				Cond: glang.NewCallExpr(glang.GallinaIdent("Snd"), glang.IdentExpr("$x_ok")),
+				Then: ctx.stmtList(c.Body, nil),
+				Else: e,
+			},
+		}
+		if x != nil {
+			// in switch x := y.(type), we create a mutable variable for x in
+			// each case, since its value is y coerced to the right type for
+			// that case
+			let.Cont = glang.LetExpr{
+				Names: []string{x.Name},
+				ValExpr: glang.RefExpr{
+					X: glang.NewCallExpr(glang.GallinaIdent("Fst"), glang.IdentExpr("$x_ok")),
+				},
+				Cont: let.Cont,
+			}
+		}
+		e = let
+	}
+	if s.Init != nil {
+		e = glang.ParenExpr{Inner: ctx.stmt(s.Init, e)}
+	}
+	e = glang.LetExpr{
+		Names:   []string{"$y"},
+		ValExpr: ctx.expr(y),
+		Cont:    e,
+	}
+	e = glang.SeqExpr{Expr: e, Cont: cont}
+	return
+}
+
 func (ctx *Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	switch s := s.(type) {
 	case *ast.ReturnStmt:
@@ -2542,7 +2608,7 @@ func (ctx *Ctx) stmt(s ast.Stmt, cont glang.Expr) glang.Expr {
 	case *ast.SwitchStmt:
 		return ctx.switchStmt(s, cont)
 	case *ast.TypeSwitchStmt:
-		ctx.todo(s, "type switch statement")
+		return ctx.typeSwitchStmt(s, cont)
 	case *ast.DeferStmt:
 		return ctx.deferStmt(s, cont)
 	case *ast.SelectStmt:
