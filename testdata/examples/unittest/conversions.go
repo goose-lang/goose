@@ -35,3 +35,10 @@ func stringToStringWrapper(s string) stringWrapper {
 func stringWrapperToString(s stringWrapper) string {
 	return string(s)
 }
+
+type Uint32 uint32
+
+func testU32NewtypeLen() bool {
+	s := make([]byte, 20)
+	return Uint32(len(s)) == Uint32(20)
+}

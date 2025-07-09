@@ -40,3 +40,9 @@ var mapLiteral = map[string]uint64{
 var mapLiteralWithConversion = map[any]any{
 	"a": 10,
 }
+
+func mapGetCall() {
+	handlers := make(map[uint64]func())
+	handlers[0] = func() {}
+	handlers[0]()
+}

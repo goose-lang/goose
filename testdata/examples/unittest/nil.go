@@ -19,3 +19,11 @@ func ComparePointerToNil() bool {
 	s := new(uint64)
 	return s != nil
 }
+
+type containsPointer struct {
+	s *uint64
+}
+
+func useNilField() *containsPointer {
+	return &containsPointer{s: nil}
+}
