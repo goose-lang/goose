@@ -64,4 +64,13 @@ Global Instance wp_method_call_{{$mset.TypeName}}_{{$methodName}} :
 {{ end -}}
 
 End names.
+{{ if .Vars }}
+Global Instance wp_globals_alloc_inst
+{{- if $ffi }} `{!heapGS Σ}
+{{- else }} `{hG: heapGS Σ, !ffi_semantics _ _}
+{{- end }} `{!goGlobalsGS Σ} :
+  WpGlobalsAlloc {{$pkg}}.vars' (GlobalAddrs) (@var_addrs) (λ (_: GlobalAddrs), own_allocated).
+Proof. solve_wp_globals_alloc. Qed.
+
+{{ end -}}
 {{ end -}}
