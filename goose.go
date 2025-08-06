@@ -321,11 +321,9 @@ func (ctx *Ctx) mapLiteral(e *ast.CompositeLit, keyType, valueType types.Type) g
 	var mapLitArgs []glang.Expr
 	for i := 0; i < len(e.Elts); i++ {
 		mapLitArgs = append(mapLitArgs,
-			glang.TupleExpr{
+			glang.NewCallExpr(glang.GallinaIdent("map.kv_entry"),
 				glang.IdentExpr(fmt.Sprintf("$k%d", i)),
-				glang.IdentExpr(fmt.Sprintf("$v%d", i)),
-			},
-		)
+				glang.IdentExpr(fmt.Sprintf("$v%d", i))))
 	}
 	var expr glang.Expr = glang.NewCallExpr(glang.GallinaIdent("map.literal"),
 		glang.GolangTypeExpr(ctx.glangType(e.Type, keyType)),

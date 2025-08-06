@@ -46,3 +46,12 @@ func mapGetCall() {
 	handlers[0] = func() {}
 	handlers[0]()
 }
+
+func mapLiteralTest() map[string]uint64 {
+	ascii := map[string]uint64{
+		"a": 97,
+		"b": 98,
+		"c": 99,
+	}
+	return ascii
+}
