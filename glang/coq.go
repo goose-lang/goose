@@ -858,6 +858,19 @@ func (d ConstDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
+type TypeIdDecl struct {
+	Name string
+	Val  Expr
+}
+
+func (d TypeIdDecl) CoqDecl() string {
+	return fmt.Sprintf("Module %s. Definition id : go_string := %s. End %s.", d.Name, d.Val.Coq(false), d.Name)
+}
+
+func (d TypeIdDecl) DefName() (bool, string) {
+	return true, d.Name + ".id"
+}
+
 type InstanceDecl struct {
 	Type Expr
 	// If not global, instance will be export
