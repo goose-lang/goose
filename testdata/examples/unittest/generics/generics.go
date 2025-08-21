@@ -1,5 +1,9 @@
 package generics
 
+import (
+	"github.com/goose-lang/goose/testdata/examples/unittest/generics/helpers"
+)
+
 // Box is the simplest generic struct
 type Box[T any] struct {
 	Value T
@@ -87,4 +91,9 @@ func useMultiParamFunc() {
 	multiParamFunc[uint64, bool](1, true)
 	// XXX: _ needed to work around goose bug
 	return
+}
+
+func useAnyPointer() {
+	var x uint64
+	helpers.AnyPointer(&x)
 }

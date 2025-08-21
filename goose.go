@@ -2097,6 +2097,16 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		}
 	}
 
+	if _, ok := toUnder.(*types.Signature); ok {
+		if _, ok := fromUnder.(*types.Signature); ok {
+			if types.AssignableTo(fromUnder, toUnder) {
+				return e
+			} else {
+				ctx.unsupported(n, "function conversion from %s to %s", from, to)
+			}
+		}
+	}
+
 	ctx.unsupported(n, "(possibly implicit) conversion from %s to %s", from, to)
 	panic("unreachable")
 }
