@@ -2098,8 +2098,7 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 			if types.AssignableTo(fromUnder, toUnder) {
 				return e
 			} else {
-				panic("test")
-				// ctx.unsupported(n, "function conversion from %s to %s", from, to)
+				ctx.unsupported(n, "function conversion from %s to %s", from, to)
 			}
 		}
 	}
