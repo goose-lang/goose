@@ -45,12 +45,12 @@ func TestChan(t *testing.T) {
 			}
 			// Ensure that non-blocking receive does not block.
 
-			selected, _, _ := c.TryReceive()
+			selected, _, _ := c.TryReceive(false)
 			if selected {
 				t.Fatalf("chan[%d]: receive from empty chan", chanCap)
 			}
 
-			selected, _, _ = c.TryReceive()
+			selected, _, _ = c.TryReceive(false)
 			if selected {
 				t.Fatalf("chan[%d]: receive from empty chan", chanCap)
 			}
@@ -73,7 +73,7 @@ func TestChan(t *testing.T) {
 			if atomic.LoadUint32(&sent) != 0 {
 				t.Fatalf("chan[%d]: send to full chan", chanCap)
 			}
-			selected := c.TrySend(0)
+			selected := c.TrySend(0, false)
 			if selected {
 				t.Fatalf("chan[%d]: send to full chan", chanCap)
 			}
@@ -536,7 +536,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		ourChan := channel.NewChannelRef[int](1)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
-			ourChan.TrySend(42)
+			ourChan.TrySend(42, false)
 		})
 
 		// Compare results
@@ -572,7 +572,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		ourChan := channel.NewChannelRef[int](5)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
-			ourChan.TrySend(42)
+			ourChan.TrySend(42, false)
 		})
 
 		// Compare results
@@ -629,7 +629,7 @@ func TestNonblockRecvRace(t *testing.T) {
 		c := channel.NewChannelRef[uint64](1)
 		c.Send(1)
 		go func() {
-			selected, _, _ := c.TryReceive()
+			selected, _, _ := c.TryReceive(false)
 			if !selected {
 				t.Error("chan is not ready")
 			}
@@ -656,7 +656,7 @@ func TestMultiConsumer(t *testing.T) {
 		wg.Add(1)
 		go func(w uint64) {
 			for {
-				selected, val, ok := q.TryReceive()
+				selected, val, ok := q.TryReceive(false)
 				if !ok {
 					break
 				}
@@ -688,7 +688,7 @@ func TestMultiConsumer(t *testing.T) {
 	var n uint64 = 0
 	var s uint64 = 0
 	for {
-		selected, val, ok := r.TryReceive()
+		selected, val, ok := r.TryReceive(false)
 		if !ok {
 			break
 		}
@@ -818,7 +818,7 @@ func TestNonblockSelectRace(t *testing.T) {
 			done.Send(true)
 		}()
 		c2.Send(1)
-		c1.TryReceive()
+		c1.TryReceive(false)
 		val := done.ReceiveDiscardOk()
 		if !val {
 			t.Fatal("no chan is ready")
@@ -850,7 +850,7 @@ func TestNonblockSelectRace2(t *testing.T) {
 			done.Send(true)
 		}()
 		c2.Close()
-		c1.TryReceive()
+		c1.TryReceive(false)
 		val := done.ReceiveDiscardOk()
 		if !val {
 			t.Fatal("no chan is ready")
@@ -1317,5 +1317,48 @@ func TestSelect5(t *testing.T) {
 	}
 	if emptyCase4.Value != 0 {
 		t.Errorf("expected emptyCase4.Value=0 (zero value) for closed channel, got %v", emptyCase4.Value)
+	}
+}
+
+// Two non blocking selects should not match up.
+func Test2NBSelectNoProgress(t *testing.T) {
+	c1 := channel.NewChannelRef[uint64](uint64(0))
+	case_1 := channel.NewRecvCase(c1)
+	case_2 := channel.NewSendCase(c1, 0)
+
+	// Run the receiver loop in a goroutine
+	doneRecv := make(chan struct{})
+	go func() {
+		for {
+			selected := channel.Select1(case_1, false)
+			if selected {
+				break
+			}
+		}
+		close(doneRecv)
+	}()
+
+	// Run the sender loop in this goroutine
+	doneSend := make(chan struct{})
+	go func() {
+		for {
+			selected := channel.Select1(case_2, false)
+			if selected {
+				break
+			}
+		}
+		close(doneSend)
+	}()
+
+	// Use a timeout: test passes if both loops never make progress
+	timeout := time.After(2 * time.Second)
+
+	select {
+	case <-doneRecv:
+		t.Fatal("unexpected progress in recv loop: expected to block")
+	case <-doneSend:
+		t.Fatal("unexpected progress in send loop: expected to block")
+	case <-timeout:
+		// Good: timeout reached, nothing made progress
 	}
 }
