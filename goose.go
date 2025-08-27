@@ -1097,12 +1097,14 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 			ctx.handleImplicitConversion(e.X, xT, compType, ctx.expr(e.X)),
 			ctx.handleImplicitConversion(e.Y, yT, compType, ctx.expr(e.Y)),
 		)
-		if e.Op == token.NEQ {
+		switch e.Op {
+		case token.NEQ:
 			return glang.NotExpr{X: expr}
-		} else if e.Op == token.EQL {
+		case token.EQL:
 			return expr
-		} else {
-			ctx.nope(e, "unknown binary operation on interface objects")
+		default:
+			// can happen due to generic constraints with unions of concrete types
+			ctx.unsupported(e, "unknown binary operation on interface objects")
 		}
 	} else {
 		op, ok = generalOps[e.Op]

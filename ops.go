@@ -60,6 +60,8 @@ var signedIntOps = map[token.Token]glang.BinOp{
 	token.AND: glang.OpAnd,
 	token.OR:  glang.OpOr,
 	token.XOR: glang.OpXor,
+	token.QUO: glang.OpQuotS,
+	token.REM: glang.OpRemS,
 }
 
 var signedIntFns = map[token.Token]glang.Expr{
@@ -67,7 +69,6 @@ var signedIntFns = map[token.Token]glang.Expr{
 	token.GTR: glang.GallinaIdent("int_gt"),
 	token.LEQ: glang.GallinaIdent("int_leq"),
 	token.GEQ: glang.GallinaIdent("int_geq"),
-	token.QUO: glang.GallinaIdent("int_quot"),
 }
 
 var stringOps = map[token.Token]glang.BinOp{

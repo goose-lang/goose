@@ -491,7 +491,9 @@ const (
 	OpAppend
 	OpMul
 	OpQuot
+	OpQuotS
 	OpRem
+	OpRemS
 	OpAnd
 	OpOr
 	OpXor
@@ -517,7 +519,9 @@ func (be BinaryExpr) Coq(needs_paren bool) string {
 		OpAppend:        "+",
 		OpMul:           "*",
 		OpQuot:          "`quot`",
+		OpQuotS:         "`quots`",
 		OpRem:           "`rem`",
+		OpRemS:          "`rems`",
 		OpLessThan:      "<",
 		OpGreaterThan:   ">",
 		OpLessEq:        "≤",
