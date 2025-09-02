@@ -118,6 +118,14 @@ func sumSlice(xs []uint64) uint64 {
 	return sum
 }
 
+func intSliceLoop(xs []uint64) uint64 {
+	var sum uint64
+	for i := 0; i < len(xs); i++ {
+		sum += xs[i]
+	}
+	return sum
+}
+
 func breakFromLoop() {
 	for {
 		if true {
