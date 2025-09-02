@@ -275,6 +275,10 @@ func TestAllChannelTests(t *testing.T) {
 	chan_spec_raw_examples.BroadcastNotification()
 	chan_spec_raw_examples.CoordinatedChannelClose()
 	chan_spec_raw_examples.DoubleValues()
-	// If we get here, none of the functions panicked
+	chan_spec_raw_examples.CapPipeline()
+	chan_spec_raw_examples.SelectRace()
+	chan_spec_raw_examples.SendMessage()
+	chan_spec_raw_examples.LeakyBufferPipeline()
+	// If we get here, none of the functions panic
 	t.Log("All channel tests passed successfully!")
 }

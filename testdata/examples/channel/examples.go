@@ -1,6 +1,10 @@
 package chan_spec_raw_examples
 
-import "github.com/goose-lang/goose/model/channel"
+import (
+	"strings"
+
+	"github.com/goose-lang/goose/model/channel"
+)
 
 // These are hand-translated examples that will be useful for demonstrating
 // and adjusting specs prior to implementing translation.
@@ -225,5 +229,279 @@ func DoubleValues() {
 	// Check if values were doubled correctly
 	if !(val1 == 10 && val2 == 20 && val3 == 30) {
 		panic("Values were not doubled correctly")
+	}
+}
+
+// Equivalent runtime channel code:
+//
+//		func CapPipeline() string {
+//		    // Input data
+//		    input := []string{"hello", ",", " ", "world", "!"}
+//
+//		    // The pipe for the producer to send to the consumer.
+//		    // Buffer size does not matter for correctness.
+//		    data := make(chan string, 2)
+//
+//		    // Unbuffered channel to signal completion
+//		    join := make(chan struct{})
+//		    output := ""
+//
+//		    // Start goroutines
+//		    go producer(input, data)
+//		    go consumer(&output, data, join)
+//
+//		    // Wait for pipeline to be processed
+//		    <-join
+//	     	if output != "HELLO, WORLD!" {
+//				panic("test failed, plus you can't verify this!")
+//			}
+//		}
+func CapPipeline() {
+	// Input data
+	input := []string{"hello", ",", " ", "world", "!"}
+
+	// The pipe for the producer to send to the consumer.
+	// Buffer size does not matter for correctness.
+	data := channel.NewChannelRef[string](2)
+
+	// Unbuffered channel to signal completion
+	join := channel.NewChannelRef[struct{}](0)
+	output := ""
+
+	// Start goroutines
+	go producer(input, data)
+	go consumer(&output, data, join)
+
+	// Wait for pipeline to be processed
+	join.ReceiveDiscardOk()
+	if output != "HELLO, WORLD!" {
+		panic("test failed, plus you can't verify this!")
+	}
+}
+
+// Equivalent runtime channel Go code:
+//
+//	func producer(input []string, data chan<- string) {
+//	    // Send each item
+//	    for _, item := range input {
+//	        data <- item
+//	    }
+//	    // Signal producer we’ve sent everything
+//	    close(data)
+//	}
+func producer(input []string, data *channel.Channel[string]) {
+	// Send each item
+	for _, item := range input {
+		data.Send(item)
+	}
+	// Signal consumer we’ve sent everything
+	data.Close()
+}
+
+// Equivalent runtime channel Go code:
+//
+//	func consumer(output *string, data <-chan string, join chan<- struct{}) {
+//	    // Keep receiving until channel is closed
+//	    for item := range data {
+//	        *output += strings.ToUpper(item)
+//	    }
+//
+//	    // Tell main we’re done
+//	    join <- struct{}{}
+//	}
+func consumer(output *string, data *channel.Channel[string], join *channel.Channel[struct{}]) {
+	// Keep receiving until channel is closed(this is the model's range for loop).
+	for {
+		item, ok := data.Receive()
+		if !ok {
+			break
+		}
+		*output += strings.ToUpper(item)
+	}
+
+	// Tell main we’re done
+	join.Send(struct{}{})
+}
+
+// Equivalent Go code:
+//
+//	func SelectRace() {
+//	    alice := make(chan string, 1)
+//	    bob := make(chan string, 1)
+//	    result := ""
+//
+//	    // 2 goroutines race to write result and notify main that they won.
+//	    // The loser's message will be ignored.
+//	    go func() { alice <- "Alice wins" }()
+//	    go func() { bob <- "Bob wins" }()
+//
+//	    select {
+//	    case msg := <-alice:
+//	        result = msg
+//	    case msg := <-bob:
+//	        result = msg
+//	    }
+//
+//	    if !(result == "Alice wins" || result == "Bob wins") {
+//	        panic("test failed, plus you can't verify this!")
+//	    }
+//	}
+func SelectRace() {
+	alice := channel.NewChannelRef[string](1)
+	bob := channel.NewChannelRef[string](1)
+	result := ""
+
+	// 2 goroutines race to write result and notify main that they won.
+	// The loser's message will be ignored.
+	go func() { alice.Send("Alice wins") }()
+	go func() { bob.Send("Bob wins") }()
+
+	alice_case := channel.NewRecvCase(alice)
+	bob_case := channel.NewRecvCase(bob)
+	winner := channel.Select2(alice_case, bob_case, true)
+	switch winner {
+	case 0:
+		result = alice_case.Value
+	case 1:
+		result = bob_case.Value
+	}
+
+	if !(result == "Alice wins" || result == "Bob wins") {
+		panic("test failed, plus you can't verify this!")
+	}
+}
+
+// The example below is a minimal use of the
+// https://go.dev/doc/effective_go#leaky_buffer pattern
+
+// load writes the next letter into the buffer.
+func load(b *[]byte, letter string) {
+	*b = []byte(letter)
+}
+
+// process consumes the buffer and appends it to the output.
+func process(b *[]byte, output *string) {
+	*output += strings.ToUpper(string(*b))
+}
+
+// Equivalent Go runtime channel code:
+//
+//	func client(input []string, freeList chan []byte, serverChan chan []byte) {
+//		for _, letter := range input {
+//			var b []byte
+//
+//			// Non-blocking receive from freeList.
+//			select {
+//			case b = <-freeList:
+//				// Reuse buffer from pool.
+//			default:
+//				// Allocate a new minimal buffer.
+//				b = []byte{0}
+//			}
+//
+//			load(&b, letter) // Put one letter into the buffer.
+//			serverChan <- b  // Blocking send to server.
+//		}
+//
+//		// Signal no more work.
+//		close(serverChan)
+//	}
+func client(input []string, freeList *channel.Channel[[]byte], serverChan *channel.Channel[[]byte]) {
+	for _, letter := range input {
+		var b []byte
+		// Non-blocking receive from freeList using Select1(case, false).
+		rc := channel.NewRecvCase(freeList)
+		if channel.Select1(rc, false) {
+			// Selected: reuse buffer from pool.
+			b = rc.Value
+		} else { // sel == -1 ⇒ not selected
+			// Allocate a new minimal buffer.
+			b = []byte{0}
+		}
+		load(&b, letter)   // Put one letter into the buffer.
+		serverChan.Send(b) // Send to server (blocks for unbuffered).
+	}
+	// Signal no more work.
+	serverChan.Close()
+}
+
+// Equivalent Go runtime code:
+//
+//	func server(output *string, freeList chan []byte, serverChan chan []byte, done chan struct{}) {
+//		for {
+//			// Blocking receive from serverChan.
+//			b, ok := <-serverChan
+//			if !ok {
+//				// Channel closed and drained.
+//				done <- struct{}{}
+//				return
+//			}
+//
+//			process(&b, output)
+//
+//			// Non-blocking return of buffer to freeList; drop if pool full.
+//			select {
+//			case freeList <- b:
+//				// Returned to pool.
+//			default:
+//				// Pool full; drop buffer.
+//			}
+//		}
+//	}
+func server(output *string, freeList *channel.Channel[[]byte], serverChan *channel.Channel[[]byte], join *channel.Channel[struct{}]) {
+	for {
+
+		// Blocking receive from serverChan.
+		b, ok := serverChan.Receive()
+
+		// If channel is closed and drained, exit.
+		if !ok {
+			// Tell main we're done.
+			join.Send(struct{}{})
+			return
+		}
+
+		process(&b, output)
+
+		// Non-blocking return of buffer to freeList; drop if pool full.
+		sc := channel.NewSendCase(freeList, b)
+		channel.Select1(sc, false)
+
+	}
+}
+
+// Equivalent Go runtime code:
+//
+//	func LeakyBufferPipeline() {
+//		freeList := make(chan []byte, 5) // buffer pool
+//		serverChan := make(chan []byte, 0)
+//		done := make(chan struct{}, 0)
+//
+//		output := ""
+//
+//		go server(&output, freeList, serverChan, done)
+//		client([]string{"h", "e", "l", "l", "o", ",", " ", "w", "o", "r", "l", "d"}, freeList, serverChan)
+//		<-done
+//
+//		// At this point, server finished because client closed serverChan.
+//		if output != "HELLO, WORLD" {
+//			panic("unexpected pipeline output: " + output)
+//		}
+//	}
+func LeakyBufferPipeline() {
+	freeList := channel.NewChannelRef[[]byte](0) // buffer pool
+	serverChan := channel.NewChannelRef[[]byte](0)
+	join := channel.NewChannelRef[struct{}](0)
+
+	output := ""
+
+	go server(&output, freeList, serverChan, join)
+	client([]string{"h", "e", "l", "l", "o", ",", " ", "w", "o", "r", "l", "d"}, freeList, serverChan)
+	// Wait for processing to finish
+	join.Receive()
+
+	// At this point, server finished because client closed serverChan.
+	if output != "HELLO, WORLD" {
+		panic("unexpected pipeline output: " + output)
 	}
 }
