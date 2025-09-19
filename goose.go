@@ -835,6 +835,17 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		methodExpr := glang.NewStringVal(e.Sel.Name)
 
 		// figure out if this is shorthand for (&x).m().
+		// > If x is addressable and &x's method set contains m, x.m() is shorthand for (&x).m():
+		if ctx.info.Types[e.X].Addressable() {
+			mset := types.NewMethodSet(types.NewPointer(ctx.typeOf(e.X)))
+			for i := range mset.Len() {
+				if mset.At(i).Obj().Name() == e.Sel.Name {
+					receiver = ctx.exprAddr(e.X)
+					typeIdExpr = glang.StringVal{Value: ctx.typeId(e.X, types.NewPointer(receiverType))}
+				}
+			}
+		}
+
 		methodReceiverType := types.Unalias(f.Signature().Recv().Type())
 		if p, ok := methodReceiverType.(*types.Pointer); ok {
 			if types.Identical(p.Elem(), receiverType) {
