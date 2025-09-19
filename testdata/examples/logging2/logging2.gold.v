@@ -76,7 +76,7 @@ Definition Initⁱᵐᵖˡ : val :=
     }]) in
     do:  ("log" <-[#Log] "$r0");;;
     do:  (let: "$a0" := #(W64 0) in
-    (method_call #Log.id #"writeHdr"%go (![#Log] "log")) "$a0");;;
+    (method_call #(ptrT.id Log.id) #"writeHdr"%go "log") "$a0");;;
     return: (![#Log] "log")).
 
 (* go: logging2.go:45:16 *)
@@ -122,11 +122,11 @@ Definition Log__Readⁱᵐᵖˡ : val :=
     exception_do (let: "log" := (mem.alloc "log") in
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Lock"%go (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #());;;
     let: "disklen" := (mem.alloc (type.zero_val #uint64T)) in
-    let: "$r0" := ((method_call #Log.id #"readHdr"%go (![#Log] "log")) #()) in
+    let: "$r0" := ((method_call #(ptrT.id Log.id) #"readHdr"%go "log") #()) in
     do:  ("disklen" <-[#uint64T] "$r0");;;
     let: "blks" := (mem.alloc (type.zero_val #sliceT)) in
     let: "$r0" := (let: "$a0" := (![#uint64T] "disklen") in
-    (method_call #Log.id #"readBlocks"%go (![#Log] "log")) "$a0") in
+    (method_call #(ptrT.id Log.id) #"readBlocks"%go "log") "$a0") in
     do:  ("blks" <-[#sliceT] "$r0");;;
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Unlock"%go (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #());;;
     return: (![#sliceT] "blks")).
@@ -197,7 +197,7 @@ Definition Log__diskAppendWaitⁱᵐᵖˡ : val :=
     let: "txn" := (mem.alloc "txn") in
     (for: (λ: <>, #true); (λ: <>, #()) := λ: <>,
       let: "logtxn" := (mem.alloc (type.zero_val #uint64T)) in
-      let: "$r0" := ((method_call #Log.id #"readLogTxnNxt"%go (![#Log] "log")) #()) in
+      let: "$r0" := ((method_call #(ptrT.id Log.id) #"readLogTxnNxt"%go "log") #()) in
       do:  ("logtxn" <-[#uint64T] "$r0");;;
       (if: (![#uint64T] "txn") < (![#uint64T] "logtxn")
       then break: #()
@@ -213,7 +213,7 @@ Definition Log__Appendⁱᵐᵖˡ : val :=
     let: "txn" := (mem.alloc (type.zero_val #uint64T)) in
     let: "ok" := (mem.alloc (type.zero_val #boolT)) in
     let: ("$ret0", "$ret1") := (let: "$a0" := (![#sliceT] "l") in
-    (method_call #Log.id #"memAppend"%go (![#Log] "log")) "$a0") in
+    (method_call #(ptrT.id Log.id) #"memAppend"%go "log") "$a0") in
     let: "$r0" := "$ret0" in
     let: "$r1" := "$ret1" in
     do:  ("ok" <-[#boolT] "$r0");;;
@@ -221,7 +221,7 @@ Definition Log__Appendⁱᵐᵖˡ : val :=
     (if: ![#boolT] "ok"
     then
       do:  (let: "$a0" := (![#uint64T] "txn") in
-      (method_call #Log.id #"diskAppendWait"%go (![#Log] "log")) "$a0")
+      (method_call #(ptrT.id Log.id) #"diskAppendWait"%go "log") "$a0")
     else do:  #());;;
     return: (![#boolT] "ok")).
 
@@ -253,7 +253,7 @@ Definition Log__diskAppendⁱᵐᵖˡ : val :=
     exception_do (let: "log" := (mem.alloc "log") in
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Lock"%go (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #());;;
     let: "disklen" := (mem.alloc (type.zero_val #uint64T)) in
-    let: "$r0" := ((method_call #Log.id #"readHdr"%go (![#Log] "log")) #()) in
+    let: "$r0" := ((method_call #(ptrT.id Log.id) #"readHdr"%go "log") #()) in
     do:  ("disklen" <-[#uint64T] "$r0");;;
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Lock"%go (![#ptrT] (struct.field_ref #Log #"memLock"%go "log"))) #());;;
     let: "memlen" := (mem.alloc (type.zero_val #uint64T)) in
@@ -272,9 +272,9 @@ Definition Log__diskAppendⁱᵐᵖˡ : val :=
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Unlock"%go (![#ptrT] (struct.field_ref #Log #"memLock"%go "log"))) #());;;
     do:  (let: "$a0" := (![#sliceT] "blks") in
     let: "$a1" := (![#uint64T] "disklen") in
-    (method_call #Log.id #"writeBlocks"%go (![#Log] "log")) "$a0" "$a1");;;
+    (method_call #(ptrT.id Log.id) #"writeBlocks"%go "log") "$a0" "$a1");;;
     do:  (let: "$a0" := (![#uint64T] "memlen") in
-    (method_call #Log.id #"writeHdr"%go (![#Log] "log")) "$a0");;;
+    (method_call #(ptrT.id Log.id) #"writeHdr"%go "log") "$a0");;;
     let: "$r0" := (![#uint64T] "memnxt") in
     do:  ((![#ptrT] (struct.field_ref #Log #"logTxnNxt"%go "log")) <-[#uint64T] "$r0");;;
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Unlock"%go (![#ptrT] (struct.field_ref #Log #"logLock"%go "log"))) #());;;
@@ -285,7 +285,7 @@ Definition Log__Loggerⁱᵐᵖˡ : val :=
   λ: "log" <>,
     exception_do (let: "log" := (mem.alloc "log") in
     (for: (λ: <>, #true); (λ: <>, #()) := λ: <>,
-      do:  ((method_call #Log.id #"diskAppend"%go (![#Log] "log")) #()));;;
+      do:  ((method_call #(ptrT.id Log.id) #"diskAppend"%go "log") #()));;;
     return: #()).
 
 Definition Txn : go_type := structT [
@@ -382,7 +382,7 @@ Definition Txn__Commitⁱᵐᵖˡ : val :=
       do:  ((![#ptrT] "blks") <-[#sliceT] "$r0")));;;
     let: "ok" := (mem.alloc (type.zero_val #boolT)) in
     let: "$r0" := (let: "$a0" := (![#sliceT] (![#ptrT] "blks")) in
-    (method_call #Log.id #"Append"%go (![#Log] (![#ptrT] (struct.field_ref #Txn #"log"%go "txn")))) "$a0") in
+    (method_call #(ptrT.id Log.id) #"Append"%go (![#ptrT] (struct.field_ref #Txn #"log"%go "txn"))) "$a0") in
     do:  ("ok" <-[#boolT] "$r0");;;
     return: (![#boolT] "ok")).
 
