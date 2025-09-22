@@ -8,14 +8,14 @@ import (
 
 // Type represents some Go type.
 type Type interface {
-	// Coq generates the GooseLang code for a type
+	// Coq returns the GooseLang code for a type
 	Coq(needs_paren bool) string
-	// Gallina generates the Gallina version of a type (for use in proofs)
+	// Gallina returns the Gallina version of a type (for use in proofs)
 	Gallina(needs_paren bool) string
 }
 
-// GallinaType converts a Type to an Expr that converts using the Gallina form
-// of the type
+// GallinaType converts a Type to an Expr that is translated using the Gallina
+// form of the type.
 type GallinaType struct {
 	Ty Type
 }
@@ -24,7 +24,6 @@ func (t GallinaType) Coq(needs_paren bool) string {
 	return t.Ty.Gallina(needs_paren)
 }
 
-// TODO: this is only used in one place. Delete?
 type TypeCallExpr struct {
 	MethodName Expr
 	Args       []Type

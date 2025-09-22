@@ -187,17 +187,26 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 
 			// Determine how many type parameters there are, since they need to
 			// be (sort of) eta-expanded before the "$r".
-			var params []glang.Binder
-			var args []glang.Type
+			params := []glang.Binder{{Name: "$r"}}
+
+			// FIXME: can't pass typeArgs into the NewCallExpr. The abstraction
+			// of Exprs and Types doesn't match what the translation needs. The
+			// translation requires GooseLang functions that take some value
+			// arguments followed by type arguments (e.g. method translation).
+			// Seems better to get rid of that distinction.
+			var typeArgs []glang.Type
+			var args []glang.Expr
 			for i := range t.TypeParams().Len() {
 				params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
-				args = append(args, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+				typeArgs = append(typeArgs, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+				args = append(args, glang.IdentExpr(fmt.Sprintf("$T%d", i)))
 			}
-			params = append(params, glang.Binder{Name: "$r"})
 
-			var ty glang.Type = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
-			if len(args) > 0 {
-				ty = glang.NewTypeCallExpr(ty, args...)
+			var ty glang.Type
+			if len(typeArgs) > 0 {
+				ty = glang.NewTypeCallExpr(glang.GallinaIdent(ctx.qualifiedName(t.Obj())), typeArgs...)
+			} else {
+				ty = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 			}
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
@@ -211,7 +220,7 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 							ty,
 							glang.NewStringVal(field.Name()),
 							glang.IdentExpr("$r"),
-						),
+						).Append(args...),
 					),
 				}})
 		}
@@ -239,17 +248,20 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 
 		// Determine how many type parameters there are, since they need to
 		// be (sort of) eta-expanded before the "$r".
-		var params []glang.Binder
-		var args []glang.Type
+		params := []glang.Binder{{Name: "$r"}}
+		var typeArgs []glang.Type
+		var args []glang.Expr
 		for i := range t.TypeParams().Len() {
 			params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
-			args = append(args, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+			typeArgs = append(typeArgs, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+			args = append(args, glang.IdentExpr(fmt.Sprintf("$T%d", i)))
 		}
-		params = append(params, glang.Binder{Name: "$r"})
 
-		var ty glang.Type = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
-		if len(args) > 0 {
-			ty = glang.NewTypeCallExpr(glang.TypeIdent(ctx.qualifiedName(t.Obj())), args...)
+		var ty glang.Type
+		if len(typeArgs) > 0 {
+			ty = glang.NewTypeCallExpr(glang.GallinaIdent(ctx.qualifiedName(t.Obj())), typeArgs...)
+		} else {
+			ty = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
 		}
 
 		if len(index) == 0 {
@@ -269,7 +281,7 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 							X:  glang.IdentExpr("$r"),
 							Ty: ty,
 						},
-					),
+					).Append(args...),
 				}})
 			}
 		} else {
@@ -311,7 +323,7 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 						glang.StringVal{Value: ctx.typeId(field, fieldType)},
 						glang.NewStringVal(methodName),
 						fieldExpr,
-					),
+					).Append(args...),
 				}})
 		}
 	}
