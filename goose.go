@@ -181,16 +181,34 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 				ctx.nope(t.Obj(), "type with embedded method should be a struct")
 			}
 			field := structType.Field(index[0])
+			if _, ok := field.Type().Underlying().(*types.Interface); ok {
+				ctx.unsupported(field, "method set for type containing embedded interface")
+			}
+
+			// Determine how many type parameters there are, since they need to
+			// be (sort of) eta-expanded before the "$r".
+			var params []glang.Binder
+			var args []glang.Type
+			for i := range t.TypeParams().Len() {
+				params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
+				args = append(args, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+			}
+			params = append(params, glang.Binder{Name: "$r"})
+
+			var ty glang.Type = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
+			if len(args) > 0 {
+				ty = glang.NewTypeCallExpr(ty, args...)
+			}
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
-					Args: []glang.Binder{{Name: "$r"}},
+					Args: params,
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(field, field.Type())},
 						glang.NewStringVal(methodName),
 						glang.NewCallExpr(
 							glang.GallinaVerbatim("struct.field_get"),
-							ctx.glangType(t.Obj(), t),
+							ty,
 							glang.NewStringVal(field.Name()),
 							glang.IdentExpr("$r"),
 						),
@@ -219,6 +237,21 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 			continue
 		}
 
+		// Determine how many type parameters there are, since they need to
+		// be (sort of) eta-expanded before the "$r".
+		var params []glang.Binder
+		var args []glang.Type
+		for i := range t.TypeParams().Len() {
+			params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
+			args = append(args, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
+		}
+		params = append(params, glang.Binder{Name: "$r"})
+
+		var ty glang.Type = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
+		if len(args) > 0 {
+			ty = glang.NewTypeCallExpr(glang.TypeIdent(ctx.qualifiedName(t.Obj())), args...)
+		}
+
 		if len(index) == 0 {
 			ctx.nope(t.Obj(), "expected non-empty index in methodSet translation")
 		} else if len(index) == 1 {
@@ -227,14 +260,14 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 				add(methodName, ctx.gallinaIdent(glang.TypeMethod(typeName, methodName)))
 			} else {
 				add(methodName, glang.ValueScoped{Value: glang.FuncLit{
-					Args: []glang.Binder{{Name: "$r"}},
+					Args: params,
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(t.Obj(), t)},
 						methodKey,
 						glang.DerefExpr{
 							X:  glang.IdentExpr("$r"),
-							Ty: ctx.glangType(t.Obj(), t),
+							Ty: ty,
 						},
 					),
 				}})
@@ -245,6 +278,11 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 				ctx.nope(t.Obj(), "type with embedded method should be a struct")
 			}
 			field := structType.Field(index[0])
+
+			if _, ok := field.Type().Underlying().(*types.Interface); ok {
+				ctx.unsupported(field, "method set for type containing embedded interface")
+			}
+
 			var fieldType types.Type = types.NewPointer(field.Type())
 			var fieldExpr glang.Expr = glang.NewCallExpr(
 				glang.GallinaVerbatim("struct.field_ref"),
@@ -262,9 +300,12 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 				fieldType = field.Type()
 			}
 
+			if t.TypeParams().Len() > 0 {
+				ctx.unsupported(field, "embedded method with generics")
+			}
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
-					Args: []glang.Binder{{Name: "$r"}},
+					Args: params,
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(field, fieldType)},
@@ -818,7 +859,7 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		// 2*2 cases: receiver type could be (T) or (*T), and e.X type
 		// (including embedded fields) could be (T) or (*T).
 
-		if info, ok := ctx.getInterfaceInfo(ctx.typeOf(e.X)); ok {
+		if info, ok := ctx.getInterfaceInfo(types.Unalias(ctx.typeOf(e.X))); ok {
 			var expr = ctx.expr(e.X)
 			if info.throughPointer {
 				ctx.nope(e, "cannot call method because receiver is pointer to interface, not interface")
@@ -1595,6 +1636,11 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 
 func (ctx *Ctx) typeAssertExpr(e *ast.TypeAssertExpr, multipleBindings bool) glang.Expr {
 	ty := ctx.typeOf(e.Type)
+
+	if _, ok := ty.Underlying().(*types.Interface); ok {
+		ctx.unsupported(e, "type assertion to an interface type")
+	}
+
 	typeIdent := glang.StringVal{Value: ctx.typeId(e, ty)}
 	if multipleBindings {
 		return glang.NewCallExpr(glang.GallinaVerbatim("interface.checked_type_assert"),
@@ -2571,6 +2617,9 @@ func (ctx *Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, cont glang.Expr) (e glang.
 						glang.GallinaVerbatim("#interface.nil"),
 					)
 				} else {
+					if _, ok := ty.Underlying().(*types.Interface); ok {
+						ctx.unsupported(c.List[i], "type switch to an interface type")
+					}
 					return glang.NewCallExpr(glang.GallinaVerbatim("Snd"),
 						glang.NewCallExpr(glang.GallinaVerbatim("interface.checked_type_assert"),
 							ctx.glangType(c.List[i], ty),
@@ -2600,6 +2649,9 @@ func (ctx *Ctx) typeSwitchStmt(s *ast.TypeSwitchStmt, cont glang.Expr) (e glang.
 					Cont: e,
 				}
 			} else {
+				if _, ok := ty.Underlying().(*types.Interface); ok {
+					ctx.unsupported(c.List[0], "type switch to an interface type")
+				}
 				e = glang.LetExpr{
 					Names: []string{"$x", "$ok"},
 					ValExpr: glang.NewCallExpr(glang.GallinaVerbatim("interface.checked_type_assert"),

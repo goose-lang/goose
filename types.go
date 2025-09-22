@@ -157,6 +157,9 @@ func (ctx *Ctx) typeId(location locatable, t types.Type) glang.Expr {
 			return nil
 		}
 	case *types.Named:
+		if _, ok := t.Underlying().(*types.Interface); ok {
+			ctx.nope(location, "types with underlying interface types do not have a typeId")
+		}
 		typeIdIdent := glang.GallinaIdent(ctx.qualifiedName(t.Obj())).Coq(false) + ".id"
 		ctx.dep.Add(typeIdIdent)
 		return glang.GallinaVerbatim(typeIdIdent)
