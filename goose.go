@@ -132,12 +132,18 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 	goMset := types.NewMethodSet(t)
 
 	var mset glang.ListExpr
-	var params []string
 	if t.TypeArgs() != nil {
-		ctx.nope(t.Obj(), "expected no type args when making method set")
+		ctx.nope(t.Obj(), "expected no type args (only type params) when making method set")
 	}
-	for i := range t.TypeParams().Len() {
-		params = append(params, t.TypeParams().At(i).Obj().Name())
+
+	var ty glang.Expr = glang.GallinaIdent(typeName)
+	if t.TypeParams().Len() > 0 {
+		tyCall := glang.NewCallExpr(ty)
+		for i := range t.TypeParams().Len() {
+			tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
+				glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
+		}
+		ty = tyCall
 	}
 
 	add := func(methodName string, x glang.Expr) {
@@ -168,17 +174,17 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
-					Args: params,
+					Args: []glang.Binder{{Name: "$r0"}},
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(field, field.Type())},
 						glang.NewStringVal(methodName),
 						glang.NewCallExpr(
 							glang.GallinaVerbatim("struct.field_get"),
-							,
+							ty,
 							glang.NewStringVal(field.Name()),
 							glang.IdentExpr("$r"),
-						).Append(args...),
+						),
 					),
 				}})
 		}
@@ -204,22 +210,14 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 			continue
 		}
 
-		// Determine how many type parameters there are, since they need to
-		// be (sort of) eta-expanded before the "$r".
-		params := []glang.Binder{{Name: "$r"}}
-		var typeArgs []glang.Type
-		var args []glang.Expr
-		for i := range t.TypeParams().Len() {
-			params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
-			typeArgs = append(typeArgs, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
-			args = append(args, glang.IdentExpr(fmt.Sprintf("$T%d", i)))
-		}
-
-		var ty glang.Type
-		if len(typeArgs) > 0 {
-			ty = glang.NewTypeCallExpr(glang.GallinaIdent(ctx.qualifiedName(t.Obj())), typeArgs...)
-		} else {
-			ty = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
+		var ty glang.Expr = glang.GallinaIdent(typeName)
+		if t.TypeParams().Len() > 0 {
+			tyCall := glang.NewCallExpr(ty)
+			for i := range t.TypeParams().Len() {
+				tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
+					glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
+			}
+			ty = tyCall
 		}
 
 		if len(index) == 0 {
@@ -230,7 +228,7 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 				add(methodName, ctx.gallinaIdent(glang.TypeMethod(typeName, methodName)))
 			} else {
 				add(methodName, glang.ValueScoped{Value: glang.FuncLit{
-					Args: params,
+					Args: []glang.Binder{{Name: "$r0"}},
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(t.Obj(), t)},
@@ -239,7 +237,7 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 							X:  glang.IdentExpr("$r"),
 							Ty: ty,
 						},
-					).Append(args...),
+					),
 				}})
 			}
 		} else {
@@ -275,14 +273,13 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 			}
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
-					Args: params,
+					Args: []glang.Binder{{Name: "$r0"}},
 					Body: glang.NewCallExpr(
 						glang.GallinaVerbatim("method_call"),
 						glang.StringVal{Value: ctx.typeId(field, fieldType)},
 						glang.NewStringVal(methodName),
 						fieldExpr,
-					).Append(args...),
-				}})
+					)}})
 		}
 	}
 	return mset
