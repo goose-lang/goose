@@ -346,7 +346,7 @@ type fieldVal struct {
 
 // A StructLiteral represents a record literal construction using name fields.
 type StructLiteral struct {
-	StructType Type
+	StructType Expr
 	Elts       []fieldVal
 }
 
@@ -358,7 +358,7 @@ func (sl *StructLiteral) AddField(field string, value Expr) {
 func (sl StructLiteral) Coq(needs_paren bool) string {
 	var pp buffer
 	method := "struct.make"
-	pp.Add("%s %s [{", method, GolangTypeExpr(sl.StructType).Coq(true))
+	pp.Add("%s %s [{", method, sl.StructType.Coq(true))
 	pp.Indent(2)
 	for i, f := range sl.Elts {
 		terminator := ";"
@@ -603,11 +603,11 @@ func (le ListExpr) Coq(needs_paren bool) string {
 
 type DerefExpr struct {
 	X  Expr
-	Ty Type
+	Ty Expr
 }
 
 func (e DerefExpr) Coq(needs_paren bool) string {
-	expr := fmt.Sprintf("![%s] %s", GolangTypeExpr(e.Ty).Coq(false), e.X.Coq(true))
+	expr := fmt.Sprintf("![%s] %s", e.Ty.Coq(false), e.X.Coq(true))
 	return addParens(needs_paren, expr)
 }
 
@@ -621,12 +621,12 @@ func (e RefExpr) Coq(needs_paren bool) string {
 
 type StoreStmt struct {
 	Dst Expr
-	Ty  Type
+	Ty  Expr
 	X   Expr
 }
 
 func (e StoreStmt) Coq(needs_paren bool) string {
-	expr := fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(true), GolangTypeExpr(e.Ty).Coq(false), e.X.Coq(true))
+	expr := fmt.Sprintf("%s <-[%s] %s", e.Dst.Coq(true), e.Ty.Coq(false), e.X.Coq(true))
 	return addParens(needs_paren, expr)
 }
 

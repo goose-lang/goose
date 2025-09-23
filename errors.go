@@ -141,12 +141,6 @@ func (r errorReporter) noExample(n locatable, msg string, args ...interface{}) {
 	r.prefixed("impossible(no-examples)", n, msg, args...)
 }
 
-// futureWork reports something we could theoretically handle but probably
-// won't.
-func (r errorReporter) futureWork(n locatable, msg string, args ...interface{}) {
-	r.prefixed("future", n, msg, args...)
-}
-
 // todo reports a situation that is intended to be handled but we haven't gotten
 // around to.
 func (r errorReporter) todo(n locatable, msg string, args ...interface{}) {

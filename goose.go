@@ -103,35 +103,9 @@ func (ctx *Ctx) paramList(fs *ast.FieldList) []glang.Binder {
 	return decls
 }
 
-func isAnyConstraint(expr ast.Expr) bool {
-	ident, ok := expr.(*ast.Ident)
-	return ok && ident.Name == "any"
-}
-
 func (ctx *Ctx) gallinaIdent(x string) glang.Expr {
 	ctx.dep.Add(x)
 	return glang.GallinaIdent(x)
-}
-
-func (ctx *Ctx) typeParamList(fs *ast.FieldList) []glang.TypeIdent {
-	var typeParams []glang.TypeIdent
-	if fs == nil {
-		return nil
-	}
-	for _, f := range fs.List {
-		for _, name := range f.Names {
-			typeParams = append(typeParams, glang.TypeIdent(name.Name))
-		}
-
-		if !isAnyConstraint(f.Type) {
-			ctx.futureWork(fs, "generic non any type")
-		}
-
-		if len(f.Names) == 0 { // Unnamed parameter
-			ctx.unsupported(fs, "unnamed type parameters")
-		}
-	}
-	return typeParams
 }
 
 func addSourceDoc(doc *ast.CommentGroup, comment *string) {
@@ -158,6 +132,13 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 	goMset := types.NewMethodSet(t)
 
 	var mset glang.ListExpr
+	var params []string
+	if t.TypeArgs() != nil {
+		ctx.nope(t.Obj(), "expected no type args when making method set")
+	}
+	for i := range t.TypeParams().Len() {
+		params = append(params, t.TypeParams().At(i).Obj().Name())
+	}
 
 	add := func(methodName string, x glang.Expr) {
 		mset = append(mset, glang.TupleExpr{glang.StringLiteral{Value: methodName}, x})
@@ -185,29 +166,6 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 				ctx.unsupported(field, "method set for type containing embedded interface")
 			}
 
-			// Determine how many type parameters there are, since they need to
-			// be (sort of) eta-expanded before the "$r".
-			params := []glang.Binder{{Name: "$r"}}
-
-			// FIXME: can't pass typeArgs into the NewCallExpr. The abstraction
-			// of Exprs and Types doesn't match what the translation needs. The
-			// translation requires GooseLang functions that take some value
-			// arguments followed by type arguments (e.g. method translation).
-			// Seems better to get rid of that distinction.
-			var typeArgs []glang.Type
-			var args []glang.Expr
-			for i := range t.TypeParams().Len() {
-				params = append(params, glang.Binder{Name: fmt.Sprintf("$T%d", i)})
-				typeArgs = append(typeArgs, glang.GooseLangTypeIdent(fmt.Sprintf("$T%d", i)))
-				args = append(args, glang.IdentExpr(fmt.Sprintf("$T%d", i)))
-			}
-
-			var ty glang.Type
-			if len(typeArgs) > 0 {
-				ty = glang.NewTypeCallExpr(glang.GallinaIdent(ctx.qualifiedName(t.Obj())), typeArgs...)
-			} else {
-				ty = glang.TypeIdent(ctx.qualifiedName(t.Obj()))
-			}
 			add(methodName,
 				glang.ValueScoped{Value: glang.FuncLit{
 					Args: params,
@@ -217,7 +175,7 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 						glang.NewStringVal(methodName),
 						glang.NewCallExpr(
 							glang.GallinaVerbatim("struct.field_get"),
-							ty,
+							,
 							glang.NewStringVal(field.Name()),
 							glang.IdentExpr("$r"),
 						).Append(args...),
@@ -370,7 +328,7 @@ func (ctx *Ctx) sliceLiteralAux(es []exprWithInfo, expectedType types.Type) glan
 			sliceLitArgs = append(sliceLitArgs, glang.IdentExpr(fmt.Sprintf("$sl%d", i)))
 		}
 		expr = glang.NewCallExpr(glang.GallinaVerbatim("slice.literal"),
-			glang.GolangTypeExpr(ctx.glangType(es[0].n, expectedType)),
+			ctx.glangType(es[0].n, expectedType),
 			glang.ListExpr(sliceLitArgs))
 
 		for i := len(es); i > 0; i-- {
@@ -418,7 +376,7 @@ func (ctx *Ctx) arrayLiteral(e *ast.CompositeLit, expectedType types.Type) glang
 			} else {
 				for int64(len(arrayElements)) < index {
 					arrayElements = append(arrayElements,
-						glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(ctx.glangType(e, expectedType))),
+						glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), ctx.glangType(e, expectedType)),
 					)
 				}
 				arrayElements = append(arrayElements, elt)
@@ -461,8 +419,8 @@ func (ctx *Ctx) mapLiteral(e *ast.CompositeLit, keyType, valueType types.Type) g
 				glang.IdentExpr(fmt.Sprintf("$v%d", i))))
 	}
 	var expr glang.Expr = glang.NewCallExpr(glang.GallinaVerbatim("map.literal"),
-		glang.GolangTypeExpr(ctx.glangType(e.Type, keyType)),
-		glang.GolangTypeExpr(ctx.glangType(e.Type, valueType)),
+		ctx.glangType(e.Type, keyType),
+		ctx.glangType(e.Type, valueType),
 		glang.ListExpr(mapLitArgs))
 
 	for i := len(e.Elts); i > 0; i-- {
@@ -640,10 +598,10 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			elt := ctx.glangType(s.Fun, ty.Elem())
 			switch sig.Params().Len() {
 			case 2:
-				return glang.NewCallExpr(glang.GallinaVerbatim("slice.make2"), glang.GolangTypeExpr(elt),
+				return glang.NewCallExpr(glang.GallinaVerbatim("slice.make2"), elt,
 					ctx.expr(s.Args[1])), true
 			case 3:
-				return glang.NewCallExpr(glang.GallinaVerbatim("slice.make3"), glang.GolangTypeExpr(elt),
+				return glang.NewCallExpr(glang.GallinaVerbatim("slice.make3"), elt,
 					ctx.expr(s.Args[1]), ctx.expr(s.Args[2])), true
 			default:
 				ctx.nope(s, "Too many or too few arguments in slice construction")
@@ -651,8 +609,8 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			}
 		case *types.Map:
 			return glang.NewCallExpr(glang.GallinaVerbatim("map.make"),
-				glang.GolangTypeExpr(ctx.glangType(s.Args[0], ty.Key())),
-				glang.GolangTypeExpr(ctx.glangType(s.Args[0], ty.Elem()))), true
+				ctx.glangType(s.Args[0], ty.Key()),
+				ctx.glangType(s.Args[0], ty.Elem())), true
 		case *types.Chan:
 			switch sig.Params().Len() {
 			case 1:
@@ -674,7 +632,7 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 		sig := ctx.typeOf(s.Fun).(*types.Signature)
 		ty := ctx.glangType(s.Args[0], sig.Params().At(0).Type())
 		return glang.RefExpr{
-			X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(ty)),
+			X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), ty),
 		}, true
 	case "len", "cap":
 		if _, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
@@ -683,7 +641,7 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 		name := s.Fun.(*ast.Ident).Name
 		// array.len and array.cap take the array type (not the element type)
 		return glang.NewCallExpr(glang.GallinaVerbatim(fmt.Sprintf("array.%s", name)),
-			glang.GolangTypeExpr(ctx.glangType(s, ctx.typeOf(s.Args[0])))), true
+			ctx.glangType(s, ctx.typeOf(s.Args[0]))), true
 	}
 
 	return nil, false
@@ -793,7 +751,7 @@ func (ctx *Ctx) fieldSelection(n locatable, index *[]int, curType *types.Type, e
 		}
 		v := info.structType.Field(i)
 		*expr = glang.NewCallExpr(glang.GallinaVerbatim("struct.field_get"),
-			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.GallinaString(v.Name()), *expr)
+			ctx.glangType(n, *curType), glang.GallinaString(v.Name()), *expr)
 		*curType = v.Type()
 	}
 }
@@ -816,7 +774,7 @@ func (ctx *Ctx) fieldAddrSelection(n locatable, index []int, curType *types.Type
 		v := info.structType.Field(i)
 
 		*expr = glang.NewCallExpr(glang.GallinaVerbatim("struct.field_ref"),
-			glang.GolangTypeExpr(ctx.structInfoToGlangType(info)), glang.StringVal{Value: glang.StringLiteral{Value: v.Name()}}, *expr)
+			ctx.glangType(n, *curType), glang.StringVal{Value: glang.StringLiteral{Value: v.Name()}}, *expr)
 		*curType = v.Type()
 	}
 }
@@ -994,7 +952,7 @@ func (ctx *Ctx) structLiteral(t types.Type, structType *types.Struct, e *ast.Com
 			}
 		}
 		if fieldIsZero {
-			lit.AddField(fieldName, glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(ctx.glangType(e, fieldType))))
+			lit.AddField(fieldName, glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), ctx.glangType(e, fieldType)))
 		}
 	}
 
@@ -1189,7 +1147,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$s"},
 				ValExpr: x,
 				Cont: glang.NewCallExpr(glang.GallinaVerbatim("slice.full_slice"),
-					glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
+					ctx.glangType(e, t.Elem()),
 					glang.IdentExpr("$s"), lowExpr, highExpr, ctx.expr(e.Max)),
 			}
 		} else {
@@ -1197,14 +1155,14 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$s"},
 				ValExpr: x,
 				Cont: glang.NewCallExpr(glang.GallinaVerbatim("slice.slice"),
-					glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
+					ctx.glangType(e, t.Elem()),
 					glang.IdentExpr("$s"), lowExpr, highExpr),
 			}
 		}
 	} else if at, ok := ctx.typeOf(e.X).Underlying().(*types.Array); ok {
 		var lowExpr glang.Expr = glang.Int64Val{Value: glang.IntToZ(0)}
 		var highExpr glang.Expr = glang.NewCallExpr(glang.GallinaVerbatim("array.len"),
-			glang.GolangTypeExpr(ctx.glangType(e.X, at.Elem())))
+			ctx.glangType(e.X, at.Elem()))
 		if e.Low != nil {
 			lowExpr = ctx.expr(e.Low)
 		}
@@ -1218,7 +1176,7 @@ func (ctx *Ctx) sliceExpr(e *ast.SliceExpr) glang.Expr {
 				Names:   []string{"$a"},
 				ValExpr: ctx.exprAddr(e.X),
 				Cont: glang.NewCallExpr(glang.GallinaVerbatim("array.slice"),
-					glang.GolangTypeExpr(ctx.glangType(e, at.Elem())),
+					ctx.glangType(e, at.Elem()),
 					glang.IdentExpr("$a"), lowExpr, highExpr),
 			}
 		}
@@ -1255,7 +1213,7 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, multipleBindings bool) glang.Expr {
 			// e is &a[b] where x is a.b
 			if xTy, ok := ctx.typeOf(x.X).(*types.Slice); ok {
 				return glang.NewCallExpr(glang.GallinaVerbatim("slice.elem_ref"),
-					glang.GolangTypeExpr(ctx.glangType(e, xTy.Elem())),
+					ctx.glangType(e, xTy.Elem()),
 					ctx.expr(x.X), ctx.expr(x.Index))
 			}
 		}
@@ -1313,7 +1271,7 @@ func (ctx *Ctx) function(s *ast.Ident) glang.Expr {
 	if typeArgs.Len() == 0 {
 		return fExpr
 	}
-	return glang.TypeCallExpr{
+	return glang.CallExpr{
 		MethodName: fExpr,
 		Args:       ctx.convertTypeArgsToGlang(nil, typeArgs),
 	}
@@ -1383,7 +1341,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		t := sig.Params().At(0).Type()
 		if t, ok := getSliceType(t); ok {
 			return glang.NewCallExpr(glang.GallinaVerbatim("slice.append"),
-				glang.GolangTypeExpr(ctx.glangType(e, t.Elem())),
+				ctx.glangType(e, t.Elem()),
 			)
 		}
 		ctx.unsupported(e, "append to %v (%T) with unknown element type", t, t.Underlying())
@@ -1392,7 +1350,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		ctx.todo(e, "new might be better as its own function")
 		t := ctx.glangType(e, sig.Params().At(0).Type())
 		return glang.RefExpr{
-			X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t)),
+			X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t),
 		}
 	case "len":
 		sig := ctx.typeOf(e).(*types.Signature)
@@ -1430,7 +1388,7 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 			if types.Identical(ty, fromTy) {
 				return glang.NewCallExpr(
 					glang.GallinaVerbatim("slice.copy"),
-					glang.GolangTypeExpr(ctx.glangType(e, ty.Elem())),
+					ctx.glangType(e, ty.Elem()),
 				)
 			}
 			ctx.unsupported(e, "slice copy to %v from %v", ty, fromTy)
@@ -1533,7 +1491,7 @@ func (ctx *Ctx) indexExpr(e *ast.IndexExpr, multipleBindings bool) glang.Expr {
 			}
 		} else {
 			return glang.NewCallExpr(glang.GallinaVerbatim("array.elem_get"),
-				glang.GolangTypeExpr(ctx.glangType(e, xTy.Elem())),
+				ctx.glangType(e, xTy.Elem()),
 				ctx.expr(e.X), ctx.expr(e.Index))
 		}
 	case *types.Signature:
@@ -1630,7 +1588,7 @@ func (ctx *Ctx) funcLit(e *ast.FuncLit) glang.FuncLit {
 			for _, name := range r.Names {
 				fl.Body = glang.LetExpr{
 					Names:   []string{name.Name},
-					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t))},
+					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t)},
 					Cont:    fl.Body,
 				}
 			}
@@ -1832,7 +1790,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	case *types.Slice:
 		e = glang.ForRangeSliceExpr{
 			Slice: glang.IdentExpr("$range"),
-			Ty:    glang.GolangTypeExpr(ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X)))),
+			Ty:    ctx.glangType(s.X, sliceElem(ctx.typeOf(s.X))),
 			Body:  body,
 		}
 	case *types.Chan:
@@ -1858,7 +1816,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 				t := ctx.glangType(s.Key, ctx.typeOf(s.Key))
 				e = glang.LetExpr{
 					Names:   []string{key.Name},
-					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t))},
+					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t)},
 					Cont:    e,
 				}
 			}
@@ -1873,7 +1831,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 				t := ctx.glangType(s.Value, ctx.typeOf(s.Value))
 				e = glang.LetExpr{
 					Names:   []string{value.Name},
-					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t))},
+					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t)},
 					Cont:    e,
 				}
 			}
@@ -1925,7 +1883,7 @@ func (ctx *Ctx) defineStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 				e = glang.LetExpr{
 					Names: []string{ident.Name},
 					ValExpr: glang.RefExpr{
-						X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t)),
+						X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t),
 					},
 					Cont: e,
 				}
@@ -1991,14 +1949,14 @@ func (ctx *Ctx) exprAddr(e ast.Expr) glang.Expr {
 		switch targetTy := targetTy.Underlying().(type) {
 		case *types.Slice:
 			return glang.NewCallExpr(glang.GallinaVerbatim("slice.elem_ref"),
-				glang.GolangTypeExpr(ctx.glangType(e, targetTy.Elem())),
+				ctx.glangType(e, targetTy.Elem()),
 				ctx.expr(e.X),
 				ctx.expr(e.Index))
 		case *types.Map:
 			ctx.nope(e, "map index expressions are not addressable")
 		case *types.Array:
 			return glang.NewCallExpr(glang.GallinaVerbatim("array.elem_ref"),
-				glang.GolangTypeExpr(ctx.glangType(e, targetTy.Elem())),
+				ctx.glangType(e, targetTy.Elem()),
 				ctx.expr(e.X), ctx.expr(e.Index))
 		default:
 			ctx.unsupported(e, "index addr to unexpected target of type %v", targetTy)
@@ -2907,7 +2865,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) (ret []glang.Decl) {
 			for _, name := range r.Names {
 				fd.Body = glang.LetExpr{
 					Names:   []string{name.Name},
-					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), glang.GolangTypeExpr(t))},
+					ValExpr: glang.RefExpr{X: glang.NewCallExpr(glang.GallinaVerbatim("type.zero_val"), t)},
 					Cont:    fd.Body,
 				}
 			}
@@ -3117,7 +3075,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 		globalVars = append(globalVars,
 			glang.TupleExpr{
 				ctx.gallinaIdent(varIdent.Name),
-				glang.GallinaType{Ty: t},
+				t,
 			},
 		)
 	}
