@@ -100,8 +100,7 @@ type ArrayType struct {
 }
 
 func (t ArrayType) Coq(needs_paren bool) string {
-	len_e := NewCallExpr(GallinaVerbatim("W64"), IntToZ(int64(t.Len)))
-	return NewCallExpr(GallinaVerbatim("arrayT"), len_e, t.Elem).Coq(needs_paren)
+	return NewCallExpr(GallinaVerbatim("arrayT"), IntToZ(int64(t.Len)), t.Elem).Coq(needs_paren)
 }
 
 type PtrType struct{}
