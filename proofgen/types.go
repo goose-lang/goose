@@ -72,7 +72,6 @@ func toGlangType(t types.Type) glang.Expr {
 	}
 	switch t := types.Unalias(t).(type) {
 	case *types.TypeParam:
-		// type parameters for proofgen are bound Gallina variables
 		return glang.GallinaIdent(t.Obj().Name())
 	case *types.Map:
 		keyT := toGlangType(t.Key())
@@ -93,7 +92,7 @@ func toGlangType(t types.Type) glang.Expr {
 		// is simpler to implement
 		if t.TypeArgs().Len() != 0 {
 			return glang.CallExpr{
-				MethodName: glang.GallinaIdent(fmt.Sprintf("%s.%s.ty", pkg, name)),
+				MethodName: glang.GallinaIdent(fmt.Sprintf("%s.%s", pkg, name)),
 				Args:       convertTypeArgsToGlang(t.TypeArgs()),
 			}
 		}

@@ -138,9 +138,9 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 
 	var ty glang.Expr = glang.GallinaIdent(typeName)
 	if t.TypeParams().Len() > 0 {
-		tyCall := glang.NewCallExpr(ty)
+		tyCall := glang.CallExpr{MethodName: ty}
 		for i := range t.TypeParams().Len() {
-			tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
+			tyCall = tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
 				glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
 		}
 		ty = tyCall
@@ -212,9 +212,9 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 
 		var ty glang.Expr = glang.GallinaIdent(typeName)
 		if t.TypeParams().Len() > 0 {
-			tyCall := glang.NewCallExpr(ty)
+			tyCall := glang.CallExpr{MethodName: ty}
 			for i := range t.TypeParams().Len() {
-				tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
+				tyCall = tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
 					glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
 			}
 			ty = tyCall
