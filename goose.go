@@ -2261,28 +2261,32 @@ func (ctx *Ctx) assignStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
 }
 
 func (ctx *Ctx) assignOpStmt(s *ast.AssignStmt, cont glang.Expr) glang.Expr {
-	assignOps := map[token.Token]glang.BinOp{
-		token.ADD_ASSIGN: glang.OpPlus,
-		token.SUB_ASSIGN: glang.OpMinus,
-		token.MUL_ASSIGN: glang.OpMul,
-		token.QUO_ASSIGN: glang.OpQuot,
-		token.REM_ASSIGN: glang.OpRem,
+	// map the assign version to the binary operator
+	assignOps := map[token.Token]token.Token{
+		token.ADD_ASSIGN: token.ADD,
+		token.SUB_ASSIGN: token.SUB,
+		token.MUL_ASSIGN: token.MUL,
+		token.QUO_ASSIGN: token.QUO,
+		token.REM_ASSIGN: token.REM,
 
-		token.AND_ASSIGN: glang.OpAnd,
-		token.OR_ASSIGN:  glang.OpOr,
-		token.XOR_ASSIGN: glang.OpXor,
-		token.SHL_ASSIGN: glang.OpShl,
-		token.SHR_ASSIGN: glang.OpShr,
+		token.AND_ASSIGN:     token.AND,
+		token.AND_NOT_ASSIGN: token.AND_NOT,
+		token.OR_ASSIGN:      token.OR,
+		token.XOR_ASSIGN:     token.XOR,
+		token.SHL_ASSIGN:     token.SHL,
+		token.SHR_ASSIGN:     token.SHR,
 	}
 	op, ok := assignOps[s.Tok]
 	if !ok {
 		ctx.unsupported(s, "unsupported assign+update operation %v", s.Tok)
 	}
-	rhs := glang.BinaryExpr{
-		X:  ctx.expr(s.Lhs[0]),
+	// construct s.lhs + s.rhs as a Go AST fragment
+	rhs := ctx.binExpr(&ast.BinaryExpr{
+		X:  s.Lhs[0],
 		Op: op,
-		Y:  ctx.expr(s.Rhs[0]),
-	}
+		Y:  s.Rhs[0],
+	})
+	// finish by constructing lhs = rhs
 	return ctx.assignFromTo(s.Lhs[0], rhs, cont)
 }
 

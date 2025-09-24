@@ -44,6 +44,12 @@ func AssignOps() {
 	x--
 }
 
+func BitwiseAndNot(x uint32, y uint64) uint64 {
+	z := uint64(x) &^ y
+	z &^= 0xff
+	return z
+}
+
 func Negative() {
 	var x int64 = -10
 	x += 3

@@ -502,6 +502,7 @@ const (
 	OpRem
 	OpRemS
 	OpAnd
+	OpAndNot
 	OpOr
 	OpXor
 	OpLAnd
@@ -540,13 +541,14 @@ func (be BinaryExpr) Coq(needs_paren bool) string {
 		OpLessEqZ:      "<=?",
 		OpGreaterEqZ:   ">=?",
 
-		OpAnd:  "`and`",
-		OpOr:   "`or`",
-		OpXor:  "`xor`",
-		OpLAnd: "&&",
-		OpLOr:  "||",
-		OpShl:  "≪",
-		OpShr:  "≫",
+		OpAnd:    "`and`",
+		OpAndNot: "`and_not`",
+		OpOr:     "`or`",
+		OpXor:    "`xor`",
+		OpLAnd:   "&&",
+		OpLOr:    "||",
+		OpShl:    "≪",
+		OpShr:    "≫",
 	}
 	if binop, ok := coqBinOp[be.Op]; ok {
 		expr := fmt.Sprintf("%s %s %s",
