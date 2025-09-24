@@ -868,6 +868,25 @@ func (d ConstDecl) DefName() (bool, string) {
 	return true, d.Name
 }
 
+type FuncIdDecl struct {
+	Name       string
+	TypeParams []string
+	Val        Expr
+}
+
+func (d FuncIdDecl) CoqDecl() string {
+	typeParamsStr := ""
+	for _, typeParam := range d.TypeParams {
+		typeParamsStr = typeParamsStr + fmt.Sprintf(" (%s : go_string)", typeParam)
+	}
+	return fmt.Sprintf("Definition %s%s : go_string := %s",
+		GallinaIdent(d.Name).Coq(false), typeParamsStr, d.Val.Coq(false))
+}
+
+func (d FuncIdDecl) DefName() (bool, string) {
+	return true, d.Name + ".id"
+}
+
 type TypeIdDecl struct {
 	Name string
 	Val  Expr
@@ -1104,6 +1123,39 @@ func (d MsetPredicateDecl) CoqDecl() string {
 	for _, typeName := range d.TypeNames {
 		pp.Add("is_defined_%[1]s'mset : %[1]s'mset;", typeName)
 		pp.Add("is_defined_%[1]s'ptr'mset : %[1]s'ptr'mset;", typeName)
+	}
+	pp.Indent(-2)
+	pp.Add("}.")
+	return pp.Build()
+}
+
+// Declares predicate for all functions in a package
+type FunctionsPredicateDecl struct {
+	FunctionNames      []string
+	FunctionTypeParams [][]string
+}
+
+func (d FunctionsPredicateDecl) DefName() (bool, string) {
+	return true, "is_pkg_defined_functions"
+}
+
+func (d FunctionsPredicateDecl) CoqDecl() string {
+	var pp buffer
+
+	pp.Add("Record is_pkg_defined_functions (go_ctx : GoContext) : Prop :=")
+	pp.Add("{")
+	pp.Indent(2)
+	for i, funcName := range d.FunctionNames {
+		typeParams := d.FunctionTypeParams[i]
+		typeParamsStr := ""
+		if len(typeParams) > 0 {
+			typeParamsStr += "∀"
+			for _, typeParam := range typeParams {
+				typeParamsStr = typeParamsStr + fmt.Sprintf(" (%s : go_string)", typeParam)
+			}
+			typeParamsStr += ","
+		}
+		pp.Add("is_defined_%s : %s;", funcName, typeParamsStr)
 	}
 	pp.Indent(-2)
 	pp.Add("}.")

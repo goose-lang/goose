@@ -59,7 +59,7 @@ type Ctx struct {
 	dep *deptracker.Deps
 
 	globalVars []*ast.Ident
-	functions  []string
+	functions  glang.FunctionsPredicateDecl
 	namedTypes []*types.Named
 
 	importNames        map[string]*types.PkgName
@@ -2719,14 +2719,28 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) (ret []glang.Decl) {
 
 	// Always emit func id, even if the function is trusted or axiomatized.
 	if d.Recv == nil {
-		funcId := ctx.info.Defs[d.Name].Pkg().Path() + "." + ctx.info.Defs[d.Name].Name()
-		ret = append(ret, glang.ConstDecl{
-			Name: d.Name.Name,
-			Val:  glang.StringLiteral{Value: funcId},
-			Type: glang.GallinaVerbatim("go_string"),
+		funcIdBase := ctx.info.Defs[d.Name].Pkg().Path() + "." + ctx.info.Defs[d.Name].Name()
+		var funcIdVal glang.Expr = glang.StringLiteral{Value: funcIdBase}
+
+		var typeParams []string
+		if d.Type.TypeParams != nil {
+			funcIdVal = glang.StringLiteral{Value: funcIdBase + "["}
+			for _, ps := range d.Type.TypeParams.List {
+				for _, param := range ps.Names {
+					typeParams = append(typeParams, param.Name)
+					funcIdVal = glang.BinaryExpr{Op: glang.OpGallinaAppend, X: funcIdVal, Y: glang.GallinaIdent(param.Name)}
+				}
+			}
+			funcIdVal = glang.BinaryExpr{Op: glang.OpGallinaAppend, X: funcIdVal, Y: glang.StringLiteral{Value: "]"}}
+		}
+		ret = append(ret, glang.FuncIdDecl{
+			Name:       d.Name.Name,
+			TypeParams: typeParams,
+			Val:        funcIdVal,
 		})
 		if d.Name.Name != "init" {
-			ctx.functions = append(ctx.functions, d.Name.Name)
+			ctx.functions.FunctionNames = append(ctx.functions.FunctionNames, d.Name.Name)
+			ctx.functions.FunctionTypeParams = append(ctx.functions.FunctionTypeParams, typeParams)
 		}
 	}
 
@@ -3098,23 +3112,7 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	}
 	decls = append(decls, varsDecl)
 
-	var functions glang.ListExpr
-	for _, functionName := range ctx.functions {
-		functions = append(functions, glang.TupleExpr{ctx.gallinaIdent(functionName), ctx.gallinaIdent(functionName + "ⁱᵐᵖˡ")})
-		if ctx.filter.GetAction(functionName) == declfilter.Axiomatize {
-			decls = append(decls, glang.AxiomDecl{
-				DeclName: functionName + "ⁱᵐᵖˡ",
-				Type:     glang.GallinaVerbatim("val"),
-			})
-		}
-	}
-
-	functionsDecl := glang.ConstDecl{
-		Name: "functions'",
-		Val:  functions,
-		Type: glang.GallinaVerbatim("list (go_string * val)"),
-	}
-	decls = append(decls, functionsDecl)
+	decls = append(decls, ctx.functions)
 
 	for _, namedType := range ctx.namedTypes {
 		decls = append(decls, ctx.methodSet(namedType)...)
