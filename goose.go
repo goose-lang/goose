@@ -127,11 +127,11 @@ func (ctx *Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	*comment += "go: " + f.String()
 }
 
-func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
+func (ctx *Ctx) methodSetNamed(t *types.Named) (decl glang.SingleMethodSetDecl) {
 	typeName := t.Obj().Name()
+	decl.TypeName = typeName
 	goMset := types.NewMethodSet(t)
 
-	var mset glang.ListExpr
 	if t.TypeArgs() != nil {
 		ctx.nope(t.Obj(), "expected no type args (only type params) when making method set")
 	}
@@ -140,14 +140,16 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 	if t.TypeParams().Len() > 0 {
 		tyCall := glang.CallExpr{MethodName: ty}
 		for i := range t.TypeParams().Len() {
-			tyCall = tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
-				glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
+			param := t.TypeParams().At(i).Obj().Name()
+			tyCall = tyCall.Append(glang.GallinaIdent(param))
+			decl.TypeParams = append(decl.TypeParams, param)
 		}
 		ty = tyCall
 	}
 
 	add := func(methodName string, x glang.Expr) {
-		mset = append(mset, glang.TupleExpr{glang.StringLiteral{Value: methodName}, x})
+		decl.MethodNames = append(decl.MethodNames, methodName)
+		decl.Impls = append(decl.Impls, x)
 	}
 
 	for i := range goMset.Len() {
@@ -189,15 +191,17 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) glang.Expr {
 				}})
 		}
 	}
-	return mset
+	return decl
 }
 
-func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
+func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) (decl glang.SingleMethodSetDecl) {
 	typeName := t.Obj().Name()
+	decl.TypeName = typeName
+	decl.IsPointer = true
 	goMset := types.NewMethodSet(types.NewPointer(t))
-	var mset glang.ListExpr
 	add := func(methodName string, x glang.Expr) {
-		mset = append(mset, glang.TupleExpr{glang.StringLiteral{Value: methodName}, x})
+		decl.MethodNames = append(decl.MethodNames, methodName)
+		decl.Impls = append(decl.Impls, x)
 	}
 
 	for i := range goMset.Len() {
@@ -214,8 +218,9 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 		if t.TypeParams().Len() > 0 {
 			tyCall := glang.CallExpr{MethodName: ty}
 			for i := range t.TypeParams().Len() {
-				tyCall = tyCall.Append(glang.NewCallExpr(glang.GallinaVerbatim("__mem_type"),
-					glang.GallinaIdent(t.TypeParams().At(i).Obj().Name())))
+				param := t.TypeParams().At(i).Obj().Name()
+				tyCall = tyCall.Append(glang.GallinaIdent(param))
+				decl.TypeParams = append(decl.TypeParams, param)
 			}
 			ty = tyCall
 		}
@@ -282,14 +287,11 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) glang.Expr {
 					)}})
 		}
 	}
-	return mset
+	return decl
 }
 
 // returns the mset for `t` followed by the mset for `ptr to t`
 func (ctx *Ctx) methodSet(t *types.Named) (decls []glang.Decl, msets []glang.Expr) {
-	msets = append(msets, glang.TupleExpr{ctx.typeId(t.Obj(), t), ctx.methodSetNamed(t)})
-	msets = append(msets, glang.TupleExpr{ctx.typeId(t.Obj(), types.NewPointer(t)), ctx.methodSetPointerToNamed(t)})
-
 	// Generate axiomatized method declarations for all methods (including embedded ones)
 	// Use pointer method set since it contains all methods from the value
 	// method set plus pointer receiver methods
@@ -305,6 +307,12 @@ func (ctx *Ctx) methodSet(t *types.Named) (decls []glang.Decl, msets []glang.Exp
 			})
 		}
 	}
+
+	// one decl for mset predicate for each type (and a separate one for `ptrT.id T`)
+	decls = append(decls, ctx.methodSetNamed(t))
+	decls = append(decls, ctx.methodSetPointerToNamed(t))
+
+	// Assemble this into one big mset predicate.
 
 	return
 }

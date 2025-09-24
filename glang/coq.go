@@ -1031,6 +1031,54 @@ func (r RecordLiteral) Coq(needs_paren bool) string {
 	return addParens(needs_paren, pp.Build())
 }
 
+// Declares predicate for a single type's method set being in the GoContext
+type SingleMethodSetDecl struct {
+	IsPointer   bool
+	TypeName    string
+	TypeParams  []string
+	MethodNames []string
+	Impls       []Expr
+}
+
+func (d SingleMethodSetDecl) DefName() (bool, string) {
+	if d.IsPointer {
+		return true, d.TypeName + "'ptr'mset"
+	} else {
+		return true, d.TypeName + "'mset"
+	}
+}
+
+func (d SingleMethodSetDecl) CoqDecl() string {
+	var pp buffer
+
+	typeParamsStr := ""
+	typeIdArgsStr := ""
+	for _, typeParam := range d.TypeParams {
+		typeParamsStr = typeParamsStr + " (" + typeParam + ": go_type)" + " (" + typeParam + "'id : go_string)"
+		typeIdArgsStr = typeIdArgsStr + " " + typeParam + "'id"
+	}
+
+	var name, typeId string
+	if d.IsPointer {
+		name = d.TypeName + "'ptr"
+		typeId = "(" + d.TypeName + ".id" + typeIdArgsStr + ")"
+	} else {
+		name = d.TypeName
+		typeId = "(ptrT.id (" + d.TypeName + ".id" + typeIdArgsStr + "))"
+	}
+
+	pp.Add("Record %s'mset%s (go_ctx : GoContext) : Prop :=", name, typeParamsStr)
+	pp.Add("{")
+	pp.Indent(2)
+	for i, methodName := range d.MethodNames {
+		pp.Add("%s_%s :", name, methodName)
+		pp.Add("  __method %s \"%s\" = %s;", typeId, methodName, d.Impls[i].Coq(false))
+	}
+	pp.Indent(-2)
+	pp.Add("}.")
+	return pp.Build()
+}
+
 // File represents a complete Coq file (a sequence of declarations).
 type File struct {
 	Header        string
