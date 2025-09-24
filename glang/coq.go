@@ -1032,7 +1032,7 @@ func (r RecordLiteral) Coq(needs_paren bool) string {
 }
 
 // Declares predicate for a single type's method set being in the GoContext
-type SingleMethodSetDecl struct {
+type SingleMsetPredicateDecl struct {
 	IsPointer   bool
 	TypeName    string
 	TypeParams  []string
@@ -1040,7 +1040,7 @@ type SingleMethodSetDecl struct {
 	Impls       []Expr
 }
 
-func (d SingleMethodSetDecl) DefName() (bool, string) {
+func (d SingleMsetPredicateDecl) DefName() (bool, string) {
 	if d.IsPointer {
 		return true, d.TypeName + "'ptr'mset"
 	} else {
@@ -1048,7 +1048,7 @@ func (d SingleMethodSetDecl) DefName() (bool, string) {
 	}
 }
 
-func (d SingleMethodSetDecl) CoqDecl() string {
+func (d SingleMsetPredicateDecl) CoqDecl() string {
 	var pp buffer
 
 	typeParamsStr := ""
@@ -1087,15 +1087,15 @@ func (d SingleMethodSetDecl) CoqDecl() string {
 }
 
 // Declares predicate for all methodSets in a package
-type MethodSetDecl struct {
+type MsetPredicateDecl struct {
 	TypeNames []string
 }
 
-func (d MethodSetDecl) DefName() (bool, string) {
+func (d MsetPredicateDecl) DefName() (bool, string) {
 	return true, "is_pkg_defined_mset"
 }
 
-func (d MethodSetDecl) CoqDecl() string {
+func (d MsetPredicateDecl) CoqDecl() string {
 	var pp buffer
 
 	pp.Add("Record is_pkg_defined_mset (go_ctx : GoContext) : Prop :=")

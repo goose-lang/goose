@@ -127,7 +127,7 @@ func (ctx *Ctx) addSourceFile(d *ast.FuncDecl, comment *string) {
 	*comment += "go: " + f.String()
 }
 
-func (ctx *Ctx) methodSetNamed(t *types.Named) (decl glang.SingleMethodSetDecl) {
+func (ctx *Ctx) methodSetNamed(t *types.Named) (decl glang.SingleMsetPredicateDecl) {
 	typeName := t.Obj().Name()
 	decl.TypeName = typeName
 	goMset := types.NewMethodSet(t)
@@ -194,7 +194,7 @@ func (ctx *Ctx) methodSetNamed(t *types.Named) (decl glang.SingleMethodSetDecl) 
 	return decl
 }
 
-func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) (decl glang.SingleMethodSetDecl) {
+func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) (decl glang.SingleMsetPredicateDecl) {
 	typeName := t.Obj().Name()
 	decl.TypeName = typeName
 	decl.IsPointer = true
@@ -3066,7 +3066,7 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 }
 
 func (ctx *Ctx) methodSetTopLevel() glang.Decl {
-	decl := glang.MethodSetDecl{}
+	decl := glang.MsetPredicateDecl{}
 	for _, namedType := range ctx.namedTypes {
 		decl.TypeNames = append(decl.TypeNames, namedType.Obj().Name())
 	}
