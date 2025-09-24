@@ -1099,7 +1099,7 @@ Definition compareIntFloat : go_string := "github.com/goose-lang/goose/testdata/
 Definition compareIntFloatⁱᵐᵖˡ : val :=
   λ: "x",
     exception_do (let: "x" := (mem.alloc "x") in
-    return: (int_lt (![#intT] "x") (W64 1000000))).
+    return: (int_lt (![#intT] "x") #(W64 1000000))).
 
 Definition compareFloatInt : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.compareFloatInt"%go.
 
@@ -1107,7 +1107,7 @@ Definition compareFloatInt : go_string := "github.com/goose-lang/goose/testdata/
 Definition compareFloatIntⁱᵐᵖˡ : val :=
   λ: "x",
     exception_do (let: "x" := (mem.alloc "x") in
-    return: (int_lt (W64 1000000) (![#intT] "x"))).
+    return: (int_lt #(W64 1000000) (![#intT] "x"))).
 
 Definition forRangeNoBinding : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.forRangeNoBinding"%go.
 

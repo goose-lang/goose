@@ -1467,13 +1467,21 @@ func (ctx *Ctx) identExpr(e *ast.Ident, multipleBindings bool) glang.Expr {
 				constExpr := glang.GallinaVerbatim(fmt.Sprintf("%d", constInt))
 				switch dstTy.Kind() {
 				case types.Uint64, types.Int64, types.Int:
-					return glang.NewCallExpr(glang.GallinaIdent("W64"), constExpr)
+					return glang.Int64Val{
+						Value: constExpr,
+					}
 				case types.Uint32, types.Int32:
-					return glang.NewCallExpr(glang.GallinaIdent("W32"), constExpr)
+					return glang.Int32Val{
+						Value: constExpr,
+					}
 				case types.Uint16, types.Int16:
-					return glang.NewCallExpr(glang.GallinaIdent("W16"), constExpr)
+					return glang.Int16Val{
+						Value: constExpr,
+					}
 				case types.Uint8, types.Int8:
-					return glang.NewCallExpr(glang.GallinaIdent("W8"), constExpr)
+					return glang.Int8Val{
+						Value: constExpr,
+					}
 				}
 			}
 		}
