@@ -291,7 +291,7 @@ func (ctx *Ctx) methodSetPointerToNamed(t *types.Named) (decl glang.SingleMethod
 }
 
 // returns the mset for `t` followed by the mset for `ptr to t`
-func (ctx *Ctx) methodSet(t *types.Named) (decls []glang.Decl, msets []glang.Expr) {
+func (ctx *Ctx) methodSet(t *types.Named) (decls []glang.Decl) {
 	// Generate axiomatized method declarations for all methods (including embedded ones)
 	// Use pointer method set since it contains all methods from the value
 	// method set plus pointer receiver methods
@@ -311,8 +311,6 @@ func (ctx *Ctx) methodSet(t *types.Named) (decls []glang.Decl, msets []glang.Exp
 	// one decl for mset predicate for each type (and a separate one for `ptrT.id T`)
 	decls = append(decls, ctx.methodSetNamed(t))
 	decls = append(decls, ctx.methodSetPointerToNamed(t))
-
-	// Assemble this into one big mset predicate.
 
 	return
 }
@@ -3067,6 +3065,11 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 	return nil
 }
 
+func (ctx *Ctx) methodSetTopLevel() glang.Decl {
+	// TODO: implement
+	return glang.AxiomDecl{DeclName: "FIXME:", Type: glang.GallinaVerbatim("FIXME:")}
+}
+
 func (ctx *Ctx) initFunctions() []glang.Decl {
 	var decls = []glang.Decl{}
 
@@ -3110,19 +3113,11 @@ func (ctx *Ctx) initFunctions() []glang.Decl {
 	}
 	decls = append(decls, functionsDecl)
 
-	var msets glang.ListExpr
 	for _, namedType := range ctx.namedTypes {
-		newDecls, msetExprs := ctx.methodSet(namedType)
-		decls = append(decls, newDecls...)
-		msets = append(msets, msetExprs...)
+		decls = append(decls, ctx.methodSet(namedType)...)
 	}
 
-	msetsDecl := glang.ConstDecl{
-		Name: "msets'",
-		Val:  msets,
-		Type: glang.GallinaVerbatim("list (go_string * (list (go_string * val)))"),
-	}
-	decls = append(decls, msetsDecl)
+	decls = append(decls, ctx.methodSetTopLevel())
 
 	var imports glang.ListExpr
 	for _, impName := range ctx.importNamesOrdered {

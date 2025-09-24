@@ -1053,9 +1053,16 @@ func (d SingleMethodSetDecl) CoqDecl() string {
 
 	typeParamsStr := ""
 	typeIdArgsStr := ""
-	for _, typeParam := range d.TypeParams {
-		typeParamsStr = typeParamsStr + " (" + typeParam + ": go_type)" + " (" + typeParam + "'id : go_string)"
-		typeIdArgsStr = typeIdArgsStr + " " + typeParam + "'id"
+	if len(d.TypeParams) > 0 {
+		typeParamsStr += "∀"
+		for _, typeParam := range d.TypeParams {
+			typeParamsStr = typeParamsStr + " (" + typeParam + "'id : go_string)"
+			typeIdArgsStr = typeIdArgsStr + " " + typeParam + "'id"
+		}
+		typeParamsStr += ","
+		for _, typeParam := range d.TypeParams {
+			typeParamsStr += fmt.Sprintf(" let %[1]s := to_mem_type %[1]s.id in", typeParam)
+		}
 	}
 
 	var name, typeId string
@@ -1067,12 +1074,12 @@ func (d SingleMethodSetDecl) CoqDecl() string {
 		typeId = "(ptrT.id (" + d.TypeName + ".id" + typeIdArgsStr + "))"
 	}
 
-	pp.Add("Record %s'mset%s (go_ctx : GoContext) : Prop :=", name, typeParamsStr)
+	pp.Add("Record %s'mset (go_ctx : GoContext) : Prop :=", name)
 	pp.Add("{")
 	pp.Indent(2)
 	for i, methodName := range d.MethodNames {
 		pp.Add("%s_%s :", name, methodName)
-		pp.Add("  __method %s \"%s\" = %s;", typeId, methodName, d.Impls[i].Coq(false))
+		pp.Add("%s __method %s \"%s\" = %s;", typeParamsStr, typeId, methodName, d.Impls[i].Coq(false))
 	}
 	pp.Indent(-2)
 	pp.Add("}.")
