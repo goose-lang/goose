@@ -3066,8 +3066,11 @@ func (ctx *Ctx) decl(d ast.Decl) []glang.Decl {
 }
 
 func (ctx *Ctx) methodSetTopLevel() glang.Decl {
-	// TODO: implement
-	return glang.AxiomDecl{DeclName: "FIXME:", Type: glang.GallinaVerbatim("FIXME:")}
+	decl := glang.MethodSetDecl{}
+	for _, namedType := range ctx.namedTypes {
+		decl.TypeNames = append(decl.TypeNames, namedType.Obj().Name())
+	}
+	return decl
 }
 
 func (ctx *Ctx) initFunctions() []glang.Decl {

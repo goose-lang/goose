@@ -1086,6 +1086,30 @@ func (d SingleMethodSetDecl) CoqDecl() string {
 	return pp.Build()
 }
 
+// Declares predicate for all methodSets in a package
+type MethodSetDecl struct {
+	TypeNames []string
+}
+
+func (d MethodSetDecl) DefName() (bool, string) {
+	return true, "is_pkg_defined_mset"
+}
+
+func (d MethodSetDecl) CoqDecl() string {
+	var pp buffer
+
+	pp.Add("Record is_pkg_defined_mset (go_ctx : GoContext) : Prop :=")
+	pp.Add("{")
+	pp.Indent(2)
+	for _, typeName := range d.TypeNames {
+		pp.Add("is_defined_%[1]s'mset : %[1]s'mset;", typeName)
+		pp.Add("is_defined_%[1]s'ptr'mset : %[1]s'ptr'mset;", typeName)
+	}
+	pp.Indent(-2)
+	pp.Add("}.")
+	return pp.Build()
+}
+
 // File represents a complete Coq file (a sequence of declarations).
 type File struct {
 	Header        string
