@@ -997,6 +997,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	} else {
 		compType = ctx.typeJoin(e, xT, yT).Underlying()
 	}
+
 	var op glang.BinOp = -1
 	if t, ok := compType.(*types.Basic); ok && t.Kind() != types.UnsafePointer {
 		switch t.Kind() {
@@ -1411,6 +1412,32 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 	return nil
 }
 
+// untypedFloatToInt converts a constant (assumed to be a float) to an integer.
+//
+// Returns ok = false if the float doesn't fit in an int64.
+func untypedFloatToInt(c constant.Value) (i int64, ok bool) {
+	switch x := constant.Val(c).(type) {
+	case *big.Rat:
+		if x.IsInt() {
+			v, exact := x.Float64()
+			if !exact {
+				return 0, false
+			}
+			return int64(v), true
+		}
+	case *big.Float:
+		if x.IsInt() {
+			var acc big.Accuracy
+			i, acc = x.Int64()
+			if acc != big.Exact {
+				return 0, false
+			}
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 func (ctx *Ctx) identExpr(e *ast.Ident, multipleBindings bool) glang.Expr {
 	// XXX: special case for a manually constructed Ident from select recv clause
 	if len(e.Name) > 0 && e.Name[0] == '$' {
@@ -1430,6 +1457,26 @@ func (ctx *Ctx) identExpr(e *ast.Ident, multipleBindings bool) glang.Expr {
 	if constObj, ok := obj.(*types.Const); ok {
 		// is a constant
 		ctx.dep.Add(e.Name)
+		if constTy, ok := constObj.Type().(*types.Basic); ok && constTy.Kind() == types.UntypedFloat {
+			dstTy := ctx.typeOf(e)
+			if dstTy, ok := dstTy.(*types.Basic); ok && dstTy.Info()&types.IsInteger != 0 {
+				constInt, exact := untypedFloatToInt(constObj.Val())
+				if !exact {
+					ctx.nope(e, "float constant does not fit into int64")
+				}
+				constExpr := glang.GallinaVerbatim(fmt.Sprintf("%d", constInt))
+				switch dstTy.Kind() {
+				case types.Uint64, types.Int64, types.Int:
+					return glang.NewCallExpr(glang.GallinaIdent("W64"), constExpr)
+				case types.Uint32, types.Int32:
+					return glang.NewCallExpr(glang.GallinaIdent("W32"), constExpr)
+				case types.Uint16, types.Int16:
+					return glang.NewCallExpr(glang.GallinaIdent("W16"), constExpr)
+				case types.Uint8, types.Int8:
+					return glang.NewCallExpr(glang.GallinaIdent("W8"), constExpr)
+				}
+			}
+		}
 		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), ctx.gallinaIdent(e.Name))
 	}
 	if _, ok := obj.(*types.Var); ok {

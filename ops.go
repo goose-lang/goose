@@ -62,6 +62,8 @@ var signedIntOps = map[token.Token]glang.BinOp{
 	token.XOR: glang.OpXor,
 	token.QUO: glang.OpQuotS,
 	token.REM: glang.OpRemS,
+	token.SHL: glang.OpShl,
+	token.SHR: glang.OpShr,
 }
 
 var signedIntFns = map[token.Token]glang.Expr{
