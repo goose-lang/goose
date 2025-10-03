@@ -13,5 +13,3 @@ type List struct {
 	Value int
 	Next  Box[List]
 }
-
-type JustStructRecursion Box[JustStructRecursion]

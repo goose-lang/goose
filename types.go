@@ -82,7 +82,7 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) (decls []glang.Decl) {
 		defer ctx.dep.UnsetCurrentName()
 
 		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
-			ctx.curTypeDecl = spec.Name
+			ctx.curTypeDecl = t.Obj()
 			defer func() {
 				ctx.curTypeDecl = nil
 			}()
@@ -328,7 +328,7 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 		if t.Obj().Pkg() == nil {
 			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
 		}
-		if ctx.curTypeDecl != nil && ctx.curTypeDecl.Name == t.Obj().Name() {
+		if ctx.curTypeDecl != nil && ctx.curTypeDecl == t.Obj() {
 			return glang.TtType{}
 		}
 		if info, ok := ctx.getStructInfo(t); ok {

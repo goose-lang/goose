@@ -57,7 +57,7 @@ type Ctx struct {
 
 	// The top-level type declaration being processed, if there is one. Used to
 	// detect recursive ocurrences.
-	curTypeDecl *ast.Ident
+	curTypeDecl *types.TypeName
 
 	// One of these tracks *all* the dependencies for an entire package
 	dep *deptracker.Deps
