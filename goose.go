@@ -19,6 +19,7 @@ import (
 	"log"
 	"math/big"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1485,7 +1486,8 @@ func (ctx *Ctx) identExpr(e *ast.Ident, multipleBindings bool) glang.Expr {
 				}
 			}
 		}
-		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), ctx.gallinaIdent(e.Name))
+		constE := ctx.gallinaIdent(e.Name)
+		return ctx.handleImplicitConversion(e, constObj.Type(), ctx.typeOf(e), constE)
 	}
 	if _, ok := obj.(*types.Var); ok {
 		ctx.nope(e, "variable references should get translated via exprAddr")
@@ -1938,19 +1940,31 @@ func (ctx *Ctx) varDeclStmt(s *ast.DeclStmt, cont glang.Expr) glang.Expr {
 	if !ok {
 		ctx.noExample(s, "declaration that is not a GenDecl")
 	}
-	if decl.Tok != token.VAR {
-		// TODO: support this via a let binding?
-		ctx.unsupported(s, "non-var declaration for %v", decl.Tok)
+	if decl.Tok == token.TYPE {
+		// type declarations within a function are obscure but Go does have them
+		ctx.unsupported(s, "function type declarations")
 	}
-	var expr glang.Expr = cont
-	for _, spec := range decl.Specs {
-		// guaranteed to be a *Ast.ValueSpec due to decl.Tok
-		//
-		// https://golang.org/pkg/go/ast/#GenDecl
-		// TODO: handle TypeSpec
-		expr = ctx.varSpec(spec.(*ast.ValueSpec), expr)
+	if decl.Tok == token.CONST {
+		var expr glang.Expr = cont
+		for _, spec := range slices.Backward(decl.Specs) {
+			expr = ctx.functionConstSpec(spec.(*ast.ValueSpec), expr)
+		}
+		return expr
 	}
-	return expr
+	if decl.Tok == token.VAR {
+		var expr glang.Expr = cont
+		// TODO: shouldn't this range be reversed?
+		for _, spec := range decl.Specs {
+			// guaranteed to be a *Ast.ValueSpec due to decl.Tok
+			//
+			// https://golang.org/pkg/go/ast/#GenDecl
+			// TODO: handle TypeSpec
+			expr = ctx.varSpec(spec.(*ast.ValueSpec), expr)
+		}
+		return expr
+	}
+	ctx.nope(s, "declaration %v within a function (not a type, const, or var)", decl.Tok)
+	return nil
 }
 
 // Returns the address of the given expression.
@@ -2986,6 +3000,32 @@ func (ctx *Ctx) constDecl(d *ast.GenDecl) []glang.Decl {
 		specs = append(specs, ctx.constSpec(spec)...)
 	}
 	return specs
+}
+
+// functionConstSpec translates constant declarations within functions, which
+// become GooseLang let bindings (unlike constSpec, which creates Gallina
+// definitions); supports untyped ints (unlike varSpec)
+func (ctx *Ctx) functionConstSpec(spec *ast.ValueSpec, cont glang.Expr) glang.Expr {
+	var e glang.Expr = cont
+	// Note that a spec is one line, typically something like `C = 1` or maybe just C
+	// if using iota, and spec.Names has more than 1 item only for something like
+	// `C, D = 2, 3`.
+
+	// reverse iteration order because each expression uses the previous as a
+	// continuation
+	for i := len(spec.Names) - 1; i >= 0; i-- {
+		if spec.Names[i].Name == "_" {
+			continue
+		}
+		fromT, v := ctx.constantLiteral(spec.Names[i], ctx.info.ObjectOf(spec.Names[i]).(*types.Const).Val())
+		constVal := ctx.handleImplicitConversion(spec.Names[i], fromT, ctx.typeOf(spec.Names[i]), v)
+		e = glang.GallinaLetExpr{
+			Name:    spec.Names[i].Name,
+			ValExpr: constVal,
+			Cont:    e,
+		}
+	}
+	return e
 }
 
 func (ctx *Ctx) globalVarDecl(d *ast.GenDecl) []glang.Decl {

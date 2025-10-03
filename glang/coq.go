@@ -340,6 +340,20 @@ func (b LetExpr) Coq(needs_paren bool) string {
 	return addParens(needs_paren, pp.Build())
 }
 
+// GallinaLetExpr produces a Gallina let expression, for local declarations.
+type GallinaLetExpr struct {
+	Name    string
+	ValExpr Expr
+	Cont    Expr
+}
+
+func (b GallinaLetExpr) Coq(needs_paren bool) string {
+	var pp buffer
+	pp.Add("let %s := %s in", GallinaIdent(b.Name).Coq(false), b.ValExpr.Coq(true))
+	pp.Add("%s", b.Cont.Coq(false))
+	return addParens(needs_paren, pp.Build())
+}
+
 type fieldVal struct {
 	Field string
 	Value Expr
