@@ -44,6 +44,10 @@ Module composite. Definition id : go_string := "github.com/goose-lang/goose/test
 Module R. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.R"%go. End R.
 Module Other. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.Other"%go. End Other.
 Module RecursiveEmbedded. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.RecursiveEmbedded"%go. End RecursiveEmbedded.
+Module LinkedList. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.LinkedList"%go. End LinkedList.
+Module Box. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.Box"%go. End Box.
+Module List. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.List"%go. End List.
+Module JustStructRecursion. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.JustStructRecursion"%go. End JustStructRecursion.
 Module Block. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.Block"%go. End Block.
 Module SliceAlias. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.SliceAlias"%go. End SliceAlias.
 Module thing. Definition id : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.thing"%go. End thing.
@@ -2296,6 +2300,32 @@ Definition RecursiveEmbedded__recurEmbeddedMethodⁱᵐᵖˡ : val :=
     do:  ((method_call #Other.id #"recurEmbeddedMethod"%go (![#Other] (struct.field_ref #RecursiveEmbedded #"Other"%go (![#ptrT] "r")))) #());;;
     return: #()).
 
+Definition LinkedList : go_type := structT [
+  "Value" :: intT;
+  "Next" :: ptrT
+].
+#[global] Typeclasses Opaque LinkedList.
+#[global] Opaque LinkedList.
+
+Definition Box : val :=
+  λ: "T", type.structT [
+    (#"Value"%go, #ptrT)
+  ].
+#[global] Typeclasses Opaque Box.
+#[global] Opaque Box.
+
+Definition List : val :=
+  λ: <>, type.structT [
+    (#"Value"%go, #intT);
+    (#"Next"%go, Box #())
+  ].
+#[global] Typeclasses Opaque List.
+#[global] Opaque List.
+
+Definition JustStructRecursion : go_type := Box (type.structT []).
+#[global] Typeclasses Opaque JustStructRecursion.
+#[global] Opaque JustStructRecursion.
+
 Definition useRenamedImport : go_string := "github.com/goose-lang/goose/testdata/examples/unittest.useRenamedImport"%go.
 
 (* go: renamedImport.go:7:6 *)
@@ -3168,7 +3198,7 @@ Definition msets' : list (go_string * (list (go_string * val))) := [(Foo.id, [])
                  method_call #(ptrT.id RecursiveEmbedded.id) #"recurEmbeddedMethod"%go (struct.field_get #Other #"RecursiveEmbedded"%go "$r")
                  )%V)]); (ptrT.id Other.id, [("recurEmbeddedMethod"%go, (λ: "$r",
                  method_call #(ptrT.id RecursiveEmbedded.id) #"recurEmbeddedMethod"%go (![#ptrT] (struct.field_ref #Other #"RecursiveEmbedded"%go "$r"))
-                 )%V)]); (RecursiveEmbedded.id, []); (ptrT.id RecursiveEmbedded.id, [("recurEmbeddedMethod"%go, RecursiveEmbedded__recurEmbeddedMethodⁱᵐᵖˡ)]); (Block.id, []); (ptrT.id Block.id, []); (SliceAlias.id, []); (ptrT.id SliceAlias.id, []); (thing.id, []); (ptrT.id thing.id, []); (sliceOfThings.id, [("getThingRef"%go, sliceOfThings__getThingRefⁱᵐᵖˡ)]); (ptrT.id sliceOfThings.id, [("getThingRef"%go, (λ: "$r",
+                 )%V)]); (RecursiveEmbedded.id, []); (ptrT.id RecursiveEmbedded.id, [("recurEmbeddedMethod"%go, RecursiveEmbedded__recurEmbeddedMethodⁱᵐᵖˡ)]); (LinkedList.id, []); (ptrT.id LinkedList.id, []); (Box.id, []); (ptrT.id Box.id, []); (List.id, []); (ptrT.id List.id, []); (JustStructRecursion.id, []); (ptrT.id JustStructRecursion.id, []); (Block.id, []); (ptrT.id Block.id, []); (SliceAlias.id, []); (ptrT.id SliceAlias.id, []); (thing.id, []); (ptrT.id thing.id, []); (sliceOfThings.id, [("getThingRef"%go, sliceOfThings__getThingRefⁱᵐᵖˡ)]); (ptrT.id sliceOfThings.id, [("getThingRef"%go, (λ: "$r",
                  method_call #sliceOfThings.id #"getThingRef"%go (![#sliceOfThings] "$r")
                  )%V)]); (Point.id, [("Add"%go, Point__Addⁱᵐᵖˡ); ("GetField"%go, Point__GetFieldⁱᵐᵖˡ); ("IgnoreReceiver"%go, Point__IgnoreReceiverⁱᵐᵖˡ)]); (ptrT.id Point.id, [("Add"%go, (λ: "$r",
                  method_call #Point.id #"Add"%go (![#Point] "$r")

@@ -55,6 +55,10 @@ type Ctx struct {
 	// include a defer prelude+prologue.
 	usesDefer bool
 
+	// The top-level type declaration being processed, if there is one. Used to
+	// detect recursive ocurrences.
+	curTypeDecl *ast.Ident
+
 	// One of these tracks *all* the dependencies for an entire package
 	dep *deptracker.Deps
 

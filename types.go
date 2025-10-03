@@ -82,6 +82,10 @@ func (ctx *Ctx) typeDecl(spec *ast.TypeSpec) (decls []glang.Decl) {
 		defer ctx.dep.UnsetCurrentName()
 
 		if t, ok := ctx.typeOf(spec.Name).(*types.Named); ok {
+			ctx.curTypeDecl = spec.Name
+			defer func() {
+				ctx.curTypeDecl = nil
+			}()
 			if _, ok := t.Underlying().(*types.Interface); !ok {
 				ctx.namedTypes = append(ctx.namedTypes, t)
 			}
@@ -324,6 +328,9 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 		if t.Obj().Pkg() == nil {
 			ctx.unsupported(n, "unexpected built-in type %v", t.Obj())
 		}
+		if ctx.curTypeDecl != nil && ctx.curTypeDecl.Name == t.Obj().Name() {
+			return glang.TtType{}
+		}
 		if info, ok := ctx.getStructInfo(t); ok {
 			return ctx.structInfoToGlangType(info)
 		}
@@ -418,7 +425,9 @@ type structTypeInfo struct {
 func (ctx *Ctx) structInfoToGlangType(info structTypeInfo) glang.Type {
 	ctx.dep.Add(info.name)
 	if TypeIsGooseLang(info.namedType) {
-		return glang.TypeCallExpr{MethodName: glang.GallinaIdent(info.name), Args: ctx.convertTypeArgsToGlang(nil, info.typeArgs)}
+		return glang.TypeCallExpr{
+			MethodName: glang.GallinaIdent(info.name),
+			Args:       ctx.convertTypeArgsToGlang(nil, info.typeArgs)}
 	} else {
 		return glang.TypeIdent(info.name)
 	}

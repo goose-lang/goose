@@ -115,6 +115,16 @@ func (d StructType) Coq(needs_paren bool) string {
 	return addParens(needs_paren, pp.Build())
 }
 
+type TtType struct{}
+
+func (_ TtType) Coq(needs_paren bool) string {
+	return "#()"
+}
+
+func (_ TtType) Gallina(needs_paren bool) string {
+	return addParens(needs_paren, "type.structT []")
+}
+
 type TypeDecl struct {
 	Name       string
 	Body       Type
@@ -134,6 +144,7 @@ func (d TypeDecl) CoqDecl() string {
 	pp.Add("Definition %s : val :=", GallinaIdent(d.Name).Coq(false))
 	pp.Indent(2)
 	pp.Add("λ: %s, %s.", typeBinders(d.TypeParams), d.Body.Coq(false))
+	pp.Indent(-2)
 	// XXX: Opaque does not imply Typeclasses Opaque.
 	// https://rocq-prover.zulipchat.com/#narrow/stream/237977-Coq-users/topic/Opaque.20does.20not.20imply.20Typeclasses.20Opaque
 	// https://github.com/rocq-prover/rocq/issues/19482
