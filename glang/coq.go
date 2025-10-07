@@ -879,7 +879,7 @@ func (d FuncIdDecl) CoqDecl() string {
 	for _, typeParam := range d.TypeParams {
 		typeParamsStr = typeParamsStr + fmt.Sprintf(" (%s : go_string)", typeParam)
 	}
-	return fmt.Sprintf("Definition %s%s : go_string := %s",
+	return fmt.Sprintf("Definition %s%s : go_string := %s.",
 		GallinaIdent(d.Name).Coq(false), typeParamsStr, d.Val.Coq(false))
 }
 

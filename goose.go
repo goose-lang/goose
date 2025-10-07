@@ -2717,7 +2717,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) (ret []glang.Decl) {
 		return ret
 	}
 
-	// Always emit func id, even if the function is trusted or axiomatized.
+	// Emit func id
 	if d.Recv == nil {
 		funcIdBase := ctx.info.Defs[d.Name].Pkg().Path() + "." + ctx.info.Defs[d.Name].Name()
 		var funcIdVal glang.Expr = glang.StringLiteral{Value: funcIdBase}
@@ -2744,16 +2744,18 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) (ret []glang.Decl) {
 		}
 	}
 
-	if ctx.filter.GetAction(funcName) != declfilter.Translate {
-		return ret
-	}
-
 	ctx.usesDefer = false
 	var fd glang.FuncDecl
 	addSourceDoc(d.Doc, &fd.Comment)
 	ctx.addSourceFile(d, &fd.Comment)
 
 	if d.Recv != nil {
+		// NOTE: Don't bother generating axioms for methods here because the
+		// methodSet translation will have to do it anyways (to conveniently
+		// cover embedded methods).
+		if ctx.filter.GetAction(funcName) != declfilter.Translate {
+			return ret
+		}
 		if len(d.Recv.List) != 1 {
 			ctx.nope(d, "function with multiple receivers")
 		}
