@@ -266,15 +266,29 @@ func TestNegativeExamples(testingT *testing.T) {
 	}
 }
 
-// Tests of hand-translated channel model code
-// TODO: Once channel translation is implemented, swap out for real channels
+// Tests of channel code
 func TestAllChannelTests(t *testing.T) {
-	chan_spec_raw_examples.SendMessage()
-	chan_spec_raw_examples.JoinWithReceive()
-	chan_spec_raw_examples.JoinWithSend()
-	chan_spec_raw_examples.BroadcastNotification()
-	chan_spec_raw_examples.CoordinatedChannelClose()
-	chan_spec_raw_examples.DoubleValues()
-	// If we get here, none of the functions panicked
+	chan_spec_raw_examples.TestHelloWorldSync()
+	chan_spec_raw_examples.TestHelloWorldWithTimeout()
+	chan_spec_raw_examples.TestDSPExample()
+	chan_spec_raw_examples.TestFibConsumer()
+	chan_spec_raw_examples.TestSelectNbNoPanic()
+	chan_spec_raw_examples.TestSelectReadyCaseNoPanic()
+	chan_spec_raw_examples.LeakyBufferPipeline()
+	// If we get here, none of the functions panic
+	t.Log("All channel tests passed successfully!")
+}
+
+// Tests of hand-translated channel model code
+// TODO: Once channel translation is implemented, remove
+func TestAllHandXlatedChannelTests(t *testing.T) {
+	chan_spec_raw_examples.TestHelloWorldSyncX()
+	chan_spec_raw_examples.TestHelloWorldWithTimeoutX()
+	chan_spec_raw_examples.TestDSPExampleX()
+	chan_spec_raw_examples.TestFibConsumerX()
+	chan_spec_raw_examples.TestSelectNbNoPanicX()
+	chan_spec_raw_examples.TestSelectReadyCaseNoPanicX()
+	chan_spec_raw_examples.LeakyBufferPipelineX()
+	// If we get here, none of the functions panic
 	t.Log("All channel tests passed successfully!")
 }

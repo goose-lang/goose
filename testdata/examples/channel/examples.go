@@ -1,229 +1,246 @@
 package chan_spec_raw_examples
 
-import "github.com/goose-lang/goose/model/channel"
+import (
+	"strings"
+	"time"
+)
 
-// These are hand-translated examples that will be useful for demonstrating
-// and adjusting specs prior to implementing translation.
+// Fake syscall for demonstration.
+func sys_hello_world() string {
+	return "Hello, World!"
+}
 
-// Example 1: Simple goroutine sending a string, check basic message passing without
-// synchronization
-func SendMessage() {
-	// Create an unbuffered channel for the message
-	messageChan := channel.NewChannelRef[string](0)
-
-	// Start a goroutine to send the message
+func HelloWorldAsync() chan string {
+	ch := make(chan string, 1)
 	go func() {
-		messageChan.Send("hello world")
+		ch <- sys_hello_world()
 	}()
+	return ch
+}
 
-	// Receive the message
-	message := messageChan.ReceiveDiscardOk()
+func HelloWorldSync() string {
+	return <-HelloWorldAsync()
+}
 
-	// Verification check
-	if message != "hello world" {
-		panic("Did not receive expected message")
+// Simulates the error/done channel components of Context
+func HelloWorldCancellable(done chan struct{}, err *string) string {
+	future := HelloWorldAsync()
+	select {
+	case resolved := <-future:
+		return resolved
+	case <-done:
+		return *err
 	}
 }
 
-// Example 2: Join goroutine with receive on unbuffered channel
-func JoinWithReceive() {
-	// Create string pointer with initial empty value
-	var message *string = new(string)
+// Uses cancellation as a timeout mechanism.
+func HelloWorldWithTimeout() string {
+	done := make(chan struct{})
+	errMsg := ""
 
-	// Create unbuffered channel for synchronization
-	done := channel.NewChannelRef[uint64](0)
-
-	// Launch goroutine
+	// Timeout goroutine updates errMsg only when timeout hits
 	go func() {
-		// Set the message
-		*message = "hello world"
-
-		// Signal completion
-		done.Send(0)
+		time.Sleep(10 * time.Millisecond) // short timeout to trigger cancellation
+		errMsg = "operation timed out"    // update error message
+		close(done)                       // signal cancellation
 	}()
 
-	// Join goroutine by receiving from channel
-	done.ReceiveDiscardOk()
+	return HelloWorldCancellable(done, &errMsg)
+}
 
-	// Verify message was set correctly
-	if *message != "hello world" {
-		panic("Message was not set correctly")
+// prog3 from Actris 2.0 intro: https://arxiv.org/pdf/2010.15030
+func DSPExample() int {
+	c := make(chan *int)
+	signal := make(chan struct{})
+
+	go func() {
+		ptr := <-c           // receive pointer ℓ
+		*ptr = *ptr + 2      // update *ℓ to *ℓ + 2
+		signal <- struct{}{} // send signal ()
+	}()
+
+	val := 40
+	ptr := &val // create reference ℓ := ref 40
+	c <- ptr    // send pointer ℓ
+	<-signal    // receive signal
+	return *ptr // dereference to get 42
+}
+
+// https://go.dev/tour/concurrency/4
+func fibonacci(n int, c chan int) {
+	x, y := 0, 1
+	for i := 0; i < n; i++ {
+		c <- x
+		x, y = y, x+y
+	}
+	close(c)
+}
+
+func fib_consumer() []int {
+	c := make(chan int, 10)
+	go fibonacci(cap(c), c)
+
+	results := []int{}
+	for i := range c {
+		results = append(results, i)
+	}
+	return results
+}
+
+// Show that it isn't possible to have 2 nonblocking ops that match.
+func select_nb_no_panic() {
+	ch := make(chan struct{})
+	go func() {
+		select {
+		case <-ch:
+			panic("bad")
+		default:
+		}
+	}()
+
+	select {
+	case ch <- struct{}{}:
+		panic("bad")
+	default:
 	}
 }
 
-// Example 3: Join goroutine with send on unbuffered channel
-func JoinWithSend() {
-	// Create string pointer with initial empty value
-	var message *string = new(string)
-
-	// Create unbuffered channel for synchronization
-	done := channel.NewChannelRef[uint64](0)
-
-	// Launch goroutine
-	go func() {
-		// Set the message
-		*message = "hello world"
-
-		// Wait for acknowledgment
-		done.ReceiveDiscardOk()
-	}()
-
-	// Join goroutine by sending to channel
-	done.Send(0)
-
-	// Verify message was set correctly
-	if *message != "hello world" {
-		panic("Message was not set correctly")
+// Show that a guaranteed to be ready case makes default impossible
+func select_ready_case_no_panic() {
+	ch := make(chan struct{})
+	close(ch)
+	select {
+	case <-ch:
+		// Channel was closed, we should be entering this block
+	default:
+		// Shouldn't be possible, the other case is made ready before the select
+		panic("Shouldn't be possible!")
 	}
 }
 
-// Example 4: Broadcast notification with close. This is testing a case where
-// we transfer disjoint ownership to different threads in a single broadcast
-func BroadcastNotification() {
-	// Create notification channel
-	notifyCh := channel.NewChannelRef[uint64](0)
+// Various tests that should panic when failing, which also means verifying { True } e { True } is
+// sufficient since panic can't be verified.
+func TestHelloWorldSync() {
+	result := HelloWorldSync()
+	if result != "Hello, World!" {
+		panic("incorrect output")
+	}
+}
 
-	// Create done channels for synchronization
-	done1 := channel.NewChannelRef[uint64](0)
-	done2 := channel.NewChannelRef[uint64](0)
-	done3 := channel.NewChannelRef[uint64](0)
+func TestHelloWorldWithTimeout() {
+	result := HelloWorldWithTimeout()
+	if result != "operation timed out" && result != "Hello, World!" {
+		panic("incorrect output")
+	}
+}
 
-	// Create a list of 3 strings, initially empty
-	var results []string
-	results = append(results, "")
-	results = append(results, "")
-	results = append(results, "")
+func TestDSPExample() {
+	result := DSPExample()
+	if result != 42 {
+		panic("incorrect output")
+	}
+}
 
-	// Start 3 goroutines
-	go func() {
-		// Wait for notification - read returns two values, but second value (ok) is important here
-		_, ok := notifyCh.Receive()
+func TestFibConsumer() {
+	result := fib_consumer()
+	expected := []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34}
+
+	if len(result) != len(expected) {
+		panic("incorrect output")
+	}
+
+	for i := range expected {
+		if result[i] != expected[i] {
+			panic("incorrect output")
+		}
+	}
+}
+
+func TestSelectNbNoPanic() {
+	iterations := 10000
+	for i := 0; i < iterations; i++ {
+		select_nb_no_panic()
+		// Small sleep to let the goroutine finish
+		time.Sleep(1 * time.Microsecond)
+	}
+}
+
+func TestSelectReadyCaseNoPanic() {
+	iterations := 10000
+	for i := 0; i < iterations; i++ {
+		select_ready_case_no_panic()
+	}
+}
+
+// The example below is a minimal use of the
+// https://go.dev/doc/effective_go#leaky_buffer pattern
+
+// load writes the next letter into the buffer.
+func load(b *[]byte, letter string) {
+	*b = []byte(letter)
+}
+
+// process consumes the buffer and appends it to the output.
+func process(b *[]byte, output *string) {
+	*output += strings.ToUpper(string(*b))
+}
+
+func client(input []string, freeList chan []byte, serverChan chan []byte) {
+	for _, letter := range input {
+		var b []byte
+
+		// Non-blocking receive from freeList.
+		select {
+		case b = <-freeList:
+			// Reuse buffer from pool.
+		default:
+			// Allocate a new minimal buffer.
+			b = []byte{0}
+		}
+
+		load(&b, letter) // Put one letter into the buffer.
+		serverChan <- b  // Blocking send to server.
+	}
+
+	// Signal no more work.
+	close(serverChan)
+}
+
+func server(output *string, freeList chan []byte, serverChan chan []byte, done chan struct{}) {
+	for {
+		// Blocking receive from serverChan.
+		b, ok := <-serverChan
 		if !ok {
-			// Channel was closed
-			if results[0] != "thread1" {
-				panic("Thread 1 received incorrect value")
-			}
-			done1.Send(0)
+			// Channel closed and drained.
+			done <- struct{}{}
+			return
 		}
-	}()
 
-	go func() {
-		_, ok := notifyCh.Receive()
-		if !ok {
-			// Channel was closed
-			if results[1] != "thread2" {
-				panic("Thread 2 received incorrect value")
-			}
-			done2.Send(0)
+		process(&b, output)
+
+		// Non-blocking return of buffer to freeList; drop if pool full.
+		select {
+		case freeList <- b:
+			// Returned to pool.
+		default:
+			// Pool full; drop buffer.
 		}
-	}()
-
-	go func() {
-		_, ok := notifyCh.Receive()
-		if !ok {
-			// Channel was closed
-			if results[2] != "thread3" {
-				panic("Thread 3 received incorrect value")
-			}
-			done3.Send(0)
-		}
-	}()
-
-	// Set values in the list
-	results[0] = "thread1"
-	results[1] = "thread2"
-	results[2] = "thread3"
-
-	// Close channel to notify all goroutines
-	notifyCh.Close()
-
-	// Wait for all goroutines to complete
-	done1.ReceiveDiscardOk()
-	done2.ReceiveDiscardOk()
-	done3.ReceiveDiscardOk()
-}
-
-// Example 5: Join sending goroutine before closing a buffered channel.
-// This should demonstrate the spec's ability to prevent closing on a channel
-// without joining all the senders.
-func CoordinatedChannelClose() {
-	// Create a buffered channel
-	bufCh := channel.NewChannelRef[uint64](2)
-
-	// Create a synchronization channel
-	syncCh := channel.NewChannelRef[uint64](0)
-
-	// Start goroutine that sends to buffered channel
-	go func() {
-		bufCh.Send(42)
-		// Signal completion
-		syncCh.Send(0)
-	}()
-
-	// Send from main function
-	bufCh.Send(84)
-
-	// Wait for goroutine to complete sending
-	syncCh.ReceiveDiscardOk()
-
-	// Now safe to close the channel
-	bufCh.Close()
-
-	// Read all values - need to check the 'ok' flag for closed channels
-	val1, ok1 := bufCh.Receive()
-	val2, ok2 := bufCh.Receive()
-
-	// Check that we got both values
-	if !ok1 || !ok2 {
-		panic("Channel shouldn't be empty yet")
-	}
-
-	if !((val1 == 42 && val2 == 84) || (val1 == 84 && val2 == 42)) {
-		panic("Did not receive both expected values")
 	}
 }
 
-// Example 6: A basic pipeline that just passes pointers
-// to a single worker who doubles the value of what they
-// point to.
-func DoubleValues() {
-	var val1 uint64 = 5
-	var val2 uint64 = 10
-	var val3 uint64 = 15
+func LeakyBufferPipeline() {
+	freeList := make(chan []byte, 5) // buffer pool
+	serverChan := make(chan []byte, 0)
+	done := make(chan struct{}, 0)
 
-	var values []*uint64
-	values = append(values, &val1)
-	values = append(values, &val2)
-	values = append(values, &val3)
+	output := ""
 
-	// Create an unbuffered channel for processing
-	ch := channel.NewChannelRef[*uint64](0)
-	done := channel.NewChannelRef[uint64](0)
+	go server(&output, freeList, serverChan, done)
+	client([]string{"h", "e", "l", "l", "o", ",", " ", "w", "o", "r", "l", "d"}, freeList, serverChan)
+	<-done
 
-	// Start a worker goroutine
-	go func() {
-		// Process each pointer using range
-		for true {
-			ptr, ok := ch.Receive()
-			if !ok {
-				break
-			}
-			*ptr = *ptr * 2
-		}
-		done.Close()
-	}()
-
-	// Send pointers to the goroutine for processing
-	ch.Send(values[0])
-	ch.Send(values[1])
-	ch.Send(values[2])
-
-	// Close the channel
-	ch.Close()
-	done.Receive()
-
-	// Check if values were doubled correctly
-	if !(val1 == 10 && val2 == 20 && val3 == 30) {
-		panic("Values were not doubled correctly")
+	// At this point, server finished because client closed serverChan.
+	if output != "HELLO, WORLD" {
+		panic("incorrect output")
 	}
 }
