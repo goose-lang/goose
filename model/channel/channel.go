@@ -280,7 +280,7 @@ func (c *Channel[T]) Cap() uint64 {
 func (c *Channel[T]) Iter() func(yield func(T) bool) {
 	return func(yield func(T) bool) {
 		for {
-			selected, v, ok := c.TryReceive(false)
+			selected, v, ok := c.TryReceive(true)
 			// no progress this iteration, try again
 			if !selected {
 				continue
