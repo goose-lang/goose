@@ -1,8 +1,6 @@
 package channel
 
 import (
-	"sync"
-
 	"github.com/goose-lang/primitive"
 )
 
@@ -19,7 +17,7 @@ const (
 )
 
 type Channel[T any] struct {
-	lock  *sync.Mutex
+	lock  *primitive.Mutex
 	state OfferState
 
 	buffer []T
@@ -37,7 +35,7 @@ func NewChannelRef[T any](buffer_size uint64) *Channel[T] {
 	}
 	return &Channel[T]{
 		buffer: make([]T, 0),
-		lock:   new(sync.Mutex),
+		lock:   new(primitive.Mutex),
 		cap:    buffer_size,
 		state:  local_state,
 	}
