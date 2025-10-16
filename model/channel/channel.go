@@ -413,7 +413,8 @@ func BlockingSelect3[T1, T2, T3 any](
 	for {
 		// Randomly pick one of 3 cases
 		r := primitive.RandomUint64() % 3
-		if r == 0 {
+		switch r {
+		case 0:
 			// Try case 1
 			if dir1 == SelectSend {
 				if ch1.TrySend(val1, true) {
@@ -425,7 +426,7 @@ func BlockingSelect3[T1, T2, T3 any](
 					return 0, recv_val, zero2, zero3, ok
 				}
 			}
-		} else if r == 1 {
+		case 1:
 			// Try case 2
 			if dir2 == SelectSend {
 				if ch2.TrySend(val2, true) {
@@ -437,7 +438,7 @@ func BlockingSelect3[T1, T2, T3 any](
 					return 1, zero1, recv_val, zero3, ok
 				}
 			}
-		} else {
+		default:
 			// Try case 3
 			if dir3 == SelectSend {
 				if ch3.TrySend(val3, true) {

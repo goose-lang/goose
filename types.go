@@ -347,17 +347,24 @@ func (ctx *Ctx) glangType(n locatable, t types.Type) glang.Type {
 }
 
 func sliceElem(t types.Type) types.Type {
-	if t, ok := t.Underlying().(*types.Slice); ok {
+	if t, ok := underlyingType(t).(*types.Slice); ok {
 		return t.Elem()
 	}
 	panic(fmt.Errorf("expected slice type, got %v", t))
 }
 
 func ptrElem(t types.Type) types.Type {
-	if t, ok := t.Underlying().(*types.Pointer); ok {
+	if t, ok := underlyingType(t).(*types.Pointer); ok {
 		return t.Elem()
 	}
 	panic(fmt.Errorf("expected pointer type, got %v", t))
+}
+
+func chanElem(t types.Type) types.Type {
+	if t, ok := underlyingType(t).(*types.Chan); ok {
+		return t.Elem()
+	}
+	panic(fmt.Errorf("expected channel type, got %v", t))
 }
 
 func isProphId(t types.Type) bool {

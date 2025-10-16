@@ -1211,7 +1211,9 @@ func (ctx *Ctx) unaryExpr(e *ast.UnaryExpr, multipleBindings bool) glang.Expr {
 		return ctx.exprAddr(e.X)
 	}
 	if e.Op == token.ARROW {
-		var expr glang.Expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.receive"), ctx.expr(e.X))
+		var expr glang.Expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.receive"),
+			glang.GolangTypeExpr(ctx.glangType(e, chanElem(ctx.typeOf(e.X)))),
+			ctx.expr(e.X))
 		if !multipleBindings {
 			expr = glang.NewCallExpr(glang.GallinaVerbatim("Fst"), expr)
 		}
@@ -2496,12 +2498,14 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 		} else if c, ok := s.Comm.(*ast.SendStmt); ok {
 			ops = append(ops, glang.NewCallExpr(
 				glang.GallinaVerbatim("chan.select_send"),
-				ctx.expr(c.Value),
+				glang.GolangTypeExpr(ctx.glangType(s.Comm, chanElem(ctx.typeOf(c.Chan)))),
 				ctx.expr(c.Chan),
+				ctx.expr(c.Value),
 				glang.FuncLit{Body: ctx.stmtList(s.Body, nil)},
 			))
 		} else { // must be a receive stmt
 			var recvChan glang.Expr
+			var chanType types.Type
 			body := ctx.stmtList(s.Body, nil)
 
 			// want to figure out the first statment to run in the body
@@ -2512,6 +2516,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 					ctx.nope(comm.X, "expected recv statement")
 				}
 				recvChan = ctx.expr(recvExpr.X)
+				chanType = ctx.typeOf(recvExpr.X)
 				// nothing extra to run in the body
 			case *ast.AssignStmt:
 				// XXX: replace the RHS in the assignment statement with an
@@ -2532,6 +2537,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 					ctx.nope(comm.Rhs[0], "expected recv statement")
 				}
 				recvChan = ctx.expr(recvExpr.X)
+				chanType = ctx.typeOf(recvExpr.X)
 
 				// XXX: create a new AST node and enough typing information for
 				// an assignStmt to translate.
@@ -2549,6 +2555,7 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 			}
 
 			ops = append(ops, glang.NewCallExpr(glang.GallinaVerbatim("chan.select_receive"),
+				glang.GolangTypeExpr(ctx.glangType(s.Comm, chanElem(chanType))),
 				recvChan,
 				glang.FuncLit{Args: []glang.Binder{{Name: "$recvVal"}}, Body: body},
 			))
@@ -2561,7 +2568,10 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 }
 
 func (ctx *Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
-	expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.send"), glang.IdentExpr("$chan"), glang.IdentExpr("$v"))
+	expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.send"),
+		glang.GolangTypeExpr(ctx.glangType(s, chanElem(ctx.typeOf(s.Chan)))),
+		glang.IdentExpr("$chan"),
+		glang.IdentExpr("$v"))
 	// XXX: left-to-right evaluation, might not match Go
 	expr = glang.LetExpr{Names: []string{"$v"}, ValExpr: ctx.expr(s.Value), Cont: expr}
 	expr = glang.LetExpr{Names: []string{"$chan"}, ValExpr: ctx.expr(s.Chan), Cont: expr}
