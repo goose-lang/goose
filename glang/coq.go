@@ -1080,7 +1080,7 @@ func (d SingleMsetPredicateDecl) CoqDecl() string {
 		}
 		typeParamsStr += ","
 		for _, typeParam := range d.TypeParams {
-			typeParamsStr += fmt.Sprintf(" let %[1]s := to_mem_type %[1]s.id in", typeParam)
+			typeParamsStr += fmt.Sprintf(" let %[1]s := to_mem_type %[1]s'id in", typeParam)
 		}
 	}
 
@@ -1148,14 +1148,22 @@ func (d FunctionsPredicateDecl) CoqDecl() string {
 	for i, funcName := range d.FunctionNames {
 		typeParams := d.FunctionTypeParams[i]
 		typeParamsStr := ""
+		funcImpl := funcName + "ⁱᵐᵖˡ"
+		instantiatedFuncName := funcName
 		if len(typeParams) > 0 {
-			typeParamsStr += "∀"
+			typeParamsStr += " ∀"
 			for _, typeParam := range typeParams {
-				typeParamsStr = typeParamsStr + fmt.Sprintf(" (%s : go_string)", typeParam)
+				typeParamsStr = typeParamsStr + fmt.Sprintf(" (%s'id : go_string)", typeParam)
+				funcImpl = funcImpl + " " + typeParam + "'id"
+				instantiatedFuncName = instantiatedFuncName + " " + typeParam + "'id"
 			}
 			typeParamsStr += ","
+			for _, typeParam := range typeParams {
+				typeParamsStr += fmt.Sprintf(" let %[1]s := to_mem_type %[1]s'id in", typeParam)
+			}
 		}
-		pp.Add("is_defined_%s : %s;", funcName, typeParamsStr)
+		pp.Add("is_defined_%s :%s __function %s = %s;", funcName, typeParamsStr,
+			instantiatedFuncName, funcImpl)
 	}
 	pp.Indent(-2)
 	pp.Add("}.")
