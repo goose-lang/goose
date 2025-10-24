@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/goose-lang/goose/model/channel"
+	"github.com/stretchr/testify/assert"
 )
 
 // The channel tests below are for the Goose model of channels that is implemented as a Go
@@ -655,17 +656,11 @@ func TestMultiConsumer(t *testing.T) {
 	for i := uint64(0); i < nwork; i++ {
 		wg.Add(1)
 		go func(w uint64) {
-			for {
-				selected, val, ok := q.TryReceive(false)
-				if !ok {
-					break
+			for val := range q.Iter() {
+				if pn[w%uint64(len(pn))] == val {
+					runtime.Gosched()
 				}
-				if selected {
-					if pn[w%uint64(len(pn))] == val {
-						runtime.Gosched()
-					}
-					r.Send(val)
-				}
+				r.Send(val)
 			}
 			wg.Done()
 		}(i)
@@ -687,15 +682,9 @@ func TestMultiConsumer(t *testing.T) {
 	// consume & check
 	var n uint64 = 0
 	var s uint64 = 0
-	for {
-		selected, val, ok := r.TryReceive(false)
-		if !ok {
-			break
-		}
-		if selected {
-			n++
-			s += val
-		}
+	for val := range r.Iter() {
+		n++
+		s += val
 	}
 	if n != niter || s != expect {
 		t.Errorf("Expected sum %d (got %d) from %d iter (saw %d)",
@@ -1215,4 +1204,23 @@ func Test2NBSelectNoProgress(t *testing.T) {
 	case <-timeout:
 		// Good: timeout reached, nothing made progress
 	}
+}
+
+func TestIter(t *testing.T) {
+	c := channel.NewChannelRef[int](0)
+	expected := make([]int, 0)
+	for i := range 10 {
+		expected = append(expected, i*10)
+	}
+	go func() {
+		for _, i := range expected {
+			c.Send(i)
+		}
+		c.Close()
+	}()
+	actual := make([]int, 0)
+	for val := range c.Iter() {
+		actual = append(actual, val)
+	}
+	assert.Equalf(t, expected, actual, "wrong values")
 }

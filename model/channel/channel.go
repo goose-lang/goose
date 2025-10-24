@@ -274,6 +274,27 @@ func (c *Channel[T]) Cap() uint64 {
 	return c.cap
 }
 
+// c.Iter() returns an iterator that models a for range loop over the channel.
+func (c *Channel[T]) Iter() func(yield func(T) bool) {
+	return func(yield func(T) bool) {
+		for {
+			selected, v, ok := c.TryReceive(true)
+			// no progress this iteration, try again
+			if !selected {
+				continue
+			}
+			// iteration is done
+			if !ok {
+				return
+			}
+			if !yield(v) {
+				// early exit
+				return
+			}
+		}
+	}
+}
+
 // The code below models select statements in a similar way to the reflect package's
 // dynamic select statements. See unit tests in channel_test.go for examples of
 // the intended translation.

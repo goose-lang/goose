@@ -2362,7 +2362,7 @@ func (ctx *Ctx) branchStmt(s *ast.BranchStmt, cont glang.Expr) glang.Expr {
 func (ctx *Ctx) goStmt(e *ast.GoStmt, cont glang.Expr) glang.Expr {
 	args := make([]glang.Expr, 0, len(e.Call.Args))
 	for i := range len(e.Call.Args) {
-		args = append(args, glang.IdentExpr(fmt.Sprintf("a%d", i)))
+		args = append(args, glang.IdentExpr(fmt.Sprintf("$a%d", i)))
 	}
 	var expr glang.Expr = glang.NewDoSeq(glang.SpawnExpr{Body: glang.NewCallExpr(
 		glang.IdentExpr("$go"),
