@@ -17,7 +17,7 @@ const (
 )
 
 type Channel[T any] struct {
-	cap uint64
+	cap int
 
 	// mu protects all remaining fields
 	mu    *primitive.Mutex
@@ -29,7 +29,7 @@ type Channel[T any] struct {
 }
 
 // buffer_size = 0 is an unbuffered channel
-func NewChannelRef[T any](cap uint64) *Channel[T] {
+func NewChannelRef[T any](cap int) *Channel[T] {
 	local_state := Idle
 	if cap > 0 {
 		local_state = Buffered
@@ -250,13 +250,12 @@ func (c *Channel[T]) TrySend(val T, blocking bool) bool {
 //
 // This might not be worth specifying since it is hard to make good use of channel length
 // semantics.
-func (c *Channel[T]) Len() uint64 {
+func (c *Channel[T]) Len() int {
 	if c == nil {
 		return 0
 	}
-	var chan_len uint64 = 0
 	c.mu.Lock()
-	chan_len = uint64(len(c.buffer))
+	chan_len := len(c.buffer)
 	c.mu.Unlock()
 	return chan_len
 }
@@ -265,7 +264,7 @@ func (c *Channel[T]) Len() uint64 {
 //
 // is equivalent to:
 // cap(c)
-func (c *Channel[T]) Cap() uint64 {
+func (c *Channel[T]) Cap() int {
 	if c == nil {
 		return 0
 	}
