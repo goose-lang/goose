@@ -4,39 +4,39 @@ import (
 	"github.com/goose-lang/primitive"
 )
 
-type OfferState uint64
+type offerState uint64
 
 const (
-	Buffered OfferState = 0
-	Idle     OfferState = 1
-	SndWait  OfferState = 2
-	RcvWait  OfferState = 3
-	SndDone  OfferState = 4
-	RcvDone  OfferState = 5
-	Closed   OfferState = 6
+	buffered offerState = iota
+	idle
+	sndPending
+	rcvPending
+	sndCommit
+	rcvDone
+	closed
 )
 
 type Channel[T any] struct {
-	lock  *primitive.Mutex
-	state OfferState
+	cap int
 
+	// mu protects all remaining fields
+	mu    *primitive.Mutex
+	state offerState
+	// used only for buffered channels
 	buffer []T
-	cap    uint64
-
-	// Value only used for unbuffered channels
+	// in-flight value used only for unbuffered channels
 	v T
 }
 
-// buffer_size = 0 is an unbuffered channel
-func NewChannelRef[T any](buffer_size uint64) *Channel[T] {
-	local_state := Idle
-	if buffer_size > 0 {
-		local_state = Buffered
+func NewChannel[T any](cap int) *Channel[T] {
+	local_state := idle
+	if cap > 0 {
+		local_state = buffered
 	}
 	return &Channel[T]{
+		cap:    cap,
+		mu:     new(primitive.Mutex),
 		buffer: make([]T, 0),
-		lock:   new(primitive.Mutex),
-		cap:    buffer_size,
 		state:  local_state,
 	}
 }
@@ -79,19 +79,19 @@ func (c *Channel[T]) Receive() (T, bool) {
 // This is a non-blocking attempt at closing. The only reason close blocks ever is because there
 // may be successful exchanges that need to complete, which is equivalent to the go runtime where
 // the closer must still obtain the channel's lock
-func (c *Channel[T]) TryClose() bool {
-	c.lock.Lock()
+func (c *Channel[T]) tryClose() bool {
+	c.mu.Lock()
 	switch c.state {
-	case Closed:
+	case closed:
 		panic("close of closed channel")
-	case Idle, Buffered:
-		c.state = Closed
-		c.lock.Unlock()
+	case idle, buffered:
+		c.state = closed
+		c.mu.Unlock()
 		return true
 	// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
 	// In the runtime channel code the lock is held while this happens.
 	default:
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false
 	}
 }
@@ -105,7 +105,7 @@ func (c *Channel[T]) Close() {
 	if c == nil {
 		panic("close of nil channel")
 	}
-	for !c.TryClose() {
+	for !c.tryClose() {
 	}
 }
 
@@ -113,11 +113,8 @@ func (c *Channel[T]) Close() {
 //
 // is equivalent to:
 // v := c<-
-// It seems like Go requires ignored return values to be annotated with _ but channels don't
-// require this so this will need to be translated.
 func (c *Channel[T]) ReceiveDiscardOk() T {
-	var return_val T
-	return_val, _ = c.Receive()
+	return_val, _ := c.Receive()
 	return return_val
 }
 
@@ -129,50 +126,50 @@ func (c *Channel[T]) ReceiveDiscardOk() T {
 func (c *Channel[T]) TryReceive(blocking bool) (bool, T, bool) {
 	var local_val T
 	// First critical section: determine state and get value if sender is ready
-	c.lock.Lock()
+	c.mu.Lock()
 	switch c.state {
-	case Buffered:
+	case buffered:
 		var v T
 		if len(c.buffer) > 0 {
 			val_copy := c.buffer[0]
 			c.buffer = c.buffer[1:]
-			c.lock.Unlock()
+			c.mu.Unlock()
 			return true, val_copy, true
 		}
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false, v, true
-	case Closed:
+	case closed:
 		// For a buffered channel, we drain the buffer before returning ok=false.
 		if len(c.buffer) > 0 {
 			val_copy := c.buffer[0]
 			c.buffer = c.buffer[1:]
-			c.lock.Unlock()
+			c.mu.Unlock()
 			return true, val_copy, true
 		}
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return true, local_val, false
 	// Sender is making an offer, accept it
-	case SndWait:
+	case sndPending:
 		local_val = c.v
-		c.state = RcvDone
-		c.lock.Unlock()
+		c.state = rcvDone
+		c.mu.Unlock()
 		return true, local_val, true
-	case Idle:
+	case idle:
 		if blocking {
-			c.state = RcvWait
-			c.lock.Unlock()
-			c.lock.Lock()
+			c.state = rcvPending
+			c.mu.Unlock()
+			c.mu.Lock()
 			switch c.state {
 			// Offer wasn't accepted in time, rescind it.
-			case RcvWait:
-				c.state = Idle
-				c.lock.Unlock()
+			case rcvPending:
+				c.state = idle
+				c.mu.Unlock()
 				return false, local_val, true
 			// Offer was accepted, reset channel.
-			case SndDone:
-				c.state = Idle
+			case sndCommit:
+				c.state = idle
 				local_val = c.v
-				c.lock.Unlock()
+				c.mu.Unlock()
 				return true, local_val, true
 			default:
 				// The protocol does not allow interference when an offer is outgoing.
@@ -180,11 +177,11 @@ func (c *Channel[T]) TryReceive(blocking bool) (bool, T, bool) {
 			}
 		}
 		// For nonblocking, we can't make offers, only can complete them.
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false, local_val, true
 	// An exchange is in progress that we can't participate in.
 	default:
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false, local_val, true
 	}
 }
@@ -192,43 +189,43 @@ func (c *Channel[T]) TryReceive(blocking bool) (bool, T, bool) {
 // Non-Blocking send operation for select statements. Blocking send and blocking select
 // statements simply call this in a for loop until it returns true.
 func (c *Channel[T]) TrySend(val T, blocking bool) bool {
-	c.lock.Lock()
+	c.mu.Lock()
 	switch c.state {
-	case Closed:
+	case closed:
 		panic("send on closed channel")
-	case Buffered:
+	case buffered:
 		// If we have room, buffer our value
 		if len(c.buffer) < int(c.cap) {
 			c.buffer = append(c.buffer, val)
-			c.lock.Unlock()
+			c.mu.Unlock()
 			return true
 		}
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false
-	case RcvWait:
+	case rcvPending:
 		// Receiver offers, accept offer.
-		c.state = SndDone
+		c.state = sndCommit
 		c.v = val
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return true
-	case Idle:
+	case idle:
 		// Make an offer only if blocking.
 		if blocking {
-			c.state = SndWait
+			c.state = sndPending
 			// Save the value in case the receiver completes the exchange.
 			c.v = val
-			c.lock.Unlock()
-			c.lock.Lock()
+			c.mu.Unlock()
+			c.mu.Lock()
 			switch c.state {
 			// Receiver accepts, reset the channel.
-			case RcvDone:
-				c.state = Idle
-				c.lock.Unlock()
+			case rcvDone:
+				c.state = idle
+				c.mu.Unlock()
 				return true
 			// Offer still stands, rescind it.
-			case SndWait:
-				c.state = Idle
-				c.lock.Unlock()
+			case sndPending:
+				c.state = idle
+				c.mu.Unlock()
 				return false
 			// This protocol doesn't work if other parties can cancel the exchange.
 			default:
@@ -236,11 +233,11 @@ func (c *Channel[T]) TrySend(val T, blocking bool) bool {
 			}
 		}
 		// Nonblocking sends can't make offers, only can accept them.
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false
 	// An exchange is in progress that we can't participate in.
 	default:
-		c.lock.Unlock()
+		c.mu.Unlock()
 		return false
 	}
 }
@@ -252,14 +249,13 @@ func (c *Channel[T]) TrySend(val T, blocking bool) bool {
 //
 // This might not be worth specifying since it is hard to make good use of channel length
 // semantics.
-func (c *Channel[T]) Len() uint64 {
+func (c *Channel[T]) Len() int {
 	if c == nil {
 		return 0
 	}
-	var chan_len uint64 = 0
-	c.lock.Lock()
-	chan_len = uint64(len(c.buffer))
-	c.lock.Unlock()
+	c.mu.Lock()
+	chan_len := len(c.buffer)
+	c.mu.Unlock()
 	return chan_len
 }
 
@@ -267,7 +263,7 @@ func (c *Channel[T]) Len() uint64 {
 //
 // is equivalent to:
 // cap(c)
-func (c *Channel[T]) Cap() uint64 {
+func (c *Channel[T]) Cap() int {
 	if c == nil {
 		return 0
 	}
@@ -301,8 +297,8 @@ func (c *Channel[T]) Iter() func(yield func(T) bool) {
 type SelectDir uint64
 
 const (
-	SelectSend SelectDir = 0 // case Chan <- Send
-	SelectRecv SelectDir = 1 // case <-Chan:
+	SelectSend SelectDir = 0 // case ch <- Send
+	SelectRecv SelectDir = 1 // case <-ch:
 )
 
 // Non-blocking select with 1 case (send or receive)
