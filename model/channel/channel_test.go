@@ -29,7 +29,7 @@ func TestChan(t *testing.T) {
 	for chanCap := 0; chanCap < N; chanCap++ {
 		{
 			// Ensure that receive from empty chan blocks.
-			c := channel.NewChannelRef[int](chanCap)
+			c := channel.NewChannel[int](chanCap)
 			recv1 := false
 			go func() {
 				_, _ = c.Receive()
@@ -61,7 +61,7 @@ func TestChan(t *testing.T) {
 
 		{
 			// Ensure that send to full chan blocks.
-			c := channel.NewChannelRef[int](chanCap)
+			c := channel.NewChannel[int](chanCap)
 			for i := 0; i < chanCap; i++ {
 				c.Send(i)
 			}
@@ -83,7 +83,7 @@ func TestChan(t *testing.T) {
 
 		{
 			// Ensure that we receive 0 from closed chan.
-			c := channel.NewChannelRef[int](chanCap)
+			c := channel.NewChannel[int](chanCap)
 			for i := 0; i < chanCap; i++ {
 				c.Send(i)
 			}
@@ -104,8 +104,8 @@ func TestChan(t *testing.T) {
 
 		{
 			// Ensure that close unblocks receive.
-			c := channel.NewChannelRef[int](chanCap)
-			done := channel.NewChannelRef[bool](0)
+			c := channel.NewChannel[int](chanCap)
+			done := channel.NewChannel[bool](0)
 			go func() {
 				v, ok := c.Receive()
 				done.Send(v == 0 && ok == false)
@@ -121,7 +121,7 @@ func TestChan(t *testing.T) {
 		{
 			// Send 100 integers,
 			// ensure that we receive them non-corrupted in FIFO order.
-			c := channel.NewChannelRef[int](chanCap)
+			c := channel.NewChannel[int](chanCap)
 			go func() {
 				for i := 0; i < 100; i++ {
 					c.Send(i)
@@ -161,7 +161,7 @@ func TestChan(t *testing.T) {
 					}
 				}()
 			}
-			done := channel.NewChannelRef[map[int]int](chanCap)
+			done := channel.NewChannel[map[int]int](chanCap)
 			for p := 0; p < P; p++ {
 				go func() {
 					recv := make(map[int]int)
@@ -191,7 +191,7 @@ func TestChan(t *testing.T) {
 
 		{
 			// Test len/cap.
-			c := channel.NewChannelRef[int](chanCap)
+			c := channel.NewChannel[int](chanCap)
 			if c.Len() != 0 || c.Cap() != chanCap {
 				t.Fatalf("chan[%d]: bad len/cap, expect %v/%v, got %v/%v", chanCap, 0, chanCap, c.Len(), c.Cap())
 			}
@@ -214,7 +214,7 @@ func TestLenCapComparedWithGoChannels(t *testing.T) {
 		t.Run(fmt.Sprintf("Capacity%d", capacity), func(t *testing.T) {
 			// Create both channel types
 			goChan := make(chan int, capacity)
-			ourChan := channel.NewChannelRef[int](capacity)
+			ourChan := channel.NewChannel[int](capacity)
 
 			// Test initial state
 			goLen := len(goChan)
@@ -314,7 +314,7 @@ func TestBlockingBehavior(t *testing.T) {
 	timeout := time.Millisecond * 10 // Reasonable timeout to check blocking behavior
 
 	t.Run("ReceiveFromEmptyBlocks", func(t *testing.T) {
-		c := channel.NewChannelRef[int](0) // Unbuffered channel
+		c := channel.NewChannel[int](0) // Unbuffered channel
 
 		done := make(chan bool)
 		go func() {
@@ -331,8 +331,8 @@ func TestBlockingBehavior(t *testing.T) {
 	})
 
 	t.Run("SendToFullBlocks", func(t *testing.T) {
-		c := channel.NewChannelRef[int](1) // Buffered channel with capacity 1
-		c.Send(42)                         // Fill the channel
+		c := channel.NewChannel[int](1) // Buffered channel with capacity 1
+		c.Send(42)                      // Fill the channel
 
 		done := make(chan bool)
 		go func() {
@@ -467,7 +467,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		ourChan := channel.NewChannelRef[int](1)
+		ourChan := channel.NewChannel[int](1)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.Send(42)
@@ -498,7 +498,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		ourChan := channel.NewChannelRef[int](1)
+		ourChan := channel.NewChannel[int](1)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.Close()
@@ -534,7 +534,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		ourChan := channel.NewChannelRef[int](1)
+		ourChan := channel.NewChannel[int](1)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.TrySend(42, false)
@@ -570,7 +570,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		ourChan := channel.NewChannelRef[int](5)
+		ourChan := channel.NewChannel[int](5)
 		ourChan.Close()
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.TrySend(42, false)
@@ -627,7 +627,7 @@ func TestNonblockRecvRace(t *testing.T) {
 		n = 100
 	}
 	for i := 0; i < n; i++ {
-		c := channel.NewChannelRef[int](1)
+		c := channel.NewChannel[int](1)
 		c.Send(1)
 		go func() {
 			selected, _, _ := channel.NonBlockingSelect1(c, channel.SelectRecv, 0)
@@ -648,8 +648,8 @@ func TestMultiConsumer(t *testing.T) {
 
 	pn := []int{2, 3, 7, 11, 13, 17, 19, 23, 27, 31}
 
-	q := channel.NewChannelRef[int](nwork * 3)
-	r := channel.NewChannelRef[int](nwork * 3)
+	q := channel.NewChannel[int](nwork * 3)
+	r := channel.NewChannel[int](nwork * 3)
 
 	// workers
 	var wg sync.WaitGroup
@@ -705,8 +705,8 @@ func doRequest(useSelect bool) (*response, error) {
 		resp *response
 		err  error
 	}
-	ch := channel.NewChannelRef[*async](0)
-	done := channel.NewChannelRef[struct{}](0)
+	ch := channel.NewChannel[*async](0)
+	done := channel.NewChannel[struct{}](0)
 
 	if useSelect {
 		go func() {
@@ -784,10 +784,10 @@ func makeByte() []byte {
 // always receive from one or the other. It must never execute the default case.
 func TestNonblockSelectRace(t *testing.T) {
 	n := 1000
-	done := channel.NewChannelRef[bool](0)
+	done := channel.NewChannel[bool](0)
 	for i := 0; i < n; i++ {
-		c1 := channel.NewChannelRef[int](1)
-		c2 := channel.NewChannelRef[int](1)
+		c1 := channel.NewChannel[int](1)
+		c2 := channel.NewChannel[int](1)
 		c1.Send(1)
 		go func() {
 			selected_case, _, _, _ := channel.NonBlockingSelect2(c1, channel.SelectRecv, 0, c2, channel.SelectRecv, 0)
@@ -814,10 +814,10 @@ func TestNonblockSelectRace(t *testing.T) {
 // Same as TestNonblockSelectRace, but close(c2) replaces c2 <- 1.
 func TestNonblockSelectRace2(t *testing.T) {
 	n := 1000
-	done := channel.NewChannelRef[bool](0)
+	done := channel.NewChannel[bool](0)
 	for i := 0; i < n; i++ {
-		c1 := channel.NewChannelRef[int](1)
-		c2 := channel.NewChannelRef[int](1)
+		c1 := channel.NewChannel[int](1)
+		c2 := channel.NewChannel[int](1)
 		c1.Send(1)
 		go func() {
 			selected_case, _, _, _ := channel.NonBlockingSelect2(
@@ -852,7 +852,7 @@ func TestSelfSelect(t *testing.T) {
 	for _, chanCap := range []int{0, 10} {
 		var wg sync.WaitGroup
 		wg.Add(2)
-		c := channel.NewChannelRef[int](chanCap)
+		c := channel.NewChannel[int](chanCap)
 		for p := 0; p < 2; p++ {
 			p := p
 			go func() {
@@ -895,8 +895,8 @@ func TestSelfSelect(t *testing.T) {
 // Make sure that a "perpetually selectable" closed receive case appearing first does not mean
 // it will be selected every time.
 func TestSelectLivenessOrder1(t *testing.T) {
-	c1 := channel.NewChannelRef[int](0)
-	c2 := channel.NewChannelRef[int](2)
+	c1 := channel.NewChannel[int](0)
+	c2 := channel.NewChannel[int](2)
 	c1.Close()
 	c2.Send(0)
 	c1_selected := false
@@ -920,8 +920,8 @@ func TestSelectLivenessOrder1(t *testing.T) {
 // Same as above but swap the case order to make sure it works symmetrically i.e. the
 // implementation doesn't have the same problem in the opposite order.
 func TestSelectLivenessOrder2(t *testing.T) {
-	c1 := channel.NewChannelRef[int](0)
-	c2 := channel.NewChannelRef[int](1)
+	c1 := channel.NewChannel[int](0)
+	c2 := channel.NewChannel[int](1)
 	c1.Close()
 	c2.Send(0)
 	c1_selected := false
@@ -945,8 +945,8 @@ func TestSelectLivenessOrder2(t *testing.T) {
 // Make sure if we keep selecting and 1 case is immediately selectable we still can choose a case
 // that eventually becomes selectable.
 func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
-	c1 := channel.NewChannelRef[int](0)
-	c2 := channel.NewChannelRef[int](0)
+	c1 := channel.NewChannel[int](0)
+	c2 := channel.NewChannel[int](0)
 	c1.Close()
 	c1_selected := false
 	c2_selected := false
@@ -974,14 +974,14 @@ func TestSelectLivenessNotImmediatelySelectable(t *testing.T) {
 // appears first
 func TestSelectFairnessWithBufferedChannel(t *testing.T) {
 	// Create one buffered and one unbuffered channel
-	c1 := channel.NewChannelRef[int](1) // Buffered (capacity 1)
-	c2 := channel.NewChannelRef[int](0) // Unbuffered
+	c1 := channel.NewChannel[int](1) // Buffered (capacity 1)
+	c2 := channel.NewChannel[int](0) // Unbuffered
 
 	// Put data in the buffered channel to make it immediately ready
 	c1.Send(42)
 
 	// Channel to signal test completion
-	done := channel.NewChannelRef[bool](0)
+	done := channel.NewChannel[bool](0)
 	buffered_selected := false
 	unbuffered_selected := false
 
@@ -1018,7 +1018,7 @@ func TestSelectFairnessWithBufferedChannel(t *testing.T) {
 }
 func TestSelect1(t *testing.T) {
 	// One buffered channel so we can preload it without blocking
-	c1 := channel.NewChannelRef[int](1) // capacity=1
+	c1 := channel.NewChannel[int](1) // capacity=1
 	// preload c1
 	c1.Send(66)
 
@@ -1037,7 +1037,7 @@ func TestSelect1(t *testing.T) {
 	}
 
 	// Create a new empty channel for testing non-blocking behavior
-	emptyC1 := channel.NewChannelRef[int](1)
+	emptyC1 := channel.NewChannel[int](1)
 
 	// With blocking=false and no selectable statement, should return selected=false
 	selected, _, _ = channel.NonBlockingSelect1(emptyC1, channel.SelectRecv, 0)
@@ -1061,8 +1061,8 @@ func TestSelect1(t *testing.T) {
 
 func TestSelect2(t *testing.T) {
 	// Two buffered channels so we can preload one without blocking
-	c1 := channel.NewChannelRef[int](1) // capacity=1
-	c2 := channel.NewChannelRef[int](1) // capacity=1
+	c1 := channel.NewChannel[int](1) // capacity=1
+	c2 := channel.NewChannel[int](1) // capacity=1
 	// preload c2
 	c2.Send(77)
 
@@ -1083,8 +1083,8 @@ func TestSelect2(t *testing.T) {
 	}
 
 	// Create new empty channels for testing non-blocking behavior
-	emptyC1 := channel.NewChannelRef[int](1)
-	emptyC2 := channel.NewChannelRef[int](1)
+	emptyC1 := channel.NewChannel[int](1)
+	emptyC2 := channel.NewChannel[int](1)
 
 	// With blocking=false and no selectable statement, should return DefaultCase
 	idx, _, _, _ = channel.NonBlockingSelect2(
@@ -1112,9 +1112,9 @@ func TestSelect2(t *testing.T) {
 
 func TestSelect3(t *testing.T) {
 	// Three buffered channels so we can preload one without blocking
-	c1 := channel.NewChannelRef[int](1) // capacity=1
-	c2 := channel.NewChannelRef[int](1) // capacity=1
-	c3 := channel.NewChannelRef[int](1) // capacity=1
+	c1 := channel.NewChannel[int](1) // capacity=1
+	c2 := channel.NewChannel[int](1) // capacity=1
+	c3 := channel.NewChannel[int](1) // capacity=1
 	// preload c3
 	c3.Send(88)
 
@@ -1136,9 +1136,9 @@ func TestSelect3(t *testing.T) {
 	}
 
 	// Create new empty channels for testing non-blocking behavior
-	emptyC1 := channel.NewChannelRef[int](1)
-	emptyC2 := channel.NewChannelRef[int](1)
-	emptyC3 := channel.NewChannelRef[int](1)
+	emptyC1 := channel.NewChannel[int](1)
+	emptyC2 := channel.NewChannel[int](1)
+	emptyC3 := channel.NewChannel[int](1)
 
 	// With blocking=false and no selectable statement, should return DefaultCase
 	idx, _, _, _, _ = channel.NonBlockingSelect3(
@@ -1168,7 +1168,7 @@ func TestSelect3(t *testing.T) {
 
 // Two non blocking selects should not match up.
 func Test2NBSelectNoProgress(t *testing.T) {
-	c1 := channel.NewChannelRef[int](0)
+	c1 := channel.NewChannel[int](0)
 
 	// Run the receiver loop in a goroutine
 	doneRecv := make(chan struct{})
@@ -1207,7 +1207,7 @@ func Test2NBSelectNoProgress(t *testing.T) {
 }
 
 func TestIter(t *testing.T) {
-	c := channel.NewChannelRef[int](0)
+	c := channel.NewChannel[int](0)
 	expected := make([]int, 0)
 	for i := range 10 {
 		expected = append(expected, i*10)
