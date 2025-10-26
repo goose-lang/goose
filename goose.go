@@ -2487,14 +2487,14 @@ func (ctx *Ctx) deferStmt(s *ast.DeferStmt, cont glang.Expr) (expr glang.Expr) {
 
 func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr) {
 	var ops glang.ListExpr
-	var def glang.Expr = glang.GallinaVerbatim("chan.select_no_default")
+	var def glang.Expr = nil
 
 	// build up select statement itself
 	for _, s := range s.Body.List {
 		s := s.(*ast.CommClause)
 		if s.Comm == nil {
-			def =
-				glang.NewCallExpr(glang.GallinaVerbatim("chan.select_default"), glang.FuncLit{Body: ctx.stmtList(s.Body, nil)})
+			// a default: case
+			def = glang.FuncLit{Body: ctx.stmtList(s.Body, nil)}
 		} else if c, ok := s.Comm.(*ast.SendStmt); ok {
 			ops = append(ops, glang.NewCallExpr(
 				glang.GallinaVerbatim("chan.select_send"),
@@ -2562,7 +2562,11 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 		}
 	}
 
-	expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.select"), ops, def)
+	if def == nil {
+		expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.select_blocking"), ops)
+	} else {
+		expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.select_nonblocking"), ops, def)
+	}
 	expr = glang.SeqExpr{Expr: expr, Cont: cont}
 	return
 }
