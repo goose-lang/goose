@@ -1099,7 +1099,7 @@ Definition SearchReplaceⁱᵐᵖˡ : val :=
     do:  ("workRange" <-[#intT] "$r0");;;
     let: "c" := (mem.alloc (type.zero_val #ptrT)) in
     let: "$r0" := (let: "$a0" := #(W64 4) in
-    (func_call #channel.NewChannelRef #sliceT) "$a0") in
+    (func_call #channel.NewChannel #sliceT) "$a0") in
     do:  ("c" <-[#ptrT] "$r0");;;
     let: "wg" := (mem.alloc (type.zero_val #sync.WaitGroup)) in
     (let: "i" := (mem.alloc (type.zero_val #intT)) in
