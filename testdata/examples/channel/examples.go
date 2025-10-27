@@ -50,11 +50,11 @@ func HelloWorldWithTimeout() string {
 
 // prog3 from Actris 2.0 intro: https://arxiv.org/pdf/2010.15030
 func DSPExample() int {
-	c := make(chan *int)
-	signal := make(chan struct{})
+	c := make(chan any)
+	signal := make(chan any)
 
 	go func() {
-		ptr := <-c           // receive pointer ℓ
+		ptr := (<-c).(*int)  // receive pointer ℓ
 		*ptr = *ptr + 2      // update *ℓ to *ℓ + 2
 		signal <- struct{}{} // send signal ()
 	}()
