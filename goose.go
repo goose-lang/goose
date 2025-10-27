@@ -1402,7 +1402,14 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		}
 		ctx.unsupported(e, "%s with final type %v", e.Name, t)
 	case "close":
-		return glang.GallinaVerbatim("chan.close")
+		funcT := ctx.typeOf(e).(*types.Signature)
+		if funcT.Params().Len() != 1 {
+			ctx.nope(e, "close with wrong number of params")
+		}
+		argT := funcT.Params().At(0).Type()
+		return glang.NewCallExpr(glang.GallinaVerbatim("chan.close"),
+			glang.GolangTypeExpr(ctx.glangType(e, chanElem(argT))),
+		)
 	case "iota":
 		o := ctx.info.ObjectOf(e)
 		t, v := ctx.constantLiteral(e, o.(*types.Const).Val())
