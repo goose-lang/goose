@@ -31,6 +31,7 @@ jobs:
         run: |
           go vet -composites=false ./...
           go test -v ./...
+          go test -v ./testdata/examples/channel
       - name: End-to-end CLI tests
         run: |
           ./test/bats/bin/bats ./test/goose.bats
