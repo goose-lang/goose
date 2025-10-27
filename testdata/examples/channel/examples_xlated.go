@@ -11,7 +11,7 @@ import (
 // verifying examples.
 
 func HelloWorldAsyncX() *channel.Channel[string] {
-	ch := channel.NewChannelRef[string](1)
+	ch := channel.NewChannel[string](1)
 	go func() {
 		ch.Send(sys_hello_world())
 	}()
@@ -37,7 +37,7 @@ func HelloWorldCancellableX(done *channel.Channel[struct{}], err *string) string
 
 // Uses cancellation as a timeout mechanism.
 func HelloWorldWithTimeoutX() string {
-	done := channel.NewChannelRef[struct{}](0)
+	done := channel.NewChannel[struct{}](0)
 	errMsg := ""
 	// Timeout goroutine updates errMsg only when timeout hits
 	go func() {
@@ -50,8 +50,8 @@ func HelloWorldWithTimeoutX() string {
 
 // prog3 from Actris 2.0 intro: https://arxiv.org/pdf/2010.15030
 func DSPExampleX() int {
-	c := channel.NewChannelRef[*int](0)
-	signal := channel.NewChannelRef[struct{}](0)
+	c := channel.NewChannel[*int](0)
+	signal := channel.NewChannel[struct{}](0)
 	go func() {
 		ptr := c.ReceiveDiscardOk() // receive pointer ℓ
 		*ptr = *ptr + 2             // update *ℓ to *ℓ + 2
@@ -75,7 +75,7 @@ func fibonacciX(n int, c *channel.Channel[int]) {
 }
 
 func fib_consumerX() []int {
-	c := channel.NewChannelRef[int](10)
+	c := channel.NewChannel[int](10)
 	go fibonacciX(10, c)
 	results := []int{}
 	for {
@@ -90,7 +90,7 @@ func fib_consumerX() []int {
 
 // Show that it isn't possible to have 2 nonblocking ops that match.
 func select_nb_no_panicX() {
-	ch := channel.NewChannelRef[struct{}](0)
+	ch := channel.NewChannel[struct{}](0)
 	go func() {
 		selected, _, _ := channel.NonBlockingSelect1(ch, channel.SelectRecv, struct{}{})
 		if selected {
@@ -105,7 +105,7 @@ func select_nb_no_panicX() {
 
 // Show that a guaranteed to be ready case makes default impossible
 func select_ready_case_no_panicX() {
-	ch := channel.NewChannelRef[struct{}](0)
+	ch := channel.NewChannel[struct{}](0)
 	ch.Close()
 	selected, _, _ := channel.NonBlockingSelect1(ch, channel.SelectRecv, struct{}{})
 	if !selected {
@@ -202,9 +202,9 @@ func serverX(output *string, freeList *channel.Channel[[]byte], serverChan *chan
 }
 
 func LeakyBufferPipelineX() {
-	freeList := channel.NewChannelRef[[]byte](0) // buffer pool
-	serverChan := channel.NewChannelRef[[]byte](0)
-	join := channel.NewChannelRef[struct{}](0)
+	freeList := channel.NewChannel[[]byte](0) // buffer pool
+	serverChan := channel.NewChannel[[]byte](0)
+	join := channel.NewChannel[struct{}](0)
 
 	output := ""
 
