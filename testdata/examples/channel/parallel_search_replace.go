@@ -29,7 +29,7 @@ func SearchReplace(s []int, x, y int) {
 	}
 	workers := 8
 	workRange := 1000
-	c := channel.NewChannelRef[[]int](4)
+	c := channel.NewChannel[[]int](4)
 	var wg sync.WaitGroup
 	for i := 0; i != workers; i++ {
 		go worker(c, &wg, x, y)
