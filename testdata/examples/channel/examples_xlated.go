@@ -50,12 +50,12 @@ func HelloWorldWithTimeoutX() string {
 
 // prog3 from Actris 2.0 intro: https://arxiv.org/pdf/2010.15030
 func DSPExampleX() int {
-	c := channel.NewChannel[*int](0)
-	signal := channel.NewChannel[struct{}](0)
+	c := channel.NewChannel[any](0)
+	signal := channel.NewChannel[any](0)
 	go func() {
-		ptr := c.ReceiveDiscardOk() // receive pointer ℓ
-		*ptr = *ptr + 2             // update *ℓ to *ℓ + 2
-		signal.Send(struct{}{})     // send signal ()
+		ptr := c.ReceiveDiscardOk().(*int) // receive pointer ℓ
+		*ptr = *ptr + 2                    // update *ℓ to *ℓ + 2
+		signal.Send(struct{}{})            // send signal ()
 	}()
 	val := 40
 	ptr := &val               // create reference ℓ := ref 40
