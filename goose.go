@@ -68,7 +68,8 @@ type Ctx struct {
 
 	inits []glang.Expr
 
-	filter declfilter.DeclFilter
+	filter      declfilter.DeclFilter
+	directCalls bool
 }
 
 // NewPkgCtx initializes a context based on a properly loaded package
@@ -778,12 +779,17 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 		} else if f, ok := ctx.info.ObjectOf(e.Sel).(*types.Func); ok {
 			// If there are type arguments, we must pass them
 			typeArgs := ctx.info.Instances[e.Sel].TypeArgs
-			return glang.NewCallExpr(
-				glang.GallinaVerbatim("func_call"),
-				glang.StringVal{Value: ctx.gallinaIdent(f.Pkg().Name() + "." + f.Name())},
-			).Append(
-				typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))...,
-			)
+			args := typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))
+			if ctx.directCalls {
+				return glang.NewCallExpr(
+					ctx.gallinaIdent(fmt.Sprintf("%s.%s", f.Pkg().Name(), glang.FuncImpl(f.Name()))),
+				).Append(args...)
+			} else {
+				return glang.NewCallExpr(
+					glang.GallinaVerbatim("func_call"),
+					glang.StringVal{Value: ctx.gallinaIdent(f.Pkg().Name() + "." + f.Name())},
+				).Append(args...)
+			}
 		} else {
 			return ctx.handleImplicitConversion(e,
 				ctx.info.TypeOf(e.Sel),
@@ -858,8 +864,19 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			ctx.nope(e.X, "expected a named type or a pointer to a named type for method call receiver")
 		}
 
-		return glang.NewCallExpr(glang.GallinaVerbatim("method_call"), typeIdExpr, methodExpr, receiver).Append(
-			typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))...)
+		args := typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))
+		if ctx.directCalls {
+			structName := ""
+			switch v := receiverType.(type) {
+			case *types.Named:
+				structName = ctx.qualifiedName(v.Obj())
+			case *types.Pointer:
+				structName = ctx.qualifiedName(types.Unalias(v.Elem()).(*types.Named).Obj())
+			}
+			return glang.NewCallExpr(glang.GallinaVerbatim(glang.TypeMethod(structName, e.Sel.Name)), receiver).Append(args...)
+		} else {
+			return glang.NewCallExpr(glang.GallinaVerbatim("method_call"), typeIdExpr, methodExpr, receiver).Append(args...)
+		}
 	}
 	panic("unreachable")
 }
@@ -2842,7 +2859,7 @@ func (ctx *Ctx) funcDecl(d *ast.FuncDecl) (ret []glang.Decl) {
 		}
 		fd.RecvArg = &glang.Binder{Name: name}
 	} else {
-		fd.Name = d.Name.Name + "ⁱᵐᵖˡ"
+		fd.Name = glang.FuncImpl(d.Name.Name)
 		switch ctx.filter.GetAction(funcName) {
 		case declfilter.Trust:
 			return

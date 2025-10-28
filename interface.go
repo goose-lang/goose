@@ -210,6 +210,7 @@ func translatePackage(pkg *packages.Package, config declfilter.FilterConfig) (gl
 			pkgErrors(pkg.Errors))
 	}
 	ctx := NewPkgCtx(pkg, declfilter.New(config))
+	ctx.directCalls = config.Bootstrap.DirectCalls
 	coqFile := ctx.initCoqFile(pkg, config)
 	imports, decls, errs := ctx.decls(pkg.Syntax)
 	coqFile.Imports = imports

@@ -37,6 +37,8 @@ type Bootstrap struct {
 	// These lines (typically imports from New.golang.defn) are joined to form
 	// the new prelude.
 	Prelude []string `toml:"prelude"`
+	// Translate function and method calls as direct calls, without using global state.
+	DirectCalls bool `toml:"direct_calls"`
 }
 
 type setOpType int

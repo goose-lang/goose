@@ -41,6 +41,62 @@ func NewChannel[T any](cap int) *Channel[T] {
 	}
 }
 
+// Non-Blocking send operation for select statements. Blocking send and blocking select
+// statements simply call this in a for loop until it returns true.
+func (c *Channel[T]) TrySend(val T, blocking bool) bool {
+	c.mu.Lock()
+	switch c.state {
+	case closed:
+		panic("send on closed channel")
+	case buffered:
+		// If we have room, buffer our value
+		if len(c.buffer) < int(c.cap) {
+			c.buffer = append(c.buffer, val)
+			c.mu.Unlock()
+			return true
+		}
+		c.mu.Unlock()
+		return false
+	case rcvPending:
+		// Receiver offers, accept offer.
+		c.state = sndCommit
+		c.v = val
+		c.mu.Unlock()
+		return true
+	case idle:
+		// Make an offer only if blocking.
+		if blocking {
+			c.state = sndPending
+			// Save the value in case the receiver completes the exchange.
+			c.v = val
+			c.mu.Unlock()
+			c.mu.Lock()
+			switch c.state {
+			// Receiver accepts, reset the channel.
+			case rcvDone:
+				c.state = idle
+				c.mu.Unlock()
+				return true
+			// Offer still stands, rescind it.
+			case sndPending:
+				c.state = idle
+				c.mu.Unlock()
+				return false
+			// This protocol doesn't work if other parties can cancel the exchange.
+			default:
+				panic("Invalid state transition with open receive offer")
+			}
+		}
+		// Nonblocking sends can't make offers, only can accept them.
+		c.mu.Unlock()
+		return false
+	// An exchange is in progress that we can't participate in.
+	default:
+		c.mu.Unlock()
+		return false
+	}
+}
+
 // c.Send(val)
 //
 // is equivalent to:
@@ -54,68 +110,6 @@ func (c *Channel[T]) Send(v T) {
 	}
 	for !c.TrySend(v, true) {
 	}
-}
-
-// Equivalent to:
-// value, ok := <-c
-// Notably, this requires the user to consume the ok bool which is not actually required with Go
-// channels. This should be able to be solved by adding an overload wrapper that discards the ok
-// bool.
-
-func (c *Channel[T]) Receive() (T, bool) {
-	if c == nil {
-		// Block forever
-		for {
-		}
-	}
-	for {
-		success, v, ok := c.TryReceive(true)
-		if success {
-			return v, ok
-		}
-	}
-}
-
-// This is a non-blocking attempt at closing. The only reason close blocks ever is because there
-// may be successful exchanges that need to complete, which is equivalent to the go runtime where
-// the closer must still obtain the channel's lock
-func (c *Channel[T]) tryClose() bool {
-	c.mu.Lock()
-	switch c.state {
-	case closed:
-		panic("close of closed channel")
-	case idle, buffered:
-		c.state = closed
-		c.mu.Unlock()
-		return true
-	// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
-	// In the runtime channel code the lock is held while this happens.
-	default:
-		c.mu.Unlock()
-		return false
-	}
-}
-
-// c.Close()
-//
-// is equivalent to:
-//
-// close(c)
-func (c *Channel[T]) Close() {
-	if c == nil {
-		panic("close of nil channel")
-	}
-	for !c.tryClose() {
-	}
-}
-
-// v := c.ReceiveDiscardOk
-//
-// is equivalent to:
-// v := c<-
-func (c *Channel[T]) ReceiveDiscardOk() T {
-	return_val, _ := c.Receive()
-	return return_val
 }
 
 // Non-blocking receive function used for select statements.
@@ -186,60 +180,66 @@ func (c *Channel[T]) TryReceive(blocking bool) (bool, T, bool) {
 	}
 }
 
-// Non-Blocking send operation for select statements. Blocking send and blocking select
-// statements simply call this in a for loop until it returns true.
-func (c *Channel[T]) TrySend(val T, blocking bool) bool {
+// Equivalent to:
+// value, ok := <-c
+// Notably, this requires the user to consume the ok bool which is not actually required with Go
+// channels. This should be able to be solved by adding an overload wrapper that discards the ok
+// bool.
+
+func (c *Channel[T]) Receive() (T, bool) {
+	if c == nil {
+		// Block forever
+		for {
+		}
+	}
+	for {
+		success, v, ok := c.TryReceive(true)
+		if success {
+			return v, ok
+		}
+	}
+}
+
+// This is a non-blocking attempt at closing. The only reason close blocks ever is because there
+// may be successful exchanges that need to complete, which is equivalent to the go runtime where
+// the closer must still obtain the channel's lock
+func (c *Channel[T]) tryClose() bool {
 	c.mu.Lock()
 	switch c.state {
 	case closed:
-		panic("send on closed channel")
-	case buffered:
-		// If we have room, buffer our value
-		if len(c.buffer) < int(c.cap) {
-			c.buffer = append(c.buffer, val)
-			c.mu.Unlock()
-			return true
-		}
-		c.mu.Unlock()
-		return false
-	case rcvPending:
-		// Receiver offers, accept offer.
-		c.state = sndCommit
-		c.v = val
+		panic("close of closed channel")
+	case idle, buffered:
+		c.state = closed
 		c.mu.Unlock()
 		return true
-	case idle:
-		// Make an offer only if blocking.
-		if blocking {
-			c.state = sndPending
-			// Save the value in case the receiver completes the exchange.
-			c.v = val
-			c.mu.Unlock()
-			c.mu.Lock()
-			switch c.state {
-			// Receiver accepts, reset the channel.
-			case rcvDone:
-				c.state = idle
-				c.mu.Unlock()
-				return true
-			// Offer still stands, rescind it.
-			case sndPending:
-				c.state = idle
-				c.mu.Unlock()
-				return false
-			// This protocol doesn't work if other parties can cancel the exchange.
-			default:
-				panic("Invalid state transition with open receive offer")
-			}
-		}
-		// Nonblocking sends can't make offers, only can accept them.
-		c.mu.Unlock()
-		return false
-	// An exchange is in progress that we can't participate in.
+	// For unbuffered channels, if there is an exchange in progress, let the exchange complete.
+	// In the runtime channel code the lock is held while this happens.
 	default:
 		c.mu.Unlock()
 		return false
 	}
+}
+
+// c.Close()
+//
+// is equivalent to:
+//
+// close(c)
+func (c *Channel[T]) Close() {
+	if c == nil {
+		panic("close of nil channel")
+	}
+	for !c.tryClose() {
+	}
+}
+
+// v := c.ReceiveDiscardOk
+//
+// is equivalent to:
+// v := c<-
+func (c *Channel[T]) ReceiveDiscardOk() T {
+	return_val, _ := c.Receive()
+	return return_val
 }
 
 // c.Len()

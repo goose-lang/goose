@@ -100,6 +100,10 @@ func binder(name string) string {
 	return quote(name)
 }
 
+func FuncImpl(name string) string {
+	return name + "ⁱᵐᵖˡ"
+}
+
 type ToValExpr struct {
 	Expr Expr
 }
