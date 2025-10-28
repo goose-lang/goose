@@ -1347,7 +1347,9 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 				return glang.GallinaVerbatim("StringLength")
 			}
 		case *types.Chan:
-			return glang.GallinaVerbatim("chan.len")
+			return glang.NewCallExpr(glang.GallinaVerbatim("chan.len"),
+				glang.GolangTypeExpr(ctx.glangType(e, ty.Elem())),
+			)
 		default:
 			ctx.unsupported(e, "length of object of type %v (%T)", ty, ty)
 		}
@@ -1358,7 +1360,9 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 		case *types.Slice:
 			return glang.GallinaVerbatim("slice.cap")
 		case *types.Chan:
-			return glang.GallinaVerbatim("chan.cap")
+			return glang.NewCallExpr(glang.GallinaVerbatim("chan.cap"),
+				glang.GolangTypeExpr(ctx.glangType(e, ty.Elem())),
+			)
 		default:
 			ctx.unsupported(e, "capacity of object of type %v", ty)
 		}
@@ -1835,6 +1839,7 @@ func (ctx *Ctx) rangeStmt(s *ast.RangeStmt) glang.Expr {
 	case *types.Chan:
 		e = glang.ForRangeChanExpr{
 			Chan: glang.IdentExpr("$range"),
+			Elem: glang.GolangTypeExpr(ctx.glangType(s.X, chanElem(ctx.typeOf(s.X)))),
 			Body: body,
 		}
 	default:

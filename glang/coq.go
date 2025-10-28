@@ -714,12 +714,14 @@ func (e ForRangeSliceExpr) Coq(needs_paren bool) string {
 
 type ForRangeChanExpr struct {
 	Chan Expr
+	Elem Expr
 	Body Expr
 }
 
 func (e ForRangeChanExpr) Coq(needs_paren bool) string {
 	var pp buffer
-	pp.Add("chan.for_range %s (λ: \"$key\",",
+	pp.Add("chan.for_range %s %s (λ: \"$key\",",
+		e.Elem.Coq(true),
 		e.Chan.Coq(true),
 	)
 	pp.Indent(2)
