@@ -281,14 +281,3 @@ func TestAllChannelTests(t *testing.T) {
 
 // Tests of hand-translated channel model code
 // TODO: Once channel translation is implemented, remove
-func TestAllHandXlatedChannelTests(t *testing.T) {
-	chan_spec_raw_examples.TestHelloWorldSyncX()
-	chan_spec_raw_examples.TestHelloWorldWithTimeoutX()
-	chan_spec_raw_examples.TestDSPExampleX()
-	chan_spec_raw_examples.TestFibConsumerX()
-	chan_spec_raw_examples.TestSelectNbNoPanicX()
-	chan_spec_raw_examples.TestSelectReadyCaseNoPanicX()
-	chan_spec_raw_examples.LeakyBufferPipelineX()
-	// If we get here, none of the functions panic
-	t.Log("All channel tests passed successfully!")
-}
