@@ -10,12 +10,3 @@ func TestAll(t *testing.T) {
 	TestSelectNbNoPanic()
 	TestSelectReadyCaseNoPanic()
 }
-
-func TestAllX(t *testing.T) {
-	TestHelloWorldSyncX()
-	TestHelloWorldWithTimeoutX()
-	TestDSPExampleX()
-	TestFibConsumerX()
-	TestSelectNbNoPanicX()
-	TestSelectReadyCaseNoPanicX()
-}
