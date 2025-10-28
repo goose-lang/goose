@@ -2584,12 +2584,15 @@ func (ctx *Ctx) selectStmt(s *ast.SelectStmt, cont glang.Expr) (expr glang.Expr)
 }
 
 func (ctx *Ctx) sendStmt(s *ast.SendStmt, cont glang.Expr) (expr glang.Expr) {
+	elemType := chanElem(ctx.typeOf(s.Chan))
 	expr = glang.NewCallExpr(glang.GallinaVerbatim("chan.send"),
-		glang.GolangTypeExpr(ctx.glangType(s, chanElem(ctx.typeOf(s.Chan)))),
+		glang.GolangTypeExpr(ctx.glangType(s, elemType)),
 		glang.IdentExpr("$chan"),
 		glang.IdentExpr("$v"))
 	// XXX: left-to-right evaluation, might not match Go
-	expr = glang.LetExpr{Names: []string{"$v"}, ValExpr: ctx.expr(s.Value), Cont: expr}
+	expr = glang.LetExpr{Names: []string{"$v"},
+		ValExpr: ctx.handleImplicitConversion(s.Value, ctx.typeOf(s.Value), elemType, ctx.expr(s.Value)),
+		Cont:    expr}
 	expr = glang.LetExpr{Names: []string{"$chan"}, ValExpr: ctx.expr(s.Chan), Cont: expr}
 	expr = glang.NewDoSeq(expr, cont)
 	return
