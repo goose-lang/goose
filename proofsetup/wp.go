@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"io"
+	"slices"
 	"strings"
 
 	"github.com/goose-lang/goose/proofgen"
@@ -49,6 +51,8 @@ func argGallinaBinder(pkg *packages.Package, x *ast.Ident) string {
 }
 
 func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
+	fmt.Println("getting wp")
+	
 	s := new(bytes.Buffer)
 
 	var rt *receiverType = nil
@@ -66,12 +70,17 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 		recv := decl.Recv.List[0].Names[0]
 		gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, recv))
 	}
+
+	
+	params := []string{}
 	for _, param := range decl.Type.Params.List {
+		params = append(params, param.Names[0].Name)
 		for _, arg := range param.Names {
 			args = append(args, fmt.Sprintf("#%s", arg.Name))
 			gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, arg))
 		}
 	}
+	fmt.Printf("gallina binders: %v\n", gallinaBinders)
 	if len(args) == 0 {
 		args = []string{"#()"}
 	}
@@ -94,18 +103,77 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 	fmt.Fprintf(s, "  {{{ is_pkg_init %s }}}\n", pkg.Name)
 
 	if rt == nil {
-		fmt.Fprintf(s, "    %s @ \"%s\" %s\n", pkg.Name, decl.Name, strings.Join(args, " "))
+		// fmt.Fprintf(s, "    %s @ \"%s\" %s\n", pkg.Name, decl.Name, strings.Join(args, " "))
+		fmt.Fprintf(s, "    @! \"%s\" %s\n", decl.Name, strings.Join(args, " "))
 	} else {
 		recv := decl.Recv.List[0].Names[0]
 		fmt.Fprintf(s, "    %s @ %s @ \"%s\" @ \"%s\" %s\n", recv.Name, pkg.Name, rt.FullName(), decl.Name, strings.Join(args, " "))
 	}
 
-	fmt.Fprintf(s, "  {{{ RET #(); True }}}.")
+	// return types
+	fmt.Fprintf(s, "  {{{ ")
+	printReturns(s, decl, params, pkg)
+	fmt.Fprintf(s, " }}}.")
+	
 	return s.String()
+}
+
+// makeName turns 0 -> "a", 1 -> "b", ..., 25 -> "z", 26 -> "aa", etc.
+func makeName(i int) string {
+	alphabet := "abcdefghijklmnopqrstuvwxyz"
+	if i < 26 {
+		return string(alphabet[i])
+	}
+	var b []byte
+	for i >= 0 {
+		b = append([]byte{alphabet[i%26]}, b...)
+		i = i/26 - 1
+	}
+	return string(b)
+}
+
+func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *packages.Package) {
+	if decl.Type.Results == nil || len(decl.Type.Results.List) == 0 {
+		fmt.Fprintf(w, "RET #(); True")
+		return
+	}
+
+	var typedParts []string
+	var retRefs []string
+	idx := 0
+	for _, f := range decl.Type.Results.List {
+		ty := ""
+		if _, ok := f.Type.(*ast.StarExpr); ok {
+			ty = "loc"
+		} else {
+			ty = proofgen.ToCoqType(pkg.TypesInfo.TypeOf(f.Type), pkg)
+		}
+		n := 1
+		if len(f.Names) > 0 {
+			n = len(f.Names)
+		}
+		for k := 0; k < n; k++ {
+			name := makeName(idx)
+			if slices.Contains(params, name) {
+				k = k - 1
+				idx++
+				continue
+			}
+			typedParts = append(typedParts, fmt.Sprintf("(%s: %s)", name, ty))
+			retRefs = append(retRefs, "#"+name)
+			idx++
+		}
+	}
+
+	fmt.Fprintf(w, "%s, RET (%s); True",
+		strings.Join(typedParts, " "),
+		strings.Join(retRefs, ", "),
+	)
 }
 
 func packageWps(pkg *packages.Package) []string {
 	var wps []string
+	fmt.Printf("package: %v\n", pkg)
 	for _, f := range pkg.Syntax {
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {

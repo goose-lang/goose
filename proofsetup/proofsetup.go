@@ -37,21 +37,28 @@ func pkgImport(pkgPath string, pkgName string) string {
 }
 
 func pkgCoqImports(pkg *packages.Package) []string {
-	ffi := util.GetFfi(pkg)
+	// ffi := util.GetFfi(pkg)
 	var imports []string
 	for _, p := range pkg.Imports {
 		imports = append(imports,
 			fmt.Sprintf("New.proof.%s", pkgImport(p.PkgPath, p.Name)))
 	}
 	slices.Sort(imports)
-	ffiImportName := ffi
-	if ffi == "" {
-		ffiImportName = "proof"
-	}
-	imports = append(imports,
-		fmt.Sprintf("New.proof.%s_prelude", ffiImportName))
+	// ffiImportName := ffi
+	// if ffi == "" {
+	// 	ffiImportName = "proof"
+	// }
+	// imports = append(imports,
+	// 	fmt.Sprintf("New.proof.%s_prelude", ffiImportName))
 	imports = append(imports,
 		fmt.Sprintf("New.generatedproof.%s", pkgImport(pkg.PkgPath, pkg.Name)))
+
+	imports = append(imports, "sys_verif.program_proof.prelude")
+	imports = append(imports, "sys_verif.program_proof.empty_ffi")
+	imports = append(imports, "sys_verif.program_proof.heap_init")
+
+	fmt.Printf("imports: %v\n", imports)
+	
 	return imports
 }
 
@@ -83,9 +90,9 @@ func New(pkg *packages.Package) ProofSetup {
 	s.Imports = strings.Join(importLines, "\n")
 
 	if ffi == "" {
-		s.ContextVars = "Context `{hG: heapGS Σ, !ffi_semantics _ _} `{!goGlobalsGS Σ}."
+		s.ContextVars = "Context `{hG: heapGS Σ, !ffi_semantics _ _} `{!globalsGS Σ} {go_ctx: GoContext}."
 	} else {
-		s.ContextVars = "Context `{hG: !heapGS Σ} `{!goGlobalsGS Σ}."
+		s.ContextVars = "Context `{hG: !heapGS Σ} `{!globalsGS Σ} {go_ctx: GoContext}."
 	}
 
 	s.WpLemmas = packageWps(pkg)
@@ -94,12 +101,13 @@ func New(pkg *packages.Package) ProofSetup {
 }
 
 func (pf ProofSetup) SkeletonFile() string {
-	tmpl := template.Must(template.New("proof.v").Parse(`{{.Imports}}
+	tmpl := template.Must(template.New("proof.v").Option("missingkey=default").Parse(`{{.Imports}}
 
 Section proof.
 {{.ContextVars}}
 
-#[global] Program Instance : IsPkgInit {{.PackageName}} := ltac2:(build_pkg_init ()).
+#[global] Instance : IsPkgInit {{$.PackageName}} := define_is_pkg_init True%%I.
+#[global] Instance : GetIsPkgInitWf {{$.PackageName}} := build_get_is_pkg_init_wf.
 
 {{ range $lemma := .WpLemmas -}}
 {{$lemma}}
@@ -108,6 +116,7 @@ Proof. Admitted.
 {{ end -}}
 End proof.
 `))
+	
 	s := new(bytes.Buffer)
 	err := tmpl.Execute(s, pf)
 	if err != nil {
