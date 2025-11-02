@@ -2,6 +2,7 @@ package chan_spec_raw_examples
 
 import (
 	"sync"
+	"time"
 )
 
 type EliminationStack struct {
@@ -22,7 +23,8 @@ func (s *EliminationStack) Push(value string) {
 	select {
 	case s.exchanger <- value:
 		return
-	default:
+	case <-time.After(10 * time.Microsecond):
+		// fall through to central stack
 	}
 	// Central stack fallback
 	s.mu.Lock()
@@ -35,7 +37,8 @@ func (s *EliminationStack) Pop() (string, bool) {
 	select {
 	case v := <-s.exchanger:
 		return v, true // eliminated with a concurrent Push
-	default:
+	case <-time.After(10 * time.Microsecond):
+		// fall through to central stack
 	}
 	// Central stack fallback
 	s.mu.Lock()
