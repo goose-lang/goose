@@ -101,20 +101,20 @@ func simple_join() string {
 }
 
 func simple_multi_join() string {
-	done := make(chan struct{}, 2)
+	ch := make(chan struct{}, 2)
 	var hello, world string
 
 	go func() {
 		hello = "Hello"
-		done <- struct{}{}
+		ch <- struct{}{}
 	}()
 	go func() {
 		world = "World"
-		done <- struct{}{}
+		ch <- struct{}{}
 	}()
 	// Wait for both goroutines
-	<-done
-	<-done
+	<-ch
+	<-ch
 	return hello + " " + world
 }
 
