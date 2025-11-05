@@ -157,7 +157,7 @@ func TestCancellation(t *testing.T) {
 	fmt.Println("Muxer result:", <-result)
 }
 
-func testNormalShutdown(t *testing.T) {
+func TestNormalShutdown(t *testing.T) {
 	mux := make(chan stream)
 	done := make(chan struct{})
 	errMsg := ""
