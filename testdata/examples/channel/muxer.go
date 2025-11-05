@@ -33,17 +33,51 @@ func Muxer(c chan stream) {
 	}
 }
 
-// 4. CancellableMuxer - muxer with cancellation
-func CancellableMuxer(c chan stream, done chan struct{}) {
+func CancellableMapServer(s stream, done chan struct{}) {
 	for {
 		select {
-		case s, ok := <-c:
+		case in, ok := <-s.req:
 			if !ok {
 				return
 			}
-			go MapServer(s)
+			s.res <- s.f(in)
 		case <-done:
 			return
 		}
 	}
+}
+
+// 4. CancellableMuxer - muxer with cancellation
+func CancellableMuxer(c chan stream, done chan struct{}, errMsg *string) string {
+	for {
+		select {
+		case s, ok := <-c:
+			if !ok {
+				return "serviced all requests"
+			}
+			go CancellableMapServer(s, done)
+		case <-done:
+			return *errMsg
+		}
+	}
+}
+
+func makeGreeting() string {
+	// Start muxer
+	mux := make(chan stream, 2)
+	go Muxer(mux)
+
+	// Two simple streams
+	comma := mkStream(func(s string) string { return s + "," })
+	exclaim := mkStream(func(s string) string { return s + "!" })
+
+	// Submit to muxer
+	mux <- comma
+	mux <- exclaim
+
+	// Use them
+	comma.req <- "Hello"
+	exclaim.req <- "World"
+
+	return <-comma.res + " " + <-exclaim.res
 }

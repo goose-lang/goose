@@ -86,49 +86,6 @@ func TestMuxer(t *testing.T) {
 	close(streamChan)
 }
 
-func TestCancellableMuxer(t *testing.T) {
-	streamChan := make(chan stream)
-	done := make(chan struct{})
-
-	go CancellableMuxer(streamChan, done)
-
-	s := mkStream(func(input string) string {
-		return "result-" + input
-	})
-
-	streamChan <- s
-
-	// Verify it works before cancellation
-	s.req <- "test"
-	select {
-	case result := <-s.res:
-		if result != "result-test" {
-			panic(fmt.Sprintf("Expected 'result-test', got '%s'", result))
-		}
-	case <-time.After(100 * time.Millisecond):
-		panic("CancellableMuxer timed out before cancellation")
-	}
-
-	// Cancel the muxer
-	close(done)
-	time.Sleep(10 * time.Millisecond) // Give it time to shutdown
-
-	// The muxer should have stopped, but existing streams should still work
-	// since MapServer is already running
-	s.req <- "test2"
-	select {
-	case result := <-s.res:
-		if result != "result-test2" {
-			panic(fmt.Sprintf("Expected 'result-test2', got '%s'", result))
-		}
-	case <-time.After(100 * time.Millisecond):
-		panic("Existing stream timed out after cancellation")
-	}
-
-	close(s.req)
-	close(streamChan)
-}
-
 func TestMuxerConcurrent(t *testing.T) {
 	streamChan := make(chan stream, 10)
 
@@ -171,4 +128,53 @@ func TestMuxerConcurrent(t *testing.T) {
 
 	wg.Wait()
 	close(streamChan)
+}
+
+func testCancellation(t *testing.T) {
+	mux := make(chan stream)
+	done := make(chan struct{})
+	errMsg := ""
+
+	result := make(chan string)
+	go func() {
+		result <- CancellableMuxer(mux, done, &errMsg)
+	}()
+
+	// Slow stream that takes 200ms
+	slow := mkStream(func(s string) string {
+		time.Sleep(200 * time.Millisecond)
+		return "processed: " + s
+	})
+
+	mux <- slow
+	slow.req <- "data"
+
+	// Set error BEFORE closing done
+	time.Sleep(50 * time.Millisecond)
+	errMsg = "timeout: operation took too long"
+	close(done)
+
+	fmt.Println("Muxer result:", <-result)
+}
+
+func testNormalShutdown(t *testing.T) {
+	mux := make(chan stream)
+	done := make(chan struct{})
+	errMsg := ""
+
+	result := make(chan string)
+	go func() {
+		result <- CancellableMuxer(mux, done, &errMsg)
+	}()
+
+	// Submit and process a stream
+	fast := mkStream(func(s string) string { return s + "!" })
+	mux <- fast
+	fast.req <- "done"
+	fmt.Println(<-fast.res)
+
+	// Close channel normally
+	close(mux)
+
+	fmt.Println("Muxer result:", <-result)
 }
