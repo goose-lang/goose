@@ -130,7 +130,7 @@ func TestMuxerConcurrent(t *testing.T) {
 	close(streamChan)
 }
 
-func testCancellation(t *testing.T) {
+func TestCancellation(t *testing.T) {
 	mux := make(chan stream)
 	done := make(chan struct{})
 	errMsg := ""
