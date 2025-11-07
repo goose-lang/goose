@@ -31,7 +31,7 @@ func TestSpecSend(t *testing.T) {
 
 func TestSpecSendNil(t *testing.T) {
 	// A send on a nil channel blocks forever.
-	var ch *Channel[int]
+	var ch Channel[int]
 	done := make(chan struct{})
 	go func() {
 		ch.Send(1)
@@ -47,7 +47,7 @@ func TestSpecSendNil(t *testing.T) {
 
 func TestSpecReceiveNil(t *testing.T) {
 	// Receiving from a nil channel blocks forever.
-	var ch *Channel[int]
+	var ch Channel[int]
 	done := make(chan struct{})
 	go func() {
 		ch.Receive()
@@ -76,7 +76,7 @@ func TestSpecClose(t *testing.T) {
 	})
 	// Closing the nil channel also causes a run-time panic.
 	assert.Panics(func() {
-		var c *Channel[bool]
+		var c Channel[bool]
 		c.Close()
 	})
 	// After calling close, and after any previously sent values have been

@@ -295,7 +295,7 @@ func TestLenCapComparedWithGoChannels(t *testing.T) {
 	// Test special case: nil channel
 	t.Run("NilChannel", func(t *testing.T) {
 		var goChan chan int
-		var ourChan *go_channel.Channel[int]
+		var ourChan go_channel.Channel[int]
 
 		goLen := len(goChan)
 		goCap := cap(goChan)
@@ -363,7 +363,7 @@ func TestBlockingBehavior(t *testing.T) {
 		t.Run("SendToNilBlocks", func(t *testing.T) {
 			// Compare with Go's behavior
 			var goChan chan int
-			var ourChan *go_channel.Channel[int] = nil
+			var ourChan go_channel.Channel[int] = nil
 
 			goBlocked := true
 			ourBlocked := true
@@ -404,7 +404,7 @@ func TestBlockingBehavior(t *testing.T) {
 		t.Run("ReceiveFromNilBlocks", func(t *testing.T) {
 			// Compare with Go's behavior
 			var goChan chan int
-			var ourChan *go_channel.Channel[int] = nil
+			var ourChan go_channel.Channel[int] = nil
 
 			goBlocked := true
 			ourBlocked := true
@@ -600,7 +600,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		var ourChan *go_channel.Channel[int]
+		var ourChan go_channel.Channel[int]
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.Close()
 		})
