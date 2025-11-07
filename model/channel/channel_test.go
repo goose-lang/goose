@@ -1224,3 +1224,5 @@ func TestIter(t *testing.T) {
 	}
 	assert.Equalf(t, expected, actual, "wrong values")
 }
+
+// TODO: test https://pkg.go.dev/reflect#Select

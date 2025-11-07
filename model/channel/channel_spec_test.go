@@ -96,3 +96,5 @@ func TestSpecClose(t *testing.T) {
 		assert.Equal(0, v)
 	}
 }
+
+// TODO: test https://pkg.go.dev/reflect#Select
