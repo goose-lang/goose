@@ -7,6 +7,33 @@ import (
 	"testing"
 )
 
+func TestLockedStack(t *testing.T) {
+	s := NewLockedStack()
+
+	// Test empty stack
+	if _, ok := s.Pop(); ok {
+		panic("Expected empty stack to return false")
+	}
+
+	// Test basic push/pop
+	s.Push("a")
+	s.Push("b")
+	s.Push("c")
+
+	if v, ok := s.Pop(); !ok || v != "c" {
+		panic(fmt.Sprintf("Expected c, got %v", v))
+	}
+	if v, ok := s.Pop(); !ok || v != "b" {
+		panic(fmt.Sprintf("Expected b, got %v", v))
+	}
+	if v, ok := s.Pop(); !ok || v != "a" {
+		panic(fmt.Sprintf("Expected a, got %v", v))
+	}
+	if _, ok := s.Pop(); ok {
+		panic("Expected empty stack after popping all items")
+	}
+}
+
 func TestBasicLIFO(t *testing.T) {
 	s := NewEliminationStack()
 
