@@ -34,11 +34,12 @@ func (s *LockedStack) Pop() (string, bool) {
 	return v, true
 }
 
+const timeout = 10 * time.Microsecond
+
 // EliminationStack composes a single-slot exchanger over a LockedStack.
 type EliminationStack struct {
 	base      *LockedStack
 	exchanger chan string // unbuffered: rendezvous
-	timeout   time.Duration
 }
 
 // NewEliminationStack constructs a new elimination stack
@@ -47,7 +48,6 @@ func NewEliminationStack() *EliminationStack {
 	return &EliminationStack{
 		base:      NewLockedStack(),
 		exchanger: make(chan string),
-		timeout:   10 * time.Microsecond,
 	}
 }
 
@@ -57,7 +57,7 @@ func (s *EliminationStack) Push(value string) {
 	case s.exchanger <- value:
 		// Eliminated with a concurrent Pop.
 		return
-	case <-time.After(s.timeout):
+	case <-time.After(timeout):
 		// Timeout; use central stack.
 	}
 	s.base.Push(value)
@@ -69,7 +69,7 @@ func (s *EliminationStack) Pop() (string, bool) {
 	case v := <-s.exchanger:
 		// Eliminated with a concurrent Push.
 		return v, true
-	case <-time.After(s.timeout):
+	case <-time.After(timeout):
 		// Timeout; use central stack.
 	}
 	return s.base.Pop()

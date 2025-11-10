@@ -73,10 +73,11 @@ Definition LockedStack__Popⁱᵐᵖˡ : val :=
     do:  ((method_call #(ptrT.id sync.Mutex.id) #"Unlock"%go (struct.field_ref #LockedStack #"mu"%go (![#ptrT] "s"))) #());;;
     return: (![#stringT] "v", #true)).
 
+Definition timeout : val := #(W64 10000).
+
 Definition EliminationStack : go_type := structT [
   "base" :: ptrT;
-  "exchanger" :: chanT stringT;
-  "timeout" :: time.Duration
+  "exchanger" :: chanT stringT
 ].
 #[global] Typeclasses Opaque EliminationStack.
 #[global] Opaque EliminationStack.
@@ -86,16 +87,14 @@ Definition NewEliminationStack : go_string := "github.com/goose-lang/goose/testd
 (* NewEliminationStack constructs a new elimination stack
    using a fresh LockedStack and a small default timeout.
 
-   go: elimination_stack.go:46:6 *)
+   go: elimination_stack.go:47:6 *)
 Definition NewEliminationStackⁱᵐᵖˡ : val :=
   λ: <>,
     exception_do (return: (mem.alloc (let: "$base" := ((func_call #NewLockedStack) #()) in
      let: "$exchanger" := (chan.make #stringT #(W64 0)) in
-     let: "$timeout" := (#(W64 10) * time.Microsecond) in
      struct.make #EliminationStack [{
        "base" ::= "$base";
-       "exchanger" ::= "$exchanger";
-       "timeout" ::= "$timeout"
+       "exchanger" ::= "$exchanger"
      }]))).
 
 (* Push first tries one-shot elimination; on timeout, falls back to the locked stack.
@@ -107,7 +106,7 @@ Definition EliminationStack__Pushⁱᵐᵖˡ : val :=
     let: "value" := (mem.alloc "value") in
     chan.select_blocking [chan.select_send #stringT (![type.chanT #stringT] (struct.field_ref #EliminationStack #"exchanger"%go (![#ptrT] "s"))) (![#stringT] "value") (λ: <>,
        return: (#())
-       ); chan.select_receive #time.Time (let: "$a0" := (![#time.Duration] (struct.field_ref #EliminationStack #"timeout"%go (![#ptrT] "s"))) in
+       ); chan.select_receive #time.Time (let: "$a0" := timeout in
      (func_call #time.After) "$a0") (λ: "$recvVal",
        do:  #()
        )];;;
@@ -126,7 +125,7 @@ Definition EliminationStack__Popⁱᵐᵖˡ : val :=
        let: "$r0" := (Fst "$recvVal") in
        do:  ("v" <-[#stringT] "$r0");;;
        return: (![#stringT] "v", #true)
-       ); chan.select_receive #time.Time (let: "$a0" := (![#time.Duration] (struct.field_ref #EliminationStack #"timeout"%go (![#ptrT] "s"))) in
+       ); chan.select_receive #time.Time (let: "$a0" := timeout in
      (func_call #time.After) "$a0") (λ: "$recvVal",
        do:  #()
        )];;;
