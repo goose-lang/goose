@@ -21,7 +21,8 @@ func Async(f func() string) chan string {
 
 // 2. MapServer - handles a single stream
 func MapServer(s stream) {
-	for in := range s.req {
+	for {
+		in := <-s.req
 		s.res <- s.f(in)
 	}
 }
