@@ -10,7 +10,6 @@ func mkStream(f func(string) string) stream {
 	return stream{make(chan string), make(chan string), f}
 }
 
-// 1. Async - simplest building block
 func Async(f func() string) chan string {
 	ch := make(chan string, 1)
 	go func() {
@@ -19,7 +18,6 @@ func Async(f func() string) chan string {
 	return ch
 }
 
-// 2. MapServer - handles a single stream
 func MapServer(s stream) {
 	for {
 		in := <-s.req
@@ -27,7 +25,21 @@ func MapServer(s stream) {
 	}
 }
 
-// 3. Muxer - SPSC for streams
+func Client() string {
+
+	comma := mkStream(func(s string) string { return s + "," })
+	exclaim := mkStream(func(s string) string { return s + "!" })
+
+	go MapServer(comma)
+	go MapServer(exclaim)
+
+	// Use them
+	comma.req <- "Hello"
+	exclaim.req <- "World"
+
+	return <-comma.res + " " + <-exclaim.res
+}
+
 func Muxer(c chan stream) {
 	for s := range c {
 		go MapServer(s)
