@@ -51,8 +51,6 @@ func argGallinaBinder(pkg *packages.Package, x *ast.Ident) string {
 }
 
 func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
-	fmt.Println("getting wp")
-	
 	s := new(bytes.Buffer)
 
 	var rt *receiverType = nil
@@ -80,7 +78,6 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 			gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, arg))
 		}
 	}
-	fmt.Printf("gallina binders: %v\n", gallinaBinders)
 	if len(args) == 0 {
 		args = []string{"#()"}
 	}
@@ -173,7 +170,6 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 
 func packageWps(pkg *packages.Package) []string {
 	var wps []string
-	fmt.Printf("package: %v\n", pkg)
 	for _, f := range pkg.Syntax {
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {

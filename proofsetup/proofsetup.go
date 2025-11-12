@@ -56,8 +56,6 @@ func pkgCoqImports(pkg *packages.Package) []string {
 	imports = append(imports, "sys_verif.program_proof.prelude")
 	imports = append(imports, "sys_verif.program_proof.empty_ffi")
 	imports = append(imports, "sys_verif.program_proof.heap_init")
-
-	fmt.Printf("imports: %v\n", imports)
 	
 	return imports
 }

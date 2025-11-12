@@ -21,6 +21,9 @@ func main() {
 	flag.StringVar(&modDir, "dir", ".",
 		"directory containing necessary go.mod")
 
+	var verbose bool
+	flag.BoolVar(&verbose, "verbose", false, "verbosity level")
+
 	flag.Parse()
 	pkgPatterns := flag.Args()
 
@@ -34,6 +37,7 @@ func main() {
 	blue := color.New(color.FgBlue).SprintfFunc()
 
 	for _, pkg := range pkgs {
+		fmt.Printf("pkg: %v\n", pkg)
 		pf := proofsetup.New(pkg)
 		fmt.Printf("%s:\n", blue(pf.ProofPath))
 		fmt.Printf(pf.SkeletonFile())
