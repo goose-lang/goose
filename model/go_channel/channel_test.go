@@ -1,4 +1,4 @@
-package channel_test
+package go_channel_test
 
 /*
 Tests to demonstrate Go's behavior on various subtle examples.
@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goose-lang/goose/model/channel"
+	channel "github.com/goose-lang/goose/model/go_channel"
 	"github.com/stretchr/testify/assert"
 )
 
-// The channel tests below are for the Goose model of channels that is implemented as a Go
-// struct. The tests are hand translated versions of correctness based tests in
+// The channel tests below are for the Go channel wrapper that uses built-in
+// channels. The tests are hand translated versions of correctness based tests in
 // https://go.dev/src/runtime/chan_test.go https://go.dev/src/runtime/chanbarrier_test.go
 func TestChan(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
@@ -295,7 +295,7 @@ func TestLenCapComparedWithGoChannels(t *testing.T) {
 	// Test special case: nil channel
 	t.Run("NilChannel", func(t *testing.T) {
 		var goChan chan int
-		var ourChan *channel.Channel[int]
+		var ourChan channel.Channel[int]
 
 		goLen := len(goChan)
 		goCap := cap(goChan)
@@ -363,7 +363,7 @@ func TestBlockingBehavior(t *testing.T) {
 		t.Run("SendToNilBlocks", func(t *testing.T) {
 			// Compare with Go's behavior
 			var goChan chan int
-			var ourChan *channel.Channel[int] = nil
+			var ourChan channel.Channel[int] = nil
 
 			goBlocked := true
 			ourBlocked := true
@@ -404,7 +404,7 @@ func TestBlockingBehavior(t *testing.T) {
 		t.Run("ReceiveFromNilBlocks", func(t *testing.T) {
 			// Compare with Go's behavior
 			var goChan chan int
-			var ourChan *channel.Channel[int] = nil
+			var ourChan channel.Channel[int] = nil
 
 			goBlocked := true
 			ourBlocked := true
@@ -600,7 +600,7 @@ func TestPanicComparedWithGoChannels(t *testing.T) {
 		})
 
 		// Test with our channel implementation
-		var ourChan *channel.Channel[int]
+		var ourChan channel.Channel[int]
 		ourDidPanic, ourMessage := assertPanicsWithMessage(func() {
 			ourChan.Close()
 		})
@@ -1224,5 +1224,3 @@ func TestIter(t *testing.T) {
 	}
 	assert.Equalf(t, expected, actual, "wrong values")
 }
-
-// TODO: test https://pkg.go.dev/reflect#Select

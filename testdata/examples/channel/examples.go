@@ -87,6 +87,37 @@ func fib_consumer() []int {
 	return results
 }
 
+func simple_join() string {
+	ch := make(chan struct{}, 1)
+	var message string
+
+	go func() {
+		message = "Hello, World!"
+		ch <- struct{}{}
+	}()
+
+	<-ch // Wait for goroutine to finish
+	return message
+}
+
+func simple_multi_join() string {
+	ch := make(chan struct{}, 2)
+	var hello, world string
+
+	go func() {
+		hello = "Hello"
+		ch <- struct{}{}
+	}()
+	go func() {
+		world = "World"
+		ch <- struct{}{}
+	}()
+	// Wait for both goroutines
+	<-ch
+	<-ch
+	return hello + " " + world
+}
+
 // Show that it isn't possible to have 2 nonblocking ops that match.
 func select_nb_no_panic() {
 	ch := make(chan struct{})
@@ -102,6 +133,16 @@ func select_nb_no_panic() {
 	case ch <- struct{}{}:
 		panic("bad")
 	default:
+	}
+}
+
+func select_no_double_close() {
+	x := make(chan int)
+	close(x)
+	select {
+	case <-x:
+	default:
+		close(x)
 	}
 }
 
