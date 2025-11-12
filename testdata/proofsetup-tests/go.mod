@@ -1,3 +1,3 @@
-module proofsetup-tests
+module proofsetup
 
 go 1.22

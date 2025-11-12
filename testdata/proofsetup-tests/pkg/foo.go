@@ -1,4 +1,4 @@
-package pkg1
+package pkg
 
 func Sum(n uint64) uint64 {
 	var s, i uint64

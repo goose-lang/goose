@@ -19,12 +19,13 @@ type receiverType struct {
 	Pointer bool
 }
 
-func (rt receiverType) FullName() string {
-	if rt.Pointer {
-		return rt.Name + "'ptr"
-	} else {
-		return rt.Name
-	}
+func (rt receiverType) FullName(pkgname string) string {
+	// if rt.Pointer {
+		// return rt.Name + "'ptr"
+		return "ptrT.id " + pkgname + "." + rt.Name + ".id"
+	// } else {
+	// 	return rt.Name
+	// }
 }
 
 // getReceiverType extracts information about the receiver of a method
@@ -50,7 +51,7 @@ func argGallinaBinder(pkg *packages.Package, x *ast.Ident) string {
 	return fmt.Sprintf("(%s: %s)", x.Name, ty)
 }
 
-func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
+func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string) {
 	s := new(bytes.Buffer)
 
 	var rt *receiverType = nil
@@ -68,7 +69,6 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 		recv := decl.Recv.List[0].Names[0]
 		gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, recv))
 	}
-
 	
 	params := []string{}
 	for _, param := range decl.Type.Params.List {
@@ -91,11 +91,14 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 		}
 		fmt.Fprintf(s, "(* generic arguments %s not handled *)\n", strings.Join(args, " "))
 	}
+	var name string
+	
 	if rt != nil {
-		fmt.Fprintf(s, "Lemma wp_%s__%s %s :\n", rt.Name, decl.Name, strings.Join(gallinaBinders, " "))
+		name = "wp_" + rt.Name + "__" + decl.Name.Name
 	} else {
-		fmt.Fprintf(s, "Lemma wp_%s %s :\n", decl.Name, strings.Join(gallinaBinders, " "))
+		name = "wp_" + decl.Name.Name
 	}
+	fmt.Fprintf(s, "Lemma %s %s :\n", name, strings.Join(gallinaBinders, " "))
 
 	fmt.Fprintf(s, "  {{{ is_pkg_init %s }}}\n", pkg.Name)
 
@@ -104,7 +107,8 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 		fmt.Fprintf(s, "    @! \"%s\" %s\n", decl.Name, strings.Join(args, " "))
 	} else {
 		recv := decl.Recv.List[0].Names[0]
-		fmt.Fprintf(s, "    %s @ %s @ \"%s\" @ \"%s\" %s\n", recv.Name, pkg.Name, rt.FullName(), decl.Name, strings.Join(args, " "))
+		// fmt.Fprintf(s, "    %s @ %s @ \"%s\" @ \"%s\" %s\n", recv.Name, pkg.Name, rt.FullName(), decl.Name, strings.Join(args, " "))
+		fmt.Fprintf(s, "    %s @ (%s) @ \"%s\" %s\n", recv.Name, rt.FullName(pkg.Name), decl.Name, strings.Join(args, " "))
 	}
 
 	// return types
@@ -112,7 +116,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) string {
 	printReturns(s, decl, params, pkg)
 	fmt.Fprintf(s, " }}}.")
 	
-	return s.String()
+	return name, s.String()
 }
 
 // makeName turns 0 -> "a", 1 -> "b", ..., 25 -> "z", 26 -> "aa", etc.
@@ -139,11 +143,11 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 	var retRefs []string
 	idx := 0
 	for _, f := range decl.Type.Results.List {
-		ty := ""
+		typ := ""
 		if _, ok := f.Type.(*ast.StarExpr); ok {
-			ty = "loc"
+			typ = "loc"
 		} else {
-			ty = proofgen.ToCoqType(pkg.TypesInfo.TypeOf(f.Type), pkg)
+			typ = proofgen.ToCoqType(pkg.TypesInfo.TypeOf(f.Type), pkg)
 		}
 		n := 1
 		if len(f.Names) > 0 {
@@ -156,7 +160,7 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 				idx++
 				continue
 			}
-			typedParts = append(typedParts, fmt.Sprintf("(%s: %s)", name, ty))
+			typedParts = append(typedParts, fmt.Sprintf("(%s: %s)", name, typ))
 			retRefs = append(retRefs, "#"+name)
 			idx++
 		}
@@ -168,14 +172,17 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 	)
 }
 
-func packageWps(pkg *packages.Package) []string {
-	var wps []string
+func packageWps(pkg *packages.Package) ([]string, map[string]string) {
+	var names []string
+	wpsMap := make(map[string]string)
 	for _, f := range pkg.Syntax {
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				wps = append(wps, funcDeclToWp(pkg, decl))
+				name, lemma := funcDeclToWp(pkg, decl)
+				names = append(names, name)
+				wpsMap[name] = lemma
 			}
 		}
 	}
-	return wps
+	return names, wpsMap
 }

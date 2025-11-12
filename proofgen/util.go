@@ -37,11 +37,11 @@ func namedTypeToCoq(t *types.Named, pkg *packages.Package) string {
 	objPkg := t.Obj().Pkg()
 	thisName := t.Obj().Name()
 	var baseName string
-	if objPkg == nil || pkg.PkgPath == objPkg.Path() {
-		baseName = thisName + ".t"
-	} else {
+	// if objPkg == nil || pkg.PkgPath == objPkg.Path() {
+	// 	baseName = thisName + ".t"
+	// } else {
 		baseName = fmt.Sprintf("%s.%s.t", objPkg.Name(), thisName)
-	}
+	// }
 	// if TypeParams() is not nil, there are type parameters in the base named type
 	if t.TypeParams() != nil {
 		var params []string
