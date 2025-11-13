@@ -22,6 +22,31 @@ func TestAsync(t *testing.T) {
 	}
 }
 
+func TestServer(t *testing.T) {
+	s := Serve(func(input string) string {
+		return "processed-" + input
+	})
+
+	s.req <- "test"
+
+	select {
+	case result := <-s.res:
+		if result != "processed-test" {
+			panic(fmt.Sprintf("Expected 'processed-test', got '%s'", result))
+		}
+	case <-time.After(100 * time.Millisecond):
+		panic("MapServer timed out")
+	}
+
+	close(s.req)
+}
+
+func TestClient(t *testing.T) {
+	if Client() != "Hello, World!" {
+		panic("not wai! fix it please!")
+	}
+}
+
 func TestMapServer(t *testing.T) {
 	s := mkStream(func(input string) string {
 		return "processed-" + input
@@ -44,7 +69,7 @@ func TestMapServer(t *testing.T) {
 }
 
 func TestMuxer(t *testing.T) {
-	streamChan := make(chan stream)
+	streamChan := make(chan streamold)
 
 	go Muxer(streamChan)
 
@@ -87,12 +112,12 @@ func TestMuxer(t *testing.T) {
 }
 
 func TestMuxerConcurrent(t *testing.T) {
-	streamChan := make(chan stream, 10)
+	streamChan := make(chan streamold, 10)
 
 	go Muxer(streamChan)
 
 	const numStreams = 10
-	streams := make([]stream, numStreams)
+	streams := make([]streamold, numStreams)
 
 	// Create and send multiple streams
 	for i := 0; i < numStreams; i++ {
@@ -131,7 +156,7 @@ func TestMuxerConcurrent(t *testing.T) {
 }
 
 func TestCancellation(t *testing.T) {
-	mux := make(chan stream)
+	mux := make(chan streamold)
 	done := make(chan struct{})
 	errMsg := ""
 
@@ -158,7 +183,7 @@ func TestCancellation(t *testing.T) {
 }
 
 func TestNormalShutdown(t *testing.T) {
-	mux := make(chan stream)
+	mux := make(chan streamold)
 	done := make(chan struct{})
 	errMsg := ""
 
