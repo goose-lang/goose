@@ -254,7 +254,7 @@ func SimpleType(t types.Type) glang.Type {
 		return nil
 	case *types.Basic:
 		switch t.Name() {
-		case "uint64", "uint32", "uint16", "uint8", "int64", "int32", "int16", "int8", "byte", "int", "uint", "bool", "string", "float64", "float32":
+		case "uint64", "uint32", "uint16", "uint8", "int64", "int32", "int16", "int8", "byte", "int", "uint", "bool", "string", "float64", "float32", "rune":
 			return glang.TypeIdent(fmt.Sprintf("%sT", t.Name()))
 		case "untyped string":
 			return glang.TypeIdent("stringT")

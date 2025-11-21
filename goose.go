@@ -2081,7 +2081,7 @@ func isUnsignedIntegerKind(t types.BasicKind) bool {
 }
 
 func isSignedIntegerKind(t types.BasicKind) bool {
-	return t == types.Int || t == types.Int8 || t == types.Int16 || t == types.Int32 || t == types.Int64
+	return t == types.Int || t == types.Int8 || t == types.Int16 || t == types.Int32 || t == types.Int64 || t == types.Rune
 }
 
 func isIntegerKind(t types.BasicKind) bool {
