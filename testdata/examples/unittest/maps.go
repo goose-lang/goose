@@ -55,3 +55,12 @@ func mapLiteralTest() map[string]uint64 {
 	}
 	return ascii
 }
+
+func mapClearTest() int {
+	m := make(map[int]bool)
+	m[1] = true
+	m[2] = false
+	m[7] = true
+	clear(m)
+	return len(m)
+}

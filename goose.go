@@ -1404,6 +1404,13 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 			ctx.nope(e, "delete on non-map")
 		}
 		return glang.GallinaVerbatim("map.delete")
+	case "clear":
+		// TODO: support clear on slice
+		sig := ctx.typeOf(e).(*types.Signature)
+		if _, ok := getMapType(sig.Params().At(0).Type().Underlying()); !ok {
+			ctx.nope(e, "clear on non-map")
+		}
+		return glang.GallinaVerbatim("map.clear")
 	case "panic":
 		return glang.GallinaVerbatim("Panic")
 	case "min", "max":
