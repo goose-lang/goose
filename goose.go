@@ -1017,7 +1017,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	}
 
 	var op glang.BinOp = -1
-	if t, ok := compType.(*types.Basic); ok && t.Kind() != types.UnsafePointer {
+	if t, ok := compType.Underlying().(*types.Basic); ok && t.Kind() != types.UnsafePointer {
 		switch t.Kind() {
 		case types.UntypedInt:
 			op, ok = untypedIntOps[e.Op]

@@ -42,3 +42,14 @@ func testU32NewtypeLen() bool {
 	s := make([]byte, 20)
 	return Uint32(len(s)) == Uint32(20)
 }
+
+type numWrapper int
+
+func (n *numWrapper) inc() {
+	*n++
+}
+
+func testNumWrapper() {
+	n := numWrapper(0)
+	n.inc()
+}
