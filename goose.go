@@ -781,7 +781,6 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			typeArgs := ctx.info.Instances[e.Sel].TypeArgs
 			args := typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))
 			if ctx.directCalls {
-				fmt.Printf("call to %s.%s with args %v\n", f.Pkg().Name(), f.Name(), args)
 				baseFunc := ctx.gallinaIdent(fmt.Sprintf("%s.%s", f.Pkg().Name(), glang.FuncImpl(f.Name())))
 				if len(args) > 0 {
 					return glang.NewCallExpr(baseFunc, args...)
