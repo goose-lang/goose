@@ -9,6 +9,10 @@ var globalY string
 
 var globalA, globalB = "a", "b"
 
+const MaxRune = '\U0010FFFF'
+const runeWithType rune = 'a'
+const IntWidth = 8
+
 var _ = foo()
 
 func other() {
@@ -28,4 +32,10 @@ func init() {
 
 func init() {
 	globalY = ""
+}
+
+func useUntypedRune() {
+	if runeWithType > MaxRune {
+		panic("invalid comparison")
+	}
 }

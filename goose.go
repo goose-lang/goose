@@ -1041,6 +1041,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 					expr = glang.BoolVal{Value: glang.GallinaNotExpr{X: expr}}
 				}()
 			}
+
 		case types.Uint, types.Uint64, types.Uint32, types.Uint16, types.Uint8:
 			op, ok = unsignedIntOps[e.Op]
 			if !ok {
@@ -2174,7 +2175,7 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		}
 	}
 
-	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedInt {
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && (fromBasic.Kind() == types.UntypedInt || fromBasic.Kind() == types.UntypedRune) {
 		if toBasic, ok := toUnder.(*types.Basic); ok {
 			switch toBasic.Kind() {
 			case types.Uint64, types.Int64, types.Int, types.Uint:
@@ -2184,6 +2185,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 				return glang.Int32Val{Value: e}
 			case types.Uint8, types.Int8:
 				return glang.Int8Val{Value: e}
+			case types.UntypedRune, types.UntypedInt:
+				return e
 			}
 		}
 	}
@@ -3003,7 +3006,7 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 		switch t.Kind() {
 		case types.UntypedString:
 			return glang.GallinaVerbatim("go_string")
-		case types.UntypedInt:
+		case types.UntypedInt, types.UntypedRune:
 			return glang.GallinaVerbatim("Z")
 		}
 	}
