@@ -781,9 +781,12 @@ func (ctx *Ctx) selectorExpr(e *ast.SelectorExpr) glang.Expr {
 			typeArgs := ctx.info.Instances[e.Sel].TypeArgs
 			args := typesToExprs(ctx.convertTypeArgsToGlang(nil, typeArgs))
 			if ctx.directCalls {
-				return glang.NewCallExpr(
-					ctx.gallinaIdent(fmt.Sprintf("%s.%s", f.Pkg().Name(), glang.FuncImpl(f.Name()))),
-				).Append(args...)
+				baseFunc := ctx.gallinaIdent(fmt.Sprintf("%s.%s", f.Pkg().Name(), glang.FuncImpl(f.Name())))
+				if len(args) > 0 {
+					return glang.NewCallExpr(baseFunc, args...)
+				} else {
+					return baseFunc
+				}
 			} else {
 				return glang.NewCallExpr(
 					glang.GallinaVerbatim("func_call"),
@@ -1017,7 +1020,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 	}
 
 	var op glang.BinOp = -1
-	if t, ok := compType.(*types.Basic); ok && t.Kind() != types.UnsafePointer {
+	if t, ok := compType.Underlying().(*types.Basic); ok && t.Kind() != types.UnsafePointer {
 		switch t.Kind() {
 		case types.UntypedInt:
 			op, ok = untypedIntOps[e.Op]
@@ -1041,6 +1044,7 @@ func (ctx *Ctx) binExpr(e *ast.BinaryExpr) (expr glang.Expr) {
 					expr = glang.BoolVal{Value: glang.GallinaNotExpr{X: expr}}
 				}()
 			}
+
 		case types.Uint, types.Uint64, types.Uint32, types.Uint16, types.Uint8:
 			op, ok = unsignedIntOps[e.Op]
 			if !ok {
@@ -1404,6 +1408,13 @@ func (ctx *Ctx) builtinIdent(e *ast.Ident) glang.Expr {
 			ctx.nope(e, "delete on non-map")
 		}
 		return glang.GallinaVerbatim("map.delete")
+	case "clear":
+		// TODO: support clear on slice
+		sig := ctx.typeOf(e).(*types.Signature)
+		if _, ok := getMapType(sig.Params().At(0).Type().Underlying()); !ok {
+			ctx.nope(e, "clear on non-map")
+		}
+		return glang.GallinaVerbatim("map.clear")
 	case "panic":
 		return glang.GallinaVerbatim("Panic")
 	case "min", "max":
@@ -2074,7 +2085,7 @@ func isUnsignedIntegerKind(t types.BasicKind) bool {
 }
 
 func isSignedIntegerKind(t types.BasicKind) bool {
-	return t == types.Int || t == types.Int8 || t == types.Int16 || t == types.Int32 || t == types.Int64
+	return t == types.Int || t == types.Int8 || t == types.Int16 || t == types.Int32 || t == types.Int64 || t == types.Rune
 }
 
 func isIntegerKind(t types.BasicKind) bool {
@@ -2167,7 +2178,7 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 		}
 	}
 
-	if fromBasic, ok := fromUnder.(*types.Basic); ok && fromBasic.Kind() == types.UntypedInt {
+	if fromBasic, ok := fromUnder.(*types.Basic); ok && (fromBasic.Kind() == types.UntypedInt || fromBasic.Kind() == types.UntypedRune) {
 		if toBasic, ok := toUnder.(*types.Basic); ok {
 			switch toBasic.Kind() {
 			case types.Uint64, types.Int64, types.Int, types.Uint:
@@ -2177,6 +2188,8 @@ func (ctx *Ctx) handleImplicitConversion(n locatable, from, to types.Type, e gla
 				return glang.Int32Val{Value: e}
 			case types.Uint8, types.Int8:
 				return glang.Int8Val{Value: e}
+			case types.UntypedRune, types.UntypedInt:
+				return e
 			}
 		}
 	}
@@ -2996,7 +3009,7 @@ func (ctx *Ctx) declType(t types.Type) glang.Expr {
 		switch t.Kind() {
 		case types.UntypedString:
 			return glang.GallinaVerbatim("go_string")
-		case types.UntypedInt:
+		case types.UntypedInt, types.UntypedRune:
 			return glang.GallinaVerbatim("Z")
 		}
 	}

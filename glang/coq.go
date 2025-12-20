@@ -126,6 +126,8 @@ var GallinaKeywords map[string]bool = map[string]bool{
 	"match":  true,
 	"lookup": true,
 	"list":   true,
+	"True":   true,
+	"False":  true,
 }
 
 // GallinaIdent is treated as a possibly qualified Gallina identifier (and thus

@@ -28,7 +28,7 @@ func NewPackageConfig(modDir string, needDeps bool) *packages.Config {
 	}
 	return &packages.Config{
 		Dir:        modDir,
-		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64"),
+		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "GOEXPERIMENT=nosynchashtriemap"),
 		Mode:       mode,
 		BuildFlags: []string{"-tags", "goose"},
 		Fset:       token.NewFileSet(),

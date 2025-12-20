@@ -116,3 +116,7 @@ func testPtrMset() {
 	p.B()
 	f.Foo()
 }
+
+func pointerAny() *any {
+	return new(any)
+}

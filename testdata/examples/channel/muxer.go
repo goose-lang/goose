@@ -3,11 +3,16 @@ package chan_spec_raw_examples
 type stream struct {
 	req chan string
 	res chan string
+}
+
+type streamold struct {
+	req chan string
+	res chan string
 	f   func(string) string
 }
 
-func mkStream(f func(string) string) stream {
-	return stream{make(chan string), make(chan string), f}
+func mkStream(f func(string) string) streamold {
+	return streamold{make(chan string), make(chan string), f}
 }
 
 func Async(f func() string) chan string {
@@ -18,14 +23,37 @@ func Async(f func() string) chan string {
 	return ch
 }
 
-func MapServer(s stream) {
+func Serve(f func(string) string) stream {
+	s := stream{
+		req: make(chan string),
+		res: make(chan string),
+	}
+	go func() {
+		for {
+			s.res <- f(<-s.req)
+		}
+	}()
+	return s
+}
+
+func appWrld(s string) string {
+	return s + ", World!"
+}
+
+func Client() string {
+	hw := Serve(appWrld)
+	hw.req <- "Hello"
+	return <-hw.res
+}
+
+func MapServer(s streamold) {
 	for {
 		in := <-s.req
 		s.res <- s.f(in)
 	}
 }
 
-func Client() string {
+func ClientOld() string {
 
 	comma := mkStream(func(s string) string { return s + "," })
 	exclaim := mkStream(func(s string) string { return s + "!" })
@@ -40,44 +68,15 @@ func Client() string {
 	return <-comma.res + " " + <-exclaim.res
 }
 
-func Muxer(c chan stream) {
+func Muxer(c chan streamold) {
 	for s := range c {
 		go MapServer(s)
 	}
 }
 
-func CancellableMapServer(s stream, done chan struct{}) {
-	for {
-		select {
-		case in, ok := <-s.req:
-			if !ok {
-				return
-			}
-			s.res <- s.f(in)
-		case <-done:
-			return
-		}
-	}
-}
-
-// 4. CancellableMuxer - muxer with cancellation
-func CancellableMuxer(c chan stream, done chan struct{}, errMsg *string) string {
-	for {
-		select {
-		case s, ok := <-c:
-			if !ok {
-				return "serviced all requests"
-			}
-			go CancellableMapServer(s, done)
-		case <-done:
-			return *errMsg
-		}
-	}
-}
-
 func makeGreeting() string {
 	// Start muxer
-	mux := make(chan stream, 2)
+	mux := make(chan streamold, 2)
 	go Muxer(mux)
 
 	// Two simple streams
