@@ -34,7 +34,7 @@ func main() {
 	flag.Parse()
 	pkgPatterns := flag.Args()
 
-	pkgs, err := packages.Load(util.NewPackageConfig(modDir, false), pkgPatterns...)
+	pkgs, err := packages.Load(util.NewPackageConfig(modDir, true), pkgPatterns...)
 	if err != nil {
 		panic(err)
 	} else if len(pkgs) == 0 {
@@ -45,7 +45,7 @@ func main() {
 	red := color.New(color.FgRed).SprintFunc()
 
 	for _, pkg := range pkgs {
-		pf := proofsetup.New(pkg)
+		pf := proofsetup.New(pkg, verbose)
 		fmt.Printf("%s:\n", blue(pf.ProofPath))
 		w := pf.SkeletonFile()
 

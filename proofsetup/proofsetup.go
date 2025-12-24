@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 
-	// "slices"
 	"strings"
 	"text/template"
 
@@ -73,7 +72,7 @@ func importToRequireImport(coqPkgName string) string {
 	return fmt.Sprintf("From %s Require Import %s.", coqPkgName[:i], coqPkgName[i+1:])
 }
 
-func New(pkg *packages.Package) ProofSetup {
+func New(pkg *packages.Package, verbose bool) ProofSetup {
 	ffi := util.GetFfi(pkg)
 	s := ProofSetup{
 		PackageName: pkg.Name,
@@ -98,7 +97,7 @@ func New(pkg *packages.Package) ProofSetup {
 		s.ContextVars = "Context `{hG: !heapGS Σ} `{!globalsGS Σ} {go_ctx: GoContext}."
 	}
 
-	names, wpsMap := packageWps(pkg)
+	names, wpsMap := packageWps(pkg, verbose)
 	s.WpLemmaNames = names
 	s.WpLemmasMap = wpsMap
 
@@ -139,7 +138,8 @@ End proof.
 func (pf ProofSetup) UpdateFile(fp string, verbose bool) {
 	oldFile, err := os.ReadFile(fp)
 	if err != nil {
-		fmt.Errorf("could not read file %v\n", fp)
+		fmt.Fprintf(os.Stderr, "could not read file %v\n", fp)
+		return
 	}
 
 	var newFile string
@@ -159,13 +159,17 @@ func (pf ProofSetup) UpdateFile(fp string, verbose bool) {
 
 		endProofIndex := strings.Index(newFile, "End proof.")
 		if endProofIndex < 0 {
-			fmt.Errorf("could not find End proof. in file %s", fp)
+			fmt.Fprintf(os.Stderr, "could not find End proof. in file %s\n", fp)
 			return
 		}
 		newFile = newFile[:endProofIndex] + additional + newFile[endProofIndex:]
 	}
 
 	sectionIndex := strings.Index(string(oldFile), "Section proof.")
+	if sectionIndex < 0 {
+		fmt.Fprintf(os.Stderr, "could not find Section proof. in file %s\n", fp)
+		return
+	}
 	oldImports := string(oldFile[:sectionIndex])
 
 	oldImportLines := strings.Split(oldImports, "\n")
@@ -199,19 +203,19 @@ func (pf ProofSetup) UpdateFile(fp string, verbose bool) {
 		endIndex := strings.Index(string(oldFile), "Proof.")
 		if endIndex < 0 {
 			// error
-			fmt.Errorf("could not find Proof. after auto-generated proof-setup comment")
-			break
+			fmt.Fprintf(os.Stderr, "could not find Proof. after auto-generated proof-setup comment in %s\n", fp)
+			return
 		}
 		lemmaStart := strings.Index(string(oldFile), "Lemma ")
 		if lemmaStart < 0 || lemmaStart > endIndex {
 			// error
-			fmt.Errorf("could not find lemma after auto-generated proof-setup comment")
-			break
+			fmt.Fprintf(os.Stderr, "could not find lemma after auto-generated proof-setup comment in %s\n", fp)
+			return
 		}
 		lemmaEnd := strings.Index(string(oldFile)[lemmaStart+6:], " ")
 		if lemmaEnd < 0 || lemmaEnd > endIndex-lemmaStart-6 {
-			fmt.Errorf("could not find end of lemma name after auto-generated proof-setup comment")
-			break
+			fmt.Fprintf(os.Stderr, "could not find end of lemma name after auto-generated proof-setup comment in %s\n", fp)
+			return
 		}
 		lemmaName := string(oldFile)[lemmaStart+6 : lemmaStart+6+lemmaEnd]
 		foundLemmas[lemmaName] = true

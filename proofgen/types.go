@@ -34,7 +34,8 @@ func (tr typesTranslator) ReadablePos(p token.Pos) string {
 func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
-		return basicTypeToCoq(t)
+		typ, _ := basicTypeToCoq(t)
+		return typ
 	case *types.Slice:
 		return "slice.t"
 	case *types.Array:
@@ -48,7 +49,7 @@ func (tr *typesTranslator) toCoqTypeWithDeps(t types.Type) string {
 	case *types.Map, *types.Chan:
 		return "loc"
 	case *types.Named:
-		n := namedTypeToCoq(t, tr.pkg)
+		n, _ := namedTypeToCoq(t, tr.pkg)
 		tr.deps.Add(n)
 		return n
 	case *types.Struct:

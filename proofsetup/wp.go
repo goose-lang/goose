@@ -46,17 +46,44 @@ func getReceiverType(t types.Type) receiverType {
 	panic(errors.Errorf("unexpected receiver type %v", t))
 }
 
-func argGallinaBinder(pkg *packages.Package, x *ast.Ident) string {
-	ty := proofgen.ToCoqType(pkg.TypesInfo.TypeOf(x), pkg)
-	return fmt.Sprintf("(%s: %s)", x.Name, ty)
+func argGallinaBinder(pkg *packages.Package, x ast.Expr, xName string) (string, error) {
+	typeinfo := pkg.TypesInfo.TypeOf(x)
+	if typeinfo == nil {
+		return "", fmt.Errorf("cannot find type information for type %s", xName)
+	}
+	ty, err := proofgen.ToCoqType(typeinfo, pkg)
+	return fmt.Sprintf("(%s: %s)", xName, ty), err
 }
 
-func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string) {
+func receiverIsInstantiated(pkg *packages.Package, decl *ast.FuncDecl) bool {
+  	if decl.Recv == nil || len(decl.Recv.List) == 0 {
+  		return false
+  	}
+  	t := pkg.TypesInfo.TypeOf(decl.Recv.List[0].Type)
+  	if t == nil {
+  		return false
+  	}
+  	if p, ok := types.Unalias(t).(*types.Pointer); ok {
+  		t = p.Elem()
+  	}
+  	n, ok := types.Unalias(t).(*types.Named)
+  	return ok && n.TypeArgs() != nil && n.TypeArgs().Len() > 0
+}
+
+func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, error) {
+	if decl.Type.TypeParams != nil {
+		return decl.Name.Name, "", errors.Errorf("generics not supported")
+	}
+
+	if receiverIsInstantiated(pkg, decl) {
+		return decl.Name.Name, "", errors.Errorf("generic instantiation in receiver not supported")
+	}
+	
 	s := new(bytes.Buffer)
 
 	var rt *receiverType = nil
 	if decl.Recv != nil {
-		recv := decl.Recv.List[0].Names[0]
+		recv := decl.Recv.List[0].Type
 		t := pkg.TypesInfo.TypeOf(recv)
 		actualRt := getReceiverType(t)
 		rt = &actualRt
@@ -66,31 +93,43 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string) {
 	var args []string
 	// TODO: binder for rt
 	if rt != nil {
-		recv := decl.Recv.List[0].Names[0]
-		gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, recv))
+		var recv string
+		if len(decl.Recv.List[0].Names) > 0 {
+			recv = decl.Recv.List[0].Names[0].Name
+		} else {
+			recv = "recv"
+		}
+		gallinaBinders = append(gallinaBinders, fmt.Sprintf("(%s: %s)", recv, rt.Name))
 	}
 	
 	params := []string{}
+	unnamedIdx := 0
 	for _, param := range decl.Type.Params.List {
-		params = append(params, param.Names[0].Name)
-		for _, arg := range param.Names {
-			args = append(args, fmt.Sprintf("#%s", arg.Name))
-			gallinaBinders = append(gallinaBinders, argGallinaBinder(pkg, arg))
+		if len(param.Names) == 0 {
+			// unnamed parameter
+			typ, err := argGallinaBinder(pkg, param.Type, fmt.Sprintf("arg%d", unnamedIdx))
+			unnamedIdx++
+			if err != nil {
+				return decl.Name.Name, "", err
+			}
+
+			gallinaBinders = append(gallinaBinders, typ)
+		} else {
+			// single or multiple parameters with same type
+			for _, name := range param.Names {
+				typ, err := argGallinaBinder(pkg, param.Type, name.Name)
+				if err != nil {
+					return decl.Name.Name, "", err
+				}
+				gallinaBinders = append(gallinaBinders, typ)
+			}
 		}
 	}
+
 	if len(args) == 0 {
 		args = []string{"#()"}
 	}
 
-	if decl.Type.TypeParams != nil {
-		var args []string
-		for _, param := range decl.Type.TypeParams.List {
-			for _, name := range param.Names {
-				args = append(args, name.Name)
-			}
-		}
-		fmt.Fprintf(s, "(* generic arguments %s not handled *)\n", strings.Join(args, " "))
-	}
 	var name string
 	
 	if rt != nil {
@@ -106,9 +145,14 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string) {
 		// fmt.Fprintf(s, "    %s @ \"%s\" %s\n", pkg.Name, decl.Name, strings.Join(args, " "))
 		fmt.Fprintf(s, "    @! \"%s\" %s\n", decl.Name, strings.Join(args, " "))
 	} else {
-		recv := decl.Recv.List[0].Names[0]
+		var recv string
+		if len(decl.Recv.List[0].Names) > 0 {
+			recv = decl.Recv.List[0].Names[0].Name
+		} else {
+			recv = "recv"
+		}
 		// fmt.Fprintf(s, "    %s @ %s @ \"%s\" @ \"%s\" %s\n", recv.Name, pkg.Name, rt.FullName(), decl.Name, strings.Join(args, " "))
-		fmt.Fprintf(s, "    %s @ (%s) @ \"%s\" %s\n", recv.Name, rt.FullName(pkg.Name), decl.Name, strings.Join(args, " "))
+		fmt.Fprintf(s, "    %s @ (%s) @ \"%s\" %s\n", recv, rt.FullName(pkg.Name), decl.Name, strings.Join(args, " "))
 	}
 
 	// return types
@@ -116,7 +160,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string) {
 	printReturns(s, decl, params, pkg)
 	fmt.Fprintf(s, " }}}.")
 	
-	return name, s.String()
+	return name, s.String(), nil
 }
 
 // makeName turns 0 -> "a", 1 -> "b", ..., 25 -> "z", 26 -> "aa", etc.
@@ -147,7 +191,9 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 		if _, ok := f.Type.(*ast.StarExpr); ok {
 			typ = "loc"
 		} else {
-			typ = proofgen.ToCoqType(pkg.TypesInfo.TypeOf(f.Type), pkg)
+			// interesting case: receiver type is specialization of generic type. example: go/src/crypto/elliptic/nistec.go:pointFromAffine
+			// for now, not supported
+			typ, _ = proofgen.ToCoqType(pkg.TypesInfo.TypeOf(f.Type), pkg)
 		}
 		n := 1
 		if len(f.Names) > 0 {
@@ -172,13 +218,17 @@ func printReturns(w io.Writer, decl *ast.FuncDecl, params []string, pkg *package
 	)
 }
 
-func packageWps(pkg *packages.Package) ([]string, map[string]string) {
+func packageWps(pkg *packages.Package, verbose bool) ([]string, map[string]string) {
 	var names []string
 	wpsMap := make(map[string]string)
 	for _, f := range pkg.Syntax {
 		for _, decl := range f.Decls {
 			if decl, ok := decl.(*ast.FuncDecl); ok {
-				name, lemma := funcDeclToWp(pkg, decl)
+				name, lemma, err := funcDeclToWp(pkg, decl)
+				if err != nil && verbose {
+					fmt.Printf("function %s: %v\n", name, err)
+					continue
+				}
 				names = append(names, name)
 				wpsMap[name] = lemma
 			}
