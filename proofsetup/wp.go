@@ -112,14 +112,17 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 	unnamedIdx := 0
 	for _, param := range decl.Type.Params.List {
 		if len(param.Names) == 0 {
-			// unnamed parameter
-			typ, err := argGallinaBinder(pkg, param.Type, fmt.Sprintf("arg%d", unnamedIdx))
+			paramName := fmt.Sprintf("arg%d", unnamedIdx)
 			unnamedIdx++
+			// unnamed parameter
+			typ, err := argGallinaBinder(pkg, param.Type, paramName)
 			if err != nil {
 				return decl.Name.Name, "", err
 			}
 
 			gallinaBinders = append(gallinaBinders, typ)
+
+			args = append(args, "#" + paramName)
 		} else {
 			// single or multiple parameters with same type
 			for _, name := range param.Names {
@@ -128,8 +131,11 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 					return decl.Name.Name, "", err
 				}
 				gallinaBinders = append(gallinaBinders, typ)
+
+				args = append(args, "#" + name.Name)
 			}
 		}
+		
 	}
 
 	if len(args) == 0 {
@@ -149,7 +155,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 
 	if rt == nil {
 		// fmt.Fprintf(s, "    %s @ \"%s\" %s\n", pkg.Name, decl.Name, strings.Join(args, " "))
-		fmt.Fprintf(s, "    @! \"%s\" %s\n", decl.Name, strings.Join(args, " "))
+		fmt.Fprintf(s, "    @! %s.%s %s\n", pkg.Name, decl.Name, strings.Join(args, " "))
 	} else {
 		var recv string
 		if len(decl.Recv.List[0].Names) > 0 {
