@@ -21,8 +21,8 @@ type receiverType struct {
 
 func (rt receiverType) FullName(pkgname string) string {
 	// if rt.Pointer {
-		// return rt.Name + "'ptr"
-		return "ptrT.id " + pkgname + "." + rt.Name + ".id"
+	// return rt.Name + "'ptr"
+	return "ptrT.id " + pkgname + "." + rt.Name + ".id"
 	// } else {
 	// 	return rt.Name
 	// }
@@ -56,18 +56,18 @@ func argGallinaBinder(pkg *packages.Package, x ast.Expr, xName string) (string, 
 }
 
 func receiverIsInstantiated(pkg *packages.Package, decl *ast.FuncDecl) bool {
-  	if decl.Recv == nil || len(decl.Recv.List) == 0 {
-  		return false
-  	}
-  	t := pkg.TypesInfo.TypeOf(decl.Recv.List[0].Type)
-  	if t == nil {
-  		return false
-  	}
-  	if p, ok := types.Unalias(t).(*types.Pointer); ok {
-  		t = p.Elem()
-  	}
-  	n, ok := types.Unalias(t).(*types.Named)
-  	return ok && n.TypeArgs() != nil && n.TypeArgs().Len() > 0
+	if decl.Recv == nil || len(decl.Recv.List) == 0 {
+		return false
+	}
+	t := pkg.TypesInfo.TypeOf(decl.Recv.List[0].Type)
+	if t == nil {
+		return false
+	}
+	if p, ok := types.Unalias(t).(*types.Pointer); ok {
+		t = p.Elem()
+	}
+	n, ok := types.Unalias(t).(*types.Named)
+	return ok && n.TypeArgs() != nil && n.TypeArgs().Len() > 0
 }
 
 func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, error) {
@@ -78,7 +78,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 	if receiverIsInstantiated(pkg, decl) {
 		return decl.Name.Name, "", errors.Errorf("generic instantiation in receiver not supported")
 	}
-	
+
 	s := new(bytes.Buffer)
 
 	var rt *receiverType = nil
@@ -107,7 +107,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 		}
 		gallinaBinders = append(gallinaBinders, binder)
 	}
-	
+
 	params := []string{}
 	unnamedIdx := 0
 	for _, param := range decl.Type.Params.List {
@@ -122,7 +122,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 
 			gallinaBinders = append(gallinaBinders, typ)
 
-			args = append(args, "#" + paramName)
+			args = append(args, "#"+paramName)
 		} else {
 			// single or multiple parameters with same type
 			for _, name := range param.Names {
@@ -132,10 +132,10 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 				}
 				gallinaBinders = append(gallinaBinders, typ)
 
-				args = append(args, "#" + name.Name)
+				args = append(args, "#"+name.Name)
 			}
 		}
-		
+
 	}
 
 	if len(args) == 0 {
@@ -143,7 +143,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 	}
 
 	var name string
-	
+
 	if rt != nil {
 		name = "wp_" + rt.Name + "__" + decl.Name.Name
 	} else {
@@ -171,7 +171,7 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 	fmt.Fprintf(s, "  {{{ ")
 	printReturns(s, decl, params, pkg)
 	fmt.Fprintf(s, " }}}.")
-	
+
 	return name, s.String(), nil
 }
 
