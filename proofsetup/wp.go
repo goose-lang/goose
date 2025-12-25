@@ -99,7 +99,13 @@ func funcDeclToWp(pkg *packages.Package, decl *ast.FuncDecl) (string, string, er
 		} else {
 			recv = "recv"
 		}
-		gallinaBinders = append(gallinaBinders, fmt.Sprintf("(%s: %s)", recv, rt.Name))
+		// gallinaBinders = append(gallinaBinders, fmt.Sprintf("(%s: %s)", recv, rt.Name))
+		fmt.Printf("rt name: %v\n", rt.Name)
+		binder, err := argGallinaBinder(pkg, decl.Recv.List[0].Type, recv)
+		if err != nil {
+			return decl.Name.Name, "", err
+		}
+		gallinaBinders = append(gallinaBinders, binder)
 	}
 	
 	params := []string{}

@@ -43,9 +43,6 @@ func pkgCoqImports(pkg *packages.Package) []string {
 	// ffi := util.GetFfi(pkg)
 	var imports []string
 
-	imports = append(imports, "sys_verif.program_proof.prelude")
-	imports = append(imports, "sys_verif.program_proof.empty_ffi")
-	
 	imports = append(imports,
 		fmt.Sprintf("New.generatedproof.%s", pkgImport(pkg.PkgPath, pkg.Name)))
 
