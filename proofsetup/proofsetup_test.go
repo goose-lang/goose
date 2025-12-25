@@ -19,7 +19,7 @@ func TestNewSetup(t *testing.T) {
 	require.NoError(err, "internal error: could not load test")
 	require.Len(pkgs, 1, "internal error")
 	pkg := pkgs[0]
-	pf := New(pkg)
+	pf := New(pkg, false)
 	assert.Equal(path.Join("new/proof",
 		"github_com/goose_lang/goose/testdata/examples",
 		"semantics.v",
