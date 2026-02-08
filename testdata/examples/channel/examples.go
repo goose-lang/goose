@@ -164,3 +164,67 @@ func exchangePointer() {
 		panic("bad")
 	}
 }
+
+func BroadcastExample() {
+	done := make(chan struct{})
+	result1 := make(chan uint64)
+	result2 := make(chan uint64)
+
+	var sharedValue uint64
+
+	go func() {
+		<-done // Wait for broadcast
+		val := sharedValue
+		result1 <- val * 3
+	}()
+
+	go func() {
+		<-done // Wait for broadcast
+		val := sharedValue
+		result2 <- val * 5
+	}()
+
+	sharedValue = 2
+
+	// Broadcast that value is ready
+	close(done)
+
+	// Read results and assert
+	r1 := <-result1
+	r2 := <-result2
+
+	if r1 != 6 {
+		panic("receiver 1 got wrong value")
+	}
+	if r2 != 10 {
+		panic("receiver 2 got wrong value")
+	}
+}
+
+func Web(query string) string {
+	return query + ".html"
+}
+
+func Image(query string) string {
+	return query + ".png"
+}
+
+func Video(query string) string {
+	return query + ".mp4"
+}
+
+// https://go.dev/talks/2012/concurrency.slide#46
+func Google(query string) []string {
+	c := make(chan string, 3)
+
+	go func() { c <- Web(query) }()
+	go func() { c <- Image(query) }()
+	go func() { c <- Video(query) }()
+
+	results := make([]string, 0, 3)
+	for i := 0; i < 3; i++ {
+		r := <-c
+		results = append(results, r)
+	}
+	return results
+}
