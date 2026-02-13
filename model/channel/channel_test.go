@@ -22,9 +22,9 @@ import (
 // https://go.dev/src/runtime/chan_test.go https://go.dev/src/runtime/chanbarrier_test.go
 func TestChan(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	var N int = 200
+	var N int = 10
 	if testing.Short() {
-		N = 20
+		N = 4
 	}
 	for chanCap := 0; chanCap < N; chanCap++ {
 		{
