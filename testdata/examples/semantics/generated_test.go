@@ -261,7 +261,7 @@ func (suite *GoTestSuite) TestReturnFour() {
 }
 
 func (suite *GoTestSuite) TestCompareSliceToNil() {
-	suite.Equal(true, failing_testCompareSliceToNil())
+	suite.Equal(true, testCompareSliceToNil())
 }
 
 func (suite *GoTestSuite) TestComparePointerToNil() {
@@ -278,6 +278,10 @@ func (suite *GoTestSuite) TestComparePointerWrappedToNil() {
 
 func (suite *GoTestSuite) TestComparePointerWrappedDefaultToNil() {
 	suite.Equal(true, testComparePointerWrappedDefaultToNil())
+}
+
+func (suite *GoTestSuite) TestInterfaceNilWithType() {
+	suite.Equal(true, testInterfaceNilWithType())
 }
 
 func (suite *GoTestSuite) TestReverseAssignOps64() {

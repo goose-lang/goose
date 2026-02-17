@@ -1,6 +1,6 @@
 package semantics
 
-func failing_testCompareSliceToNil() bool {
+func testCompareSliceToNil() bool {
 	s := make([]byte, 0)
 	return s != nil
 }
@@ -24,4 +24,12 @@ func testComparePointerWrappedToNil() bool {
 func testComparePointerWrappedDefaultToNil() bool {
 	var s []byte
 	return s == nil
+}
+
+func testInterfaceNilWithType() bool {
+	// subtlety in Go: nil interface vs interface with a nil pointer in it are
+	// different
+	var isNil any = nil
+	var notNil any = (*string)(nil)
+	return isNil == nil && notNil != nil && isNil != notNil
 }
