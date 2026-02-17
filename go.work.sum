@@ -4,10 +4,10 @@ github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNu
 github.com/google/pprof v0.0.0-20230309165930-d61513b1440d h1:um9/pc7tKMINFfP1eE7Wv6PRGXlcCSJkVajF7KJw3uQ=
 github.com/google/pprof v0.0.0-20230309165930-d61513b1440d/go.mod h1:79YE0hCXdHag9sBkw2o+N/YnZtTkXi0UT9Nnixa5eYk=
 github.com/goose-lang/goose v0.6.1/go.mod h1:d/fwDpBnwyXI97lXIlmMgABHObvZ66WnN9J9x6y5Ofk=
+github.com/goose-lang/primitive v0.1.0/go.mod h1:sDE72zVH81ASwPXc1m9OgSfaaY0aZHu4Ty19FgONpOc=
 github.com/goose-lang/std v0.3.2/go.mod h1:0IoDUCIC80Msc7h/SqpbZY1ytjhV39rgKnyHG/tjdis=
 github.com/goose-lang/std v0.4.1/go.mod h1:bnKHDHwU0lHf99eMI5PVM77UweRyu6qgM/h43qGBRto=
-github.com/goose-lang/std v0.6.1 h1:fShymy3KEyVkf6Q26Z24W4aBXQD+Qu6XIORuqAdTwK0=
-github.com/goose-lang/std v0.6.1/go.mod h1:bnKHDHwU0lHf99eMI5PVM77UweRyu6qgM/h43qGBRto=
+github.com/goose-lang/std v0.5.0/go.mod h1:bnKHDHwU0lHf99eMI5PVM77UweRyu6qgM/h43qGBRto=
 github.com/kr/pty v1.1.1 h1:VkoXIwSboBpnk99O/KFauAEILuNHv5DVFKZMBN/gUgw=
 github.com/mit-pdos/gokv v0.0.0-20240710184135-76e2d6393889 h1:GjAmEiCKVc1yAEFb3ZyeaRfT6rzxZiJTSaI10p0sy7Q=
 github.com/mit-pdos/gokv v0.0.0-20240710184135-76e2d6393889/go.mod h1:LXcj7Z77EPHRIhK2Vv7+6PFi/3Okj36Qm5kQ7gq9NDk=
@@ -18,8 +18,6 @@ github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/
 github.com/tchajed/goose v0.5.3 h1:+Ag8wwWfsQZfsTSW953HfDvJmzQ6YopLsfnTNzcd/ZE=
 github.com/tchajed/goose v0.5.3/go.mod h1:ISQLiMmllwxTyKhi5wn/PKE3CeseL6Jnvv3CCWOHvVE=
 github.com/tchajed/marshal v0.6.1/go.mod h1:bpCjDLDucqTM51woyzbZP5ku3hT4TORx7YGhyWSUpA4=
-github.com/upamanyus/marshal v0.0.0-20260212025754-cf86d74f6773 h1:YA35N1VodzahcaIbLiWBdSV1WvUSOqy15hMY50vI3Rk=
-github.com/upamanyus/marshal v0.0.0-20260212025754-cf86d74f6773/go.mod h1:AlKL5d6a5lEmJqwuaq5eF5GMlpJIvlOiTGyZROqTZUc=
 github.com/yuin/goldmark v1.4.13 h1:fVcFKWvrslecOb/tg+Cc05dkeYx540o0FuFt3nUVDoE=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 golang.org/x/crypto v0.28.0/go.mod h1:rmgy+3RHxRZMyY0jjAJShp2zgEdOqj2AO7U0pYmeQ7U=
