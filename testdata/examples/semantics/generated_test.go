@@ -136,6 +136,50 @@ func (suite *GoTestSuite) TestIfStmtInterface() {
 	suite.Equal(true, testIfStmtInterface())
 }
 
+func (suite *GoTestSuite) TestParamsInterface() {
+	suite.Equal(true, testParamsInterface())
+}
+
+func (suite *GoTestSuite) TestEmptyInterface() {
+	suite.Equal(true, testEmptyInterface())
+}
+
+func (suite *GoTestSuite) TestStringInterface() {
+	suite.Equal(true, testStringInterface())
+}
+
+func (suite *GoTestSuite) TestTypeAssertionInterface() {
+	suite.Equal(true, testTypeAssertionInterface())
+}
+
+func (suite *GoTestSuite) TestDoublePointerInterface() {
+	suite.Equal(true, testDoublePointerInterface())
+}
+
+func (suite *GoTestSuite) TestMultipleFieldsInterface() {
+	suite.Equal(true, testMultipleFieldsInterface())
+}
+
+func (suite *GoTestSuite) TestSharedFunctionsInterface() {
+	suite.Equal(true, testSharedFunctionsInterface())
+}
+
+func (suite *GoTestSuite) TestAcceptAddressInterface() {
+	suite.Equal(true, testAcceptAddressInterface())
+}
+
+func (suite *GoTestSuite) TestPolymorphismInterface() {
+	suite.Equal(true, testPolymorphismInterface())
+}
+
+func (suite *GoTestSuite) TestEmbeddingInterface() {
+	suite.Equal(true, testEmbeddingInterface())
+}
+
+func (suite *GoTestSuite) TestDowncastInterface() {
+	suite.Equal(true, testDowncastInterface())
+}
+
 func (suite *GoTestSuite) TestsUseLocks() {
 	suite.Equal(true, testsUseLocks())
 }
