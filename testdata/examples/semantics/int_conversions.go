@@ -9,6 +9,15 @@ func testU64ToU32() bool {
 	return ok
 }
 
+func testU32ToU64() bool {
+	var ok = true
+	x := uint32(1230)
+	y := uint64(1230)
+	ok = ok && uint64(x) == y
+	ok = ok && uint32(y) == x
+	return ok
+}
+
 func testU32Len() bool {
 	s := make([]byte, 100)
 	return uint32(len(s)) == uint32(100)
@@ -16,8 +25,12 @@ func testU32Len() bool {
 
 type Uint32 uint32
 
-// https://github.com/goose-lang/goose/issues/14
-func failing_testU32NewtypeLen() bool {
+func testU32NewtypeLen() bool {
 	s := make([]byte, 20)
 	return Uint32(len(s)) == Uint32(20)
+}
+
+func testUint32Untyped() bool {
+	x := Uint32(1230)
+	return x == 1230
 }

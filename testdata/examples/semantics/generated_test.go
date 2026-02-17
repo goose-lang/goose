@@ -100,12 +100,20 @@ func (suite *GoTestSuite) TestU64ToU32() {
 	suite.Equal(true, testU64ToU32())
 }
 
+func (suite *GoTestSuite) TestU32ToU64() {
+	suite.Equal(true, testU32ToU64())
+}
+
 func (suite *GoTestSuite) TestU32Len() {
 	suite.Equal(true, testU32Len())
 }
 
 func (suite *GoTestSuite) TestU32NewtypeLen() {
-	suite.Equal(true, failing_testU32NewtypeLen())
+	suite.Equal(true, testU32NewtypeLen())
+}
+
+func (suite *GoTestSuite) TestUint32Untyped() {
+	suite.Equal(true, testUint32Untyped())
 }
 
 func (suite *GoTestSuite) TestBasicInterface() {
@@ -382,6 +390,18 @@ func (suite *GoTestSuite) TestSwitchDefaultTrue() {
 
 func (suite *GoTestSuite) TestSwitchConversion() {
 	suite.Equal(true, testSwitchConversion())
+}
+
+func (suite *GoTestSuite) TestPrimitiveTypesEqual() {
+	suite.Equal(true, testPrimitiveTypesEqual())
+}
+
+func (suite *GoTestSuite) TestDefinedStrTypesEqual() {
+	suite.Equal(true, testDefinedStrTypesEqual())
+}
+
+func (suite *GoTestSuite) TestListTypesEqual() {
+	suite.Equal(true, testListTypesEqual())
 }
 
 func (suite *GoTestSuite) TestPointerAssignment() {
