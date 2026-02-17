@@ -35,6 +35,10 @@ type GoTestSuite struct {
 	suite.Suite
 }
 
+func (suite *GoTestSuite) SetupTest() {
+	disk.Init(disk.NewMemDisk(30))
+}
+
 `
 
 const goFooter string = `func TestSuite(t *testing.T) {
@@ -159,8 +163,6 @@ func main() {
 				m := re.FindStringSubmatch(line)
 				if len(m) != 0 {
 					fmt.Fprintf(out, "func (suite *GoTestSuite) Test%s() {\n", m[3])
-					fmt.Fprintf(out, "\td := disk.NewMemDisk(30)\n")
-					fmt.Fprintf(out, "\tdisk.Init(d)\n")
 					fmt.Fprintf(out, "\tsuite.Equal(true, %stest%s())\n", m[2], m[3])
 					fmt.Fprintf(out, "}\n\n")
 				}
