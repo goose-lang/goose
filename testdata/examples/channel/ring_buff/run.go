@@ -3,7 +3,7 @@ package ring
 import (
 	"slices"
 
-	"github.com/goose-lang/goose/testdata/examples/channel/map_reduce/records"
+	"github.com/goose-lang/goose/testdata/examples/channel/records"
 )
 
 // -------------------- Run --------------------
