@@ -58,12 +58,13 @@ func (l *Lock) LockWithTimeout(d time.Duration) bool {
 	if d <= 0 {
 		return false
 	}
-	done := make(chan struct{})
-	go func() {
-		time.Sleep(d)
-		close(done)
-	}()
-	return l.LockIfNotCancelled(done)
+
+	select {
+	case l.ch <- struct{}{}:
+		return true
+	case <-time.After(d):
+		return false
+	}
 }
 
 func (l *Lock) LockWithDeadline(deadline time.Time) bool {
