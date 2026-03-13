@@ -12,25 +12,25 @@ type Lock struct {
 }
 
 // NewLock returns a new Lock backed by a buffered channel of size 1.
-func NewLock() *Lock {
-	return &Lock{
+func NewLock() Lock {
+	return Lock{
 		ch: make(chan struct{}, 1),
 	}
 }
 
-func (l *Lock) Lock() {
+func (l Lock) Lock() {
 	l.ch <- struct{}{}
 }
 
 // Unlock releases the lock by receiving from the channel.
 // This will block if the lock is not currently held.
-func (l *Lock) Unlock() {
+func (l Lock) Unlock() {
 	<-l.ch
 }
 
 // TryLock attempts to acquire the lock without blocking.
 // Returns true on success, false if already held.
-func (l *Lock) TryLock() bool {
+func (l Lock) TryLock() bool {
 	select {
 	case l.ch <- struct{}{}:
 		return true
@@ -43,7 +43,7 @@ func (l *Lock) TryLock() bool {
 // It blocks until it can send into the channel (acquire), or until done is closed.
 //
 // Returns true if the lock was acquired, false if done fired first.
-func (l *Lock) LockIfNotCancelled(done <-chan struct{}) bool {
+func (l Lock) LockIfNotCancelled(done <-chan struct{}) bool {
 	select {
 	case l.ch <- struct{}{}:
 		return true
@@ -54,7 +54,7 @@ func (l *Lock) LockIfNotCancelled(done <-chan struct{}) bool {
 
 // LockWithTimeout attempts to acquire the lock, timing out after d.
 // Returns true if acquired, false if timed out.
-func (l *Lock) LockWithTimeout(d time.Duration) bool {
+func (l Lock) LockWithTimeout(d time.Duration) bool {
 	if d <= 0 {
 		return false
 	}
@@ -67,6 +67,6 @@ func (l *Lock) LockWithTimeout(d time.Duration) bool {
 	}
 }
 
-func (l *Lock) LockWithDeadline(deadline time.Time) bool {
+func (l Lock) LockWithDeadline(deadline time.Time) bool {
 	return l.LockWithTimeout(time.Until(deadline))
 }

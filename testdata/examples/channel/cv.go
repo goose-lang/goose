@@ -3,14 +3,11 @@ package chan_spec_raw_examples
 import "time"
 
 type Cond struct {
-	L       *Lock
+	L       Lock
 	waiters []chan struct{} // protected by L
 }
 
-func NewCond(L *Lock) *Cond {
-	if L == nil {
-		panic("chanlock: NewCond with nil Lock")
-	}
+func NewCond(L Lock) *Cond {
 	return &Cond{L: L}
 }
 
