@@ -66,7 +66,3 @@ func (l Lock) LockWithTimeout(d time.Duration) bool {
 		return false
 	}
 }
-
-func (l Lock) LockWithDeadline(deadline time.Time) bool {
-	return l.LockWithTimeout(time.Until(deadline))
-}

@@ -1713,15 +1713,6 @@ Definition Lock__LockWithTimeoutⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlob
       return: (#false)
       ))])).
 
-(* go: lock.go:70:15 *)
-Definition Lock__LockWithDeadlineⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlobalContext} : val :=
-  λ: "l" "deadline",
-    exception_do (let: "l" := (GoAlloc Lock "l") in
-    let: "deadline" := (GoAlloc time.Time "deadline") in
-    return: (let: "$a0" := (let: "$a0" := (![time.Time] "deadline") in
-     (FuncResolve time.Until [] #()) "$a0") in
-     (MethodResolve (go.PointerType Lock) "LockWithTimeout"%go "l") "$a0")).
-
 (* go: muxer.go:14:6 *)
 Definition mkStreamⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlobalContext} : val :=
   λ: "f",
@@ -2089,13 +2080,11 @@ Class Lock_Assumptions {ext : ffi_syntax} `{!GoGlobalContext} `{!GoLocalContext}
   #[global] Lock_set_ch (x : Lock.t) y :: ⟦StructFieldSet (Lockⁱᵐᵖˡ) "ch", (#x, #y)⟧ ⤳[under] #(x <|Lock.ch' := y|>);
   #[global] Lock_Lock_unfold :: MethodUnfold (Lock) "Lock" (Lock__Lockⁱᵐᵖˡ);
   #[global] Lock_LockIfNotCancelled_unfold :: MethodUnfold (Lock) "LockIfNotCancelled" (Lock__LockIfNotCancelledⁱᵐᵖˡ);
-  #[global] Lock_LockWithDeadline_unfold :: MethodUnfold (Lock) "LockWithDeadline" (Lock__LockWithDeadlineⁱᵐᵖˡ);
   #[global] Lock_LockWithTimeout_unfold :: MethodUnfold (Lock) "LockWithTimeout" (Lock__LockWithTimeoutⁱᵐᵖˡ);
   #[global] Lock_TryLock_unfold :: MethodUnfold (Lock) "TryLock" (Lock__TryLockⁱᵐᵖˡ);
   #[global] Lock_Unlock_unfold :: MethodUnfold (Lock) "Unlock" (Lock__Unlockⁱᵐᵖˡ);
   #[global] Lock'ptr_Lock_unfold :: MethodUnfold (go.PointerType (Lock)) "Lock" (λ: "$r", MethodResolve (Lock) "Lock" (![(Lock)] "$r"));
   #[global] Lock'ptr_LockIfNotCancelled_unfold :: MethodUnfold (go.PointerType (Lock)) "LockIfNotCancelled" (λ: "$r", MethodResolve (Lock) "LockIfNotCancelled" (![(Lock)] "$r"));
-  #[global] Lock'ptr_LockWithDeadline_unfold :: MethodUnfold (go.PointerType (Lock)) "LockWithDeadline" (λ: "$r", MethodResolve (Lock) "LockWithDeadline" (![(Lock)] "$r"));
   #[global] Lock'ptr_LockWithTimeout_unfold :: MethodUnfold (go.PointerType (Lock)) "LockWithTimeout" (λ: "$r", MethodResolve (Lock) "LockWithTimeout" (![(Lock)] "$r"));
   #[global] Lock'ptr_TryLock_unfold :: MethodUnfold (go.PointerType (Lock)) "TryLock" (λ: "$r", MethodResolve (Lock) "TryLock" (![(Lock)] "$r"));
   #[global] Lock'ptr_Unlock_unfold :: MethodUnfold (go.PointerType (Lock)) "Unlock" (λ: "$r", MethodResolve (Lock) "Unlock" (![(Lock)] "$r"));
