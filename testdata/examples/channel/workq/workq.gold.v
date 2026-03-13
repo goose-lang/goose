@@ -15,8 +15,6 @@ Definition Worker {ext : ffi_syntax} {go_gctx : GoGlobalContext} : go.type := go
 
 Definition wordCount {ext : ffi_syntax} {go_gctx : GoGlobalContext} : go_string := "github.com/goose-lang/goose/testdata/examples/channel/workq.wordCount"%go.
 
-Definition workqMain {ext : ffi_syntax} {go_gctx : GoGlobalContext} : go_string := "github.com/goose-lang/goose/testdata/examples/channel/workq.workqMain"%go.
-
 (* go: w.go:13:18 *)
 Definition Worker__runⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlobalContext} : val :=
   λ: "w" "neighbor" "total" "remaining" "done",
@@ -197,42 +195,6 @@ Definition wordCountⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlobalContext} :
     ])] "done")));;;
     return: ((MethodResolve (go.PointerType atomic.Int64) "Load"%go "total") #())).
 
-(* go: w.go:98:6 *)
-Definition workqMainⁱᵐᵖˡ {ext : ffi_syntax} {go_gctx : GoGlobalContext} : val :=
-  λ: <>,
-    exception_do (let: "docs" := (GoAlloc (go.SliceType go.string) (GoZeroVal (go.SliceType go.string) #())) in
-    let: "$r0" := (let: "$v0" := #"the cat sat on the mat"%go in
-    let: "$v1" := #"a quick brown fox jumps over the lazy dog"%go in
-    let: "$v2" := #"to be or not to be that is the question"%go in
-    let: "$v3" := #"all that glitters is not gold"%go in
-    let: "$v4" := #"ask not what your country can do for you"%go in
-    let: "$v5" := #"one small step for man one giant leap for mankind"%go in
-    let: "$v6" := #"we hold these truths to be self evident"%go in
-    let: "$v7" := #"in the beginning was the word and the word was good"%go in
-    CompositeLiteral (go.SliceType go.string) (LiteralValue [KeyedElement None (ElementExpression go.string "$v0"); KeyedElement None (ElementExpression go.string "$v1"); KeyedElement None (ElementExpression go.string "$v2"); KeyedElement None (ElementExpression go.string "$v3"); KeyedElement None (ElementExpression go.string "$v4"); KeyedElement None (ElementExpression go.string "$v5"); KeyedElement None (ElementExpression go.string "$v6"); KeyedElement None (ElementExpression go.string "$v7")])) in
-    do:  ("docs" <-[go.SliceType go.string] "$r0");;;
-    let: "got" := (GoAlloc go.int64 (GoZeroVal go.int64 #())) in
-    let: "$r0" := (let: "$a0" := (![go.SliceType go.string] "docs") in
-    (FuncResolve wordCount [] #()) "$a0") in
-    do:  ("got" <-[go.int64] "$r0");;;
-    let: "want" := (GoAlloc go.int64 (GoZeroVal go.int64 #())) in
-    let: "$r0" := #(W64 0) in
-    do:  ("want" <-[go.int64] "$r0");;;
-    let: "$range" := (![go.SliceType go.string] "docs") in
-    (let: "doc" := (GoAlloc go.string (GoZeroVal go.string #())) in
-    slice.for_range go.string "$range" (λ: "$key" "$value",
-      do:  ("doc" <-[go.string] "$value");;;
-      do:  "$key";;;
-      do:  ("want" <-[go.int64] ((![go.int64] "want") +⟨go.int64⟩ (Convert go.int go.int64 (let: "$a0" := (let: "$a0" := (![go.string] "doc") in
-      (FuncResolve strings.Fields [] #()) "$a0") in
-      (FuncResolve go.len [go.SliceType go.string] #()) "$a0"))))));;;
-    (if: Convert go.untyped_bool go.bool ((![go.int64] "got") ≠⟨go.int64⟩ (![go.int64] "want"))
-    then
-      do:  (let: "$a0" := (Convert go.string (go.InterfaceType []) #"word count: wrong count"%go) in
-      (FuncResolve go.panic [] #()) "$a0")
-    else do:  #());;;
-    return: #()).
-
 #[global] Instance info' : PkgInfo pkg_id.workq :=
 {|
   pkg_imported_pkgs := [code.strings.pkg_id.strings; code.sync.atomic.pkg_id.atomic]
@@ -286,7 +248,6 @@ Class Assumptions {ext : ffi_syntax} `{!GoGlobalContext} `{!GoLocalContext} `{!G
 {
   #[global] Worker_instance :: Worker_Assumptions;
   #[global] wordCount_unfold :: FuncUnfold wordCount [] (wordCountⁱᵐᵖˡ);
-  #[global] workqMain_unfold :: FuncUnfold workqMain [] (workqMainⁱᵐᵖˡ);
   #[global] import_strings_Assumption :: strings.Assumptions;
   #[global] import_atomic_Assumption :: atomic.Assumptions;
 }.
