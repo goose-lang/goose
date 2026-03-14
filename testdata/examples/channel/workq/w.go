@@ -10,19 +10,23 @@ type Worker struct {
 	steal chan chan *string // reply is a pointer: nil means nothing to steal
 }
 
+type shared struct {
+	remaining *atomic.Int64
+	total     *atomic.Int64
+	done      chan struct{}
+}
+
 func (w *Worker) run(
 	neighbor *Worker,
-	total *atomic.Int64,
-	remaining *atomic.Int64,
-	done chan struct{},
+	sh shared,
 ) {
 	for {
 		select {
-		case <-done:
+		case <-sh.done:
 			return
 
 		case doc := <-w.queue:
-			w.process(doc, total, remaining, done)
+			w.process(doc, sh)
 
 		case reply := <-w.steal:
 			// A neighbor wants to steal a document from us.
@@ -40,25 +44,25 @@ func (w *Worker) run(
 			// we find local work and stop listening before they reply.
 			reply := make(chan *string, 1)
 			select {
-			case <-done:
+			case <-sh.done:
 				return
 			case neighbor.steal <- reply:
 				// Steal request accepted; wait for their response.
 				if doc := <-reply; doc != nil {
-					w.process(*doc, total, remaining, done)
+					w.process(*doc, sh)
 				}
 			case doc := <-w.queue:
 				// New work arrived locally while we were trying to steal.
-				w.process(doc, total, remaining, done)
+				w.process(doc, sh)
 			}
 		}
 	}
 }
 
-func (w *Worker) process(doc string, total *atomic.Int64, remaining *atomic.Int64, done chan struct{}) {
-	total.Add(int64(len(strings.Fields(doc))))
-	if remaining.Add(-1) == 0 {
-		close(done)
+func (w *Worker) process(doc string, sh shared) {
+	sh.total.Add(int64(len(strings.Fields(doc))))
+	if sh.remaining.Add(-1) == 0 {
+		close(sh.done)
 	}
 }
 
@@ -80,16 +84,18 @@ func wordCount(docs []string) int64 {
 		workers[0].queue <- doc
 	}
 
-	var total atomic.Int64
-	var remaining atomic.Int64
-	remaining.Store(int64(len(docs)))
-	done := make(chan struct{})
+	sh := shared{
+		remaining: new(atomic.Int64),
+		total:     new(atomic.Int64),
+		done:      make(chan struct{}),
+	}
+	sh.remaining.Store(int64(len(docs)))
 
 	for i, w := range workers {
 		neighbor := workers[(i+1)%numWorkers]
-		go w.run(neighbor, &total, &remaining, done)
+		go w.run(neighbor, sh)
 	}
 
-	<-done
-	return total.Load()
+	<-sh.done
+	return sh.total.Load()
 }
