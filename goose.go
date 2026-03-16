@@ -336,10 +336,17 @@ func (ctx *Ctx) maybeHandleSpecialBuiltin(s *ast.CallExpr) (glang.Expr, bool) {
 			return glang.CallExpr{}, true
 		}
 	case "new":
-		sig := ctx.typeOf(s.Fun).(*types.Signature)
-		ty := ctx.glangType(s.Args[0], sig.Params().At(0).Type())
-		return glang.NewCallExpr(glang.VerbatimExpr("GoAlloc"), ty,
-			glang.NewCallExpr(glang.VerbatimExpr("GoZeroVal"), ty, glang.Tt)), true
+		tv := ctx.info.Types[s.Args[0]]
+		var ty glang.Expr
+		var e glang.Expr
+		if tv.IsType() {
+			ty = ctx.glangType(s.Args[0], tv.Type)
+			e = glang.NewCallExpr(glang.VerbatimExpr("GoZeroVal"), ty, glang.Tt)
+		} else {
+			ty = ctx.glangType(s.Args[0], ctx.typeOf(s.Args[0]))
+			e = ctx.expr(s.Args[0])
+		}
+		return glang.NewCallExpr(glang.VerbatimExpr("GoAlloc"), ty, e), true
 	case "len", "cap":
 		if _, ok := ctx.typeOf(s.Fun).(*types.Signature); ok {
 			return nil, false
