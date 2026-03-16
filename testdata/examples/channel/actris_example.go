@@ -6,14 +6,14 @@ func DSPExample() int {
 	signal := make(chan any)
 
 	go func() {
-		ptr := (<-c).(*int)  // receive pointer ℓ
-		*ptr = *ptr + 2      // update *ℓ to *ℓ + 2
-		signal <- struct{}{} // send signal ()
+		ptr := (<-c).(*int)
+		*ptr = *ptr + 2
+		signal <- struct{}{}
 	}()
 
 	val := 40
-	ptr := &val // create reference ℓ := ref 40
-	c <- ptr    // send pointer ℓ
-	<-signal    // receive signal
+	ptr := &val // create reference to 40
+	c <- ptr
+	<-signal
 	return *ptr // dereference to get 42
 }

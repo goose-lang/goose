@@ -260,6 +260,14 @@ func (suite *GoTestSuite) TestReturnFour() {
 	suite.Equal(true, testReturnFour())
 }
 
+func (suite *GoTestSuite) TestNilDefault() {
+	suite.Equal(true, testNilDefault())
+}
+
+func (suite *GoTestSuite) TestNilVal() {
+	suite.Equal(true, testNilVal())
+}
+
 func (suite *GoTestSuite) TestCompareSliceToNil() {
 	suite.Equal(true, testCompareSliceToNil())
 }
