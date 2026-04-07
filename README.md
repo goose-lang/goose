@@ -1,5 +1,8 @@
 # Goose: a subset of Go with a semantics in Coq
 
+> [!WARNING]
+> Development for this repository has moved to https://github.com/mit-pdos/perennial.
+
 [![CI](https://github.com/goose-lang/goose/workflows/CI/badge.svg)](https://github.com/goose-lang/goose/actions/workflows/build.yml)
 [![](https://godoc.org/github.com/goose-lang/goose?status.svg)](https://godoc.org/github.com/goose-lang/goose)
 
